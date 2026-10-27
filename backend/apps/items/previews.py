@@ -261,10 +261,13 @@ def to_preview_image(data):
 
 
 def download_preview_image(image_url):
-    """Fetch and re-encode a preview image. Best effort: None on any failure."""
+    """
+    Fetch and re-encode a preview image. None if there is no usable image;
+    TransientFetchError propagates so the caller can retry.
+    """
     try:
         fetched = fetch(image_url, max_bytes=MAX_IMAGE_BYTES, accept="image/*")
-    except (FetchError, TransientFetchError) as exc:
+    except FetchError as exc:
         logger.info("Preview image fetch failed for %s: %s", image_url, exc)
         return None
     return to_preview_image(fetched.content)
