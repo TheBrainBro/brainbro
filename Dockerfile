@@ -1,0 +1,52 @@
+# One image for every Python service (api, worker, migrate).
+# The frontend is built in its own stage and served by Django as static files.
+
+FROM node:24.11-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+
+FROM python:3.12-slim-trixie AS app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    ENVIRONMENT=production \
+    FRONTEND_DIST_DIR=/app/frontend_dist \
+    STORAGE_PATH=/data/storage \
+    BACKUP_DIR=/data/backups
+
+# postgresql-client: pg_dump for the scheduled database backups. Trixie ships
+# version 17, matching the pgvector/pgvector:*-pg17 server.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system --gid 1000 brain \
+    && useradd --system --uid 1000 --gid brain --home /app brain
+
+WORKDIR /app
+
+# Exported from Poetry with `make exportdeps`.
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+
+COPY backend/ /app/
+COPY --from=frontend /frontend/dist /app/frontend_dist
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint
+
+RUN chmod +x /usr/local/bin/entrypoint \
+    && SECRET_KEY=build APP_HOSTNAMES=build python manage.py collectstatic --no-input \
+    && mkdir -p /data/storage /data/backups \
+    && chown -R brain:brain /data
+
+USER brain
+
+EXPOSE 8000
+
+ENTRYPOINT ["entrypoint"]
+CMD ["api"]
