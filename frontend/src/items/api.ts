@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
 
@@ -74,5 +74,51 @@ export function useRefreshPreview() {
   return useMutation({
     mutationFn: (id: string) => api<Item>(`/items/${id}/refresh-preview/`, { method: 'POST' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
+  })
+}
+
+export type TriageAction = 'organize' | 'archive' | 'inbox' | 'delete'
+
+export function useTriage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { ids: string[]; action: TriageAction; collections?: string[] }) =>
+      api<unknown>('/items/triage/', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: itemsKey })
+      queryClient.invalidateQueries({ queryKey: collectionsKey })
+    },
+  })
+}
+
+export type CollectionKind = 'project' | 'area' | 'personal'
+
+export type Collection = {
+  id: string
+  name: string
+  kind: CollectionKind
+  color: string
+  icon: string
+  item_count: number
+  created_at: string
+  updated_at: string
+}
+
+export const collectionsKey = ['collections']
+
+export function useCollections() {
+  return useQuery({
+    queryKey: collectionsKey,
+    // A personal app has few collections: one large page is enough for now.
+    queryFn: () => api<Page<Collection>>('/collections/?limit=500').then((page) => page.results),
+  })
+}
+
+export function useCreateCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; kind?: CollectionKind }) =>
+      api<Collection>('/collections/', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
   })
 }

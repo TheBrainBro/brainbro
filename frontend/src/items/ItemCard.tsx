@@ -92,9 +92,29 @@ function LinkPreview({ item }: { item: Item }) {
   )
 }
 
-export function ItemCard({ item, actions }: { item: Item; actions?: ReactNode }) {
+export function ItemCard({
+  item,
+  actions,
+  selected = false,
+  focused = false,
+  onToggleSelect,
+}: {
+  item: Item
+  actions?: ReactNode
+  selected?: boolean
+  focused?: boolean
+  onToggleSelect?: () => void
+}) {
+  const ring = selected
+    ? 'border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100'
+    : focused
+      ? 'border-zinc-400 dark:border-zinc-600'
+      : 'border-zinc-200 dark:border-zinc-800'
   return (
-    <article className="group rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+    <article
+      aria-current={focused || undefined}
+      className={`group rounded-xl border bg-white p-4 shadow-xs dark:bg-zinc-900 ${ring}`}
+    >
       {item.kind === 'link' ? (
         <LinkPreview item={item} />
       ) : (
@@ -104,7 +124,18 @@ export function ItemCard({ item, actions }: { item: Item; actions?: ReactNode })
         </>
       )}
       <footer className="mt-3 flex items-center justify-between text-xs text-zinc-400">
-        <time dateTime={item.created_at}>{timeAgo(item.created_at)}</time>
+        <div className="flex items-center gap-2">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              aria-label="Select"
+              className={selected ? '' : 'opacity-40 group-hover:opacity-100'}
+              checked={selected}
+              onChange={onToggleSelect}
+            />
+          )}
+          <time dateTime={item.created_at}>{timeAgo(item.created_at)}</time>
+        </div>
         {actions}
       </footer>
     </article>
