@@ -73,6 +73,28 @@ describe('InboxPage', () => {
     expect(JSON.parse(String(init?.body))).toEqual({ text: 'Remember the milk' })
   })
 
+  it('captures a paste outside the box right away', async () => {
+    let items: Item[] = []
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/items/capture/') {
+        const item = makeItem({ body: JSON.parse(String(init?.body)).text })
+        items = [item, ...items]
+        return jsonResponse(item, 201)
+      }
+      return jsonResponse(page(items))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderInbox()
+    await screen.findByText(/Inbox zero/)
+
+    const paste = new Event('paste', { bubbles: true }) as ClipboardEvent
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => '  Pasted idea ' } })
+    document.body.dispatchEvent(paste)
+
+    expect(await screen.findByText('Pasted idea')).toBeInTheDocument()
+    expect(screen.getByLabelText('Capture')).toHaveValue('')
+  })
+
   it('keeps Shift+Enter as a new line', async () => {
     const fetchMock = vi.fn(async () => jsonResponse(page([])))
     vi.stubGlobal('fetch', fetchMock)
