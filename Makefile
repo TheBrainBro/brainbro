@@ -77,8 +77,8 @@ lint: ## Lint and format check backend and frontend
 
 .PHONY: format
 format: ## Auto-format the backend
-	$(POETRY) run ruff check --fix .
 	$(POETRY) run ruff format .
+	$(POETRY) run ruff check --fix .
 
 .PHONY: frontend-build
 frontend-build: ## Build the frontend into frontend/dist
