@@ -41,9 +41,9 @@ backend: ## Run the Django dev server on :8000
 	$(MANAGE) runserver
 
 .PHONY: worker
+# Threads, not prefork: on macOS billiard spawns pool processes, which breaks
+# Celery's task tracer. Tasks here are I/O-bound anyway.
 worker: ## Run the Celery worker (with beat) for development
-	# Threads, not prefork: on macOS billiard spawns pool processes, which
-	# breaks Celery's task tracer. Tasks here are I/O-bound anyway.
 	$(POETRY) run celery -A config worker --beat --pool threads --loglevel info
 
 .PHONY: frontend
@@ -58,6 +58,9 @@ migrate: ## Apply database migrations
 makemigrations: ## Create new migrations
 	$(MANAGE) makemigrations
 
+.PHONY: migrations
+migrations: makemigrations ## Alias of makemigrations
+
 .PHONY: superuser
 superuser: ## Create a development superuser
 	$(MANAGE) createsuperuser
@@ -70,6 +73,9 @@ shell: ## Django shell
 test: services ## Run backend and frontend tests
 	$(POETRY) run pytest
 	cd frontend && npm test
+
+.PHONY: tests
+tests: test ## Alias of test
 
 .PHONY: lint
 lint: ## Lint and format check backend and frontend
