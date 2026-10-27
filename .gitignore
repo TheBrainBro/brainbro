@@ -1,0 +1,28 @@
+# Environment
+.env
+stack.env
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+backend/staticfiles/
+backend/storage/
+backend/backups/
+celerybeat-schedule*
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Host-side backups (scripts/backup-*.sh)
+/backups/
+
+# OS / editors
+.DS_Store
+.idea/
