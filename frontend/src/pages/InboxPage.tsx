@@ -1,5 +1,5 @@
 import { CaptureBox } from '../items/CaptureBox'
-import { ItemCard } from '../items/ItemCard'
+import { ItemList } from '../items/ItemList'
 import { useItems } from '../items/api'
 
 export function InboxPage() {
@@ -24,13 +24,7 @@ export function InboxPage() {
         </p>
       )}
 
-      <ul className="space-y-3">
-        {all.map((item) => (
-          <li key={item.id}>
-            <ItemCard item={item} />
-          </li>
-        ))}
-      </ul>
+      <ItemList items={all} />
 
       {items.hasNextPage && (
         <button

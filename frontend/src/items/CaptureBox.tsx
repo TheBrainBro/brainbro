@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { isEditable } from '../lib/dom'
 import { useCapture } from './api'
-
-function isEditable(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
-}
 
 /**
  * Always-visible capture: paste or type, Enter and done (Shift+Enter for a
