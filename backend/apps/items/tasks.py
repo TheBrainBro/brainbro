@@ -28,16 +28,33 @@ def fetch_link_preview(self, item_id):
     try:
         preview = build_preview(item.url)
     except TransientFetchError as exc:
-        if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=RETRY_DELAYS[self.request.retries])
+        _retry_if_possible(self, exc)
         return _mark_failed(item, exc)
     except FetchError as exc:
         return _mark_failed(item, exc)
 
+    image = None
+    if preview.image_url:
+        try:
+            image = download_preview_image(preview.image_url)
+        except TransientFetchError as exc:
+            # Worth another try; on the last attempt keep the preview anyway.
+            _retry_if_possible(self, exc)
+            logger.info("Preview image unavailable for %s: %s", item.url, exc)
+
+    _store_preview(item, preview, image)
+
+
+def _retry_if_possible(task, exc):
+    if task.request.retries < task.max_retries:
+        raise task.retry(exc=exc, countdown=RETRY_DELAYS[task.request.retries])
+
+
+def _store_preview(item, preview, image):
     image_name = ""
-    if preview.image_url and (data := download_preview_image(preview.image_url)):
+    if image:
         image_name = default_storage.save(
-            preview_image_path(item, ""), ContentFile(data)
+            preview_image_path(item, ""), ContentFile(image)
         )
 
     items = Item.objects.filter(id=item.id)

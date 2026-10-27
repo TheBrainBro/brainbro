@@ -108,6 +108,25 @@ def test_transient_errors_retry_with_backoff_then_fail(monkeypatch, link):
     assert link.preview_status == Item.PreviewStatus.FAILED
 
 
+def test_transient_image_errors_retry_then_keep_preview(monkeypatch, link):
+    def rate_limited(url):
+        raise TransientFetchError("HTTP 429")
+
+    monkeypatch.setattr(
+        tasks, "build_preview", lambda url: Preview({"title": "T"}, "https://i.io/x")
+    )
+    monkeypatch.setattr(tasks, "download_preview_image", rate_limited)
+    with pytest.raises(Retry):
+        fetch_link_preview.apply(args=[str(link.id)], retries=0)
+    link.refresh_from_db()
+    assert link.preview_status == Item.PreviewStatus.PENDING
+
+    fetch_link_preview.apply(args=[str(link.id)], retries=len(tasks.RETRY_DELAYS))
+    link.refresh_from_db()
+    assert link.preview_status == Item.PreviewStatus.READY
+    assert not link.preview_image
+
+
 def test_ignores_missing_and_non_link_items(monkeypatch, user):
     monkeypatch.setattr(tasks, "build_preview", pytest.fail)
     note = Item.objects.create(owner=user, kind=Item.Kind.NOTE, body="x")
