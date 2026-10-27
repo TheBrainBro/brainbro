@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './layout/AppLayout'
+import { InboxPage } from './pages/InboxPage'
 import { LoginPage } from './pages/LoginPage'
 import { Placeholder } from './pages/Placeholder'
 
@@ -16,12 +17,7 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          <Route
-            index
-            element={
-              <Placeholder title="Inbox" description="Drop anything here. Sorting it comes later." />
-            }
-          />
+          <Route index element={<InboxPage />} />
           <Route
             path="boards"
             element={<Placeholder title="Boards" description="The infinite canvas arrives in phase 2." />}
