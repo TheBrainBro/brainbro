@@ -42,7 +42,9 @@ backend: ## Run the Django dev server on :8000
 
 .PHONY: worker
 worker: ## Run the Celery worker (with beat) for development
-	$(POETRY) run celery -A config worker --beat --loglevel info
+	# Threads, not prefork: on macOS billiard spawns pool processes, which
+	# breaks Celery's task tracer. Tasks here are I/O-bound anyway.
+	$(POETRY) run celery -A config worker --beat --pool threads --loglevel info
 
 .PHONY: frontend
 frontend: ## Run the Vite dev server on :5173
