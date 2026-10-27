@@ -35,4 +35,5 @@ Roadmap: epic #1 on GitHub (`gh issue view 1`), sub-issues labeled `phase-0`…`
 - Git flow: `main` (releases), `develop` (integration), `feature/<issue>-<slug>`, `release/x.y.z`, `hotfix/*`.
 - Conventional Commits, atomic and small: `type(scope): summary` with scopes `backend`, `frontend`, `infra`, `docs`.
 - Claude commits, pushes and opens PRs in this repo itself (the user's global hook that blocks this is scoped to exclude this folder). Group files into small commits, one issue per commit where possible, referencing it as `(#N)`.
+- **No AI attribution anywhere:** no `Co-Authored-By`, no "Generated with", no signatures in commits, PRs, issues or comments. Everything is authored by the user.
 - PRs target `develop`; `main` only receives releases (Portainer deploys from `main`).
