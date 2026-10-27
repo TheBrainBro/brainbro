@@ -1,3 +1,4 @@
+from django.urls import reverse
 from rest_framework import serializers
 
 from .models import Collection, Item
@@ -39,6 +40,7 @@ class ItemSerializer(serializers.ModelSerializer):
     collections = OwnedPrimaryKeyRelatedField(
         queryset=Collection.objects.all(), many=True, required=False
     )
+    preview_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -51,6 +53,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "url",
             "metadata",
             "preview_status",
+            "preview_image_url",
             "collections",
             "created_at",
             "updated_at",
@@ -64,3 +67,12 @@ class ItemSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_preview_image_url(self, item):
+        if not item.preview_image:
+            return None
+        # Uploads are never public: the image goes through an authenticated
+        # view. The file name changes on every fetch, so it doubles as a
+        # cache buster.
+        path = reverse("item-preview-image", args=[item.id])
+        return f"{path}?v={item.preview_image.name.rsplit('/', 1)[-1]}"

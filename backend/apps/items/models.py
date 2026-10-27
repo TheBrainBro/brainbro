@@ -1,6 +1,8 @@
 import uuid
 
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 from apps.core.models import OwnedModel
 
@@ -82,3 +84,9 @@ class Item(OwnedModel):
 
     def __str__(self):
         return self.title or self.url or self.body[:60] or str(self.id)
+
+
+@receiver(post_delete, sender=Item)
+def delete_preview_image(sender, instance, **kwargs):
+    if instance.preview_image:
+        instance.preview_image.delete(save=False)

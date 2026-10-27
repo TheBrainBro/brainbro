@@ -141,6 +141,11 @@ MEDIA_URL = "/media/"
 BACKUP_DIR = Path(get_env_variable("BACKUP_DIR", str(BASE_DIR / "backups")))
 BACKUP_RETENTION = int(get_env_variable("BACKUP_RETENTION", "14"))
 
+# Link previews (apps.items.tasks.fetch_link_preview). Private, loopback and
+# link-local addresses are always refused unless explicitly allowed (tests).
+LINK_PREVIEW_ALLOWED_PORTS = {80, 443}
+LINK_PREVIEW_ALLOW_PRIVATE_IPS = False
+
 # Auth
 
 LOGIN_URL = "/login"
