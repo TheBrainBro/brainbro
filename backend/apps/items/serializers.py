@@ -1,3 +1,4 @@
+from django.db import models
 from django.urls import reverse
 from rest_framework import serializers
 
@@ -12,9 +13,21 @@ class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
 
 
 class CollectionSerializer(serializers.ModelSerializer):
+    # Annotated by the viewset; absent on freshly created collections.
+    item_count = serializers.IntegerField(read_only=True, default=0)
+
     class Meta:
         model = Collection
-        fields = ["id", "name", "kind", "color", "icon", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "kind",
+            "color",
+            "icon",
+            "item_count",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = ["created_at", "updated_at"]
 
     def validate_color(self, value):
@@ -76,3 +89,28 @@ class ItemSerializer(serializers.ModelSerializer):
         # cache buster.
         path = reverse("item-preview-image", args=[item.id])
         return f"{path}?v={item.preview_image.name.rsplit('/', 1)[-1]}"
+
+
+class TriageSerializer(serializers.Serializer):
+    """Apply one triage action to several items at once."""
+
+    class Action(models.TextChoices):
+        ORGANIZE = "organize"  # add to collections, out of the inbox
+        ARCHIVE = "archive"
+        INBOX = "inbox"  # back to the inbox
+        DELETE = "delete"
+
+    ids = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=False, max_length=500
+    )
+    action = serializers.ChoiceField(choices=Action.choices)
+    collections = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), many=True, required=False
+    )
+
+    def validate(self, data):
+        if data["action"] == self.Action.ORGANIZE and not data.get("collections"):
+            raise serializers.ValidationError(
+                {"collections": "Pick at least one collection."}
+            )
+        return data
