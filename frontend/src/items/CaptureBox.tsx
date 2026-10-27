@@ -3,13 +3,16 @@ import { useEffect, useRef, useState } from 'react'
 import { isEditable } from '../lib/dom'
 import { useCapture } from './api'
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent)
+
 /**
- * Always-visible capture: paste or type, Enter and done (Shift+Enter for a
- * new line). `/` or Ctrl/Cmd+K focuses it, and pasting anywhere on the page
- * lands here.
+ * Always-visible capture: type, Enter and done (Shift+Enter for a new line).
+ * Pasting anywhere outside a text field captures right away, with no box
+ * involved. `/` or Ctrl/Cmd+K focuses the box.
  */
 export function CaptureBox() {
   const capture = useCapture()
+  const { mutate: captureText } = capture
   const [text, setText] = useState('')
   const textarea = useRef<HTMLTextAreaElement>(null)
 
@@ -28,8 +31,7 @@ export function CaptureBox() {
       const pasted = event.clipboardData?.getData('text')
       if (!pasted) return
       event.preventDefault()
-      setText((current) => current + pasted)
-      textarea.current?.focus()
+      if (pasted.trim()) captureText(pasted.trim())
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('paste', onPaste)
@@ -37,7 +39,7 @@ export function CaptureBox() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('paste', onPaste)
     }
-  }, [])
+  }, [captureText])
 
   function submit() {
     const value = text.trim()
@@ -61,7 +63,6 @@ export function CaptureBox() {
         className="input field-sizing-content max-h-64 min-h-11 resize-none"
         placeholder="Paste a link or jot something down… (Enter to save)"
         rows={1}
-        autoFocus
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
@@ -71,6 +72,11 @@ export function CaptureBox() {
           }
         }}
       />
+      <p className="mt-1.5 flex items-center justify-end gap-1 text-xs text-zinc-500">
+        or paste anywhere
+        <kbd className="kbd">{isMac ? '⌘' : 'Ctrl'}</kbd>
+        <kbd className="kbd">V</kbd>
+      </p>
       {capture.isError && (
         <p role="alert" className="mt-1 text-sm text-red-600">
           {capture.error.message}

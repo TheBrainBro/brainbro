@@ -26,7 +26,15 @@ function Favicon({ src }: { src?: string }) {
   )
 }
 
-function LinkPreview({ item }: { item: Item }) {
+function Time({ iso }: { iso: string }) {
+  return (
+    <time dateTime={iso} title={new Date(iso).toLocaleString()} className="shrink-0">
+      {timeAgo(iso)}
+    </time>
+  )
+}
+
+function LinkPreview({ item, actions }: { item: Item; actions?: ReactNode }) {
   const refresh = useRefreshPreview()
   const { metadata } = item
   const title = item.title || metadata.title || item.url
@@ -61,9 +69,11 @@ function LinkPreview({ item }: { item: Item }) {
             {metadata.description}
           </p>
         )}
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
+        <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
           <Favicon src={metadata.favicon_url} />
           <span className="truncate">{metadata.site_name || hostname(item.url)}</span>
+          <span aria-hidden>·</span>
+          <Time iso={item.created_at} />
           {item.preview_status === 'failed' && (
             <>
               <span aria-hidden>·</span>
@@ -78,6 +88,7 @@ function LinkPreview({ item }: { item: Item }) {
               </button>
             </>
           )}
+          <div className="ml-auto">{actions}</div>
         </div>
       </div>
       {item.preview_image_url && (
@@ -113,31 +124,31 @@ export function ItemCard({
   return (
     <article
       aria-current={focused || undefined}
-      className={`group rounded-xl border bg-white p-4 shadow-xs dark:bg-zinc-900 ${ring}`}
+      className={`group flex gap-3 rounded-xl border bg-white p-4 shadow-xs dark:bg-zinc-900 ${ring}`}
     >
-      {item.kind === 'link' ? (
-        <LinkPreview item={item} />
-      ) : (
-        <>
-          {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
-          <p className="line-clamp-6 text-sm break-words whitespace-pre-wrap">{item.body}</p>
-        </>
+      {onToggleSelect && (
+        <input
+          type="checkbox"
+          aria-label="Select"
+          className={`mt-1 shrink-0 self-start ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+          checked={selected}
+          onChange={onToggleSelect}
+        />
       )}
-      <footer className="mt-3 flex items-center justify-between text-xs text-zinc-400">
-        <div className="flex items-center gap-2">
-          {onToggleSelect && (
-            <input
-              type="checkbox"
-              aria-label="Select"
-              className={selected ? '' : 'opacity-40 group-hover:opacity-100'}
-              checked={selected}
-              onChange={onToggleSelect}
-            />
-          )}
-          <time dateTime={item.created_at}>{timeAgo(item.created_at)}</time>
-        </div>
-        {actions}
-      </footer>
+      <div className="min-w-0 flex-1">
+        {item.kind === 'link' ? (
+          <LinkPreview item={item} actions={actions} />
+        ) : (
+          <>
+            {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
+            <p className="line-clamp-6 text-sm break-words whitespace-pre-wrap">{item.body}</p>
+            <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
+              <Time iso={item.created_at} />
+              <div className="ml-auto">{actions}</div>
+            </div>
+          </>
+        )}
+      </div>
     </article>
   )
 }
