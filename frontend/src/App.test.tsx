@@ -43,6 +43,14 @@ describe('auth routing', () => {
     expect(screen.getByText('carlos')).toBeInTheDocument()
   })
 
+  it('says it is offline, not broken, when the session cannot be fetched without network', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))))
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderAt('/')
+    expect(await screen.findByText(/You're offline\. Anything you share is kept/)).toBeInTheDocument()
+    onLine.mockRestore()
+  })
+
   it('goes back to the login page after signing out', async () => {
     let signedIn = true
     vi.stubGlobal(
