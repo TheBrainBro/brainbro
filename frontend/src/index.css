@@ -83,3 +83,29 @@ body {
     }
   }
 }
+
+/* The note editor: layout lives in its EditorView.theme (CodeMirror's own
+   styles are unlayered and would win); these are the colors. */
+@layer components {
+  .note-editor {
+    & .cm-selectionBackground,
+    & .cm-focused .cm-selectionBackground {
+      @apply bg-zinc-200! dark:bg-zinc-700!;
+    }
+    & .cm-placeholder {
+      @apply text-zinc-400;
+    }
+    & .cm-md-mark {
+      @apply text-zinc-400 dark:text-zinc-500;
+    }
+    & .cm-md-link {
+      @apply text-sky-700 dark:text-sky-400;
+    }
+    & .cm-md-code {
+      @apply rounded bg-zinc-100 font-mono text-[0.9em] dark:bg-zinc-800;
+    }
+    & .cm-md-quote {
+      @apply text-zinc-600 italic dark:text-zinc-400;
+    }
+  }
+}

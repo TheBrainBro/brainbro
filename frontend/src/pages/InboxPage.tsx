@@ -1,18 +1,44 @@
+import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router'
+
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
 import { CaptureBox } from '../items/CaptureBox'
 import { ItemList } from '../items/ItemList'
 import { useItems } from '../items/api'
+import { isEditable } from '../lib/dom'
 
 export function InboxPage() {
   const items = useItems({ status: 'inbox' })
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
   const { pending } = useCapturePipeline()
+  const navigate = useNavigate()
+
+  // `n` starts a note in the editor; it reaches the inbox once it has text.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'n' || event.metaKey || event.ctrlKey || event.altKey) return
+      if (isEditable(event.target)) return
+      event.preventDefault()
+      navigate('/notes/new')
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [navigate])
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-8">
       <div className="sticky top-0 z-10 bg-zinc-50/90 pt-8 pb-4 backdrop-blur dark:bg-zinc-950/90">
-        <h1 className="mb-3 text-2xl font-semibold">Inbox</h1>
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Inbox</h1>
+          <Link
+            to="/notes/new"
+            title="New note (N)"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            New note
+          </Link>
+        </div>
         <CaptureBox />
       </div>
 

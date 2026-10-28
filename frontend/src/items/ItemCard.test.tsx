@@ -18,6 +18,7 @@ function fileItem(metadata: Item['metadata']): Item {
     preview_image_url: null,
     file_url: '/api/items/f1/file/?v=a',
     collections: [],
+    version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }

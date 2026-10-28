@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ItemList } from './ItemList'
@@ -25,6 +26,7 @@ function note(id: string, body: string): Item {
     preview_image_url: null,
     file_url: null,
     collections: [],
+    version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -76,7 +78,9 @@ function renderList() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <ItemList items={items} />
+      <MemoryRouter>
+        <ItemList items={items} />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }

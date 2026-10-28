@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import { isEditable } from '../lib/dom'
 import { CollectionPicker } from './CollectionPicker'
@@ -10,10 +11,12 @@ const actionButton =
 
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
- * (j/k move, x select, o organize, e archive, # delete, Esc clear).
+ * (j/k move, Enter open a note, x select, o organize, e archive, # delete,
+ * Esc clear).
  */
 export function ItemList({ items, backToInbox = false }: { items: Item[]; backToInbox?: boolean }) {
   const triage = useTriage()
+  const navigate = useNavigate()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focused, setFocused] = useState<string | null>(null)
   const [organizing, setOrganizing] = useState<string[] | null>(null)
@@ -35,6 +38,10 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
       return
     }
     triage.mutate({ ids, action }, { onSuccess: () => setSelected(new Set()) })
+  }
+
+  function open(item: Item | undefined) {
+    if (item?.kind === 'note') navigate(`/notes/${item.id}`)
   }
 
   function toggle(id: string) {
@@ -62,6 +69,7 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
       ArrowDown: () => move(1),
       k: () => move(-1),
       ArrowUp: () => move(-1),
+      Enter: () => open(items[index]),
       x: () => focused && toggle(focused),
       o: () => run(targets, 'organize'),
       e: () => run(targets, 'archive'),
@@ -80,9 +88,14 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  function actionsFor(ids: string[]) {
+  function actionsFor(ids: string[], note?: Item) {
     return (
       <>
+        {note && (
+          <button type="button" className={actionButton} onClick={() => open(note)}>
+            Edit
+          </button>
+        )}
         <button type="button" className={actionButton} onClick={() => run(ids, 'organize')}>
           Organize
         </button>
@@ -137,9 +150,10 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
               selected={selected.has(item.id)}
               focused={focused === item.id}
               onToggleSelect={() => toggle(item.id)}
+              onOpen={item.kind === 'note' ? () => open(item) : undefined}
               actions={
                 <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                  {actionsFor([item.id])}
+                  {actionsFor([item.id], item.kind === 'note' ? item : undefined)}
                 </div>
               }
             />

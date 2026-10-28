@@ -215,12 +215,15 @@ export function ItemCard({
   selected = false,
   focused = false,
   onToggleSelect,
+  onOpen,
 }: {
   item: Item
   actions?: ReactNode
   selected?: boolean
   focused?: boolean
   onToggleSelect?: () => void
+  /** Notes only: open the editor. Clicks on links and controls inside stay theirs. */
+  onOpen?: () => void
 }) {
   const ring = selected
     ? 'border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100'
@@ -250,8 +253,18 @@ export function ItemCard({
           <FilePreview item={item} actions={actions} />
         ) : (
           <>
-            {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
-            <Markdown>{item.body}</Markdown>
+            <div
+              className={onOpen ? 'cursor-text' : undefined}
+              onClick={(event) => {
+                const target = event.target as HTMLElement
+                if (!target.closest('a, button, input') && !window.getSelection()?.toString()) {
+                  onOpen?.()
+                }
+              }}
+            >
+              {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
+              <Markdown>{item.body}</Markdown>
+            </div>
             <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
               <Time iso={item.created_at} />
               <div className="ml-auto">{actions}</div>

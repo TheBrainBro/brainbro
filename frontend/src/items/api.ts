@@ -36,6 +36,8 @@ export type Item = {
   preview_image_url: string | null
   file_url: string | null
   collections: string[]
+  /** Fingerprint of title and body, sent back as If-Match when saving. */
+  version: string
   created_at: string
   updated_at: string
 }
@@ -65,6 +67,33 @@ export function useItems(filters: { status?: ItemStatus; collection?: string }) 
       )
         ? PREVIEW_POLL_MS
         : false,
+  })
+}
+
+export const itemKey = (id: string) => [...itemsKey, 'detail', id]
+
+/** One item, refetched when the window regains focus so other tabs' edits show up. */
+export function useItem(id: string | undefined) {
+  return useQuery({
+    queryKey: itemKey(id ?? ''),
+    queryFn: () => api<Item>(`/items/${id}/`),
+    enabled: Boolean(id),
+    refetchOnWindowFocus: true,
+  })
+}
+
+/** Saves a note's body unless someone else saved since `version` (412, with their item). */
+export function updateNoteBody(
+  id: string,
+  body: string,
+  version: string,
+  { keepalive = false } = {},
+) {
+  return api<Item>(`/items/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ body }),
+    headers: { 'If-Match': `"${version}"` },
+    keepalive,
   })
 }
 
