@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
+import { Markdown } from './Markdown'
 import { useRefreshPreview, type Item } from './api'
 
 function hostname(url: string) {
@@ -250,7 +251,7 @@ export function ItemCard({
         ) : (
           <>
             {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
-            <p className="line-clamp-6 text-sm break-words whitespace-pre-wrap">{item.body}</p>
+            <Markdown>{item.body}</Markdown>
             <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
               <Time iso={item.created_at} />
               <div className="ml-auto">{actions}</div>
