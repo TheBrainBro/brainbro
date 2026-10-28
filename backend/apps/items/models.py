@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 
 from django.db import models
@@ -98,6 +99,15 @@ class Item(OwnedModel):
 
     def __str__(self):
         return self.title or self.url or self.body[:60] or str(self.id)
+
+    @property
+    def version(self):
+        """
+        Fingerprint of what the editor edits. Saves send it back (If-Match)
+        so one tab can't silently overwrite another; triage doesn't change it.
+        """
+        content = f"{self.title}\0{self.body}".encode()
+        return hashlib.sha256(content).hexdigest()[:16]
 
 
 @receiver(post_delete, sender=Item)

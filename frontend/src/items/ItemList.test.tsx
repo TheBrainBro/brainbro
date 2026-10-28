@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ItemList } from './ItemList'
@@ -25,6 +26,7 @@ function note(id: string, body: string): Item {
     preview_image_url: null,
     file_url: null,
     collections: [],
+    version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -76,7 +78,9 @@ function renderList() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <ItemList items={items} />
+      <MemoryRouter>
+        <ItemList items={items} />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -140,8 +144,37 @@ describe('ItemList triage', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Organize' }))
     await waitFor(() =>
-      expect(triageCalls()).toEqual([{ ids: ['a'], action: 'organize', collections: ['work', 'new'] }]),
+      expect(triageCalls()).toEqual([
+        { ids: ['a'], action: 'organize', collections: ['work', 'new'] },
+      ]),
     )
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+describe('ItemList tasks', () => {
+  it('keeps a task box mounted through the focus re-render, so the click lands', async () => {
+    const tasks = note('t', '- [ ] one\n- [ ] two')
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <ItemList items={[tasks]} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const [box] = screen.getAllByRole('checkbox', { name: 'To do' })
+    // Pressing focuses the card (a re-render) before the click arrives.
+    fireEvent.mouseDown(box)
+    expect(box.isConnected).toBe(true)
+    fireEvent.click(box)
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/items/t/',
+        expect.objectContaining({ method: 'PATCH' }),
+      ),
+    )
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === '/api/items/t/')!
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({ body: '- [x] one\n- [ ] two' })
   })
 })
