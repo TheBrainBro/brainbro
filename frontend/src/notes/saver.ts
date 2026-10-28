@@ -19,12 +19,7 @@ export type SaverOptions<T extends SavedNote> = {
   /** Creates the note (through the capture pipeline) from its first text. */
   create: (body: string) => Promise<T>
   /** Saves the body if the server still has `version`; rejects with a 412 ApiError otherwise. */
-  update: (
-    id: string,
-    body: string,
-    version: string,
-    options: { keepalive: boolean },
-  ) => Promise<T>
+  update: (id: string, body: string, version: string, options: { keepalive: boolean }) => Promise<T>
   onChange: (state: SaverState<T>) => void
   onSaved?: (note: T, created: boolean) => void
   drafts: DraftStore
@@ -48,8 +43,7 @@ export const NEW_NOTE = 'new'
 
 function isOffline(error: unknown) {
   return (
-    (typeof navigator !== 'undefined' && navigator.onLine === false) ||
-    error instanceof TypeError
+    (typeof navigator !== 'undefined' && navigator.onLine === false) || error instanceof TypeError
   )
 }
 
@@ -74,6 +68,7 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
   private again = false
   private options: SaverOptions<T>
   private loads = 0
+  private discarded = false
 
   constructor(note: T | null, options: SaverOptions<T>) {
     this.options = options
@@ -148,6 +143,7 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
   }
 
   edit(body: string) {
+    if (this.discarded) return
     this.text = body
     this.options.drafts.set(this.draftKey, { body, base: this.base?.version ?? null })
     if (this.state.status === 'conflict') return
@@ -189,7 +185,7 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
   async flush({ keepalive = false } = {}) {
     clearTimeout(this.timer)
     clearTimeout(this.retryTimer)
-    if (this.state.status === 'conflict') return
+    if (this.discarded || this.state.status === 'conflict') return
     if (this.inFlight) {
       this.again = true
       return
@@ -261,6 +257,14 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
       this.retryDelay = RETRY_MIN_MS
       this.flush()
     }
+  }
+
+  /** The note was deleted: drop pending edits and the draft, and never save again. */
+  discard() {
+    this.discarded = true
+    clearTimeout(this.timer)
+    clearTimeout(this.retryTimer)
+    this.options.drafts.remove(this.draftKey)
   }
 
   /** Leaving the note: save what's left and stop the timers. */

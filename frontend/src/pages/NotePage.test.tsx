@@ -40,16 +40,29 @@ let items: Item[]
 let patches: { id: string; body: string; ifMatch: string | null }[]
 let captures: unknown[]
 let conflictWith: string | null
+let triages: { ids: string[]; action: string }[]
 
 function setUp() {
   items = []
   patches = []
   captures = []
   conflictWith = null
+  triages = []
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/auth/session/') {
       return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
+    }
+    if (url === '/api/items/triage/') {
+      const payload = JSON.parse(String(init?.body))
+      triages.push(payload)
+      for (const item of items.filter((candidate) => payload.ids.includes(candidate.id))) {
+        if (payload.action === 'archive') item.status = 'archived'
+      }
+      if (payload.action === 'delete') {
+        items = items.filter((item) => !payload.ids.includes(item.id))
+      }
+      return jsonResponse([])
     }
     if (url === '/api/items/capture/') {
       const payload = JSON.parse(String(init?.body))
@@ -112,6 +125,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('NotePage', () => {
@@ -180,5 +194,29 @@ describe('NotePage', () => {
     expect((await editor()).state.doc.toString()).toBe('start, then offline')
     await waitFor(() => expect(patches).toHaveLength(1), { timeout: 3000 })
     expect(patches[0].body).toBe('start, then offline')
+  })
+
+  it('archives the note from its header and goes back', async () => {
+    items = [makeItem({ id: 'n1', body: 'keep this' })]
+    renderAt('/notes/n1')
+    await editor()
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }))
+    await waitFor(() => expect(triages).toEqual([{ ids: ['n1'], action: 'archive' }]))
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
+  })
+
+  it('deletes the note without saving the edits still pending', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    items = [makeItem({ id: 'n1', body: 'start' })]
+    renderAt('/notes/n1')
+    const view = await editor()
+    type(view, ' typed just before deleting')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(triages).toEqual([{ ids: ['n1'], action: 'delete' }]))
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    expect(patches).toEqual([])
+    expect(localStorage.getItem('brain:note-draft:n1')).toBeNull()
   })
 })

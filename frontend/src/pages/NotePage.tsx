@@ -3,7 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
-import { itemKey, itemsKey, updateNoteBody, useItem, type Item } from '../items/api'
+import { CollectionPicker } from '../items/CollectionPicker'
+import { itemKey, itemsKey, updateNoteBody, useItem, useTriage, type Item } from '../items/api'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import { NEW_NOTE, NoteSaver, localDrafts, type SaverState } from '../notes/saver'
@@ -106,6 +107,9 @@ function NoteWorkspace({
     return created
   })
   const state = reported ?? saver.snapshot
+  const triage = useTriage()
+  const goBack = useGoBack()
+  const [organizing, setOrganizing] = useState(false)
 
   useEffect(() => {
     saver.resume()
@@ -137,12 +141,61 @@ function NoteWorkspace({
     }
   }, [latest, saver])
 
+  const noteId = saver.noteId
+  const status = latest?.status ?? initial?.status
+
+  async function archive() {
+    if (!noteId) return
+    // Triage doesn't touch the text, so a save still in flight is fine.
+    saver.flush()
+    const toInbox = status === 'archived'
+    await triage.mutateAsync({ ids: [noteId], action: toInbox ? 'inbox' : 'archive' })
+    if (!toInbox) goBack()
+  }
+
+  async function remove() {
+    if (!noteId || !window.confirm('Delete this note?')) return
+    saver.discard()
+    await triage.mutateAsync({ ids: [noteId], action: 'delete' })
+    goBack()
+  }
+
   return (
     <Frame
-      status={
-        <SaveIndicator state={state} isNew={!saver.noteId} onRetry={() => saver.retryNow()} />
+      status={<SaveIndicator state={state} isNew={!noteId} onRetry={() => saver.retryNow()} />}
+      actions={
+        noteId && (
+          <>
+            <button type="button" className={actionButton} onClick={() => setOrganizing(true)}>
+              Organize
+            </button>
+            <button type="button" className={actionButton} onClick={archive}>
+              {status === 'archived' ? 'To inbox' : 'Archive'}
+            </button>
+            <button type="button" className={actionButton} onClick={remove}>
+              Delete
+            </button>
+          </>
+        )
       }
     >
+      {triage.isError && (
+        <p role="alert" className="mb-2 text-sm text-red-600">
+          {triage.error.message}
+        </p>
+      )}
+      {organizing && noteId && (
+        <CollectionPicker
+          count={1}
+          onClose={() => setOrganizing(false)}
+          onConfirm={(collections) =>
+            triage.mutate(
+              { ids: [noteId], action: 'organize', collections },
+              { onSuccess: () => setOrganizing(false) },
+            )
+          }
+        />
+      )}
       {state.status === 'conflict' && (
         <div
           role="alert"
@@ -203,11 +256,24 @@ function SaveIndicator({
   }
 }
 
-function Frame({ status, children }: { status?: ReactNode; children?: ReactNode }) {
+/** Back where we came from (the inbox, a collection), or the inbox on a fresh tab. */
+function useGoBack() {
   const location = useLocation()
   const navigate = useNavigate()
-  // Back where we came from (the inbox, a collection), or the inbox on a fresh tab.
   const canGoBack = location.key !== 'default'
+  return () => (canGoBack ? navigate(-1) : navigate('/'))
+}
+
+function Frame({
+  status,
+  actions,
+  children,
+}: {
+  status?: ReactNode
+  actions?: ReactNode
+  children?: ReactNode
+}) {
+  const goBack = useGoBack()
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-16">
@@ -216,9 +282,8 @@ function Frame({ status, children }: { status?: ReactNode; children?: ReactNode 
           to="/"
           className="rounded-md px-2 py-1 font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
           onClick={(event) => {
-            if (!canGoBack) return
             event.preventDefault()
-            navigate(-1)
+            goBack()
           }}
         >
           ← Back
@@ -226,6 +291,7 @@ function Frame({ status, children }: { status?: ReactNode; children?: ReactNode 
         <div role="status" aria-live="polite" className="ml-auto text-xs">
           {status}
         </div>
+        {actions && <div className="flex gap-1">{actions}</div>}
       </div>
       {children}
     </div>
