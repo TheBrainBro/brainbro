@@ -88,6 +88,10 @@ format: ## Auto-format the backend
 	$(POETRY) run ruff format .
 	$(POETRY) run ruff check --fix .
 
+.PHONY: preview
+preview: services migrate frontend-build ## Serve the built frontend from Django on :8000 (PWA, phone via a tunnel), with the worker
+	$(MAKE) -j2 backend worker
+
 .PHONY: frontend-build
 frontend-build: ## Build the frontend into frontend/dist
 	cd frontend && npm run build

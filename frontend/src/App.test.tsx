@@ -43,6 +43,31 @@ describe('auth routing', () => {
     expect(screen.getByText('carlos')).toBeInTheDocument()
   })
 
+  it('says it is offline, not broken, when the session cannot be fetched without network', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))))
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderAt('/')
+    expect(await screen.findByText(/You're offline\. Anything you share is kept/)).toBeInTheDocument()
+    onLine.mockRestore()
+  })
+
+  it('goes back to the login page after signing out', async () => {
+    let signedIn = true
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.endsWith('/auth/logout/')) {
+          signedIn = false
+          return new Response(null, { status: 204 })
+        }
+        return jsonResponse(signedIn ? { authenticated: true, user } : { authenticated: false, user: null })
+      }),
+    )
+    renderAt('/boards')
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Sign out' }))[0])
+    expect(await screen.findByText('Sign in to continue')).toBeInTheDocument()
+  })
+
   it('logs in and sends the CSRF token', async () => {
     document.cookie = 'csrftoken=abc123'
     const fetchMock = vi.fn(async (url: string) => {
