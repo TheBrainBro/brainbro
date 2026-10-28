@@ -109,6 +109,12 @@ describe('ItemCard notes', () => {
     expect(good).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
+  it('keeps a single ~ as text, like the editor (subscript there), not strikethrough', () => {
+    const { container } = renderCard(note('H~2~O and ~~gone~~'))
+    expect(container.querySelectorAll('del')).toHaveLength(1)
+    expect(container).toHaveTextContent('H~2~O')
+  })
+
   it('does not load remote images, showing their alt text', () => {
     renderCard(note('![a cat](https://tracker.example/cat.png)'))
     expect(screen.queryByRole('img')).toBeNull()
