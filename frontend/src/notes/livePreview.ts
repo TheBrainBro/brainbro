@@ -191,6 +191,7 @@ function build(state: EditorState, focused: boolean): DecorationSet {
     const first = state.doc.lineAt(from).number
     const last = state.doc.lineAt(to).number
     for (let number = first; number <= last; number++) {
+      codeLines.add(number)
       const classes = ['cm-md-codeblock']
       if (number === first) classes.push('cm-md-codeblock-first')
       if (number === last) classes.push('cm-md-codeblock-last')
@@ -202,6 +203,8 @@ function build(state: EditorState, focused: boolean): DecorationSet {
   const mark = (from: number, to: number, className: string) => {
     if (to > from) decorations.push(Decoration.mark({ class: className }).range(from, to))
   }
+  // Lines inside code blocks, where blank lines are content.
+  const codeLines = new Set<number>()
   // Quote depth per line (`>>` is two), so nested quotes show nested bars.
   const quoteDepth = new Map<number, number>()
   // The marker plus the space after it (`# `, `> `, `- `).
@@ -242,10 +245,17 @@ function build(state: EditorState, focused: boolean): DecorationSet {
           const language = info ? state.sliceDoc(info.from, info.to) : ''
           decorations.push(
             Decoration.replace({ widget: new FenceWidget(language) }).range(first.from, first.to),
+            // Fence lines shrink to the label's size, or to a sliver without one.
+            Decoration.line({ class: language ? 'cm-md-fence' : 'cm-md-fence-empty' }).range(
+              first.from,
+            ),
           )
           const closing = node.lastChild
           if (last.number > first.number && closing?.name === 'CodeMark') {
-            decorations.push(hide.range(last.from, last.to))
+            decorations.push(
+              hide.range(last.from, last.to),
+              Decoration.line({ class: 'cm-md-fence-empty' }).range(last.from),
+            )
           }
           return false
         }
@@ -363,6 +373,14 @@ function build(state: EditorState, focused: boolean): DecorationSet {
       }
     },
   })
+  // Blank lines after a blank line are a smaller gap: rendered Markdown
+  // collapses them, and a full line each leaves holes in the note.
+  for (let number = 2; number <= state.doc.lines; number++) {
+    const line = state.doc.line(number)
+    if (line.text.trim() || codeLines.has(number) || touches(line.from, line.to)) continue
+    if (state.doc.line(number - 1).text.trim()) continue
+    decorations.push(Decoration.line({ class: 'cm-md-gap' }).range(line.from))
+  }
   for (const [number, depth] of quoteDepth) {
     const line = state.doc.line(number)
     decorations.push(
@@ -457,7 +475,10 @@ export function livePreview(): Extension {
         borderBottomRightRadius: '0.5rem',
         paddingBottom: '0.25rem',
       },
-      '.cm-md-codelang': { fontSize: '0.75em', color: 'var(--md-muted)' },
+      '.cm-md-codelang': { color: 'var(--md-muted)' },
+      '.cm-line.cm-md-fence': { fontSize: '0.75em', lineHeight: '1.6' },
+      '.cm-line.cm-md-fence-empty': { fontSize: '0.75em', lineHeight: '0.75' },
+      '.cm-line.cm-md-gap': { lineHeight: '0.5' },
       '.cm-md-sup': { verticalAlign: 'super', fontSize: '0.75em' },
       '.cm-md-sub': { verticalAlign: 'sub', fontSize: '0.75em' },
       '.cm-md-footref': { verticalAlign: 'super', fontSize: '0.75em' },

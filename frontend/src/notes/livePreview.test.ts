@@ -139,4 +139,11 @@ describe('live preview', () => {
     expect(view.contentDOM.querySelector('.cm-md-sup')).toHaveTextContent('th')
     expect(view.contentDOM.querySelector('.cm-md-sub')).toHaveTextContent('2')
   })
+
+  it('shrinks extra blank lines and fence lines, but not inside code', () => {
+    open('a\n\n\n\nb\n\n```\nx\n\n\ny\n```\n')
+    expect(view.contentDOM.querySelectorAll('.cm-md-gap')).toHaveLength(2)
+    expect(view.contentDOM.querySelectorAll('.cm-md-fence-empty')).toHaveLength(2)
+    expect(view.state.doc.toString()).toBe('a\n\n\n\nb\n\n```\nx\n\n\ny\n```\n')
+  })
 })
