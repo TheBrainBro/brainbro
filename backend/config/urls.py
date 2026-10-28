@@ -12,6 +12,12 @@ api_patterns = [
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(api_patterns)),
+    re_path(
+        r"^(?P<name>sw\.js|manifest\.webmanifest)$",
+        core_views.pwa_file,
+        name="pwa-file",
+    ),
+    path("share", core_views.share, name="share"),
     # Everything else is a frontend route. Excludes api/, admin/ and static/ so
     # typos there return a real 404 instead of the SPA shell.
     re_path(
