@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Item } from '../items/api'
@@ -26,6 +27,7 @@ function makeItem(overrides: Partial<Item>): Item {
     preview_image_url: null,
     file_url: null,
     collections: [],
+    version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -111,9 +113,11 @@ function renderApp() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <CaptureProvider>
-        <InboxPage />
-      </CaptureProvider>
+      <MemoryRouter>
+        <CaptureProvider>
+          <InboxPage />
+        </CaptureProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
