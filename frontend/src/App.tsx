@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './layout/AppLayout'
+import { CapturePage } from './pages/CapturePage'
 import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
 import { LoginPage } from './pages/LoginPage'
@@ -25,6 +26,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<InboxPage />} />
+          <Route path="capture" element={<CapturePage />} />
           <Route
             path="boards"
             element={<Placeholder title="Boards" description="The infinite canvas arrives in phase 2." />}
