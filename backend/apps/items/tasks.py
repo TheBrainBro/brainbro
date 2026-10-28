@@ -5,8 +5,9 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from .models import Item, preview_image_path
-from .previews import build_preview, download_preview_image
+from .previews import build_preview, download_preview_image, reencode_image
 from .safe_http import FetchError, TransientFetchError
+from .uploads import IMAGE_FORMATS, MAX_IMAGE_PIXELS
 
 logger = logging.getLogger(__name__)
 
@@ -79,3 +80,27 @@ def _mark_failed(item, exc):
         preview_status=Item.PreviewStatus.FAILED,
         metadata={**item.metadata, "preview_error": str(exc)[:500]},
     )
+
+
+@shared_task
+def generate_thumbnail(item_id):
+    """Re-encode an uploaded image as its card image (a bounded WebP)."""
+    item = Item.objects.filter(id=item_id, kind=Item.Kind.IMAGE).first()
+    if item is None or not item.file:
+        return
+
+    with item.file.open("rb") as source:
+        thumbnail = reencode_image(source, IMAGE_FORMATS, MAX_IMAGE_PIXELS)
+    if thumbnail is None:
+        logger.info("Could not make a thumbnail for item %s", item.id)
+        Item.objects.filter(id=item.id).update(preview_status=Item.PreviewStatus.FAILED)
+        return
+
+    name = default_storage.save(preview_image_path(item, ""), ContentFile(thumbnail))
+    updated = Item.objects.filter(id=item.id).update(
+        preview_status=Item.PreviewStatus.READY, preview_image=name
+    )
+    if not updated:  # deleted meanwhile
+        default_storage.delete(name)
+    elif item.preview_image and item.preview_image.name != name:
+        default_storage.delete(item.preview_image.name)

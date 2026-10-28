@@ -41,6 +41,13 @@ def preview_image_path(item, filename):
     return f"previews/{item.id}/{uuid.uuid4().hex}.webp"
 
 
+def upload_path(item, filename):
+    # Random name; the extension comes from the detected type, never the
+    # client. The original name lives in metadata["filename"].
+    extension = filename.rsplit(".", 1)[-1]
+    return f"uploads/{item.id}/{uuid.uuid4().hex}.{extension}"
+
+
 class Item(OwnedModel):
     """
     Anything captured: a note, a link, an image or a file.
@@ -71,12 +78,16 @@ class Item(OwnedModel):
     title = models.CharField(max_length=500, blank=True)
     body = models.TextField(blank=True, help_text="Markdown.")
     url = models.URLField(max_length=2048, blank=True)
-    # Extracted data: OpenGraph/oEmbed fields for links, file info later.
+    # Extracted data: OpenGraph/oEmbed fields for links; filename, MIME type,
+    # size (and dimensions for images) for uploads.
     metadata = models.JSONField(default=dict, blank=True)
     preview_status = models.CharField(
         max_length=8, choices=PreviewStatus, default=PreviewStatus.NONE, blank=True
     )
+    # Card image: the page's preview for links, a thumbnail for images.
     preview_image = models.ImageField(upload_to=preview_image_path, blank=True)
+    # The uploaded original, for image and file items.
+    file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
     collections = models.ManyToManyField(Collection, related_name="items", blank=True)
 
     class Meta:
@@ -90,6 +101,8 @@ class Item(OwnedModel):
 
 
 @receiver(post_delete, sender=Item)
-def delete_preview_image(sender, instance, **kwargs):
+def delete_item_files(sender, instance, **kwargs):
     if instance.preview_image:
         instance.preview_image.delete(save=False)
+    if instance.file:
+        instance.file.delete(save=False)

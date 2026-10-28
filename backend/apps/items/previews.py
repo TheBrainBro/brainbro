@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from urllib.parse import quote, urljoin, urlsplit
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .safe_http import FetchError, TransientFetchError, fetch
 
@@ -243,12 +243,22 @@ def to_preview_image(data):
     raster image we can read. Re-encoding means we never serve the original
     bytes (SVG scripts, polyglots) from our own origin.
     """
+    return reencode_image(io.BytesIO(data), IMAGE_FORMATS, MAX_IMAGE_PIXELS)
+
+
+def reencode_image(source, formats, max_pixels):
+    """
+    Re-encode an image file object as a WebP bounded to PREVIEW_IMAGE_SIZE,
+    upright according to its EXIF orientation. None if it is not a raster
+    image in one of `formats` or has more than `max_pixels`.
+    """
     try:
-        with Image.open(io.BytesIO(data), formats=IMAGE_FORMATS) as image:
+        with Image.open(source, formats=formats) as image:
             width, height = image.size
-            if width * height > MAX_IMAGE_PIXELS:
+            if width * height > max_pixels:
                 return None
             image.draft("RGB", PREVIEW_IMAGE_SIZE)
+            image = ImageOps.exif_transpose(image)
             image.thumbnail(PREVIEW_IMAGE_SIZE)
             if image.mode not in ("RGB", "RGBA"):
                 image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
