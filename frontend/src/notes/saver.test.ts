@@ -225,4 +225,15 @@ describe('NoteSaver', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(update).toHaveBeenCalledWith('n1', 'b', 'v-a', { keepalive: true })
   })
+
+  it('saves nothing more once the note is discarded (deleted)', async () => {
+    const saver = makeSaver(note('a'))
+    saver.edit('b')
+    saver.discard()
+    saver.edit('c')
+    saver.dispose()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(update).not.toHaveBeenCalled()
+    expect(drafts.store.size).toBe(0)
+  })
 })
