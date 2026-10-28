@@ -3,7 +3,7 @@ import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'rea
 
 import { useSession } from '../auth/session'
 import { itemsKey, type Item } from '../items/api'
-import { api, upload } from '../lib/api'
+import { api, ApiError, upload } from '../lib/api'
 import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
 import {
@@ -21,7 +21,10 @@ type Batch = {
   id: string
   total: number
   undoable: boolean
+  retryLater: boolean
   created: string[]
+  /** Kept by the caller to send later (see `retryLater`). */
+  deferred: string[]
   failed: { label: string; error: string }[]
   settled: boolean
   undone: boolean
@@ -34,6 +37,12 @@ function labelOf(input: CaptureInput) {
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
+}
+
+/** Worth sending again later: no network, no session, or the server failed. */
+function isTransient(error: unknown) {
+  if (!(error instanceof ApiError)) return true
+  return error.status >= 500 || [401, 403, 408, 429].includes(error.status)
 }
 
 /**
@@ -82,8 +91,10 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     const batch = batches.current.get(entry.batch)
     if (!batch) return
     if ('item' in result) batch.created.push(result.item.id)
+    else if (result.deferred) batch.deferred.push(entry.label)
     else batch.failed.push({ label: entry.label, error: result.error })
-    batch.settled = batch.created.length + batch.failed.length === batch.total
+    batch.settled =
+      batch.created.length + batch.deferred.length + batch.failed.length === batch.total
     if (batch.undoable) showBatch(batch)
   }
 
@@ -132,6 +143,11 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       if (isAbort(error)) return
       const message = error instanceof Error ? error.message : 'Capture failed'
+      if (batches.current.get(entry.batch)?.retryLater && isTransient(error)) {
+        remove(entry.id)
+        settle(entry, { id: entry.id, error: message, deferred: true })
+        return
+      }
       update(entry.id, { state: 'error', error: message, retryable: true })
       settle(entry, { id: entry.id, error: message })
     }
@@ -158,7 +174,10 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     return undefined
   }
 
-  function capture(found: CaptureInputs, { undo = true }: CaptureOptions = {}) {
+  function capture(
+    found: CaptureInputs,
+    { undo = true, retryLater = false }: CaptureOptions = {},
+  ) {
     const batchId = crypto.randomUUID()
     const entries: PendingCapture[] = []
     const promises: Promise<CaptureResult>[] = []
@@ -205,7 +224,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       id: batchId,
       total: entries.length,
       undoable: undo,
+      retryLater,
       created: [],
+      deferred: [],
       failed: refused,
       settled: refused.length === entries.length,
       undone: false,
@@ -372,14 +393,17 @@ function DropOverlay() {
 
 function CaptureToast({ batch, onUndo }: { batch: Batch; onUndo: () => void }) {
   const done = batch.created.length
+  const later = batch.deferred.length
   const count = (n: number) => (n === 1 ? '1 item' : `${n} items`)
   const message = !batch.settled
     ? `Capturing ${count(batch.total)}…`
-    : batch.failed.length === 0
-      ? `Captured ${count(done)}`
-      : done === 0
-        ? `Couldn't capture ${count(batch.total)}`
-        : `Captured ${done} of ${batch.total}`
+    : later > 0
+      ? `${done > 0 ? `Captured ${done}, kept` : 'Kept'} ${count(later)} on this device to send later`
+      : batch.failed.length === 0
+        ? `Captured ${count(done)}`
+        : done === 0
+          ? `Couldn't capture ${count(batch.total)}`
+          : `Captured ${done} of ${batch.total}`
   const canUndo = batch.undoable && (done > 0 || !batch.settled)
 
   return (

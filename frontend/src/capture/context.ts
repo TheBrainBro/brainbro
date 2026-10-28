@@ -20,12 +20,21 @@ export type PendingCapture = {
   previewUrl?: string
 }
 
-/** Per input, in order; `id` is its pending entry (gone once it succeeded). */
-export type CaptureResult = { id: string } & ({ item: Item } | { error: string })
+/**
+ * Per input, in order; `id` is its pending entry (gone once it succeeded).
+ * `deferred`: it couldn't reach the server for now (offline, signed out) and
+ * the caller keeps it to send later; no failed card is left for it.
+ */
+export type CaptureResult = { id: string } & ({ item: Item } | { error: string; deferred?: boolean })
 
 export type CaptureOptions = {
   /** Offer an Undo toast. Off for the capture box, where the intent is explicit. */
   undo?: boolean
+  /**
+   * The caller retries later (the share queue): network, session and server
+   * errors resolve as `deferred` instead of leaving a failed card.
+   */
+  retryLater?: boolean
 }
 
 export type CapturePipeline = {

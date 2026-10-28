@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router'
 
 import { useLogout, useSession } from '../auth/session'
 import { CaptureProvider } from '../capture/CaptureProvider'
+import { ShareReceiver } from '../share/ShareReceiver'
 
 const navigation = [
   { to: '/', label: 'Inbox', end: true },
@@ -25,6 +26,7 @@ export function AppLayout() {
 
   return (
     <CaptureProvider>
+      <ShareReceiver />
       <div className="flex h-full flex-col md:flex-row">
         <aside className="hidden w-56 shrink-0 flex-col border-r border-zinc-200 bg-white p-3 md:flex dark:border-zinc-800 dark:bg-zinc-900">
           <div className="px-2 py-3 text-lg font-semibold">Brain</div>

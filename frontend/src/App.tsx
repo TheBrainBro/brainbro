@@ -9,6 +9,7 @@ import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
 import { LoginPage } from './pages/LoginPage'
 import { Placeholder } from './pages/Placeholder'
+import { SharePage } from './pages/SharePage'
 
 // The editor (CodeMirror) loads when a note is first opened, not with the inbox.
 const NotePage = lazy(() =>
@@ -27,6 +28,7 @@ export function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route index element={<InboxPage />} />
           <Route path="capture" element={<CapturePage />} />
+          <Route path="share" element={<SharePage />} />
           <Route
             path="boards"
             element={<Placeholder title="Boards" description="The infinite canvas arrives in phase 2." />}
