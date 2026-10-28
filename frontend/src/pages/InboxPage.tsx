@@ -1,3 +1,5 @@
+import { useCapturePipeline } from '../capture/context'
+import { PendingCard } from '../capture/PendingCard'
 import { CaptureBox } from '../items/CaptureBox'
 import { ItemList } from '../items/ItemList'
 import { useItems } from '../items/api'
@@ -5,6 +7,7 @@ import { useItems } from '../items/api'
 export function InboxPage() {
   const items = useItems({ status: 'inbox' })
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
+  const { pending } = useCapturePipeline()
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-8">
@@ -18,10 +21,20 @@ export function InboxPage() {
           {items.error.message}
         </p>
       )}
-      {items.isSuccess && all.length === 0 && (
+      {items.isSuccess && all.length === 0 && pending.length === 0 && (
         <p className="py-12 text-center text-zinc-500">
-          Inbox zero. Paste a link or a thought to drop it here.
+          Inbox zero. Paste or drop a link, a thought or a file here.
         </p>
+      )}
+
+      {pending.length > 0 && (
+        <ul className="mb-3 space-y-3" aria-label="Capturing">
+          {pending.map((entry) => (
+            <li key={entry.id}>
+              <PendingCard entry={entry} />
+            </li>
+          ))}
+        </ul>
       )}
 
       <ItemList items={all} />
