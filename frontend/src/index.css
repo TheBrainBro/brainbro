@@ -27,3 +27,59 @@ body {
     @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-950 dark:focus:ring-zinc-800;
   }
 }
+
+/* Rendered note Markdown in cards: compact, headings scaled down. */
+@layer components {
+  .markdown {
+    @apply text-sm leading-relaxed;
+
+    & > * + * {
+      @apply mt-2;
+    }
+    & :is(h1, h2, h3, h4, h5, h6) {
+      @apply font-semibold;
+    }
+    & h1 {
+      @apply text-base;
+    }
+    & a {
+      @apply underline decoration-zinc-400 underline-offset-2 hover:decoration-current;
+    }
+    & :is(ul, ol) {
+      @apply space-y-0.5 pl-5;
+    }
+    & ul {
+      @apply list-disc;
+    }
+    & ol {
+      @apply list-decimal;
+    }
+    & li:has(> input[type='checkbox']) {
+      @apply -ml-5 list-none;
+    }
+    & li > input[type='checkbox'] {
+      @apply mr-1.5 align-middle;
+    }
+    & blockquote {
+      @apply border-l-2 border-zinc-300 pl-3 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400;
+    }
+    & :not(pre) > code {
+      @apply rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.85em] dark:bg-zinc-800;
+    }
+    & pre {
+      @apply overflow-x-auto rounded-lg bg-zinc-100 p-3 font-mono text-xs dark:bg-zinc-800;
+    }
+    & hr {
+      @apply border-zinc-200 dark:border-zinc-800;
+    }
+    & table {
+      @apply block overflow-x-auto text-xs;
+    }
+    & :is(th, td) {
+      @apply border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700;
+    }
+    & .markdown-image {
+      @apply rounded bg-zinc-100 px-1 text-xs text-zinc-500 italic dark:bg-zinc-800;
+    }
+  }
+}

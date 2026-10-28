@@ -66,3 +66,51 @@ describe('ItemCard files', () => {
     expect(link).toHaveAttribute('title', name)
   })
 })
+
+describe('ItemCard notes', () => {
+  const note = (body: string): Item => ({
+    ...fileItem({}),
+    id: 'n1',
+    kind: 'note',
+    body,
+    file_url: null,
+  })
+
+  it('renders the Markdown', () => {
+    renderCard(note('# Plan\n\n- **one**\n- [x] done\n\n`code`'))
+    expect(screen.getByRole('heading', { name: 'Plan' })).toBeInTheDocument()
+    expect(screen.getByText('one').tagName).toBe('STRONG')
+    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(screen.getByText('code').tagName).toBe('CODE')
+  })
+
+  it('never renders raw HTML', () => {
+    const { container } = renderCard(
+      note(
+        '<img src=x onerror="alert(1)"> <script>alert(2)</script> <b>bold</b>\n\n' +
+          '<div onclick="x">block</div>',
+      ),
+    )
+    expect(container.querySelector('img, script, b, div[onclick]')).toBeNull()
+    expect(container.innerHTML).not.toContain('onerror')
+    expect(screen.getByText(/bold/)).toBeInTheDocument()
+  })
+
+  it('drops javascript: links and opens the rest outside the app', () => {
+    renderCard(note('[bad](javascript:alert(1)) [good](https://example.com)'))
+    expect(screen.getByText('bad')).not.toHaveAttribute(
+      'href',
+      expect.stringContaining('javascript'),
+    )
+    const good = screen.getByRole('link', { name: 'good' })
+    expect(good).toHaveAttribute('href', 'https://example.com')
+    expect(good).toHaveAttribute('target', '_blank')
+    expect(good).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('does not load remote images, showing their alt text', () => {
+    renderCard(note('![a cat](https://tracker.example/cat.png)'))
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(screen.getByText('a cat')).toBeInTheDocument()
+  })
+})
