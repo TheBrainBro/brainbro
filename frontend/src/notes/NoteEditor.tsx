@@ -6,8 +6,11 @@ import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { useEffect, useEffectEvent, useRef } from 'react'
 
-// Markdown stays visible as typed (the text is the note), styled so it reads
-// like what it means: headings large, emphasis emphasized, markers faded.
+import { livePreview } from './livePreview'
+
+// The text is the note. Live preview renders it around the cursor; this
+// styles what stays visible: headings large, emphasis emphasized, markers
+// faded where they show.
 const highlight = HighlightStyle.define([
   { tag: tags.heading1, fontSize: '1.6em', fontWeight: '700' },
   { tag: tags.heading2, fontSize: '1.35em', fontWeight: '700' },
@@ -33,7 +36,8 @@ const theme = EditorView.theme({
 
 /**
  * CodeMirror over the raw Markdown: the document is the stored text, so what
- * comes in is exactly what goes out. `initial` is read once; remount (key)
+ * comes in is exactly what goes out, and it reads rendered except where the
+ * cursor is (live preview). `initial` is read once; remount (key)
  * to load other text.
  */
 export function NoteEditor({
@@ -63,6 +67,7 @@ export function NoteEditor({
           history(),
           markdown({ base: markdownLanguage }),
           syntaxHighlighting(highlight),
+          livePreview(),
           theme,
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': 'Note', spellcheck: 'true' }),
