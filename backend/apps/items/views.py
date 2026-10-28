@@ -7,6 +7,7 @@ from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from .capture import infer_item_fields
@@ -17,12 +18,22 @@ from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
 class CaptureSerializer(serializers.Serializer):
-    """Either `text` (JSON or form) or one `file` (multipart)."""
+    """
+    Either `text` (JSON or form) or one `file` (multipart). `kind: "note"`
+    skips inference and keeps the text as written.
+    """
 
+    # Not trimmed here: inference strips it, and notes keep it as written.
     text = serializers.CharField(
-        max_length=100_000, trim_whitespace=True, required=False
+        max_length=100_000, trim_whitespace=False, required=False
     )
+    kind = serializers.ChoiceField(choices=[Item.Kind.NOTE], required=False)
     file = serializers.FileField(required=False, allow_empty_file=False)
+
+    def validate_text(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("This field may not be blank.")
+        return value
 
     def validate(self, data):
         if ("text" in data) == ("file" in data):
@@ -88,6 +99,27 @@ class ItemViewSet(
                 return items.none()
         return items
 
+    def update(self, request, *args, **kwargs):
+        """
+        With `If-Match: "<version>"`, the save only applies if the title and
+        body are still the ones the client started from; otherwise 412 with
+        the current item, so the editor can show the conflict.
+        """
+        expected = request.headers.get("If-Match")
+        with transaction.atomic():
+            if expected:
+                item = get_object_or_404(
+                    Item.objects.select_for_update(),
+                    pk=kwargs["pk"],
+                    owner=request.user,
+                )
+                if expected.strip().strip('"') != item.version:
+                    return Response(
+                        self.get_serializer(item).data,
+                        status=status.HTTP_412_PRECONDITION_FAILED,
+                    )
+            return super().update(request, *args, **kwargs)
+
     @action(detail=False, methods=["post"])
     def capture(self, request):
         """
@@ -101,7 +133,7 @@ class ItemViewSet(
         if "file" in data:
             item = create_upload_item(request.user, data["file"], data["upload"])
         else:
-            fields = infer_item_fields(data["text"])
+            fields = infer_item_fields(data["text"], data.get("kind"))
             if fields["kind"] == Item.Kind.LINK:
                 fields["preview_status"] = Item.PreviewStatus.PENDING
             item = Item.objects.create(owner=request.user, **fields)

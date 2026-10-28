@@ -32,8 +32,14 @@ def normalize_url(text):
     return candidate
 
 
-def infer_item_fields(text):
-    """Field values for an Item captured from `text` (already non-empty)."""
+def infer_item_fields(text, kind=None):
+    """
+    Field values for an Item captured from `text` (not blank). With
+    `kind="note"` nothing is inferred and the text is kept exactly as written,
+    as the note editor sends it.
+    """
+    if kind == Item.Kind.NOTE:
+        return {"kind": Item.Kind.NOTE, "body": text}
     url = normalize_url(text)
     if url:
         return {"kind": Item.Kind.LINK, "url": url}

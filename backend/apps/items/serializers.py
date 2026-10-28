@@ -55,6 +55,7 @@ class ItemSerializer(serializers.ModelSerializer):
     )
     preview_image_url = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
+    version = serializers.CharField(read_only=True)
 
     class Meta:
         model = Item
@@ -70,9 +71,13 @@ class ItemSerializer(serializers.ModelSerializer):
             "preview_image_url",
             "file_url",
             "collections",
+            "version",
             "created_at",
             "updated_at",
         ]
+        # Markdown is stored exactly as written: leading indentation and
+        # trailing newlines are part of it.
+        extra_kwargs = {"body": {"trim_whitespace": False}}
         # Kind, URL and previews come from capture and the preview task.
         read_only_fields = [
             "kind",
