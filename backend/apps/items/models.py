@@ -8,15 +8,18 @@ from apps.core.models import OwnedModel
 
 
 class Collection(OwnedModel):
-    """A named group of items: a project, an area of life, a topic."""
+    """
+    A named group of items, following PARA: a project (a goal with an end),
+    an area (an ongoing responsibility) or a resource (a topic of interest).
+    """
 
     class Kind(models.TextChoices):
         PROJECT = "project", "Project"
         AREA = "area", "Area"
-        PERSONAL = "personal", "Personal"
+        RESOURCE = "resource", "Resource"
 
     name = models.CharField(max_length=120)
-    kind = models.CharField(max_length=16, choices=Kind, default=Kind.PERSONAL)
+    kind = models.CharField(max_length=16, choices=Kind, default=Kind.RESOURCE)
     # Hex color (#rrggbb) and an emoji or icon name, both optional.
     color = models.CharField(max_length=7, blank=True)
     icon = models.CharField(max_length=32, blank=True)
