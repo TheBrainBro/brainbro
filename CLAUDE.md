@@ -28,7 +28,7 @@ Roadmap: epic #1 on GitHub (`gh issue view 1`), sub-issues labeled `phase-0`…`
 
 ## Commands
 
-`make dev`, `make test`, `make lint`, `make format`, `make makemigrations`, `make exportdeps` (see `make help`). Dev Postgres is on port **5442**, Redis on **6389**.
+`make dev`, `make test` (alias `tests`), `make lint`, `make format`, `make makemigrations` (alias `migrations`), `make exportdeps` (see `make help`). Dev Postgres is on port **5442**, Redis on **6389**.
 
 ## Git workflow
 

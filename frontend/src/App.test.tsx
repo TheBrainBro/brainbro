@@ -45,11 +45,11 @@ describe('auth routing', () => {
 
   it('logs in and sends the CSRF token', async () => {
     document.cookie = 'csrftoken=abc123'
-    const fetchMock = vi.fn(async (url: string) =>
-      url.endsWith('/auth/login/')
-        ? jsonResponse({ authenticated: true, user })
-        : jsonResponse({ authenticated: false, user: null }),
-    )
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/auth/login/')) return jsonResponse({ authenticated: true, user })
+      if (url.includes('/items/')) return jsonResponse({ count: 0, next: null, previous: null, results: [] })
+      return jsonResponse({ authenticated: false, user: null })
+    })
     vi.stubGlobal('fetch', fetchMock)
     renderAt('/')
 

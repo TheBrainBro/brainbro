@@ -41,8 +41,10 @@ backend: ## Run the Django dev server on :8000
 	$(MANAGE) runserver
 
 .PHONY: worker
+# Threads, not prefork: on macOS billiard spawns pool processes, which breaks
+# Celery's task tracer. Tasks here are I/O-bound anyway.
 worker: ## Run the Celery worker (with beat) for development
-	$(POETRY) run celery -A config worker --beat --loglevel info
+	$(POETRY) run celery -A config worker --beat --pool threads --loglevel info
 
 .PHONY: frontend
 frontend: ## Run the Vite dev server on :5173
@@ -55,6 +57,9 @@ migrate: ## Apply database migrations
 .PHONY: makemigrations
 makemigrations: ## Create new migrations
 	$(MANAGE) makemigrations
+
+.PHONY: migrations
+migrations: makemigrations ## Alias of makemigrations
 
 .PHONY: superuser
 superuser: ## Create a development superuser
@@ -69,6 +74,9 @@ test: services ## Run backend and frontend tests
 	$(POETRY) run pytest
 	cd frontend && npm test
 
+.PHONY: tests
+tests: test ## Alias of test
+
 .PHONY: lint
 lint: ## Lint and format check backend and frontend
 	$(POETRY) run ruff check .
@@ -77,8 +85,8 @@ lint: ## Lint and format check backend and frontend
 
 .PHONY: format
 format: ## Auto-format the backend
-	$(POETRY) run ruff check --fix .
 	$(POETRY) run ruff format .
+	$(POETRY) run ruff check --fix .
 
 .PHONY: frontend-build
 frontend-build: ## Build the frontend into frontend/dist

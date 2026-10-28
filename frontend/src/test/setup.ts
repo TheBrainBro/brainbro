@@ -4,3 +4,6 @@ import { afterEach } from 'vitest'
 
 // Vitest runs without globals, so Testing Library can't register this itself.
 afterEach(cleanup)
+
+// jsdom doesn't implement layout APIs.
+Element.prototype.scrollIntoView ??= () => {}
