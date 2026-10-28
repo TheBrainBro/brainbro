@@ -1,16 +1,30 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 
+import { whenReachable } from '../lib/network'
 import { useSession } from './session'
 
 export function RequireAuth() {
-  const { data, isPending, isError } = useSession()
+  const { data, isPending, isError, fetchStatus, refetch } = useSession()
   const location = useLocation()
 
-  if (isPending) return <FullScreenMessage>Loading…</FullScreenMessage>
-  if (isError) {
-    return <FullScreenMessage>Could not reach the server.</FullScreenMessage>
+  // Opened offline (the service worker serves the app): try again when the
+  // network is back or the app comes back to the foreground.
+  useEffect(() => {
+    if (!isError) return
+    return whenReachable(() => void refetch())
+  }, [isError, refetch])
+
+  // Paused: TanStack Query knows it's offline and waits for the network.
+  if (isError || (isPending && fetchStatus === 'paused')) {
+    return (
+      <FullScreenMessage>
+        {navigator.onLine ? 'Could not reach the server.' : "You're offline."} Anything you
+        share is kept on this device and sent once Brain is reachable again.
+      </FullScreenMessage>
+    )
   }
+  if (isPending) return <FullScreenMessage>Loading…</FullScreenMessage>
   if (!data.authenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
@@ -19,7 +33,7 @@ export function RequireAuth() {
 
 function FullScreenMessage({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-zinc-500">
       {children}
     </div>
   )
