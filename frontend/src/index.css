@@ -90,6 +90,48 @@ body {
     & :is(th, td) {
       @apply border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700;
     }
+    & mark {
+      @apply rounded-sm bg-amber-200/70 px-0.5 text-inherit dark:bg-amber-400/30;
+    }
+    & ins {
+      @apply decoration-zinc-400 underline-offset-2;
+    }
+    & abbr[title] {
+      @apply cursor-help underline decoration-dotted underline-offset-2;
+    }
+    & :is(sup, sub) {
+      @apply text-[0.75em] leading-none;
+    }
+    & .footnote-ref a {
+      @apply no-underline text-zinc-500;
+    }
+    & .footnotes-sep {
+      @apply my-3;
+    }
+    & .footnotes {
+      @apply text-xs text-zinc-600 dark:text-zinc-400;
+    }
+    & dt {
+      @apply font-semibold;
+    }
+    & dd {
+      @apply pl-5;
+    }
+    & :is(.note, .info, .tip, .warning, .danger) {
+      @apply rounded-lg border-l-4 px-3 py-2;
+    }
+    & :is(.note, .info) {
+      @apply border-sky-400 bg-sky-50 dark:bg-sky-950/50;
+    }
+    & .tip {
+      @apply border-emerald-400 bg-emerald-50 dark:bg-emerald-950/50;
+    }
+    & .warning {
+      @apply border-amber-400 bg-amber-50 dark:bg-amber-950/50;
+    }
+    & .danger {
+      @apply border-red-400 bg-red-50 dark:bg-red-950/50;
+    }
     & .markdown-image {
       @apply rounded bg-zinc-100 px-1 text-xs text-zinc-500 italic dark:bg-zinc-800;
     }

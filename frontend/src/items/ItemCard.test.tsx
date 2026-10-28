@@ -85,34 +85,48 @@ describe('ItemCard notes', () => {
     expect(screen.getByText('code').tagName).toBe('CODE')
   })
 
-  it('never renders raw HTML', () => {
+  it('shows raw HTML as text, never as markup', () => {
     const { container } = renderCard(
       note(
         '<img src=x onerror="alert(1)"> <script>alert(2)</script> <b>bold</b>\n\n' +
           '<div onclick="x">block</div>',
       ),
     )
-    expect(container.querySelector('img, script, b, div[onclick]')).toBeNull()
-    expect(container.innerHTML).not.toContain('onerror')
-    expect(screen.getByText(/bold/)).toBeInTheDocument()
+    expect(container.querySelector('img, script, b, div[onclick], [onerror]')).toBeNull()
+    expect(container).toHaveTextContent('<b>bold</b>')
   })
 
-  it('drops javascript: links and opens the rest outside the app', () => {
-    renderCard(note('[bad](javascript:alert(1)) [good](https://example.com)'))
-    expect(screen.getByText('bad')).not.toHaveAttribute(
-      'href',
-      expect.stringContaining('javascript'),
-    )
+  it('refuses javascript: links and opens the rest outside the app', () => {
+    const { container } = renderCard(note('[bad](javascript:alert(1)) [good](https://example.com)'))
+    expect(container.querySelector('a[href^="javascript"]')).toBeNull()
     const good = screen.getByRole('link', { name: 'good' })
     expect(good).toHaveAttribute('href', 'https://example.com')
     expect(good).toHaveAttribute('target', '_blank')
     expect(good).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
-  it('keeps a single ~ as text, like the editor (subscript there), not strikethrough', () => {
-    const { container } = renderCard(note('H~2~O and ~~gone~~'))
-    expect(container.querySelectorAll('del')).toHaveLength(1)
-    expect(container).toHaveTextContent('H~2~O')
+  it('renders the markdown-it plugins and typographer, like the editor', () => {
+    const { container } = renderCard(
+      note(
+        'H~2~O 19^th^ ~~gone~~ ++new++ ==marked== :wink: 8-) (c) wait... -- "quoted"\n\n' +
+          'Ref[^1].\n\n[^1]: The note.\n\nTerm\n: Definition\n\n' +
+          'Uses HTML.\n\n*[HTML]: Hyper Text Markup Language\n\n' +
+          '::: warning\nhere be dragons\n:::\n',
+      ),
+    )
+    const text = (selector: string) => container.querySelector(selector)?.textContent
+    expect(text('sub')).toBe('2')
+    expect(text('sup:not(.footnote-ref)')).toBe('th')
+    expect(text('s')).toBe('gone')
+    expect(text('ins')).toBe('new')
+    expect(text('mark')).toBe('marked')
+    expect(container).toHaveTextContent('😉 😎 © wait… – “quoted”')
+    expect(container.querySelector('.footnote-ref')).toBeInTheDocument()
+    expect(text('.footnotes li')).toContain('The note.')
+    expect(text('dt')).toBe('Term')
+    expect(text('dd')).toBe('Definition')
+    expect(container.querySelector('abbr')).toHaveAttribute('title', 'Hyper Text Markup Language')
+    expect(text('.warning')?.trim()).toBe('here be dragons')
   })
 
   it('does not load remote images, showing their alt text', () => {
