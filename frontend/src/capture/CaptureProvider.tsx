@@ -385,7 +385,7 @@ function CaptureToast({ batch, onUndo }: { batch: Batch; onUndo: () => void }) {
   return (
     <div
       role="status"
-      className="fixed bottom-4 left-1/2 z-50 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+      className="fixed bottom-20 left-1/2 z-50 md:bottom-4 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
     >
       <div className="flex items-center gap-3">
         <span className="mr-auto">{message}</span>
