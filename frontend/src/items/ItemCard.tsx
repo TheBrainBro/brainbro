@@ -158,8 +158,19 @@ function ImagePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
 function FilePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
   const { filename, mime, size } = item.metadata
   const extension = filename?.includes('.') ? filename.split('.').pop()!.slice(0, 4) : 'file'
+  const name = item.title || filename || 'File'
   return (
     <>
+      {mime === 'image/svg+xml' && item.file_url && (
+        // Safe to show: an SVG in <img> runs no scripts and loads nothing
+        // external. Opening the file itself is a sandboxed download.
+        <img
+          src={item.file_url}
+          alt={name}
+          loading="lazy"
+          className="mb-3 max-h-80 rounded-lg bg-zinc-100 object-contain dark:bg-zinc-800"
+        />
+      )}
       <div className="flex items-center gap-3">
         <div
           aria-hidden
@@ -167,9 +178,13 @@ function FilePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
         >
           {extension}
         </div>
-        <div className="min-w-0">
-          <a href={item.file_url ?? undefined} className="line-clamp-2 font-medium break-all hover:underline">
-            {item.title || filename || 'File'}
+        <div className="min-w-0 flex-1">
+          <a
+            href={item.file_url ?? undefined}
+            title={name}
+            className="block truncate font-medium hover:underline"
+          >
+            {name}
           </a>
           <p className="truncate text-xs text-zinc-500">
             {[size !== undefined && formatBytes(size), mime].filter(Boolean).join(' · ')}
