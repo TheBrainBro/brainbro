@@ -68,6 +68,24 @@ class HorizontalRuleWidget extends WidgetType {
   }
 }
 
+/** Stands in for a code fence line: the language as a small label, or nothing. */
+class FenceWidget extends WidgetType {
+  readonly language: string
+  constructor(language: string) {
+    super()
+    this.language = language
+  }
+  eq(other: FenceWidget) {
+    return other.language === this.language
+  }
+  toDOM() {
+    const label = document.createElement('span')
+    label.className = 'cm-md-codelang'
+    label.textContent = this.language
+    return label
+  }
+}
+
 /** Remote images are not loaded (they'd tell the site the note is open); the alt text stands in. */
 class ImageWidget extends WidgetType {
   readonly alt: string
@@ -168,14 +186,24 @@ function build(state: EditorState, focused: boolean): DecorationSet {
     const line = state.doc.lineAt(pos)
     return touches(line.from, line.to)
   }
-  const lineClass = (from: number, to: number, className: string) => {
-    const mark = Decoration.line({ class: className })
-    for (let pos = from; pos <= to;) {
-      const line = state.doc.lineAt(pos)
-      decorations.push(mark.range(line.from))
-      pos = line.to + 1
+  // Code block lines, with the first and last marked for rounded corners.
+  const codeBlock = (from: number, to: number) => {
+    const first = state.doc.lineAt(from).number
+    const last = state.doc.lineAt(to).number
+    for (let number = first; number <= last; number++) {
+      const classes = ['cm-md-codeblock']
+      if (number === first) classes.push('cm-md-codeblock-first')
+      if (number === last) classes.push('cm-md-codeblock-last')
+      decorations.push(
+        Decoration.line({ class: classes.join(' ') }).range(state.doc.line(number).from),
+      )
     }
   }
+  const mark = (from: number, to: number, className: string) => {
+    if (to > from) decorations.push(Decoration.mark({ class: className }).range(from, to))
+  }
+  // Quote depth per line (`>>` is two), so nested quotes show nested bars.
+  const quoteDepth = new Map<number, number>()
   // The marker plus the space after it (`# `, `> `, `- `).
   const withSpace = (to: number) => (state.sliceDoc(to, to + 1) === ' ' ? to + 1 : to)
 
@@ -190,16 +218,50 @@ function build(state: EditorState, focused: boolean): DecorationSet {
             decorations.push(hide.range(from, withSpace(to)))
           }
           break
-        case 'QuoteMark':
+        case 'QuoteMark': {
           if (!lineActive(from)) decorations.push(hide.range(from, withSpace(to)))
+          const line = state.doc.lineAt(from).number
+          quoteDepth.set(line, (quoteDepth.get(line) ?? 0) + 1)
           break
+        }
         case 'Blockquote':
-          lineClass(from, to, 'cm-md-quote-line')
+          // Lazy continuation lines have no marker but still belong to the quote.
+          for (let pos = from; pos <= to;) {
+            const line = state.doc.lineAt(pos)
+            if (!quoteDepth.has(line.number)) quoteDepth.set(line.number, 0)
+            pos = line.to + 1
+          }
           break
-        case 'FencedCode':
-        case 'CodeBlock':
-          lineClass(from, to, 'cm-md-codeblock')
+        case 'FencedCode': {
+          const first = state.doc.lineAt(from)
+          const last = state.doc.lineAt(to)
+          codeBlock(first.from, last.to)
+          if (touches(first.from, last.to)) return false
+          // The fences give way to the language label (and nothing below).
+          const info = node.getChild('CodeInfo')
+          const language = info ? state.sliceDoc(info.from, info.to) : ''
+          decorations.push(
+            Decoration.replace({ widget: new FenceWidget(language) }).range(first.from, first.to),
+          )
+          const closing = node.lastChild
+          if (last.number > first.number && closing?.name === 'CodeMark') {
+            decorations.push(hide.range(last.from, last.to))
+          }
           return false
+        }
+        case 'CodeBlock': {
+          const first = state.doc.lineAt(from)
+          const last = state.doc.lineAt(to)
+          codeBlock(first.from, last.to)
+          if (touches(first.from, last.to)) return false
+          // Indented code reads without the indent that makes it code.
+          for (let number = first.number; number <= last.number; number++) {
+            const line = state.doc.line(number)
+            const indent = /^(?: {4}|\t)/.exec(line.text)
+            if (indent) decorations.push(hide.range(line.from, line.from + indent[0].length))
+          }
+          return false
+        }
         case 'ListMark': {
           if (lineActive(from)) break
           const task = node.nextSibling?.name === 'Task'
@@ -230,8 +292,14 @@ function build(state: EditorState, focused: boolean): DecorationSet {
             )
           }
           break
+        case 'Superscript':
+        case 'Subscript':
+          mark(from + 1, to - 1, name === 'Superscript' ? 'cm-md-sup' : 'cm-md-sub')
+          break
         case 'EmphasisMark':
         case 'StrikethroughMark':
+        case 'SuperscriptMark':
+        case 'SubscriptMark':
           if (node.parent && !touches(node.parent.from, node.parent.to)) {
             decorations.push(hide.range(from, to))
           }
@@ -245,14 +313,34 @@ function build(state: EditorState, focused: boolean): DecorationSet {
           if (!touches(from, to)) decorations.push(hide.range(from, from + 1))
           break
         case 'Link': {
-          if (touches(from, to)) break
-          // `[text](url "title")` and `[text][ref]` read as `text`.
           const [open, close] = node.getChildren('LinkMark')
-          if (open && close) {
-            decorations.push(hide.range(open.from, open.to), hide.range(close.from, to))
+          if (!open || !close) break
+          const label = state.sliceDoc(open.to, close.from)
+          const target = node.getChild('URL') || node.getChild('LinkLabel')
+          if (!target && label.startsWith('^')) {
+            // A footnote: `[^1]` as a superscript, `[^1]: …` as its definition.
+            if (touches(from, to)) break
+            const definition =
+              state.doc.lineAt(from).from === from && state.sliceDoc(to, to + 1) === ':'
+            decorations.push(hide.range(open.from, open.to + 1), hide.range(close.from, close.to))
+            mark(open.to + 1, close.from, definition ? 'cm-md-footdef' : 'cm-md-footref')
+            break
           }
-          return false
+          if (!target) {
+            // `[text]` with no URL or reference is just text (`^[…]`, `*[HTML]: …`).
+            mark(from, to, 'cm-md-plain')
+            break
+          }
+          if (touches(from, to)) break
+          // `[text](url "title")` and `[text][ref]` read as `text`. Children
+          // are still visited: escapes and emphasis in the text render too.
+          decorations.push(hide.range(open.from, open.to), hide.range(close.from, to))
+          break
         }
+        case 'LinkReference':
+          // `[id]: url "title"` defines a link; it isn't content.
+          if (!touches(from, to)) mark(from, to, 'cm-md-refdef')
+          return false
         case 'Image': {
           if (touches(from, to)) break
           const marks = node.getChildren('LinkMark')
@@ -275,6 +363,15 @@ function build(state: EditorState, focused: boolean): DecorationSet {
       }
     },
   })
+  for (const [number, depth] of quoteDepth) {
+    const line = state.doc.line(number)
+    decorations.push(
+      Decoration.line({
+        class: 'cm-md-quote-line',
+        attributes: { style: `--quote-depth: ${Math.max(depth, 1)}` },
+      }).range(line.from),
+    )
+  }
   return Decoration.set(decorations, true)
 }
 
@@ -335,9 +432,13 @@ export function livePreview(): Extension {
         color: 'var(--md-muted)',
         background: 'var(--md-subtle)',
       },
+      // One bar per level: a 2px stripe every 0.75rem, as many as the depth.
       '.cm-line.cm-md-quote-line': {
-        borderLeft: '2px solid var(--md-rule)',
-        paddingLeft: '0.75rem',
+        paddingLeft: 'calc(var(--quote-depth) * 0.75rem + 0.25rem)',
+        backgroundImage:
+          'repeating-linear-gradient(to right, var(--md-rule) 0 2px, transparent 2px 0.75rem)',
+        backgroundSize: 'calc(var(--quote-depth) * 0.75rem) 100%',
+        backgroundRepeat: 'no-repeat',
         color: 'var(--md-muted)',
       },
       '.cm-line.cm-md-codeblock': {
@@ -345,6 +446,29 @@ export function livePreview(): Extension {
         fontSize: '0.875em',
         background: 'var(--md-subtle)',
         padding: '0 0.75rem',
+      },
+      '.cm-line.cm-md-codeblock-first': {
+        borderTopLeftRadius: '0.5rem',
+        borderTopRightRadius: '0.5rem',
+        paddingTop: '0.25rem',
+      },
+      '.cm-line.cm-md-codeblock-last': {
+        borderBottomLeftRadius: '0.5rem',
+        borderBottomRightRadius: '0.5rem',
+        paddingBottom: '0.25rem',
+      },
+      '.cm-md-codelang': { fontSize: '0.75em', color: 'var(--md-muted)' },
+      '.cm-md-sup': { verticalAlign: 'super', fontSize: '0.75em' },
+      '.cm-md-sub': { verticalAlign: 'sub', fontSize: '0.75em' },
+      '.cm-md-footref': { verticalAlign: 'super', fontSize: '0.75em' },
+      '.cm-md-footdef': { fontSize: '0.85em' },
+      // Footnotes parse as links: muted instead of the link color, nested either way.
+      '.cm-md-footref, .cm-md-footdef, :is(.cm-md-footref, .cm-md-footdef) .cm-md-link, .cm-md-link :is(.cm-md-footref, .cm-md-footdef)':
+        { color: 'var(--md-muted)' },
+      '.cm-md-refdef, .cm-md-refdef *': { fontSize: '0.85em', color: 'var(--md-muted)' },
+      // Brackets that aren't links lose the link color, nested either way.
+      '.cm-md-plain, .cm-md-plain .cm-md-link, .cm-md-link .cm-md-plain': {
+        color: 'var(--md-text)',
       },
       '.cm-md-table': { overflowX: 'auto', cursor: 'text', padding: '0.25rem 0' },
       '.cm-md-table table': { borderCollapse: 'collapse', fontSize: '0.9em' },

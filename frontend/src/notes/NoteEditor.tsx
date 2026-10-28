@@ -1,5 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown'
+import { languages } from '@codemirror/language-data'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
@@ -23,6 +24,18 @@ const highlight = HighlightStyle.define([
   { tag: tags.monospace, class: 'cm-md-code' },
   { tag: tags.quote, class: 'cm-md-quote' },
   { tag: [tags.processingInstruction, tags.meta, tags.contentSeparator], class: 'cm-md-mark' },
+  // Code blocks: each language's grammar loads the first time a note uses it.
+  { tag: [tags.keyword, tags.controlKeyword, tags.modifier], color: 'var(--code-keyword)' },
+  { tag: [tags.string, tags.regexp, tags.special(tags.string)], color: 'var(--code-string)' },
+  // `character` derives from `string`, but in notes it's `:emoji:` shortcodes.
+  { tag: tags.character, color: 'var(--md-muted)' },
+  { tag: [tags.number, tags.bool, tags.null, tags.atom], color: 'var(--code-number)' },
+  { tag: [tags.comment, tags.lineComment, tags.blockComment], color: 'var(--code-comment)' },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
+    color: 'var(--code-function)',
+  },
+  { tag: [tags.typeName, tags.className, tags.tagName], color: 'var(--code-type)' },
 ])
 
 const theme = EditorView.theme({
@@ -65,7 +78,7 @@ export function NoteEditor({
         doc: startup.current.initial,
         extensions: [
           history(),
-          markdown({ base: markdownLanguage }),
+          markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
           livePreview(),
           theme,

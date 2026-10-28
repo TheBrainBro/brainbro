@@ -97,4 +97,46 @@ describe('live preview', () => {
     expect(text()).not.toContain('*em*')
     expect(text()).not.toContain('# Title')
   })
+
+  it('renders escapes inside links, and brackets that are not links as text', () => {
+    open('### [\\<ins>](https://x.io)\n\nA ^[inline] and *[HTML]: y\n')
+    expect(text()).toContain('<ins>')
+    expect(text()).not.toContain('\\<')
+    const plain = view.contentDOM.querySelectorAll('.cm-md-plain')
+    expect([...plain].map((node) => node.textContent)).toEqual(['[inline]', '[HTML]'])
+  })
+
+  it('renders footnotes and dims link definitions', () => {
+    open('Text[^1].\n\n[^1]: The note.\n\n[id]: https://x.io "T"\n')
+    expect(view.contentDOM.querySelector('.cm-md-footref')).toHaveTextContent('1')
+    expect(view.contentDOM.querySelector('.cm-md-footdef')).toHaveTextContent('1')
+    expect(text()).not.toContain('[^')
+    expect(view.contentDOM.querySelector('.cm-md-refdef')).toHaveTextContent(
+      '[id]: https://x.io "T"',
+    )
+  })
+
+  it('nests quote bars by depth', () => {
+    open('> a\n>> b\n> > > c\n')
+    const depths = [...view.contentDOM.querySelectorAll<HTMLElement>('.cm-md-quote-line')].map(
+      (line) => line.style.getPropertyValue('--quote-depth'),
+    )
+    expect(depths).toEqual(['1', '2', '3'])
+  })
+
+  it('replaces code fences with the language and drops the code indent', () => {
+    open('```js\nconst a = 1\n```\n\n    indented\n')
+    expect(view.contentDOM.querySelector('.cm-md-codelang')).toHaveTextContent('js')
+    expect(text()).not.toContain('```')
+    expect(text()).toContain('const a = 1')
+    expect(text()).not.toContain('    indented')
+    expect(view.contentDOM.querySelectorAll('.cm-md-codeblock-first')).toHaveLength(2)
+  })
+
+  it('renders superscript and subscript', () => {
+    open('19^th^ and H~2~O\n')
+    expect(text()).toBe('19th and H2O')
+    expect(view.contentDOM.querySelector('.cm-md-sup')).toHaveTextContent('th')
+    expect(view.contentDOM.querySelector('.cm-md-sub')).toHaveTextContent('2')
+  })
 })

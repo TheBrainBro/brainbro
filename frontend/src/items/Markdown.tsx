@@ -7,10 +7,12 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
+import ReactMarkdown, { type Components, type ExtraProps, type Options } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-const plugins = [remarkGfm]
+// One `~` is subscript in the editor (`H~2~O`), not strikethrough: keep
+// strikethrough to `~~` so cards and editor agree.
+const plugins: Options['remarkPlugins'] = [[remarkGfm, { singleTilde: false }]]
 
 // A task item's source starts with its marker and `[ ]`/`[x]`.
 const TASK = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+\[[ xX]\]/
