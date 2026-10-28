@@ -23,6 +23,7 @@ function note(id: string, body: string): Item {
     metadata: {},
     preview_status: '',
     preview_image_url: null,
+    file_url: null,
     collections: [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

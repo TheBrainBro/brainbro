@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { CaptureProvider } from '../capture/CaptureProvider'
 import type { Item } from '../items/api'
 import { InboxPage } from './InboxPage'
 
@@ -27,6 +28,7 @@ function makeItem(overrides: Partial<Item>): Item {
     metadata: {},
     preview_status: '',
     preview_image_url: null,
+    file_url: null,
     collections: [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -38,7 +40,9 @@ function renderInbox() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <InboxPage />
+      <CaptureProvider>
+        <InboxPage />
+      </CaptureProvider>
     </QueryClientProvider>,
   )
 }
@@ -88,10 +92,17 @@ describe('InboxPage', () => {
     await screen.findByText(/Inbox zero/)
 
     const paste = new Event('paste', { bubbles: true }) as ClipboardEvent
-    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => '  Pasted idea ' } })
+    Object.defineProperty(paste, 'clipboardData', {
+      value: {
+        types: ['text/plain'],
+        getData: (type: string) => (type === 'text/plain' ? '  Pasted idea ' : ''),
+      },
+    })
     document.body.dispatchEvent(paste)
 
+    await waitFor(() => expect(screen.queryByLabelText('Capturing')).toBeNull())
     expect(await screen.findByText('Pasted idea')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Captured 1 item')
     expect(screen.getByLabelText('Capture')).toHaveValue('')
   })
 

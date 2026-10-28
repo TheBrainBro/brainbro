@@ -54,6 +54,7 @@ class ItemSerializer(serializers.ModelSerializer):
         queryset=Collection.objects.all(), many=True, required=False
     )
     preview_image_url = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -67,6 +68,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "metadata",
             "preview_status",
             "preview_image_url",
+            "file_url",
             "collections",
             "created_at",
             "updated_at",
@@ -89,6 +91,12 @@ class ItemSerializer(serializers.ModelSerializer):
         # cache buster.
         path = reverse("item-preview-image", args=[item.id])
         return f"{path}?v={item.preview_image.name.rsplit('/', 1)[-1]}"
+
+    def get_file_url(self, item):
+        if not item.file:
+            return None
+        path = reverse("item-file", args=[item.id])
+        return f"{path}?v={item.file.name.rsplit('/', 1)[-1]}"
 
 
 class TriageSerializer(serializers.Serializer):

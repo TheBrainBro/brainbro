@@ -6,7 +6,8 @@ export type ItemKind = 'note' | 'link' | 'image' | 'file'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
 export type PreviewStatus = '' | 'pending' | 'ready' | 'failed'
 
-export type LinkMetadata = {
+export type ItemMetadata = {
+  // Links
   title?: string
   description?: string
   site_name?: string
@@ -15,6 +16,12 @@ export type LinkMetadata = {
   final_url?: string
   image_url?: string
   preview_error?: string
+  // Uploads (images and files)
+  filename?: string
+  mime?: string
+  size?: number
+  width?: number
+  height?: number
 }
 
 export type Item = {
@@ -24,9 +31,10 @@ export type Item = {
   title: string
   body: string
   url: string
-  metadata: LinkMetadata
+  metadata: ItemMetadata
   preview_status: PreviewStatus
   preview_image_url: string | null
+  file_url: string | null
   collections: string[]
   created_at: string
   updated_at: string
@@ -50,22 +58,13 @@ export function useItems(filters: { status?: ItemStatus; collection?: string }) 
     },
     initialPageParam: 0,
     getNextPageParam: (last, pages) => (last.next ? pages.length * PAGE_SIZE : undefined),
-    // Previews are fetched in the background: poll until none is pending.
+    // Previews and thumbnails are made in the background: poll until none is pending.
     refetchInterval: (query) =>
       query.state.data?.pages.some((page) =>
         page.results.some((item) => item.preview_status === 'pending'),
       )
         ? PREVIEW_POLL_MS
         : false,
-  })
-}
-
-export function useCapture() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (text: string) =>
-      api<Item>('/items/capture/', { method: 'POST', body: JSON.stringify({ text }) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
   })
 }
 
@@ -91,7 +90,7 @@ export function useTriage() {
   })
 }
 
-export type CollectionKind = 'project' | 'area' | 'personal'
+export type CollectionKind = 'project' | 'area' | 'resource'
 
 export type Collection = {
   id: string

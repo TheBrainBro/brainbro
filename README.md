@@ -26,7 +26,7 @@ docs/       documentation (deployment, etc.)
 
 ## Development
 
-Requirements: Python 3.12, Poetry 2 (with `poetry-plugin-export`), Node 24, Docker.
+Requirements: Python 3.12, Poetry 2 (with `poetry-plugin-export`), Node 24, Docker and libmagic (`brew install libmagic`; preinstalled on most Linux distros).
 
 ```bash
 make install       # dependencies + pre-commit hooks
