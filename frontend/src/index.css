@@ -6,6 +6,10 @@
 
 :root {
   color-scheme: light dark;
+  /* Shared by the editor's live preview (CodeMirror themes can't use dark:). */
+  --md-muted: light-dark(var(--color-zinc-500), var(--color-zinc-400));
+  --md-rule: light-dark(var(--color-zinc-300), var(--color-zinc-700));
+  --md-subtle: light-dark(var(--color-zinc-100), var(--color-zinc-800));
 }
 
 html,
