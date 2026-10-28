@@ -270,7 +270,10 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     const data = event.clipboardData
     if (!data) return
     // Text fields keep their own paste, unless it's a file they can't hold.
-    if (isEditable(event.target) && !data.types.includes('Files')) return
+    // An editor that already took the paste (CodeMirror) may have replaced
+    // the target node by now, so a handled paste counts as a text field's.
+    const handled = event.defaultPrevented || isEditable(event.target)
+    if (handled && !data.types.includes('Files')) return
     const found = toCaptureInputs(data)
     if (!found.inputs.length && !found.skipped.length) return
     event.preventDefault()
