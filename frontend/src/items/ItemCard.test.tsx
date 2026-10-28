@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ItemCard } from './ItemCard'
 import type { Item } from './api'
@@ -113,5 +113,43 @@ describe('ItemCard notes', () => {
     renderCard(note('![a cat](https://tracker.example/cat.png)'))
     expect(screen.queryByRole('img')).toBeNull()
     expect(screen.getByText('a cat')).toBeInTheDocument()
+  })
+})
+
+describe('ItemCard tasks', () => {
+  it('ticks a task in the Markdown and saves it with the version it saw', async () => {
+    const body = '> - [ ] quoted\n\n1. [ ] first\n2. [x] second\n   - [ ] nested\n'
+    const item: Item = { ...fileItem({}), id: 'n1', kind: 'note', body, file_url: null }
+    const patches: { body: string; ifMatch: string | null }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const sent = JSON.parse(String(init?.body))
+        patches.push({ body: sent.body, ifMatch: new Headers(init?.headers).get('If-Match') })
+        return new Response(JSON.stringify({ ...item, body: sent.body, version: 'v2' }), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+    renderCard(item)
+
+    const boxes = screen.getAllByRole('checkbox')
+    expect(boxes.map((box) => (box as HTMLInputElement).checked)).toEqual([
+      false,
+      false,
+      true,
+      false,
+    ])
+    fireEvent.click(boxes[3])
+    await waitFor(() => expect(patches).toHaveLength(1))
+    expect(patches[0]).toEqual({
+      body: body.replace('- [ ] nested', '- [x] nested'),
+      ifMatch: '"v1"',
+    })
+
+    fireEvent.click(screen.getAllByRole('checkbox')[2])
+    await waitFor(() => expect(patches).toHaveLength(2))
+    expect(patches[1].body).toBe(body.replace('2. [x] second', '2. [ ] second'))
+    vi.unstubAllGlobals()
   })
 })

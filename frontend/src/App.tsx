@@ -10,7 +10,9 @@ import { LoginPage } from './pages/LoginPage'
 import { Placeholder } from './pages/Placeholder'
 
 // The editor (CodeMirror) loads when a note is first opened, not with the inbox.
-const NotePage = lazy(() => import('./pages/NotePage').then((module) => ({ default: module.NotePage })))
+const NotePage = lazy(() =>
+  import('./pages/NotePage').then((module) => ({ default: module.NotePage })),
+)
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },

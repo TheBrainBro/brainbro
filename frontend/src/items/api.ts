@@ -1,4 +1,11 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query'
 
 import { api } from '../lib/api'
 
@@ -94,6 +101,36 @@ export function updateNoteBody(
     body: JSON.stringify({ body }),
     headers: { 'If-Match': `"${version}"` },
     keepalive,
+  })
+}
+
+/** Puts a newer copy of an item into every cached list and its detail. */
+function patchCachedItem(queryClient: QueryClient, item: Item) {
+  queryClient.setQueriesData({ queryKey: itemsKey }, (data: unknown) => {
+    if (data && typeof data === 'object' && 'pages' in data) {
+      const lists = data as InfiniteData<Page<Item>>
+      return {
+        ...lists,
+        pages: lists.pages.map((page) => ({
+          ...page,
+          results: page.results.map((cached) => (cached.id === item.id ? item : cached)),
+        })),
+      }
+    }
+    return (data as Item | undefined)?.id === item.id ? item : data
+  })
+}
+
+/** Saves a new body from a card (ticking a task), shown at once. */
+export function useSaveNoteBody() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ item, body }: { item: Item; body: string }) =>
+      updateNoteBody(item.id, body, item.version),
+    onMutate: ({ item, body }) => patchCachedItem(queryClient, { ...item, body }),
+    onSuccess: (saved) => patchCachedItem(queryClient, saved),
+    // Changed elsewhere (412) or failed: show what the server has.
+    onError: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
   })
 }
 
