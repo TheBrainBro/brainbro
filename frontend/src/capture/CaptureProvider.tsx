@@ -90,10 +90,15 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   async function send(entry: PendingCapture, signal: AbortSignal) {
     const input = entry.input!
     if (input.kind !== 'file') {
-      const text = input.kind === 'url' ? input.url : input.text
+      const payload =
+        input.kind === 'url'
+          ? { text: input.url }
+          : input.kind === 'note'
+            ? { text: input.text, kind: 'note' }
+            : { text: input.text }
       return api<Item>('/items/capture/', {
         method: 'POST',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(payload),
         signal,
       })
     }
