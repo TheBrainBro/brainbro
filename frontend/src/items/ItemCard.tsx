@@ -270,6 +270,7 @@ export function ItemCard({
               {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
               {/* One tick at a time: each save needs the version the last one returned. */}
               <Markdown
+                id={item.id}
                 onChange={save.isPending ? undefined : (body) => save.mutate({ item, body })}
               >
                 {item.body}
