@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Item } from '../items/api'
@@ -26,6 +27,7 @@ function makeItem(overrides: Partial<Item>): Item {
     preview_image_url: null,
     file_url: null,
     collections: [],
+    version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -111,9 +113,11 @@ function renderApp() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <CaptureProvider>
-        <InboxPage />
-      </CaptureProvider>
+      <MemoryRouter>
+        <CaptureProvider>
+          <InboxPage />
+        </CaptureProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -333,6 +337,21 @@ describe('CaptureProvider', () => {
     })
     box.dispatchEvent(textPaste)
     expect(textPaste.defaultPrevented).toBe(false)
+
+    // An editor that handled the paste and re-rendered the node it landed on.
+    const detached = document.createElement('div')
+    const handledPaste = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(handledPaste, 'clipboardData', {
+      value: { types: ['text/plain'], getData: () => '# pasted into a note' },
+    })
+    Object.defineProperty(handledPaste, 'target', { value: detached })
+    handledPaste.preventDefault()
+    act(() => {
+      window.dispatchEvent(handledPaste)
+    })
+    const captures = () =>
+      fetchMock.mock.calls.filter(([url]) => url === '/api/items/capture/').length
+    expect(captures()).toBe(0)
 
     const filePaste = new Event('paste', { bubbles: true, cancelable: true })
     Object.defineProperty(filePaste, 'clipboardData', { value: dataTransfer([png()]) })

@@ -90,10 +90,15 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   async function send(entry: PendingCapture, signal: AbortSignal) {
     const input = entry.input!
     if (input.kind !== 'file') {
-      const text = input.kind === 'url' ? input.url : input.text
+      const payload =
+        input.kind === 'url'
+          ? { text: input.url }
+          : input.kind === 'note'
+            ? { text: input.text, kind: 'note' }
+            : { text: input.text }
       return api<Item>('/items/capture/', {
         method: 'POST',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(payload),
         signal,
       })
     }
@@ -265,7 +270,10 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     const data = event.clipboardData
     if (!data) return
     // Text fields keep their own paste, unless it's a file they can't hold.
-    if (isEditable(event.target) && !data.types.includes('Files')) return
+    // An editor that already took the paste (CodeMirror) may have replaced
+    // the target node by now, so a handled paste counts as a text field's.
+    const handled = event.defaultPrevented || isEditable(event.target)
+    if (handled && !data.types.includes('Files')) return
     const found = toCaptureInputs(data)
     if (!found.inputs.length && !found.skipped.length) return
     event.preventDefault()

@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react'
 
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
-import { useRefreshPreview, type Item } from './api'
+import { Markdown } from './Markdown'
+import { useRefreshPreview, useSaveNoteBody, type Item } from './api'
 
 function hostname(url: string) {
   try {
@@ -121,7 +122,9 @@ function ImagePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
         rel="noopener"
         className="block overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
         // Reserve the space before the thumbnail loads, so cards don't jump.
-        style={width && height ? { aspectRatio: `${width} / ${height}`, maxHeight: '20rem' } : undefined}
+        style={
+          width && height ? { aspectRatio: `${width} / ${height}`, maxHeight: '20rem' } : undefined
+        }
       >
         {item.preview_image_url ? (
           <img
@@ -162,8 +165,7 @@ function FilePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
   // PDFs get their first page rendered in the background. SVGs are safe to
   // show as they are: in an <img> they run no scripts and load nothing
   // external, and opening the file itself is a sandboxed download.
-  const preview =
-    item.preview_image_url ?? (mime === 'image/svg+xml' ? item.file_url : null)
+  const preview = item.preview_image_url ?? (mime === 'image/svg+xml' ? item.file_url : null)
   return (
     <>
       {preview ? (
@@ -175,7 +177,10 @@ function FilePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
         />
       ) : (
         item.preview_status === 'pending' && (
-          <div className="mb-3 h-40 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" aria-busy="true">
+          <div
+            className="mb-3 h-40 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800"
+            aria-busy="true"
+          >
             <span className="sr-only">Making preview…</span>
           </div>
         )
@@ -214,13 +219,17 @@ export function ItemCard({
   selected = false,
   focused = false,
   onToggleSelect,
+  onOpen,
 }: {
   item: Item
   actions?: ReactNode
   selected?: boolean
   focused?: boolean
   onToggleSelect?: () => void
+  /** Notes only: open the editor. Clicks on links and controls inside stay theirs. */
+  onOpen?: () => void
 }) {
+  const save = useSaveNoteBody()
   const ring = selected
     ? 'border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100'
     : focused
@@ -249,8 +258,24 @@ export function ItemCard({
           <FilePreview item={item} actions={actions} />
         ) : (
           <>
-            {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
-            <p className="line-clamp-6 text-sm break-words whitespace-pre-wrap">{item.body}</p>
+            <div
+              className={onOpen ? 'cursor-text' : undefined}
+              onClick={(event) => {
+                const target = event.target as HTMLElement
+                if (!target.closest('a, button, input') && !window.getSelection()?.toString()) {
+                  onOpen?.()
+                }
+              }}
+            >
+              {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
+              {/* One tick at a time: each save needs the version the last one returned. */}
+              <Markdown
+                id={item.id}
+                onChange={save.isPending ? undefined : (body) => save.mutate({ item, body })}
+              >
+                {item.body}
+              </Markdown>
+            </div>
             <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
               <Time iso={item.created_at} />
               <div className="ml-auto">{actions}</div>

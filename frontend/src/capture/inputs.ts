@@ -4,8 +4,12 @@
  * list of these, handled by one pipeline.
  */
 
+/** `note` is text that stays a note as written (the editor), never inferred as a link. */
 export type CaptureInput =
-  { kind: 'text'; text: string } | { kind: 'url'; url: string } | { kind: 'file'; file: File }
+  | { kind: 'text'; text: string }
+  | { kind: 'note'; text: string }
+  | { kind: 'url'; url: string }
+  | { kind: 'file'; file: File }
 
 /** Something in the paste or drop that can't be captured, with the reason. */
 export type SkippedInput = { name: string; reason: string }
