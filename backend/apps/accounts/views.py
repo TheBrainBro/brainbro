@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import serializers, status
@@ -19,6 +20,15 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(trim_whitespace=False)
 
 
+def signed_in(user):
+    return {
+        "authenticated": True,
+        "user": UserSerializer(user).data,
+        # Lets the frontend refuse a file before uploading it.
+        "limits": {"upload_max_size": settings.UPLOAD_MAX_SIZE},
+    }
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @ensure_csrf_cookie
@@ -29,7 +39,7 @@ def session(request):
     """
     if not request.user.is_authenticated:
         return Response({"authenticated": False, "user": None})
-    return Response({"authenticated": True, "user": UserSerializer(request.user).data})
+    return Response(signed_in(request.user))
 
 
 @api_view(["POST"])
@@ -47,7 +57,7 @@ def login_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     login(request, user)
-    return Response({"authenticated": True, "user": UserSerializer(user).data})
+    return Response(signed_in(user))
 
 
 @api_view(["POST"])

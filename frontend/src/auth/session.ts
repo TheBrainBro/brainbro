@@ -12,6 +12,7 @@ export type User = {
 export type Session = {
   authenticated: boolean
   user: User | null
+  limits?: { upload_max_size: number }
 }
 
 const sessionKey = ['session']

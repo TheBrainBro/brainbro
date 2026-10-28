@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 
+import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
 import { useRefreshPreview, type Item } from './api'
 
@@ -35,7 +36,6 @@ function Time({ iso }: { iso: string }) {
 }
 
 function LinkPreview({ item, actions }: { item: Item; actions?: ReactNode }) {
-  const refresh = useRefreshPreview()
   const { metadata } = item
   const title = item.title || metadata.title || item.url
 
@@ -78,14 +78,7 @@ function LinkPreview({ item, actions }: { item: Item; actions?: ReactNode }) {
             <>
               <span aria-hidden>·</span>
               <span>Preview unavailable</span>
-              <button
-                type="button"
-                className="font-medium text-zinc-700 hover:underline disabled:opacity-50 dark:text-zinc-300"
-                disabled={refresh.isPending}
-                onClick={() => refresh.mutate(item.id)}
-              >
-                Retry
-              </button>
+              <Retry item={item} />
             </>
           )}
           <div className="ml-auto">{actions}</div>
@@ -100,6 +93,118 @@ function LinkPreview({ item, actions }: { item: Item; actions?: ReactNode }) {
         />
       )}
     </div>
+  )
+}
+
+function Retry({ item }: { item: Item }) {
+  const refresh = useRefreshPreview()
+  return (
+    <button
+      type="button"
+      className="font-medium text-zinc-700 hover:underline disabled:opacity-50 dark:text-zinc-300"
+      disabled={refresh.isPending}
+      onClick={() => refresh.mutate(item.id)}
+    >
+      Retry
+    </button>
+  )
+}
+
+function ImagePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
+  const { width, height, filename } = item.metadata
+  return (
+    <>
+      {item.title && <h2 className="mb-2 font-medium">{item.title}</h2>}
+      <a
+        href={item.file_url ?? undefined}
+        target="_blank"
+        rel="noopener"
+        className="block overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
+        // Reserve the space before the thumbnail loads, so cards don't jump.
+        style={width && height ? { aspectRatio: `${width} / ${height}`, maxHeight: '20rem' } : undefined}
+      >
+        {item.preview_image_url ? (
+          <img
+            src={item.preview_image_url}
+            alt={item.title || filename || 'Image'}
+            loading="lazy"
+            className="mx-auto h-full max-h-80 object-contain"
+          />
+        ) : item.preview_status === 'pending' ? (
+          <div className="h-full min-h-32 animate-pulse" aria-busy="true">
+            <span className="sr-only">Making thumbnail…</span>
+          </div>
+        ) : (
+          <div className="flex h-full min-h-20 items-center justify-center text-sm text-zinc-500">
+            {filename || 'Image'}
+          </div>
+        )}
+      </a>
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        <Time iso={item.created_at} />
+        {item.preview_status === 'failed' && (
+          <>
+            <span aria-hidden>·</span>
+            <span>Thumbnail unavailable</span>
+            <Retry item={item} />
+          </>
+        )}
+        <div className="ml-auto">{actions}</div>
+      </div>
+    </>
+  )
+}
+
+function FilePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
+  const { filename, mime, size } = item.metadata
+  const extension = filename?.includes('.') ? filename.split('.').pop()!.slice(0, 4) : 'file'
+  const name = item.title || filename || 'File'
+  // PDFs get their first page rendered in the background. SVGs are safe to
+  // show as they are: in an <img> they run no scripts and load nothing
+  // external, and opening the file itself is a sandboxed download.
+  const preview =
+    item.preview_image_url ?? (mime === 'image/svg+xml' ? item.file_url : null)
+  return (
+    <>
+      {preview ? (
+        <img
+          src={preview}
+          alt={name}
+          loading="lazy"
+          className="mb-3 max-h-80 rounded-lg border border-zinc-200 bg-zinc-100 object-contain dark:border-zinc-700 dark:bg-zinc-800"
+        />
+      ) : (
+        item.preview_status === 'pending' && (
+          <div className="mb-3 h-40 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" aria-busy="true">
+            <span className="sr-only">Making preview…</span>
+          </div>
+        )
+      )}
+      <div className="flex items-center gap-3">
+        <div
+          aria-hidden
+          className="flex h-12 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-[10px] font-semibold text-zinc-500 uppercase dark:border-zinc-700 dark:bg-zinc-800"
+        >
+          {extension}
+        </div>
+        <div className="min-w-0 flex-1">
+          <a
+            href={item.file_url ?? undefined}
+            title={name}
+            className="block truncate font-medium hover:underline"
+          >
+            {name}
+          </a>
+          <p className="truncate text-xs text-zinc-500">
+            {[size !== undefined && formatBytes(size), mime].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
+        <Time iso={item.created_at} />
+        <div className="ml-auto">{actions}</div>
+      </div>
+    </>
   )
 }
 
@@ -138,6 +243,10 @@ export function ItemCard({
       <div className="min-w-0 flex-1">
         {item.kind === 'link' ? (
           <LinkPreview item={item} actions={actions} />
+        ) : item.kind === 'image' ? (
+          <ImagePreview item={item} actions={actions} />
+        ) : item.kind === 'file' ? (
+          <FilePreview item={item} actions={actions} />
         ) : (
           <>
             {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}

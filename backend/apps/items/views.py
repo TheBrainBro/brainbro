@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.http import FileResponse, Http404
@@ -11,16 +12,51 @@ from rest_framework.response import Response
 from .capture import infer_item_fields
 from .models import Collection, Item
 from .serializers import CollectionSerializer, ItemSerializer, TriageSerializer
-from .tasks import fetch_link_preview
+from .tasks import fetch_link_preview, generate_thumbnail
+from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
 class CaptureSerializer(serializers.Serializer):
-    text = serializers.CharField(max_length=100_000, trim_whitespace=True)
+    """Either `text` (JSON or form) or one `file` (multipart)."""
+
+    text = serializers.CharField(
+        max_length=100_000, trim_whitespace=True, required=False
+    )
+    file = serializers.FileField(required=False, allow_empty_file=False)
+
+    def validate(self, data):
+        if ("text" in data) == ("file" in data):
+            raise serializers.ValidationError("Send either text or a file.")
+        if "file" in data:
+            try:
+                data["upload"] = inspect_upload(data["file"])
+            except UploadTooLarge:
+                limit = settings.UPLOAD_MAX_SIZE // (1024 * 1024)
+                raise serializers.ValidationError(
+                    {"file": f"The file is too large (max {limit} MB)."}
+                ) from None
+        return data
 
 
 def enqueue_preview(item):
     # After commit, so the worker never looks for a row it can't see yet.
-    transaction.on_commit(lambda: fetch_link_preview.delay(str(item.id)))
+    task = fetch_link_preview if item.kind == Item.Kind.LINK else generate_thumbnail
+    transaction.on_commit(lambda: task.delay(str(item.id)))
+
+
+def create_upload_item(owner, file, upload):
+    item = Item(
+        owner=owner,
+        kind=upload.kind,
+        metadata=upload.metadata,
+        title="" if upload.kind == Item.Kind.IMAGE else upload.metadata["filename"],
+    )
+    if has_thumbnail(item):
+        item.preview_status = Item.PreviewStatus.PENDING
+    # Uploads spooled to disk are moved into storage, not copied.
+    item.file.save(f"upload.{upload.extension}", file, save=False)
+    item.save()
+    return item
 
 
 class ItemViewSet(
@@ -54,14 +90,22 @@ class ItemViewSet(
 
     @action(detail=False, methods=["post"])
     def capture(self, request):
-        """Universal capture: drop text or a URL; it lands in the inbox."""
+        """
+        Universal capture: drop text, a URL or a file; it lands in the inbox.
+        Images become `image` items (thumbnail made in the background), any
+        other file a `file` item.
+        """
         payload = CaptureSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        fields = infer_item_fields(payload.validated_data["text"])
-        if fields["kind"] == Item.Kind.LINK:
-            fields["preview_status"] = Item.PreviewStatus.PENDING
-        item = Item.objects.create(owner=request.user, **fields)
-        if item.kind == Item.Kind.LINK:
+        data = payload.validated_data
+        if "file" in data:
+            item = create_upload_item(request.user, data["file"], data["upload"])
+        else:
+            fields = infer_item_fields(data["text"])
+            if fields["kind"] == Item.Kind.LINK:
+                fields["preview_status"] = Item.PreviewStatus.PENDING
+            item = Item.objects.create(owner=request.user, **fields)
+        if item.preview_status == Item.PreviewStatus.PENDING:
             enqueue_preview(item)
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
 
@@ -102,9 +146,9 @@ class ItemViewSet(
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):
         item = self.get_object()
-        if item.kind != Item.Kind.LINK:
+        if item.kind != Item.Kind.LINK and not has_thumbnail(item):
             return Response(
-                {"detail": "Only links have previews."},
+                {"detail": "Only links, images and PDFs have previews."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         item.preview_status = Item.PreviewStatus.PENDING
@@ -121,6 +165,29 @@ class ItemViewSet(
             item.preview_image.open("rb"), content_type="image/webp"
         )
         # The URL carries a per-file version, so the content never changes.
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+    @action(detail=True, methods=["get"])
+    def file(self, request, pk=None):
+        """
+        The uploaded original. Only known raster images are shown inline;
+        everything else is a download, so nothing uploaded can run as a page
+        on our origin.
+        """
+        item = self.get_object()
+        if not item.file:
+            raise Http404
+        mime = item.metadata.get("mime") or "application/octet-stream"
+        inline = item.kind == Item.Kind.IMAGE and mime in INLINE_TYPES
+        response = FileResponse(
+            item.file.open("rb"),
+            content_type=mime,
+            as_attachment=not inline,
+            filename=item.metadata.get("filename") or item.file.name,
+        )
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
         response["Cache-Control"] = "private, max-age=31536000, immutable"
         return response
 

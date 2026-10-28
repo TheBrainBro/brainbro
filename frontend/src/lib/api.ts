@@ -5,14 +5,21 @@ export class ApiError extends Error {
   data: unknown
 
   constructor(status: number, data: unknown) {
-    const detail =
-      data && typeof data === 'object' && 'detail' in data
-        ? String((data as { detail: unknown }).detail)
-        : `Request failed with status ${status}`
-    super(detail)
+    super(firstMessage(data) ?? `Request failed with status ${status}`)
     this.status = status
     this.data = data
   }
+}
+
+/** `detail`, or the first field error DRF returned ({"file": ["Too large."]}). */
+function firstMessage(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return undefined
+  if ('detail' in data) return String((data as { detail: unknown }).detail)
+  for (const value of Object.values(data)) {
+    const message = Array.isArray(value) ? value[0] : value
+    if (typeof message === 'string') return message
+  }
+  return undefined
 }
 
 function getCookie(name: string): string | null {
@@ -52,4 +59,41 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) throw new ApiError(response.status, data)
   return data as T
+}
+
+/**
+ * POST a form with upload progress (0 to 1), which fetch can't report.
+ * Rejects with ApiError, or with an AbortError when `signal` aborts.
+ */
+export function upload<T>(
+  path: string,
+  form: FormData,
+  { onProgress, signal }: { onProgress?: (fraction: number) => void; signal?: AbortSignal } = {},
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', `/api${path}`)
+    request.withCredentials = true
+    request.setRequestHeader('Accept', 'application/json')
+    const token = getCookie('csrftoken')
+    if (token) request.setRequestHeader('X-CSRFToken', token)
+
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded / event.total)
+    }
+    request.onload = () => {
+      let data: unknown = null
+      try {
+        data = JSON.parse(request.responseText)
+      } catch {
+        // Not JSON (a proxy error page): keep the status only.
+      }
+      if (request.status >= 200 && request.status < 300) resolve(data as T)
+      else reject(new ApiError(request.status, data))
+    }
+    request.onerror = () => reject(new Error('Network error, check your connection.'))
+    request.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'))
+    signal?.addEventListener('abort', () => request.abort(), { once: true })
+    request.send(form)
+  })
 }

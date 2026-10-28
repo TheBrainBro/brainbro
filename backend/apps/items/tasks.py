@@ -7,6 +7,7 @@ from django.core.files.storage import default_storage
 from .models import Item, preview_image_path
 from .previews import build_preview, download_preview_image
 from .safe_http import FetchError, TransientFetchError
+from .uploads import has_thumbnail, make_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -79,3 +80,29 @@ def _mark_failed(item, exc):
         preview_status=Item.PreviewStatus.FAILED,
         metadata={**item.metadata, "preview_error": str(exc)[:500]},
     )
+
+
+@shared_task
+def generate_thumbnail(item_id):
+    """
+    Make the card image of an upload (a bounded WebP): the image itself
+    re-encoded, or the first page of a PDF.
+    """
+    item = Item.objects.filter(id=item_id).first()
+    if item is None or not item.file or not has_thumbnail(item):
+        return
+
+    thumbnail = make_thumbnail(item)
+    if thumbnail is None:
+        logger.info("Could not make a thumbnail for item %s", item.id)
+        Item.objects.filter(id=item.id).update(preview_status=Item.PreviewStatus.FAILED)
+        return
+
+    name = default_storage.save(preview_image_path(item, ""), ContentFile(thumbnail))
+    updated = Item.objects.filter(id=item.id).update(
+        preview_status=Item.PreviewStatus.READY, preview_image=name
+    )
+    if not updated:  # deleted meanwhile
+        default_storage.delete(name)
+    elif item.preview_image and item.preview_image.name != name:
+        default_storage.delete(item.preview_image.name)

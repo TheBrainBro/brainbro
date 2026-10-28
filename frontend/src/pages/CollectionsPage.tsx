@@ -7,7 +7,7 @@ import { useCollections, useCreateCollection, useItems, type CollectionKind } fr
 const kinds: { value: CollectionKind; label: string }[] = [
   { value: 'project', label: 'Project' },
   { value: 'area', label: 'Area' },
-  { value: 'personal', label: 'Personal' },
+  { value: 'resource', label: 'Resource' },
 ]
 
 export function CollectionsPage() {

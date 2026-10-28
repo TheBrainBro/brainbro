@@ -8,15 +8,18 @@ from apps.core.models import OwnedModel
 
 
 class Collection(OwnedModel):
-    """A named group of items: a project, an area of life, a topic."""
+    """
+    A named group of items, following PARA: a project (a goal with an end),
+    an area (an ongoing responsibility) or a resource (a topic of interest).
+    """
 
     class Kind(models.TextChoices):
         PROJECT = "project", "Project"
         AREA = "area", "Area"
-        PERSONAL = "personal", "Personal"
+        RESOURCE = "resource", "Resource"
 
     name = models.CharField(max_length=120)
-    kind = models.CharField(max_length=16, choices=Kind, default=Kind.PERSONAL)
+    kind = models.CharField(max_length=16, choices=Kind, default=Kind.RESOURCE)
     # Hex color (#rrggbb) and an emoji or icon name, both optional.
     color = models.CharField(max_length=7, blank=True)
     icon = models.CharField(max_length=32, blank=True)
@@ -36,6 +39,13 @@ class Collection(OwnedModel):
 def preview_image_path(item, filename):
     # A fresh name per fetch, so a refreshed preview never hits a stale cache.
     return f"previews/{item.id}/{uuid.uuid4().hex}.webp"
+
+
+def upload_path(item, filename):
+    # Random name; the extension comes from the detected type, never the
+    # client. The original name lives in metadata["filename"].
+    extension = filename.rsplit(".", 1)[-1]
+    return f"uploads/{item.id}/{uuid.uuid4().hex}.{extension}"
 
 
 class Item(OwnedModel):
@@ -68,12 +78,16 @@ class Item(OwnedModel):
     title = models.CharField(max_length=500, blank=True)
     body = models.TextField(blank=True, help_text="Markdown.")
     url = models.URLField(max_length=2048, blank=True)
-    # Extracted data: OpenGraph/oEmbed fields for links, file info later.
+    # Extracted data: OpenGraph/oEmbed fields for links; filename, MIME type,
+    # size (and dimensions for images) for uploads.
     metadata = models.JSONField(default=dict, blank=True)
     preview_status = models.CharField(
         max_length=8, choices=PreviewStatus, default=PreviewStatus.NONE, blank=True
     )
+    # Card image: the page's preview for links, a thumbnail for images.
     preview_image = models.ImageField(upload_to=preview_image_path, blank=True)
+    # The uploaded original, for image and file items.
+    file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
     collections = models.ManyToManyField(Collection, related_name="items", blank=True)
 
     class Meta:
@@ -87,6 +101,8 @@ class Item(OwnedModel):
 
 
 @receiver(post_delete, sender=Item)
-def delete_preview_image(sender, instance, **kwargs):
+def delete_item_files(sender, instance, **kwargs):
     if instance.preview_image:
         instance.preview_image.delete(save=False)
+    if instance.file:
+        instance.file.delete(save=False)
