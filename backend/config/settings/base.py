@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.core.apps.CoreConfig",
     "apps.accounts.apps.AccountsConfig",
+    "apps.items.apps.ItemsConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -139,6 +140,11 @@ MEDIA_URL = "/media/"
 # MEDIA_ROOT so dumps can never be served.
 BACKUP_DIR = Path(get_env_variable("BACKUP_DIR", str(BASE_DIR / "backups")))
 BACKUP_RETENTION = int(get_env_variable("BACKUP_RETENTION", "14"))
+
+# Link previews (apps.items.tasks.fetch_link_preview). Private, loopback and
+# link-local addresses are always refused unless explicitly allowed (tests).
+LINK_PREVIEW_ALLOWED_PORTS = {80, 443}
+LINK_PREVIEW_ALLOW_PRIVATE_IPS = False
 
 # Auth
 
