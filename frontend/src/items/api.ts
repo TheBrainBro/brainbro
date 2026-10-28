@@ -91,7 +91,7 @@ export function useTriage() {
   })
 }
 
-export type CollectionKind = 'project' | 'area' | 'personal'
+export type CollectionKind = 'project' | 'area' | 'resource'
 
 export type Collection = {
   id: string

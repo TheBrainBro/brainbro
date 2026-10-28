@@ -28,6 +28,11 @@ def test_item_belongs_to_several_collections(user):
     assert item.collections.count() == 2
 
 
+def test_collections_default_to_resource(user):
+    collection = Collection.objects.create(owner=user, name="Cooking")
+    assert collection.kind == Collection.Kind.RESOURCE
+
+
 def test_collection_names_are_unique_per_owner(user, other_user):
     Collection.objects.create(owner=user, name="Work")
     Collection.objects.create(owner=other_user, name="Work")
