@@ -43,8 +43,12 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => api<void>('/auth/logout/', { method: 'POST' }),
     onSuccess: () => {
-      queryClient.clear()
-      // Refetch to get a fresh CSRF cookie for the next login.
+      // Drop the user's data but keep the session query itself, signed out:
+      // clear() would remove it under its observers, which then never update
+      // (the app stayed on screen). The refetch gets a fresh CSRF cookie for
+      // the next login.
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== sessionKey[0] })
+      queryClient.setQueryData<Session>(sessionKey, { authenticated: false, user: null })
       queryClient.invalidateQueries({ queryKey: sessionKey })
     },
   })
