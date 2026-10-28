@@ -3,6 +3,9 @@ import { EditorState, StateEffect, StateField, type Extension, type Range } from
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
 
+import { emojiByName } from '../lib/markdown'
+import { dialectDecorations, GlyphWidget } from './dialect'
+
 /*
  * Live preview: the note reads as rendered Markdown, and the Markdown shows
  * only where the cursor is (its line for block markers, the element for
@@ -178,6 +181,94 @@ function tableWidget(state: EditorState, node: SyntaxNode) {
 
 const setFocus = StateEffect.define<boolean>()
 
+// Nodes that already mean something: the dialect's text rules stay off them.
+const EXCLUDED = new Set([
+  'InlineCode',
+  'URL',
+  'Autolink',
+  'HTMLTag',
+  'HTMLBlock',
+  'Comment',
+  'CommentBlock',
+  'LinkReference',
+  'LinkMark',
+  'LinkTitle',
+  'LinkLabel',
+  'Image',
+  'Emoji',
+  'HorizontalRule',
+  'TaskMarker',
+  'HeaderMark',
+  'QuoteMark',
+  'ListMark',
+  'EmphasisMark',
+  'CodeMark',
+  'Escape',
+  'StrikethroughMark',
+  'SuperscriptMark',
+  'SubscriptMark',
+])
+
+type Footnote = { kind: 'ref' | 'inline' | 'definition'; label: string }
+
+/**
+ * Footnotes numbered the way markdown-it-footnote does: by first reference,
+ * inline ones (`^[…]`) in turn, repeats as `n:k`. Only labels with a
+ * definition are footnotes. Keyed by the Link node's start.
+ */
+function footnotes(state: EditorState) {
+  const found: { from: number; note: Footnote }[] = []
+  const defined = new Set<string>()
+  syntaxTree(state).iterate({
+    enter: (ref) => {
+      if (ref.name === 'LinkReference') {
+        // `[^1]: Note.` can parse as a link definition (`Note.` as its URL).
+        const label = ref.node.getChild('LinkLabel')
+        const text = label ? state.sliceDoc(label.from + 1, label.to - 1) : ''
+        if (text.startsWith('^')) {
+          defined.add(text.slice(1))
+          found.push({ from: ref.from, note: { kind: 'definition', label: text.slice(1) } })
+        }
+        return false
+      }
+      if (ref.name !== 'Link') return
+      const node = ref.node
+      const [open, close] = node.getChildren('LinkMark')
+      if (!open || !close || node.getChild('URL') || node.getChild('LinkLabel')) return false
+      const label = state.sliceDoc(open.to, close.from)
+      if (label.startsWith('^')) {
+        const definition =
+          state.doc.lineAt(ref.from).from === ref.from && state.sliceDoc(ref.to, ref.to + 1) === ':'
+        if (definition) defined.add(label.slice(1))
+        found.push({
+          from: ref.from,
+          note: { kind: definition ? 'definition' : 'ref', label: label.slice(1) },
+        })
+      } else if (state.sliceDoc(ref.from - 1, ref.from) === '^') {
+        found.push({ from: ref.from, note: { kind: 'inline', label } })
+      }
+      return false
+    },
+  })
+  const numbers = new Map<string, { n: number; uses: number }>()
+  let count = 0
+  const shown = new Map<number, { note: Footnote; text: string }>()
+  for (const { from, note } of found) {
+    if (note.kind === 'inline') shown.set(from, { note, text: `[${++count}]` })
+    if (note.kind !== 'ref' || !defined.has(note.label)) continue
+    const entry = numbers.get(note.label) ?? { n: ++count, uses: 0 }
+    numbers.set(note.label, entry)
+    shown.set(from, { note, text: `[${entry.n}${entry.uses ? `:${entry.uses}` : ''}]` })
+    entry.uses++
+  }
+  for (const { from, note } of found) {
+    if (note.kind !== 'definition') continue
+    const entry = numbers.get(note.label)
+    shown.set(from, { note, text: entry ? `${entry.n}.` : `${note.label}:` })
+  }
+  return shown
+}
+
 function build(state: EditorState, focused: boolean): DecorationSet {
   const decorations: Range<Decoration>[] = []
   const ranges = focused ? state.selection.ranges : []
@@ -205,6 +296,10 @@ function build(state: EditorState, focused: boolean): DecorationSet {
   }
   // Lines inside code blocks, where blank lines are content.
   const codeLines = new Set<number>()
+  // For the dialect's text rules: ranges to leave alone, lines to skip.
+  const excluded: { from: number; to: number }[] = []
+  const skipLines = new Set<number>()
+  const notes = footnotes(state)
   // Quote depth per line (`>>` is two), so nested quotes show nested bars.
   const quoteDepth = new Map<number, number>()
   // The marker plus the space after it (`# `, `> `, `- `).
@@ -215,7 +310,15 @@ function build(state: EditorState, focused: boolean): DecorationSet {
       const { name, from, to } = ref
       const node = ref.node
       const parent = node.parent?.name
+      if (EXCLUDED.has(name)) excluded.push({ from, to })
       switch (name) {
+        case 'Emoji': {
+          const emoji = emojiByName[state.sliceDoc(from + 1, to - 1)]
+          if (emoji && !touches(from, to)) {
+            decorations.push(Decoration.replace({ widget: new GlyphWidget(emoji) }).range(from, to))
+          }
+          break
+        }
         case 'HeaderMark':
           if (parent?.startsWith('ATXHeading') && !lineActive(from)) {
             decorations.push(hide.range(from, withSpace(to)))
@@ -325,15 +428,34 @@ function build(state: EditorState, focused: boolean): DecorationSet {
         case 'Link': {
           const [open, close] = node.getChildren('LinkMark')
           if (!open || !close) break
-          const label = state.sliceDoc(open.to, close.from)
           const target = node.getChild('URL') || node.getChild('LinkLabel')
-          if (!target && label.startsWith('^')) {
-            // A footnote: `[^1]` as a superscript, `[^1]: …` as its definition.
+          const footnote = notes.get(from)
+          if (footnote) {
+            excluded.push({ from: footnote.note.kind === 'inline' ? from - 1 : from, to })
+            if (footnote.note.kind === 'inline') {
+              // `^[text]`: its number, then the text, muted, where it was written.
+              if (touches(from - 1, to)) break
+              decorations.push(
+                Decoration.replace({
+                  widget: new GlyphWidget(footnote.text, 'cm-md-footref'),
+                }).range(from - 1, open.to),
+                hide.range(close.from, close.to),
+              )
+              mark(open.to, close.from, 'cm-md-footinline')
+              break
+            }
             if (touches(from, to)) break
-            const definition =
-              state.doc.lineAt(from).from === from && state.sliceDoc(to, to + 1) === ':'
-            decorations.push(hide.range(open.from, open.to + 1), hide.range(close.from, close.to))
-            mark(open.to + 1, close.from, definition ? 'cm-md-footdef' : 'cm-md-footref')
+            const definition = footnote.note.kind === 'definition'
+            // A definition's `[^1]: ` reads as `1.`; a reference as `[1]`.
+            const end = definition ? withSpace(to + 1) : to
+            decorations.push(
+              Decoration.replace({
+                widget: new GlyphWidget(
+                  footnote.text,
+                  definition ? 'cm-md-footdef' : 'cm-md-footref',
+                ),
+              }).range(from, end),
+            )
             break
           }
           if (!target) {
@@ -347,10 +469,26 @@ function build(state: EditorState, focused: boolean): DecorationSet {
           decorations.push(hide.range(open.from, open.to), hide.range(close.from, to))
           break
         }
-        case 'LinkReference':
+        case 'LinkReference': {
+          const footnote = notes.get(from)
+          const colon = node.getChild('LinkMark')
+          if (footnote && colon) {
+            // A footnote definition read as a link definition: label as `1.`,
+            // the rest as the plain text it is.
+            mark(colon.to, to, 'cm-md-plain')
+            if (!touches(from, to)) {
+              decorations.push(
+                Decoration.replace({
+                  widget: new GlyphWidget(footnote.text, 'cm-md-footdef'),
+                }).range(from, withSpace(colon.to)),
+              )
+            }
+            return false
+          }
           // `[id]: url "title"` defines a link; it isn't content.
           if (!touches(from, to)) mark(from, to, 'cm-md-refdef')
           return false
+        }
         case 'Image': {
           if (touches(from, to)) break
           const marks = node.getChildren('LinkMark')
@@ -361,6 +499,7 @@ function build(state: EditorState, focused: boolean): DecorationSet {
         case 'Table': {
           const first = state.doc.lineAt(from)
           const last = state.doc.lineAt(to)
+          for (let number = first.number; number <= last.number; number++) skipLines.add(number)
           if (touches(first.from, last.to)) break
           decorations.push(
             Decoration.replace({ widget: tableWidget(state, node), block: true }).range(
@@ -381,6 +520,8 @@ function build(state: EditorState, focused: boolean): DecorationSet {
     if (state.doc.line(number - 1).text.trim()) continue
     decorations.push(Decoration.line({ class: 'cm-md-gap' }).range(line.from))
   }
+  for (const number of codeLines) skipLines.add(number)
+  decorations.push(...dialectDecorations(state, { excluded, skipLines, touches }))
   for (const [number, depth] of quoteDepth) {
     const line = state.doc.line(number)
     decorations.push(
@@ -482,7 +623,48 @@ export function livePreview(): Extension {
       '.cm-md-sup': { verticalAlign: 'super', fontSize: '0.75em' },
       '.cm-md-sub': { verticalAlign: 'sub', fontSize: '0.75em' },
       '.cm-md-footref': { verticalAlign: 'super', fontSize: '0.75em' },
-      '.cm-md-footdef': { fontSize: '0.85em' },
+      '.cm-md-footdef': { fontSize: '0.85em', marginRight: '0.4em' },
+      '.cm-md-footinline': { fontSize: '0.85em' },
+      // Inline footnote text parses as a link: muted, nested either way.
+      '.cm-md-footinline, .cm-md-footinline .cm-md-link, .cm-md-link .cm-md-footinline': {
+        color: 'var(--md-muted)',
+      },
+      '.cm-md-ins': { textDecoration: 'underline', textUnderlineOffset: '0.2em' },
+      '.cm-md-highlight': { background: 'var(--md-highlight)', borderRadius: '0.15rem' },
+      '.cm-md-abbr': { textDecoration: 'underline dotted', cursor: 'help' },
+      '.cm-line.cm-md-dt': { fontWeight: '600' },
+      '.cm-line.cm-md-dd': { paddingLeft: '1.5rem' },
+      '.cm-line.cm-md-container': {
+        borderLeft: '4px solid var(--box-border)',
+        background: 'var(--box-background)',
+        padding: '0 0.75rem',
+      },
+      '.cm-line.cm-md-container-first': {
+        borderTopRightRadius: '0.5rem',
+        paddingTop: '0.25rem',
+        fontSize: '0.75em',
+      },
+      '.cm-line.cm-md-container-last': {
+        borderBottomRightRadius: '0.5rem',
+        fontSize: '0.75em',
+        lineHeight: '0.75',
+      },
+      '.cm-md-container-note, .cm-md-container-info': {
+        '--box-border': 'var(--box-info)',
+        '--box-background': 'var(--box-info-bg)',
+      },
+      '.cm-md-container-tip': {
+        '--box-border': 'var(--box-tip)',
+        '--box-background': 'var(--box-tip-bg)',
+      },
+      '.cm-md-container-warning': {
+        '--box-border': 'var(--box-warning)',
+        '--box-background': 'var(--box-warning-bg)',
+      },
+      '.cm-md-container-danger': {
+        '--box-border': 'var(--box-danger)',
+        '--box-background': 'var(--box-danger-bg)',
+      },
       // Footnotes parse as links: muted instead of the link color, nested either way.
       '.cm-md-footref, .cm-md-footdef, :is(.cm-md-footref, .cm-md-footdef) .cm-md-link, .cm-md-link :is(.cm-md-footref, .cm-md-footdef)':
         { color: 'var(--md-muted)' },

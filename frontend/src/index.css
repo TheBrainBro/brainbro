@@ -11,6 +11,16 @@
   --md-rule: light-dark(var(--color-zinc-300), var(--color-zinc-700));
   --md-subtle: light-dark(var(--color-zinc-100), var(--color-zinc-800));
   --md-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
+  /* ==mark== and ::: containers in the editor (literal colors, see below). */
+  --md-highlight: light-dark(#fde68a, #f59e0b4d);
+  --box-info: #38bdf8;
+  --box-info-bg: light-dark(#f0f9ff, #0c4a6e80);
+  --box-tip: #34d399;
+  --box-tip-bg: light-dark(#ecfdf5, #064e3b80);
+  --box-warning: #fbbf24;
+  --box-warning-bg: light-dark(#fffbeb, #78350f80);
+  --box-danger: #f87171;
+  --box-danger-bg: light-dark(#fef2f2, #7f1d1d80);
   /* Code tokens in note code blocks (literal: Tailwind only emits colors in use). */
   --code-keyword: light-dark(#6d28d9, #c4b5fd);
   --code-string: light-dark(#047857, #6ee7b7);
