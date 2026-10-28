@@ -103,7 +103,7 @@ describe('live preview', () => {
     expect(text()).toContain('<ins>')
     expect(text()).not.toContain('\\<')
     const plain = view.contentDOM.querySelectorAll('.cm-md-plain')
-    expect([...plain].map((node) => node.textContent)).toEqual(['[inline]', '[HTML]'])
+    expect([...plain].map((node) => node.textContent)).toEqual(['[HTML]'])
   })
 
   it('renders footnotes and dims link definitions', () => {
@@ -145,5 +145,53 @@ describe('live preview', () => {
     expect(view.contentDOM.querySelectorAll('.cm-md-gap')).toHaveLength(2)
     expect(view.contentDOM.querySelectorAll('.cm-md-fence-empty')).toHaveLength(2)
     expect(view.state.doc.toString()).toBe('a\n\n\n\nb\n\n```\nx\n\n\ny\n```\n')
+  })
+
+  it('numbers footnotes like markdown-it: by first reference, inline ones in turn', () => {
+    open('A[^b] B^[inline] C[^b] D[^none].\n\n[^b]: Bee.\n')
+    const refs = [...view.contentDOM.querySelectorAll('.cm-md-footref')].map((n) => n.textContent)
+    expect(refs).toEqual(['[1]', '[2]', '[1:1]'])
+    expect(view.contentDOM.querySelector('.cm-md-footinline')).toHaveTextContent('inline')
+    expect(view.contentDOM.querySelector('.cm-md-footdef')).toHaveTextContent('1.')
+    // No definition, no footnote.
+    expect(text()).toContain('[^none]')
+  })
+
+  it('renders emoji, emoticons and typographer replacements, but not in code or URLs', () => {
+    open(
+      'Hi :wink: 8-) (c) (TM) +- wait... ok?.... !!!!! ,, a -- b --- c "q" it\'s\n\n`8-) (c)` https://x.io/a--b\n',
+    )
+    expect(text()).toContain('Hi 😉 😎 © ™ ± wait… ok?.. !!! , a – b — c “q” it’s')
+    expect(text()).toContain('8-) (c)')
+    expect(text()).toContain('https://x.io/a--b')
+    expect(view.state.doc.toString()).toContain(':wink: 8-) (c)')
+  })
+
+  it('renders ++ins++, ==mark== and abbreviations', () => {
+    open('++new++ and ==marked== in HTML, not xHTMLy.\n\n*[HTML]: Hyper Text Markup Language\n')
+    expect(view.contentDOM.querySelector('.cm-md-ins')).toHaveTextContent('new')
+    expect(view.contentDOM.querySelector('.cm-md-highlight')).toHaveTextContent('marked')
+    expect(text()).not.toContain('++')
+    expect(text()).not.toContain('==')
+    const abbr = view.contentDOM.querySelectorAll('.cm-md-abbr')
+    expect(abbr).toHaveLength(1)
+    expect(abbr[0]).toHaveAttribute('title', 'Hyper Text Markup Language')
+  })
+
+  it('renders definition lists and containers', () => {
+    open(
+      'Term 1\n\n:   Definition 1\nwith lazy continuation.\n\nTerm 2\n  ~ Def 2a\n  ~ Def 2b\n\n::: warning\n*here be dragons*\n:::\n',
+    )
+    const lines = (selector: string) =>
+      [...view.contentDOM.querySelectorAll(selector)].map((n) => n.textContent)
+    expect(lines('.cm-md-dt')).toEqual(['Term 1', 'Term 2'])
+    expect(lines('.cm-md-dd')).toEqual([
+      'Definition 1',
+      'with lazy continuation.',
+      'Def 2a',
+      'Def 2b',
+    ])
+    expect(lines('.cm-md-container-warning')).toEqual(['warning', 'here be dragons', ''])
+    expect(view.state.doc.toString()).toContain('::: warning\n*here be dragons*\n:::')
   })
 })
