@@ -159,17 +159,26 @@ function FilePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
   const { filename, mime, size } = item.metadata
   const extension = filename?.includes('.') ? filename.split('.').pop()!.slice(0, 4) : 'file'
   const name = item.title || filename || 'File'
+  // PDFs get their first page rendered in the background. SVGs are safe to
+  // show as they are: in an <img> they run no scripts and load nothing
+  // external, and opening the file itself is a sandboxed download.
+  const preview =
+    item.preview_image_url ?? (mime === 'image/svg+xml' ? item.file_url : null)
   return (
     <>
-      {mime === 'image/svg+xml' && item.file_url && (
-        // Safe to show: an SVG in <img> runs no scripts and loads nothing
-        // external. Opening the file itself is a sandboxed download.
+      {preview ? (
         <img
-          src={item.file_url}
+          src={preview}
           alt={name}
           loading="lazy"
-          className="mb-3 max-h-80 rounded-lg bg-zinc-100 object-contain dark:bg-zinc-800"
+          className="mb-3 max-h-80 rounded-lg border border-zinc-200 bg-zinc-100 object-contain dark:border-zinc-700 dark:bg-zinc-800"
         />
+      ) : (
+        item.preview_status === 'pending' && (
+          <div className="mb-3 h-40 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" aria-busy="true">
+            <span className="sr-only">Making preview…</span>
+          </div>
+        )
       )}
       <div className="flex items-center gap-3">
         <div
