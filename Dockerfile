@@ -22,8 +22,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 # postgresql-client: pg_dump for the scheduled database backups. Trixie ships
 # version 17, matching the pgvector/pgvector:*-pg17 server.
+# libmagic1: detects the real type of uploaded files (python-magic).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-client curl \
+    && apt-get install -y --no-install-recommends postgresql-client curl libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 1000 brain \

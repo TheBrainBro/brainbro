@@ -136,6 +136,10 @@ STORAGES = {
 MEDIA_ROOT = Path(get_env_variable("STORAGE_PATH", str(BASE_DIR / "storage")))
 MEDIA_URL = "/media/"
 
+# Uploads captured as image or file items (apps.items.uploads). Anything over
+# FILE_UPLOAD_MAX_MEMORY_SIZE (Django's default, 2.5 MB) is spooled to disk.
+UPLOAD_MAX_SIZE = int(get_env_variable("UPLOAD_MAX_SIZE", str(50 * 1024 * 1024)))
+
 # Database backups (apps.core.tasks.backup_database). Must live outside
 # MEDIA_ROOT so dumps can never be served.
 BACKUP_DIR = Path(get_env_variable("BACKUP_DIR", str(BASE_DIR / "backups")))
