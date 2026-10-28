@@ -338,6 +338,21 @@ describe('CaptureProvider', () => {
     box.dispatchEvent(textPaste)
     expect(textPaste.defaultPrevented).toBe(false)
 
+    // An editor that handled the paste and re-rendered the node it landed on.
+    const detached = document.createElement('div')
+    const handledPaste = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(handledPaste, 'clipboardData', {
+      value: { types: ['text/plain'], getData: () => '# pasted into a note' },
+    })
+    Object.defineProperty(handledPaste, 'target', { value: detached })
+    handledPaste.preventDefault()
+    act(() => {
+      window.dispatchEvent(handledPaste)
+    })
+    const captures = () =>
+      fetchMock.mock.calls.filter(([url]) => url === '/api/items/capture/').length
+    expect(captures()).toBe(0)
+
     const filePaste = new Event('paste', { bubbles: true, cancelable: true })
     Object.defineProperty(filePaste, 'clipboardData', { value: dataTransfer([png()]) })
     act(() => {
