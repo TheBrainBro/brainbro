@@ -40,6 +40,23 @@ describe('ItemCard files', () => {
     )
   })
 
+  it('shows the first page of a PDF once it is rendered', () => {
+    const pdf = { filename: 'Report.pdf', mime: 'application/pdf', size: 10 }
+    const { unmount } = renderCard({ ...fileItem(pdf), preview_status: 'pending' })
+    expect(screen.getByText('Making preview…')).toBeInTheDocument()
+    unmount()
+
+    renderCard({
+      ...fileItem(pdf),
+      preview_status: 'ready',
+      preview_image_url: '/api/items/f1/preview-image/?v=p.webp',
+    })
+    expect(screen.getByRole('img', { name: 'Report.pdf' })).toHaveAttribute(
+      'src',
+      '/api/items/f1/preview-image/?v=p.webp',
+    )
+  })
+
   it('shows no preview for other files and truncates long names', () => {
     const name = `${'a'.repeat(120)}.pdf`
     renderCard(fileItem({ filename: name, mime: 'application/pdf', size: 10 }))

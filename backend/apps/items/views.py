@@ -13,7 +13,7 @@ from .capture import infer_item_fields
 from .models import Collection, Item
 from .serializers import CollectionSerializer, ItemSerializer, TriageSerializer
 from .tasks import fetch_link_preview, generate_thumbnail
-from .uploads import INLINE_TYPES, UploadTooLarge, inspect_upload
+from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
 class CaptureSerializer(serializers.Serializer):
@@ -40,7 +40,7 @@ class CaptureSerializer(serializers.Serializer):
 
 def enqueue_preview(item):
     # After commit, so the worker never looks for a row it can't see yet.
-    task = generate_thumbnail if item.kind == Item.Kind.IMAGE else fetch_link_preview
+    task = fetch_link_preview if item.kind == Item.Kind.LINK else generate_thumbnail
     transaction.on_commit(lambda: task.delay(str(item.id)))
 
 
@@ -51,7 +51,7 @@ def create_upload_item(owner, file, upload):
         metadata=upload.metadata,
         title="" if upload.kind == Item.Kind.IMAGE else upload.metadata["filename"],
     )
-    if upload.kind == Item.Kind.IMAGE:
+    if has_thumbnail(item):
         item.preview_status = Item.PreviewStatus.PENDING
     # Uploads spooled to disk are moved into storage, not copied.
     item.file.save(f"upload.{upload.extension}", file, save=False)
@@ -146,9 +146,9 @@ class ItemViewSet(
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):
         item = self.get_object()
-        if item.kind not in (Item.Kind.LINK, Item.Kind.IMAGE):
+        if item.kind != Item.Kind.LINK and not has_thumbnail(item):
             return Response(
-                {"detail": "Only links and images have previews."},
+                {"detail": "Only links, images and PDFs have previews."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         item.preview_status = Item.PreviewStatus.PENDING

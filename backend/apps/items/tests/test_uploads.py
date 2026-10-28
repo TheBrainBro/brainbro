@@ -71,7 +71,7 @@ def test_other_files_become_file_items_named_after_the_file(api):
     data = capture(api, "Invoice 2026.pdf", PDF).json()
     assert data["kind"] == "file"
     assert data["title"] == "Invoice 2026.pdf"
-    assert data["preview_status"] == ""
+    assert data["preview_status"] == "pending"  # first-page thumbnail
     assert data["metadata"]["mime"] == "application/pdf"
     item = Item.objects.get(id=data["id"])
     assert item.file.name.startswith(f"uploads/{item.id}/")
@@ -228,3 +228,56 @@ def test_deleting_an_upload_removes_its_files(
 def test_session_exposes_the_upload_limit(api, settings):
     settings.UPLOAD_MAX_SIZE = 1234
     assert api.get("/api/auth/session/").json()["limits"] == {"upload_max_size": 1234}
+
+
+def pdf_bytes(size=(300, 400), pages=1):
+    output = io.BytesIO()
+    first, *rest = [Image.new("RGB", size, "white") for _ in range(pages)]
+    first.save(output, format="PDF", save_all=True, append_images=rest)
+    return output.getvalue()
+
+
+def test_pdfs_get_their_first_page_as_thumbnail(
+    api, django_capture_on_commit_callbacks
+):
+    data = capture(
+        api, "Report.pdf", pdf_bytes(pages=3), django_capture_on_commit_callbacks
+    ).json()
+    assert data["kind"] == "file"
+    item = Item.objects.get(id=data["id"])
+    assert item.preview_status == "ready"
+    with Image.open(item.preview_image) as thumbnail:
+        assert thumbnail.format == "WEBP"
+        width, height = thumbnail.size
+        assert height > width  # portrait, like the page
+        assert max(width, height) <= 1200
+    assert api.get(f"/api/items/{item.id}/").json()["preview_image_url"]
+
+
+def test_broken_pdfs_fail_their_thumbnail_but_stay_files(
+    api, django_capture_on_commit_callbacks
+):
+    data = capture(api, "cut.pdf", PDF, django_capture_on_commit_callbacks).json()
+    item = Item.objects.get(id=data["id"])
+    assert item.kind == "file"
+    assert item.preview_status == "failed"
+    assert not item.preview_image
+
+
+def test_other_files_have_no_thumbnail(api, django_capture_on_commit_callbacks):
+    data = capture(api, "notes.txt", b"hello\n", django_capture_on_commit_callbacks)
+    item_id = data.json()["id"]
+    assert data.json()["preview_status"] == ""
+    assert api.post(f"/api/items/{item_id}/refresh-preview/").status_code == 400
+
+
+def test_refresh_preview_regenerates_pdf_thumbnails(
+    api, django_capture_on_commit_callbacks
+):
+    data = capture(api, "a.pdf", pdf_bytes(), django_capture_on_commit_callbacks)
+    item_id = data.json()["id"]
+    first = Item.objects.get(id=item_id).preview_image.name
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api.post(f"/api/items/{item_id}/refresh-preview/")
+    assert response.status_code == 200
+    assert Item.objects.get(id=item_id).preview_image.name != first

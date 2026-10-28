@@ -5,9 +5,9 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from .models import Item, preview_image_path
-from .previews import build_preview, download_preview_image, reencode_image
+from .previews import build_preview, download_preview_image
 from .safe_http import FetchError, TransientFetchError
-from .uploads import IMAGE_FORMATS, MAX_IMAGE_PIXELS
+from .uploads import has_thumbnail, make_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -84,13 +84,15 @@ def _mark_failed(item, exc):
 
 @shared_task
 def generate_thumbnail(item_id):
-    """Re-encode an uploaded image as its card image (a bounded WebP)."""
-    item = Item.objects.filter(id=item_id, kind=Item.Kind.IMAGE).first()
-    if item is None or not item.file:
+    """
+    Make the card image of an upload (a bounded WebP): the image itself
+    re-encoded, or the first page of a PDF.
+    """
+    item = Item.objects.filter(id=item_id).first()
+    if item is None or not item.file or not has_thumbnail(item):
         return
 
-    with item.file.open("rb") as source:
-        thumbnail = reencode_image(source, IMAGE_FORMATS, MAX_IMAGE_PIXELS)
+    thumbnail = make_thumbnail(item)
     if thumbnail is None:
         logger.info("Could not make a thumbnail for item %s", item.id)
         Item.objects.filter(id=item.id).update(preview_status=Item.PreviewStatus.FAILED)

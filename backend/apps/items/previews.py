@@ -258,16 +258,20 @@ def reencode_image(source, formats, max_pixels):
             if width * height > max_pixels:
                 return None
             image.draft("RGB", PREVIEW_IMAGE_SIZE)
-            image = ImageOps.exif_transpose(image)
-            image.thumbnail(PREVIEW_IMAGE_SIZE)
-            if image.mode not in ("RGB", "RGBA"):
-                image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
-            output = io.BytesIO()
-            image.save(output, format="WEBP", quality=82)
-            return output.getvalue()
+            return encode_preview(ImageOps.exif_transpose(image))
     except (OSError, ValueError, Image.DecompressionBombError) as exc:
         logger.info("Unusable preview image: %s", exc)
         return None
+
+
+def encode_preview(image):
+    """A decoded image as WebP bytes bounded to PREVIEW_IMAGE_SIZE."""
+    image.thumbnail(PREVIEW_IMAGE_SIZE)
+    if image.mode not in ("RGB", "RGBA"):
+        image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+    output = io.BytesIO()
+    image.save(output, format="WEBP", quality=82)
+    return output.getvalue()
 
 
 def download_preview_image(image_url):
