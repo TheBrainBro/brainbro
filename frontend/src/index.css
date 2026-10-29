@@ -242,3 +242,32 @@ body {
     }
   }
 }
+
+/* Board canvas (React Flow). */
+@layer components {
+  .connect-handle {
+    @apply !size-3 !rounded-full !border-2 !border-white !bg-accent-500 opacity-0 transition-opacity dark:!border-zinc-900;
+  }
+  .react-flow__node:hover .connect-handle,
+  .react-flow__node.selected .connect-handle,
+  .react-flow__connection-path ~ * .connect-handle {
+    @apply opacity-100;
+  }
+  .react-flow__node.dragging .connect-handle {
+    @apply opacity-0;
+  }
+  /* While an edge is dragged, the whole node it could end on. */
+  .connect-target {
+    @apply !absolute !inset-0 !size-full !transform-none !rounded-xl !border-2 !border-dashed !border-transparent !bg-transparent hover:!border-accent-400 hover:!bg-accent-500/5;
+  }
+  /* A group takes the pointer only where its parts do (title bar, border, resizer). */
+  .react-flow__node-frame {
+    pointer-events: none !important;
+  }
+}
+
+@layer components {
+  .react-flow__node-frame .react-flow__handle {
+    pointer-events: auto;
+  }
+}

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Board, Layout } from './api'
-import { emptyLayout, toFlowNodes } from './layout'
+import { emptyLayout, toScene, type BoardNode } from './layout'
 import type { LayoutDraft } from './saver'
 import { BoardSession } from './session'
 
@@ -55,17 +55,19 @@ function setUp(draft?: LayoutDraft) {
     onSaved,
     drafts: memoryDrafts(draft),
   })
-  return { save, onSaved, session, nodes: toFlowNodes(start.layout) }
+  return { save, onSaved, session, nodes: toScene(start.layout).nodes }
 }
+
+const scene = (nodes: BoardNode[]) => ({ nodes, edges: [] })
 
 describe('BoardSession', () => {
   it('saves only changes worth saving', async () => {
     const { save, session, nodes } = setUp()
-    expect(session.commit(nodes, viewport)).toBe(false)
+    expect(session.commit(scene(nodes), viewport)).toBe(false)
     // Panning alone is not a change.
-    expect(session.commit(nodes, { x: 50, y: 0, zoom: 2 })).toBe(false)
+    expect(session.commit(scene(nodes), { x: 50, y: 0, zoom: 2 })).toBe(false)
     const moved = [{ ...nodes[0], position: { x: 100, y: 0 } }]
-    expect(session.commit(moved, viewport)).toBe(true)
+    expect(session.commit(scene(moved), viewport)).toBe(true)
     await vi.advanceTimersByTimeAsync(1000)
     expect(save).toHaveBeenCalledTimes(1)
     expect(save.mock.calls[0][0].nodes[0].x).toBe(100)
@@ -73,28 +75,29 @@ describe('BoardSession', () => {
 
   it('undo shows and saves the previous layout', async () => {
     const { save, session, nodes } = setUp()
-    session.commit([{ ...nodes[0], position: { x: 100, y: 0 } }], viewport)
+    session.commit(scene([{ ...nodes[0], position: { x: 100, y: 0 } }]), viewport)
     await vi.advanceTimersByTimeAsync(1000)
     expect(session.saver.status).toBe('saved')
 
     const undone = session.travel('undo', viewport)
-    expect(undone?.[0].position).toEqual({ x: 0, y: 0 })
+    expect(undone?.nodes[0].position).toEqual({ x: 0, y: 0 })
     await vi.advanceTimersByTimeAsync(1000)
     expect(save).toHaveBeenCalledTimes(2)
     const [layout, revision] = save.mock.calls[1]
     expect([layout.nodes, revision]).toEqual([board().layout.nodes, 2])
     expect(session.travel('undo', viewport)).toBeUndefined()
-    expect(session.travel('redo', viewport)?.[0].position).toEqual({ x: 100, y: 0 })
+    expect(session.travel('redo', viewport)?.nodes[0].position).toEqual({ x: 100, y: 0 })
   })
 
   it('tells when a save placed new items', async () => {
     const { onSaved, session, nodes } = setUp()
     session.place()
-    session.commit([...nodes, { ...nodes[0], id: 'b', data: { itemId: 'j' } }], viewport)
+    const placed = [...nodes, { ...nodes[0], id: 'b', data: { itemId: 'j' } }] as BoardNode[]
+    session.commit(scene(placed), viewport)
     await vi.advanceTimersByTimeAsync(1000)
     expect(onSaved).toHaveBeenCalledTimes(1)
     expect(onSaved.mock.calls[0][1]).toBe(true)
-    session.commit(nodes, viewport)
+    session.commit(scene(nodes), viewport)
     await vi.advanceTimersByTimeAsync(1000)
     expect(onSaved).toHaveBeenCalledTimes(2)
     expect(onSaved.mock.calls[1][1]).toBe(false)
@@ -102,8 +105,8 @@ describe('BoardSession', () => {
 
   it('undoing and redoing quickly saves once, or not at all if back where it was', async () => {
     const { save, session, nodes } = setUp()
-    session.commit([{ ...nodes[0], position: { x: 100, y: 0 } }], viewport)
-    session.commit([{ ...nodes[0], position: { x: 200, y: 0 } }], viewport)
+    session.commit(scene([{ ...nodes[0], position: { x: 100, y: 0 } }]), viewport)
+    session.commit(scene([{ ...nodes[0], position: { x: 200, y: 0 } }]), viewport)
     session.travel('undo', viewport)
     session.travel('undo', viewport)
     await vi.advanceTimersByTimeAsync(1000)
@@ -125,13 +128,13 @@ describe('BoardSession', () => {
       ],
     }
     const { save, onSaved, session } = setUp({ layout: draft, base: 1 })
-    expect(session.initialNodes.map((node) => node.position.x)).toEqual([300, 0])
+    expect(session.initialScene.nodes.map((node) => node.position.x)).toEqual([300, 0])
     expect(session.history.canUndo).toBe(true)
     session.resume()
     await vi.advanceTimersByTimeAsync(1000)
     expect(save.mock.calls[0][0]).toEqual(draft)
     // A card placed while offline still organizes its item.
     expect(onSaved.mock.calls[0][1]).toBe(true)
-    expect(session.travel('undo', viewport)?.[0].position).toEqual({ x: 0, y: 0 })
+    expect(session.travel('undo', viewport)?.nodes[0].position).toEqual({ x: 0, y: 0 })
   })
 })

@@ -35,7 +35,20 @@ export type LayoutGroup = {
   parent: string | null
 }
 
-export type LayoutEdge = { id: string; source: string; target: string; label: string }
+export type EdgeArrow = 'end' | 'none' | 'both'
+export type EdgeStroke = 'solid' | 'dashed'
+
+export type LayoutEdge = {
+  id: string
+  source: string
+  target: string
+  label: string
+  /** Missing in layouts saved before edges had looks: `end`, `solid` and ''. */
+  arrow?: EdgeArrow
+  stroke?: EdgeStroke
+  /** Hex, or '' for the default. */
+  color?: string
+}
 
 export type BoardSummary = {
   id: string
