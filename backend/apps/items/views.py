@@ -10,9 +10,16 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .models import Collection, Item
-from .serializers import CollectionSerializer, ItemSerializer, TriageSerializer
+from .serializers import (
+    ITEM_PREFETCH,
+    AlbumSerializer,
+    CollectionSerializer,
+    ItemSerializer,
+    TriageSerializer,
+)
 from .tasks import fetch_link_preview, generate_thumbnail
 from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
@@ -88,8 +95,11 @@ class ItemViewSet(
 
     def get_queryset(self):
         items = Item.objects.filter(owner=self.request.user).prefetch_related(
-            "collections"
+            *ITEM_PREFETCH
         )
+        # An album's images show up through it, not on their own.
+        if self.action == "list":
+            items = items.filter(album__isnull=True)
         params = self.request.query_params
         if item_status := params.get("status"):
             items = items.filter(status=item_status)
@@ -152,6 +162,47 @@ class ItemViewSet(
         if item.preview_status == Item.PreviewStatus.PENDING:
             enqueue_preview(item)
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"])
+    def albums(self, request):
+        """`{"items": [image ids, in order], "title"?}`: a new album, in the inbox."""
+        payload = AlbumSerializer(data=request.data, context={"request": request})
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        try:
+            album = make_album(request.user, data["items"], data.get("title", ""))
+        except AlbumError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        album = self.get_queryset().get(id=album.id)
+        return Response(self.get_serializer(album).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["put"], url_path="album-items")
+    def album_items(self, request, pk=None):
+        """
+        `{"items": [...]}`: what the album holds, in order. Images left out go
+        back on their own.
+        """
+        album = self._album()
+        payload = AlbumSerializer(data=request.data, context={"request": request})
+        payload.is_valid(raise_exception=True)
+        try:
+            set_album_images(album, payload.validated_data["items"])
+        except AlbumError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(self.get_queryset().get(id=album.id)).data)
+
+    @action(detail=True, methods=["post"])
+    def ungroup(self, request, pk=None):
+        """Takes the album away and returns its images, now on their own."""
+        images = ungroup(self._album())
+        fresh = self.get_queryset().filter(id__in=[image.id for image in images])
+        return Response(self.get_serializer(fresh, many=True).data)
+
+    def _album(self):
+        album = self.get_object()
+        if album.kind != Item.Kind.ALBUM:
+            raise serializers.ValidationError({"detail": "Not an album."})
+        return album
 
     @action(detail=False, methods=["post"])
     def triage(self, request):

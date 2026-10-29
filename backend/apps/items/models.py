@@ -51,7 +51,8 @@ def upload_path(item, filename):
 
 class Item(OwnedModel):
     """
-    Anything captured: a note, a link, an image or a file.
+    Anything captured: a note, a link, an image or a file, or an album of
+    images captured together.
 
     Everything lands in the inbox; triage moves it to `organized` (it belongs
     somewhere) or `archived` (kept but out of the way).
@@ -62,6 +63,7 @@ class Item(OwnedModel):
         LINK = "link", "Link"
         IMAGE = "image", "Image"
         FILE = "file", "File"
+        ALBUM = "album", "Album"
 
     class Status(models.TextChoices):
         INBOX = "inbox", "Inbox"
@@ -90,6 +92,18 @@ class Item(OwnedModel):
     # The uploaded original, for image and file items.
     file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
     collections = models.ManyToManyField(Collection, related_name="items", blank=True)
+    # Images in an album are items of their own (their files, thumbnails and
+    # URLs work as usual) that only show up through it, in `album_position`
+    # order. Deleting the album deletes them.
+    album = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="album_items",
+        limit_choices_to={"kind": "album"},
+    )
+    album_position = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["-created_at"]
