@@ -6,6 +6,8 @@ import { PendingCard } from '../capture/PendingCard'
 import { CaptureBox } from '../items/CaptureBox'
 import { ItemList } from '../items/ItemList'
 import { useItems } from '../items/api'
+import { MODE_WIDTH, useViewMode } from '../items/viewMode'
+import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { isEditable } from '../lib/dom'
 
 export function InboxPage() {
@@ -13,6 +15,7 @@ export function InboxPage() {
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
   const { pending } = useCapturePipeline()
   const navigate = useNavigate()
+  const [mode, setMode] = useViewMode('inbox')
 
   // `n` starts a note in the editor; it reaches the inbox once it has text.
   useEffect(() => {
@@ -27,10 +30,11 @@ export function InboxPage() {
   }, [navigate])
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-8">
+    <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 pb-8 transition-[max-width]`}>
       <div className="sticky top-0 z-10 bg-zinc-50/90 pt-8 pb-4 backdrop-blur dark:bg-zinc-950/90">
-        <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Inbox</h1>
+        <div className="mb-3 flex items-center gap-2">
+          <h1 className="mr-auto text-2xl font-semibold">Inbox</h1>
+          <ViewModeSwitch mode={mode} onChange={setMode} />
           <Link
             to="/notes/new"
             title="New note (N)"
@@ -63,7 +67,7 @@ export function InboxPage() {
         </ul>
       )}
 
-      <ItemList items={all} />
+      <ItemList items={all} mode={mode} />
 
       {items.hasNextPage && (
         <button
