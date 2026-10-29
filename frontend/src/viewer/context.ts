@@ -5,6 +5,8 @@ import type { Item } from '../items/api'
 export type ViewerOptions = {
   /** More buttons for the viewer's bar (Remove from board). */
   actions?: (item: Item, close: () => void) => ReactNode
+  /** When the item opened is an album: which of its images to show first. */
+  image?: string
 }
 
 export type Viewer = {

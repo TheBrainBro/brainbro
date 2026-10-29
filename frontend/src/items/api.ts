@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -64,7 +65,7 @@ export type ItemFilters = {
   status?: ItemStatus
   collection?: string
   kind?: ItemKind
-  /** A plain text match on title, text, URL and file name. */
+  /** Search text: every word must match (typos allowed); sorted by relevance. */
   q?: string
 }
 
@@ -88,6 +89,19 @@ export function useItems(filters: ItemFilters) {
       )
         ? PREVIEW_POLL_MS
         : false,
+  })
+}
+
+/** A search match; an album's image shows up as its album, saying which image. */
+export type SearchResult = { item: Item; album_image: string | null }
+
+/** The best matches for `q` (archived included); the last results stay while typing. */
+export function useSearch(q: string) {
+  return useQuery({
+    queryKey: [...itemsKey, 'search', q],
+    queryFn: () => api<SearchResult[]>(`/items/search/?${new URLSearchParams({ q })}`),
+    enabled: Boolean(q),
+    placeholderData: keepPreviousData,
   })
 }
 
