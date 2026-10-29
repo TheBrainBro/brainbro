@@ -26,7 +26,8 @@ case "$1" in
     if ! python manage.py migrate --check >/dev/null 2>&1; then
       if python manage.py showmigrations --plan | grep -q '^\[X\]'; then
         echo "Pending migrations: backing up the database first."
-        python -c "import django; django.setup(); from apps.core.tasks import backup_database; print(backup_database())"
+        # Through manage.py, which picks the settings module from ENVIRONMENT.
+        python manage.py shell -v 0 -c "from apps.core.tasks import backup_database; print(backup_database())"
       fi
       python manage.py migrate --no-input
     else
