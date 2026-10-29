@@ -43,6 +43,17 @@ describe('layout', () => {
     expect(sameContent(stored, { ...stored, nodes: stored.nodes.slice(1) })).toBe(false)
   })
 
+  it('compares layouts whatever order the server keeps their keys in', () => {
+    const fromServer = JSON.parse(
+      '{"edges":[{"id":"e","label":"","source":"a","target":"b"}],"groups":[{"h":400,"id":"g",' +
+        '"color":"","parent":null,"title":"Ideas","w":500,"x":0,"y":0}],"nodes":[{"h":null,' +
+        '"id":"a","item":"i1","parent":null,"type":"item","w":300,"x":10,"y":20},{"h":120,' +
+        '"id":"b","item":"i2","parent":"g","type":"item","w":null,"x":-5,"y":0}],' +
+        '"schema_version":1,"viewport":{"x":0,"y":0,"zoom":1}}',
+    ) as Layout
+    expect(sameContent(stored, fromServer)).toBe(true)
+  })
+
   it('rounds sub-pixel positions', () => {
     const [node] = toFlowNodes(stored)
     const moved = { ...node, position: { x: 1.23456, y: 466.6667 } }

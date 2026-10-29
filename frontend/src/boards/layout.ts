@@ -59,13 +59,22 @@ export function toLayout(nodes: ItemFlowNode[], viewport: Viewport, base: Layout
   }
 }
 
+/** JSON with object keys sorted: the server (Postgres jsonb) stores them in its own order. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    const fields = entries.map(([key, inner]) => `${JSON.stringify(key)}:${canonical(inner)}`)
+    return `{${fields.join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
 /** The same nodes, groups and edges: nothing worth saving changed (the viewport alone isn't). */
 export function sameContent(a: Layout, b: Layout) {
   return (
     a === b ||
-    (JSON.stringify(a.nodes) === JSON.stringify(b.nodes) &&
-      JSON.stringify(a.groups) === JSON.stringify(b.groups) &&
-      JSON.stringify(a.edges) === JSON.stringify(b.edges))
+    canonical([a.nodes, a.groups, a.edges]) === canonical([b.nodes, b.groups, b.edges])
   )
 }
 
