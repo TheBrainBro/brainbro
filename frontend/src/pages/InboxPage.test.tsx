@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CaptureProvider } from '../capture/CaptureProvider'
 import type { Item } from '../items/api'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { InboxPage } from './InboxPage'
 
 function jsonResponse(body: unknown, status = 200) {
@@ -43,9 +44,11 @@ function renderInbox() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <CaptureProvider>
-          <InboxPage />
-        </CaptureProvider>
+        <FeedbackProvider>
+          <CaptureProvider>
+            <InboxPage />
+          </CaptureProvider>
+        </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )

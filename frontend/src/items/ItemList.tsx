@@ -1,14 +1,16 @@
-import { Archive, FolderInput, Inbox, Pencil, Trash2, type LucideIcon } from 'lucide-react'
+import { Archive, FolderInput, Images, Inbox, Pencil, Trash2, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { isEditable } from '../lib/dom'
+import { useFeedback } from '../ui/feedback'
 import { useViewer } from '../viewer/context'
 import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
 import { ItemRow, ItemTile } from './ItemTile'
 import type { ViewMode } from './viewMode'
 import { useMakeAlbum, useSetAlbumItems, useTriage, type Item, type TriageAction } from './api'
+import { triageMessage, undoTriage, useUndoAction } from './triage'
 
 const LAYOUT: Record<ViewMode, string> = {
   cards: 'space-y-3',
@@ -17,9 +19,6 @@ const LAYOUT: Record<ViewMode, string> = {
   // Columns, Pinterest-like: each card keeps its own height.
   masonry: 'columns-1 gap-4 sm:columns-2 lg:columns-3',
 }
-
-const actionButton =
-  'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
 
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
@@ -40,6 +39,8 @@ export function ItemList({
   const setAlbumItems = useSetAlbumItems()
   const navigate = useNavigate()
   const viewer = useViewer()
+  const { toast, confirm } = useFeedback()
+  const undoAction = useUndoAction()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focused, setFocused] = useState<string | null>(null)
   const [organizing, setOrganizing] = useState<string[] | null>(null)
@@ -48,19 +49,42 @@ export function ItemList({
   // Forget selections of items that left this list (triaged elsewhere).
   const visibleSelection = items.filter((item) => selected.has(item.id)).map((item) => item.id)
 
-  function run(ids: string[], action: TriageAction) {
+  function failed(error: Error) {
+    toast({ message: error.message, tone: 'error' })
+  }
+
+  async function run(ids: string[], action: TriageAction) {
     if (!ids.length) return
     if (action === 'organize') {
       setOrganizing(ids)
       return
     }
-    if (
-      action === 'delete' &&
-      !window.confirm(ids.length === 1 ? 'Delete this item?' : `Delete ${ids.length} items?`)
-    ) {
-      return
+    if (action === 'delete') {
+      const confirmed = await confirm({
+        title: ids.length === 1 ? 'Delete this item?' : `Delete ${ids.length} items?`,
+        message: "It can't be undone.",
+        confirm: 'Delete',
+        danger: true,
+      })
+      if (!confirmed) return
     }
-    triage.mutate({ ids, action }, { onSuccess: () => setSelected(new Set()) })
+    const undo = undoTriage(
+      action,
+      items.filter((item) => ids.includes(item.id)),
+    )
+    triage.mutate(
+      { ids, action },
+      {
+        onSuccess: () => {
+          setSelected(new Set())
+          toast({
+            message: triageMessage(action, ids.length),
+            actions: undoAction(undo),
+          })
+        },
+        onError: failed,
+      },
+    )
   }
 
   /** Notes open in the editor; anything else in the viewer, stepping through this list. */
@@ -123,21 +147,28 @@ export function ItemList({
     const albums = chosen.filter((item) => item.kind === 'album')
     const images = chosen.filter((item) => item.kind === 'image')
     if (albums.length > 1 || images.length + albums.length !== chosen.length) return null
-    const done = { onSuccess: () => setSelected(new Set()) }
+    const done = { onSuccess: () => setSelected(new Set()), onError: failed }
     if (albums.length === 1 && images.length > 0) {
       const album = albums[0]
       const inside = (album.album_items ?? []).map((image) => image.id)
       return (
         <button
           type="button"
-          className={actionButton}
+          className="button-ghost"
           onClick={() =>
             setAlbumItems.mutate(
               { album: album.id, ids: [...inside, ...images.map((image) => image.id)] },
-              done,
+              {
+                ...done,
+                onSuccess: () => {
+                  done.onSuccess()
+                  toast({ message: `Added ${images.length === 1 ? '1 image' : `${images.length} images`} to the album` })
+                },
+              },
             )
           }
         >
+          <Images className="size-3.5" aria-hidden="true" />
           Add to album
         </button>
       )
@@ -146,15 +177,27 @@ export function ItemList({
     return (
       <button
         type="button"
-        className={actionButton}
-        onClick={() => makeAlbum.mutate({ ids: images.map((image) => image.id) }, done)}
+        className="button-ghost"
+        onClick={() =>
+          makeAlbum.mutate(
+            { ids: images.map((image) => image.id) },
+            {
+              ...done,
+              onSuccess: () => {
+                done.onSuccess()
+                toast({ message: `Made an album of ${images.length} images` })
+              },
+            },
+          )
+        }
       >
+        <Images className="size-3.5" aria-hidden="true" />
         Make album
       </button>
     )
   }
 
-  /** The triage actions: as words (cards, the selection bar), or as icons (tiles and rows). */
+  /** The triage actions: as words (cards, the selection bar), or as icons only (tiles and rows). */
   function actionsFor(ids: string[], note?: Item, icons = false) {
     const all: { label: string; icon: LucideIcon; run: () => void }[] = [
       ...(note ? [{ label: 'Edit', icon: Pencil, run: () => open(note) }] : []),
@@ -169,14 +212,15 @@ export function ItemList({
           key={label}
           type="button"
           aria-label={label}
-          title={label}
-          className="button-icon size-7"
+          className="button-icon group size-7"
           onClick={action}
         >
           <Icon className="size-4" aria-hidden="true" />
+          <span className="tooltip top-full mt-1.5">{label}</span>
         </button>
       ) : (
-        <button key={label} type="button" className={actionButton} onClick={action}>
+        <button key={label} type="button" className="button-ghost" onClick={action}>
+          <Icon className="size-3.5" aria-hidden="true" />
           {label}
         </button>
       ),
@@ -189,20 +233,21 @@ export function ItemList({
         <div
           role="toolbar"
           aria-label="Selection"
-          className="sticky top-2 z-20 mb-3 flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+          className="popover sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-1 px-2 py-1.5"
         >
+          <button
+            type="button"
+            aria-label="Clear selection (Esc)"
+            className="button-icon group size-7"
+            onClick={() => setSelected(new Set())}
+          >
+            <X className="size-4" aria-hidden="true" />
+            <span className="tooltip top-full mt-1.5">Clear selection (Esc)</span>
+          </button>
           <span className="mr-auto text-sm font-medium">{visibleSelection.length} selected</span>
           {albumAction(visibleSelection)}
           {actionsFor(visibleSelection)}
-          <button type="button" className={actionButton} onClick={() => setSelected(new Set())}>
-            Clear
-          </button>
         </div>
-      )}
-      {(triage.error ?? makeAlbum.error ?? setAlbumItems.error) && (
-        <p role="alert" className="mb-2 text-sm text-red-600">
-          {(triage.error ?? makeAlbum.error ?? setAlbumItems.error)?.message}
-        </p>
       )}
 
       <ul className={LAYOUT[mode]}>
@@ -254,14 +299,16 @@ export function ItemList({
         <CollectionPicker
           count={organizing.length}
           onClose={() => setOrganizing(null)}
-          onConfirm={(collections) =>
+          onConfirm={(collections, names) =>
             triage.mutate(
               { ids: organizing, action: 'organize', collections },
               {
                 onSuccess: () => {
+                  toast({ message: triageMessage('organize', organizing.length, names) })
                   setOrganizing(null)
                   setSelected(new Set())
                 },
+                onError: failed,
               },
             )
           }

@@ -5,7 +5,6 @@ import type { Item } from './api'
 import { ItemThumb } from './ItemThumb'
 import { itemLabel, KIND_LABEL } from './label'
 
-
 type Props = {
   item: Item
   selected: boolean
@@ -27,7 +26,7 @@ function Select({ selected, onToggle }: { selected: boolean; onToggle: () => voi
     <input
       type="checkbox"
       aria-label="Select"
-      className={`shrink-0 ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+      className={`shrink-0 accent-accent-600 transition-opacity ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
       checked={selected}
       onChange={onToggle}
       onClick={(event) => event.stopPropagation()}

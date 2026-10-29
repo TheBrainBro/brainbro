@@ -1,3 +1,4 @@
+import { Inbox, SquarePen } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router'
 
@@ -5,10 +6,14 @@ import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
 import { CaptureBox } from '../items/CaptureBox'
 import { ItemList } from '../items/ItemList'
+import { ItemListSkeleton } from '../items/ItemListSkeleton'
 import { useItems } from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
+import { LoadMore } from '../items/LoadMore'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { isEditable } from '../lib/dom'
+import { MOD } from '../lib/keys'
+import { EmptyState, ErrorState } from '../ui/states'
 
 export function InboxPage() {
   const items = useItems({ status: 'inbox' })
@@ -35,26 +40,22 @@ export function InboxPage() {
         <div className="mb-3 flex items-center gap-2">
           <h1 className="mr-auto text-2xl font-semibold">Inbox</h1>
           <ViewModeSwitch mode={mode} onChange={setMode} />
-          <Link
-            to="/notes/new"
-            title="New note (N)"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            New note
+          <Link to="/notes/new" aria-label="New note" className="button-outline group relative px-3 py-1.5">
+            <SquarePen className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">New note</span>
+            <span className="tooltip top-full mt-2">New note (N)</span>
           </Link>
         </div>
         <CaptureBox />
       </div>
 
-      {items.isError && (
-        <p role="alert" className="text-sm text-red-600">
-          {items.error.message}
-        </p>
-      )}
+      {items.isPending && <ItemListSkeleton mode={mode} />}
+      {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
       {items.isSuccess && all.length === 0 && pending.length === 0 && (
-        <p className="py-12 text-center text-zinc-500">
-          Inbox zero. Paste or drop a link, a thought or a file here.
-        </p>
+        <EmptyState icon={Inbox} title="Inbox zero">
+          Everything is sorted. Type above, paste with <kbd className="kbd">{MOD}</kbd>{' '}
+          <kbd className="kbd">V</kbd> or drop files anywhere: it all lands here, to sort later.
+        </EmptyState>
       )}
 
       {pending.length > 0 && (
@@ -70,14 +71,7 @@ export function InboxPage() {
       <ItemList items={all} mode={mode} />
 
       {items.hasNextPage && (
-        <button
-          type="button"
-          className="mt-4 w-full rounded-lg py-2 text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-          disabled={items.isFetchingNextPage}
-          onClick={() => items.fetchNextPage()}
-        >
-          {items.isFetchingNextPage ? 'Loading…' : 'Load more'}
-        </button>
+        <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
       )}
     </div>
   )

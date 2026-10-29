@@ -68,6 +68,20 @@ body {
     @apply rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800;
   }
 
+  /* A secondary action that still reads as a button on its own (no toolbar around it). */
+  .button-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-xs transition hover:border-zinc-400 hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800;
+  }
+
+  /* Small text actions inside cards, headers and toolbars. */
+  .button-ghost {
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
+  }
+
+  .button-danger {
+    @apply rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-red-500 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
   /* A square button holding one icon (with an aria-label and usually a .tooltip). */
   .button-icon {
     @apply relative inline-flex size-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
@@ -89,12 +103,33 @@ body {
   }
 
   .menu-item {
-    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800;
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800;
   }
 
   /* A label shown on hover or keyboard focus of its parent (which needs `group relative`). */
   .tooltip {
     @apply pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-md transition-opacity delay-0 group-hover:opacity-100 group-hover:delay-300 group-focus-visible:opacity-100 dark:bg-zinc-100 dark:text-zinc-900;
+  }
+
+  /* A placeholder block while content loads. */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800;
+  }
+
+  /* A short message at the bottom of the screen (see ui/FeedbackProvider). */
+  .toast {
+    @apply pointer-events-auto w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg shadow-zinc-900/20 dark:bg-zinc-100 dark:text-zinc-900 dark:shadow-black/40;
+    animation: toast-in 180ms ease-out;
+  }
+
+  .toast-action {
+    @apply rounded-md px-1.5 py-0.5 font-semibold text-accent-300 transition hover:bg-white/10 dark:text-accent-700 dark:hover:bg-zinc-900/10;
+  }
+
+  /* The dimmed layer under a dialog. */
+  .backdrop {
+    @apply fixed inset-0 z-40 bg-zinc-950/30 backdrop-blur-[2px];
+    animation: fade-in 120ms ease-out;
   }
 }
 
@@ -102,6 +137,19 @@ body {
   from {
     opacity: 0;
     transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
 
@@ -115,7 +163,10 @@ body {
   ::before,
   ::after {
     animation-duration: 1ms !important;
+    /* Otherwise a looping animation (pulse, spin) flickers at 1ms a turn. */
+    animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

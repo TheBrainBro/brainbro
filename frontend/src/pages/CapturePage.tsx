@@ -1,3 +1,4 @@
+import { ClipboardPaste, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
@@ -58,24 +59,21 @@ export function CapturePage() {
         type="file"
         multiple
         hidden
-        aria-label="Photos or files"
+        aria-label="Upload"
         onChange={(event) => {
           const files = Array.from(event.target.files ?? [])
           send(files.map((file) => ({ kind: 'file', file })))
         }}
       />
       <div className="flex gap-2">
-        <button
-          type="button"
-          className="button-secondary border border-zinc-300 dark:border-zinc-700"
-          onClick={() => picker.current?.click()}
-        >
-          Photo or file
+        <button type="button" className="button-outline" onClick={() => picker.current?.click()}>
+          <Upload className="size-4" aria-hidden="true" />
+          Upload
         </button>
         {canPaste && (
           <button
             type="button"
-            className="button-secondary border border-zinc-300 dark:border-zinc-700"
+            className="button-outline"
             onClick={async () => {
               try {
                 const pasted = await navigator.clipboard.readText()
@@ -85,6 +83,7 @@ export function CapturePage() {
               }
             }}
           >
+            <ClipboardPaste className="size-4" aria-hidden="true" />
             Paste
           </button>
         )}

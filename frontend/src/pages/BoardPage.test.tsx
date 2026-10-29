@@ -239,7 +239,7 @@ describe('boards', () => {
   it('shows the items of a board', async () => {
     renderAt('/boards/b1')
     expect(await screen.findByText('On the board')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Undo (⌘Z)' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Undo (Ctrl+Z)' })).toBeDisabled()
   })
 
   it('adds an item and saves the layout with its revision', async () => {
@@ -256,7 +256,7 @@ describe('boards', () => {
     )
     expect(saves[0].layout.nodes[1].w).toBe(280)
     expect(await screen.findAllByText('Waiting in the inbox')).not.toHaveLength(0)
-    expect(screen.getByRole('button', { name: 'Undo (⌘Z)' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Undo (Ctrl+Z)' })).toBeEnabled()
   })
 
   it('keeps the layout on this device while offline and saves it after a reload', async () => {
@@ -419,7 +419,7 @@ describe('dropping onto the board', () => {
     expect(saves[0].layout.nodes[1]).toMatchObject({ item: items[0].id, w: 340 })
     // No inbox toast: taking the card off the board is the undo here.
     expect(screen.queryByText(/Captured/)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Undo (⌘Z)' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Undo (Ctrl+Z)' })).toBeEnabled()
   })
 
   it('shows a failed drop where it fell, and places it once a retry works', async () => {

@@ -69,8 +69,10 @@ export function SharePage() {
 function SharePanel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto max-w-md px-4 py-8">
-      <h1 className="mb-3 text-xl font-semibold">{title}</h1>
-      {children}
+      <div className="surface p-6">
+        <h1 className="mb-3 text-xl font-semibold">{title}</h1>
+        {children}
+      </div>
     </div>
   )
 }
