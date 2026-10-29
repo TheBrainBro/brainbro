@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "brain-backend"
-version = "0.1.2"
+version = "0.2.0"
 description = "Brain: segundo cerebro self-hosted"
 authors = ["Carlos Lugones <contact@carloslugones.com>"]
 readme = "../README.md"
@@ -21,6 +21,7 @@ pillow = "^13.0.0"
 python-magic = "^0.4.27"
 pillow-heif = "^1.8.1"
 pypdfium2 = "^5.14.0"
+markdown-it-py = "^4"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.17.3"

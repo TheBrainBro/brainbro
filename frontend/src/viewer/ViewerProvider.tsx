@@ -25,6 +25,7 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
             items={open.items}
             index={open.index}
             actions={open.options.actions}
+            image={open.options.image}
             onIndex={(index) => setOpen({ ...open, index })}
             onReplace={(item) =>
               setOpen({

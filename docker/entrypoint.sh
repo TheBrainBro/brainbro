@@ -13,6 +13,7 @@ case "$1" in
       --bind 0.0.0.0:8000 \
       --workers "${GUNICORN_WORKERS:-3}" \
       --timeout 60 \
+      --no-control-socket \
       --access-logfile -
     ;;
   worker)

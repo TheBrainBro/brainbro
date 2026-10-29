@@ -40,11 +40,32 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   return self.renderToken(tokens, idx, options)
 }
 
-// Remote images are not loaded: they'd tell any site when a note is open.
-// The alt text stands in for them.
-md.renderer.rules.image = (tokens, idx) => {
-  const alt = tokens[idx].children?.map((child) => child.content).join('') || 'image'
-  return `<span class="markdown-image">${md.utils.escapeHtml(alt)}</span>`
+/** A copy the app keeps of an image in a note (see items/api `NoteImage`). */
+type StoredImage = { status: string; url: string | null }
+
+/**
+ * The key a note's image is stored under: its link destination as written
+ * (`<a b.png>`, backslash escapes) read the way markdown-it reads it, as the
+ * server does.
+ */
+export function imageKey(destination: string) {
+  const bare = /^<.*>$/s.test(destination) ? destination.slice(1, -1) : destination
+  return md.normalizeLink(md.utils.unescapeAll(bare))
+}
+
+// Images are never loaded from where the Markdown points: that would tell
+// any site when a note is open. The app's stored copy is shown instead,
+// looked up by `src`; until there is one, the alt text stands in.
+md.renderer.rules.image = (tokens, idx, _options, env) => {
+  const token = tokens[idx]
+  const alt = md.utils.escapeHtml(token.children?.map((child) => child.content).join('') ?? '')
+  const stored = (env as RenderEnv | undefined)?.images?.[token.attrGet('src') ?? '']
+  if (stored?.url) {
+    return `<img class="markdown-img" src="${md.utils.escapeHtml(stored.url)}" alt="${alt}" loading="lazy">`
+  }
+  const status = stored ? ` data-status="${md.utils.escapeHtml(stored.status)}"` : ''
+  const title = stored?.status === 'failed' ? ' title="Couldn\'t load this image"' : ''
+  return `<span class="markdown-image"${status}${title}>${alt || 'image'}</span>`
 }
 
 // GFM task items: `- [ ] text` gets a checkbox carrying its source line.
@@ -78,16 +99,21 @@ md.renderer.rules.task_checkbox = (tokens, idx, _options, env) => {
   )
 }
 
-type RenderEnv = { docId?: string; tasks?: boolean }
+type RenderEnv = {
+  docId?: string
+  tasks?: boolean
+  /** The note's stored images, by `src`. */
+  images?: Record<string, StoredImage> | null
+}
 
 /**
  * A note's Markdown as HTML. markdown-it escapes everything it doesn't
  * produce itself and refuses `javascript:` links; DOMPurify runs on top in
  * case a plugin ever lets something through.
  */
-export function renderNote(body: string, { docId, tasks = false }: RenderEnv = {}) {
+export function renderNote(body: string, { docId, tasks = false, images }: RenderEnv = {}) {
   // docId keeps footnote anchors apart when several notes share a page.
-  const html = md.render(body, { docId, tasks })
+  const html = md.render(body, { docId, tasks, images })
   return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
 }
 

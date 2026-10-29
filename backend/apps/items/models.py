@@ -1,11 +1,15 @@
 import hashlib
 import uuid
 
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
 from apps.core.models import OwnedModel
+
+from . import search
 
 
 class Collection(OwnedModel):
@@ -47,6 +51,12 @@ def upload_path(item, filename):
     # client. The original name lives in metadata["filename"].
     extension = filename.rsplit(".", 1)[-1]
     return f"uploads/{item.id}/{uuid.uuid4().hex}.{extension}"
+
+
+class ItemManager(models.Manager):
+    def get_queryset(self):
+        # Only searches read them, and they're as large as the item itself.
+        return super().get_queryset().defer("search_text", "search_vector")
 
 
 class Item(OwnedModel):
@@ -104,11 +114,29 @@ class Item(OwnedModel):
         limit_choices_to={"kind": "album"},
     )
     album_position = models.PositiveIntegerField(default=0)
+    # Kept up to date by Postgres; see `search`.
+    search_text = models.GeneratedField(
+        expression=search.search_text(),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
+    search_vector = models.GeneratedField(
+        expression=search.search_vector(),
+        output_field=SearchVectorField(),
+        db_persist=True,
+    )
+
+    objects = ItemManager()
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["owner", "status", "-created_at"]),
+            GinIndex(
+                fields=["search_text"],
+                opclasses=["gin_trgm_ops"],
+                name="item_search_text_trgm",
+            ),
         ]
 
     def __str__(self):
@@ -130,3 +158,70 @@ def delete_item_files(sender, instance, **kwargs):
         instance.preview_image.delete(save=False)
     if instance.file:
         instance.file.delete(save=False)
+
+
+def note_image_path(image, filename):
+    # A fresh name per file; the extension comes from what it really is.
+    extension = filename.rsplit(".", 1)[-1]
+    return f"note-images/{image.id}/{uuid.uuid4().hex}.{extension}"
+
+
+class NoteImage(OwnedModel):
+    """
+    An image shown in a note, looked up by its `src` as markdown-it reads it,
+    so the note's Markdown is never rewritten.
+
+    Remote images (`![](https://…)`) are a copy fetched once in the
+    background: opening the note never tells the site. Pasted images are
+    uploads the note links to as `attachments/<id>.<ext>`; they exist before
+    the note saves the link, and outlive its removal for a while, so undo
+    brings them back.
+    """
+
+    class Source(models.TextChoices):
+        REMOTE = "remote", "Remote"
+        PASTED = "pasted", "Pasted"
+
+    # Null for a pasted image no note has saved yet.
+    note = models.ForeignKey(
+        Item,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="note_images",
+        limit_choices_to={"kind": "note"},
+    )
+    source = models.CharField(max_length=8, choices=Source)
+    src = models.CharField(max_length=2048)
+    status = models.CharField(
+        max_length=8,
+        choices=Item.PreviewStatus,
+        default=Item.PreviewStatus.PENDING,
+    )
+    # What the app shows: a bounded WebP.
+    image = models.ImageField(upload_to=note_image_path, max_length=255, blank=True)
+    # Pasted images only: the upload as it came (filename, mime, size,
+    # dimensions in metadata).
+    original = models.FileField(upload_to=note_image_path, max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    # Pasted images: since when no note links to them. Deleted after a while.
+    unused_since = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["note", "src"], name="unique_note_image_src"
+            ),
+        ]
+        indexes = [models.Index(fields=["source", "unused_since"])]
+
+    def __str__(self):
+        return self.src
+
+
+@receiver(post_delete, sender=NoteImage)
+def delete_note_image_files(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
+    if instance.original:
+        instance.original.delete(save=False)

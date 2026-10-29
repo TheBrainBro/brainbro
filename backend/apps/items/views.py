@@ -2,7 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -12,15 +12,23 @@ from rest_framework.response import Response
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
-from .models import Collection, Item
+from .models import Collection, Item, NoteImage
+from .note_images import MAX_PASTED_SIZE, sync_note_images
+from .search import find
 from .serializers import (
     ITEM_PREFETCH,
     AlbumSerializer,
     CollectionSerializer,
     ItemSerializer,
+    NoteImageSerializer,
     TriageSerializer,
 )
-from .tasks import fetch_link_preview, generate_thumbnail
+from .tasks import (
+    fetch_link_preview,
+    fetch_note_images,
+    generate_thumbnail,
+    make_note_image_display,
+)
 from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
@@ -62,6 +70,11 @@ def enqueue_preview(item):
     transaction.on_commit(lambda: task.delay(str(item.id)))
 
 
+def sync_images(note):
+    if sync_note_images(note):
+        transaction.on_commit(lambda: fetch_note_images.delay(str(note.id)))
+
+
 def create_upload_item(owner, file, upload):
     item = Item(
         owner=owner,
@@ -77,6 +90,9 @@ def create_upload_item(owner, file, upload):
     return item
 
 
+SEARCH_LIMIT = 20
+
+
 class ItemViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -88,7 +104,8 @@ class ItemViewSet(
     Items of the current user. They are created through `capture`, which
     infers the type; everything else is reading and triage.
 
-    Filters: `?status=inbox|organized|archived`, `?collection=<id>`.
+    Filters: `?status=inbox|organized|archived`, `?kind=note,link`,
+    `?collection=<id>`, `?q=<text>` (sorted by relevance).
     """
 
     serializer_class = ItemSerializer
@@ -105,15 +122,8 @@ class ItemViewSet(
             items = items.filter(status=item_status)
         if kinds := params.get("kind"):
             items = items.filter(kind__in=kinds.split(","))
-        # A plain substring match for pickers; full-text search is #26.
-        if text := params.get("q", "").strip():
-            items = items.filter(
-                Q(title__icontains=text)
-                | Q(body__icontains=text)
-                | Q(url__icontains=text)
-                | Q(metadata__title__icontains=text)
-                | Q(metadata__filename__icontains=text)
-            )
+        if self.action == "list" and (text := params.get("q", "").strip()):
+            items = find(items, text).order_by("-rank", "-created_at")
         if collection := params.get("collection"):
             try:
                 items = items.filter(collections=uuid.UUID(collection))
@@ -142,6 +152,11 @@ class ItemViewSet(
                     )
             return super().update(request, *args, **kwargs)
 
+    def perform_update(self, serializer):
+        item = serializer.save()
+        if item.kind == Item.Kind.NOTE and "body" in serializer.validated_data:
+            sync_images(item)
+
     @action(detail=False, methods=["post"])
     def capture(self, request):
         """
@@ -159,9 +174,45 @@ class ItemViewSet(
             if fields["kind"] == Item.Kind.LINK:
                 fields["preview_status"] = Item.PreviewStatus.PENDING
             item = Item.objects.create(owner=request.user, **fields)
+            if item.kind == Item.Kind.NOTE:
+                sync_images(item)
         if item.preview_status == Item.PreviewStatus.PENDING:
             enqueue_preview(item)
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def search(self, request):
+        """
+        `?q=<text>`: the best matches, archived included, as
+        `[{"item", "album_image"}]`. An album's image shows up as its album,
+        with `album_image` saying which one matched.
+        """
+        text = request.query_params.get("q", "").strip()
+        if not text:
+            return Response([])
+        mine = Item.objects.filter(owner=request.user)
+        matches = find(mine, text).order_by("-rank", "-created_at")
+        found = {}
+        # More rows than needed: several images of one album take one place.
+        for item_id, album_id in matches.values_list("id", "album_id")[
+            : SEARCH_LIMIT * 5
+        ]:
+            if album_id:
+                found.setdefault(album_id, item_id)
+            else:
+                found.setdefault(item_id, None)
+            if len(found) == SEARCH_LIMIT:
+                break
+        items = mine.prefetch_related(*ITEM_PREFETCH).in_bulk(found)
+        return Response(
+            [
+                {
+                    "item": self.get_serializer(items[item_id]).data,
+                    "album_image": found[item_id],
+                }
+                for item_id in found
+            ]
+        )
 
     @action(detail=False, methods=["post"])
     def albums(self, request):
@@ -283,6 +334,65 @@ class ItemViewSet(
         )
         response["X-Content-Type-Options"] = "nosniff"
         response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+
+class NoteImageUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(allow_empty_file=False)
+
+    def validate(self, data):
+        limit = MAX_PASTED_SIZE // (1024 * 1024)
+        too_large = {"file": f"The image is too large (max {limit} MB)."}
+        if data["file"].size > MAX_PASTED_SIZE:
+            raise serializers.ValidationError(too_large)
+        try:
+            data["upload"] = inspect_upload(data["file"])
+        except UploadTooLarge:
+            raise serializers.ValidationError(too_large) from None
+        if data["upload"].kind != Item.Kind.IMAGE:
+            raise serializers.ValidationError({"file": "Only images can go in a note."})
+        return data
+
+
+class NoteImageViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    Images pasted or dropped into a note are uploaded here first; the note
+    then links them by the returned `src`. `file` serves the copy the app
+    shows of any image in a note, pasted or remote.
+    """
+
+    serializer_class = NoteImageSerializer
+
+    def get_queryset(self):
+        return NoteImage.objects.filter(owner=self.request.user)
+
+    def create(self, request):
+        payload = NoteImageUploadSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        upload = data["upload"]
+        # Unused until a note saves the link to it.
+        image = NoteImage(
+            owner=request.user,
+            source=NoteImage.Source.PASTED,
+            metadata=upload.metadata,
+            unused_since=timezone.now(),
+        )
+        image.src = f"attachments/{image.id}.{upload.extension}"
+        image.original.save(f"original.{upload.extension}", data["file"], save=False)
+        image.save()
+        transaction.on_commit(lambda: make_note_image_display.delay(str(image.id)))
+        return Response(self.get_serializer(image).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def file(self, request, pk=None):
+        image = self.get_object()
+        if not image.image:
+            raise Http404
+        response = FileResponse(image.image.open("rb"), content_type="image/webp")
+        response["X-Content-Type-Options"] = "nosniff"
+        # The URL carries a per-file version, so the content never changes.
         response["Cache-Control"] = "private, max-age=31536000, immutable"
         return response
 
