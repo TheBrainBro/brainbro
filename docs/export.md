@@ -48,6 +48,11 @@ which serves the zips, and `worker`, which writes them. It lives outside
   (case-insensitive), so the export reads well in a file browser or Obsidian.
 - **Thumbnails are left out** (they come from the originals); link preview
   images are kept, since the page may be gone.
+- **Note images go next to the note** ([note-images.md](note-images.md)):
+  pasted ones in `notes/attachments/`, the path the note already links, and
+  copies of remote ones in `notes/images/<note>/`. Only the exported `.md`
+  points at those copies (inline images; reference-style ones keep their
+  URL); `items.json` keeps the body as written, with an `images` list.
 - **Boards keep their layout as is** (migrated to the current
   `schema_version` and without items that no longer exist), plus an `items`
   map from item id to its path in the export, and a Markdown outline.
