@@ -1,4 +1,4 @@
-import { FileText, Image as ImageIcon, Link2, NotebookText } from 'lucide-react'
+import { FileText, Image as ImageIcon, Images, Link2, NotebookText } from 'lucide-react'
 import { useState } from 'react'
 
 import type { Item } from './api'
@@ -34,7 +34,7 @@ export function ItemThumb({ item, className = 'size-12' }: { item: Item; classNa
       </div>
     )
   }
-  const Icon = { note: NotebookText, link: Link2, image: ImageIcon }[item.kind]
+  const Icon = { note: NotebookText, link: Link2, image: ImageIcon, album: Images }[item.kind]
   return (
     <div className={`${box} flex items-center justify-center text-zinc-500`}>
       <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />

@@ -420,6 +420,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     pipeline.capture(found, {
       // Taking a card off the board is the undo here (⌘Z); the item stays.
       undo: false,
+      // Each image is a card of its own here.
+      album: false,
       onQueued: (ids) => {
         const widths = ids.map((_, index) => widthFor(found.inputs[index]))
         const taken = [...obstacles(latest.current), ...latestDrops.current]

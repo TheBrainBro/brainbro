@@ -3,14 +3,8 @@ import type { ReactNode } from 'react'
 import { timeAgo } from '../lib/time'
 import type { Item } from './api'
 import { ItemThumb } from './ItemThumb'
-import { itemLabel } from './label'
+import { itemLabel, KIND_LABEL } from './label'
 
-const KIND_LABEL: Record<Item['kind'], string> = {
-  note: 'Note',
-  link: 'Link',
-  image: 'Image',
-  file: 'File',
-}
 
 type Props = {
   item: Item

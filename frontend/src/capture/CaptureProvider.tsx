@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 
 import { useSession } from '../auth/session'
-import { itemsKey, type Item } from '../items/api'
+import { itemsKey, makeAlbum, ungroupAlbum, type Item } from '../items/api'
 import { api, ApiError, upload } from '../lib/api'
 import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
@@ -29,6 +29,13 @@ type Batch = {
   failed: { label: string; error: string }[]
   settled: boolean
   undone: boolean
+  /** Group the images into an album once all of them are in. */
+  album: boolean
+  /** Created images, by the position of their input. */
+  images: Map<number, string>
+  /** Where each entry's input was, to keep the album in the order given. */
+  positions: Map<string, number>
+  albumId?: string
 }
 
 function labelOf(input: CaptureInput) {
@@ -96,12 +103,42 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     observer?.(result)
     const batch = batches.current.get(entry.batch)
     if (!batch) return
-    if ('item' in result) batch.created.push(result.item.id)
-    else if (result.deferred) batch.deferred.push(entry.label)
+    if ('item' in result) {
+      batch.created.push(result.item.id)
+      if (result.item.kind === 'image') {
+        batch.images.set(batch.positions.get(entry.id)!, result.item.id)
+      }
+    } else if (result.deferred) batch.deferred.push(entry.label)
     else batch.failed.push({ label: entry.label, error: result.error })
+    const wasSettled = batch.settled
     batch.settled =
       batch.created.length + batch.deferred.length + batch.failed.length === batch.total
+    if (batch.settled && !wasSettled) groupImages(batch)
     if (batch.undoable) showBatch(batch)
+  }
+
+  /** Images captured together become one album (once, when the batch is first all in). */
+  async function groupImages(batch: Batch) {
+    if (!batch.album || batch.undone || batch.albumId || batch.images.size < 2) return
+    const ids = [...batch.images.entries()].sort(([a], [b]) => a - b).map(([, id]) => id)
+    try {
+      const album = await makeAlbum(ids)
+      batch.albumId = album.id
+      await queryClient.invalidateQueries({ queryKey: itemsKey })
+      if (batch.undoable) showBatch(batch)
+    } catch {
+      // They stay as separate images: nothing is lost.
+    }
+  }
+
+  async function separate(batch: Batch) {
+    const albumId = batch.albumId
+    if (!albumId) return
+    batch.albumId = undefined
+    batch.album = false
+    showBatch(batch)
+    await ungroupAlbum(albumId)
+    await queryClient.invalidateQueries({ queryKey: itemsKey })
   }
 
   async function send(entry: PendingCapture, signal: AbortSignal) {
@@ -182,7 +219,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   function capture(
     found: CaptureInputs,
-    { undo = true, retryLater = false, onQueued, onSettled }: CaptureOptions = {},
+    { undo = true, retryLater = false, album = true, onQueued, onSettled }: CaptureOptions = {},
   ) {
     const batchId = crypto.randomUUID()
     const entries: PendingCapture[] = []
@@ -236,6 +273,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       failed: refused,
       settled: refused.length === entries.length,
       undone: false,
+      album,
+      images: new Map(),
+      positions: new Map(entries.map((entry, position) => [entry.id, position])),
     }
     batches.current.set(batchId, batch)
     if (onSettled) {
@@ -279,9 +319,11 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       remove(entry.id)
     }
     if (batch.created.length) {
+      // The album too, if they were grouped (deleting it takes its images).
+      const ids = batch.albumId ? [...batch.created, batch.albumId] : batch.created
       await api('/items/triage/', {
         method: 'POST',
-        body: JSON.stringify({ ids: batch.created, action: 'delete' }),
+        body: JSON.stringify({ ids, action: 'delete' }),
       })
       await queryClient.invalidateQueries({ queryKey: itemsKey })
     }
@@ -401,7 +443,11 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       {children}
       {dragging && !target && <DropOverlay />}
       {toast && (
-        <CaptureToast batch={toast} onUndo={() => undoBatch(batches.current.get(toast.id)!)} />
+        <CaptureToast
+          batch={toast}
+          onUndo={() => undoBatch(batches.current.get(toast.id)!)}
+          onSeparate={() => separate(batches.current.get(toast.id)!)}
+        />
       )}
     </CaptureContext>
   )
@@ -417,12 +463,24 @@ function DropOverlay() {
   )
 }
 
-function CaptureToast({ batch, onUndo }: { batch: Batch; onUndo: () => void }) {
+function CaptureToast({
+  batch,
+  onUndo,
+  onSeparate,
+}: {
+  batch: Batch
+  onUndo: () => void
+  onSeparate: () => void
+}) {
   const done = batch.created.length
   const later = batch.deferred.length
   const count = (n: number) => (n === 1 ? '1 item' : `${n} items`)
   const message = !batch.settled
     ? `Capturing ${count(batch.total)}…`
+    : batch.albumId
+      ? `Grouped ${batch.images.size} images into an album${
+          done > batch.images.size ? `, and captured ${count(done - batch.images.size)}` : ''
+        }`
     : later > 0
       ? `${done > 0 ? `Captured ${done}, kept` : 'Kept'} ${count(later)} on this device to send later`
       : batch.failed.length === 0
@@ -439,6 +497,16 @@ function CaptureToast({ batch, onUndo }: { batch: Batch; onUndo: () => void }) {
     >
       <div className="flex items-center gap-3">
         <span className="mr-auto">{message}</span>
+        {batch.albumId && (
+          <button
+            type="button"
+            className="font-semibold hover:underline"
+            title="Keep them as separate images"
+            onClick={onSeparate}
+          >
+            Separate
+          </button>
+        )}
         {canUndo && (
           <button type="button" className="font-semibold hover:underline" onClick={onUndo}>
             Undo
