@@ -16,13 +16,14 @@ import { useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from
 
 import { itemKey, itemsKey, type Item } from '../items/api'
 import { isEditable } from '../lib/dom'
+import { useSaveOnLeave } from '../lib/useSaveOnLeave'
 import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
 import { BoardContext } from './context'
 import { ItemNode } from './ItemNode'
 import { ItemPanel } from './ItemPanel'
 import { DEFAULT_WIDTH, freeSpot, newNodeId, toFlowNodes, type ItemFlowNode } from './layout'
-import { type LayoutSaverState } from './saver'
+import { layoutDrafts, type LayoutSaverState } from './saver'
 import { BoardSession } from './session'
 
 // Outside the component: React Flow remounts every node if this changes.
@@ -52,19 +53,18 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const queryClient = useQueryClient()
   const flow = useReactFlow<ItemFlowNode>()
   const container = useRef<HTMLDivElement>(null)
-  const [nodes, setNodes] = useState(() => toFlowNodes(board.layout))
-  // Changes and commits arrive in the same tick: commits read this, not state.
-  const latest = useRef(nodes)
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
   // The right-hand panel: adding items, or one item shown whole.
   const [panel, setPanel] = useState<{ adding: true } | { itemId: string } | null>(null)
-  const [saveState, setSaveState] = useState<LayoutSaverState>({ status: 'saved' })
+  // Null until the saver first reports: it may start from a restored draft.
+  const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
   const [session] = useState(
     () =>
       new BoardSession(board, {
-        save: (layout, revision) => saveLayout(board.id, layout, revision),
+        save: (layout, revision, options) => saveLayout(board.id, layout, revision, options),
         onSaveState: setSaveState,
+        drafts: layoutDrafts,
         onSaved: (saved, placed) => {
           // Coming back to the board starts from what was saved, not what was loaded.
           queryClient.setQueryData<Board>(
@@ -83,6 +83,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       }),
   )
   const { history, saver } = session
+  const saveState = reported ?? saver.snapshot
+  const [nodes, setNodes] = useState(() => session.initialNodes)
+  // Changes and commits arrive in the same tick: commits read this, not state.
+  const latest = useRef(nodes)
+
+  useEffect(() => session.resume(), [session])
+  useSaveOnLeave(saver)
 
   function show(next: ItemFlowNode[]) {
     latest.current = next
@@ -219,7 +226,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           {!readOnly && (
             <Panel position="top-right">
               <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
-                <SaveStatus state={saveState} onRetry={() => saver.retry()} />
+                <SaveStatus state={saveState} onRetry={() => saver.retryNow()} />
                 <button
                   type="button"
                   className={toolButton}
@@ -292,8 +299,18 @@ function SaveStatus({ state, onRetry }: { state: LayoutSaverState; onRetry: () =
   switch (state.status) {
     case 'saved':
       return <span className="px-2 text-xs text-zinc-500">Saved</span>
+    case 'unsaved':
     case 'saving':
       return <span className="px-2 text-xs text-zinc-500">Saving…</span>
+    case 'offline':
+      return (
+        <span
+          className="px-2 text-xs text-amber-700 dark:text-amber-400"
+          title="Kept on this device, it saves when the connection is back"
+        >
+          Offline
+        </span>
+      )
     case 'error':
       return (
         <span className="flex items-center gap-1 px-2 text-xs text-red-600" title={state.error}>

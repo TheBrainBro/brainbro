@@ -41,6 +41,7 @@ let items: Item[]
 let saves: { layout: Layout; ifMatch: string | null }[]
 let patches: { id: string; body: string; ifMatch: string | null }[]
 let desktop: boolean
+let offline: boolean
 
 function summary(): BoardSummary {
   const { layout: _layout, items: _items, ...rest } = board
@@ -68,6 +69,8 @@ beforeEach(() => {
   saves = []
   patches = []
   desktop = true
+  offline = false
+  localStorage.clear()
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: desktop && query.includes('min-width'),
     media: query,
@@ -88,6 +91,7 @@ beforeEach(() => {
       }
       if (url === '/api/boards/b1/') return jsonResponse(board)
       if (url === '/api/boards/b1/layout/' && method === 'PUT') {
+        if (offline) throw new TypeError('Failed to fetch')
         const layout = JSON.parse(String(init?.body))
         saves.push({ layout, ifMatch: new Headers(init?.headers).get('If-Match') })
         board = { ...board, layout, revision: board.revision + 1 }
@@ -113,6 +117,9 @@ beforeEach(() => {
 })
 
 afterEach(() => vi.unstubAllGlobals())
+
+// Layout saves wait for changes to stop for a second.
+const SAVED = { timeout: 3000 }
 
 function Location() {
   return <span data-testid="location">{useLocation().pathname}</span>
@@ -154,12 +161,31 @@ describe('boards', () => {
     const panel = screen.getByRole('complementary', { name: 'Add items' })
     fireEvent.click(await within(panel).findByRole('button', { name: 'Add' }))
 
-    await waitFor(() => expect(saves).toHaveLength(1))
+    await waitFor(() => expect(saves).toHaveLength(1), SAVED)
     expect(saves[0].ifMatch).toBe('"4"')
     expect(saves[0].layout.nodes.map((node) => node.item)).toEqual(items.map((item) => item.id))
     expect(saves[0].layout.nodes[1].w).toBe(280)
     expect(await screen.findAllByText('Waiting in the inbox')).not.toHaveLength(0)
     expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
+  })
+
+  it('keeps the layout on this device while offline and saves it after a reload', async () => {
+    offline = true
+    const first = renderAt('/boards/b1')
+    await screen.findByText('On the board')
+    fireEvent.click(screen.getByRole('button', { name: 'Add items' }))
+    const panel = screen.getByRole('complementary', { name: 'Add items' })
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Add' }))
+    expect(await screen.findByText('Offline', {}, SAVED)).toBeInTheDocument()
+    first.unmount()
+
+    offline = false
+    renderAt('/boards/b1')
+    expect(await screen.findAllByText('Waiting in the inbox')).not.toHaveLength(0)
+    await waitFor(() => expect(saves).toHaveLength(1), SAVED)
+    expect(saves[0].ifMatch).toBe('"4"')
+    expect(saves[0].layout.nodes).toHaveLength(2)
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
   })
 
   it('is read-only on a phone', async () => {
@@ -230,7 +256,7 @@ describe('board cards', () => {
     expect(within(panel).getByRole('link', { name: 'A page' })).toBeInTheDocument()
 
     fireEvent.click(within(panel).getByRole('button', { name: 'Remove from board' }))
-    await waitFor(() => expect(saves).toHaveLength(1))
+    await waitFor(() => expect(saves).toHaveLength(1), SAVED)
     expect(saves[0].layout.nodes).toHaveLength(1)
     expect(screen.queryByRole('complementary', { name: 'Item' })).not.toBeInTheDocument()
   })

@@ -130,10 +130,16 @@ export function useDeleteBoard() {
 }
 
 /** Replaces the layout if the server still has `revision`; rejects with a 412 ApiError if not. */
-export function saveLayout(id: string, layout: Layout, revision: number) {
+export function saveLayout(
+  id: string,
+  layout: Layout,
+  revision: number,
+  { keepalive = false } = {},
+) {
   return api<SavedLayout>(`/boards/${id}/layout/`, {
     method: 'PUT',
     body: JSON.stringify(layout),
     headers: { 'If-Match': `"${revision}"` },
+    keepalive,
   })
 }
