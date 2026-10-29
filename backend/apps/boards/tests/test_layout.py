@@ -73,6 +73,40 @@ def test_accepts_groups_with_children_and_edges():
     assert result["edges"][0]["label"] == "see"
 
 
+def test_edges_default_to_a_plain_arrow():
+    data = layout(
+        nodes=[node("a"), node("b", item=ITEM_B)],
+        edges=[{"id": "e", "source": "a", "target": "b"}],
+    )
+    edge = validate_layout(data)["edges"][0]
+    assert (edge["arrow"], edge["stroke"], edge["color"]) == ("end", "solid", "")
+
+
+def test_keeps_edge_looks():
+    looks = {"arrow": "both", "stroke": "dashed", "color": "#ef4444"}
+    data = layout(
+        nodes=[node("a"), node("b", item=ITEM_B)],
+        edges=[{"id": "e", "source": "a", "target": "b", **looks}],
+    )
+    assert validate_layout(data)["edges"][0].items() >= looks.items()
+
+
+@pytest.mark.parametrize(
+    "looks,path",
+    [
+        ({"arrow": "start"}, "edges[0].arrow"),
+        ({"stroke": "dotted"}, "edges[0].stroke"),
+        ({"color": "red"}, "edges[0].color"),
+    ],
+)
+def test_rejects_unknown_edge_looks(looks, path):
+    data = layout(
+        nodes=[node("a"), node("b", item=ITEM_B)],
+        edges=[{"id": "e", "source": "a", "target": "b", **looks}],
+    )
+    assert error_path(data) == path
+
+
 @pytest.mark.parametrize(
     "data,path",
     [

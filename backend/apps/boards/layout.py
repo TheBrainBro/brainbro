@@ -24,6 +24,9 @@ MIN_ZOOM, MAX_ZOOM = 0.01, 10
 MAX_LABEL = 500
 
 NODE_TYPES = {"item"}
+# Edge looks; a missing key reads as the first of each.
+EDGE_ARROWS = ("end", "none", "both")
+EDGE_STROKES = ("solid", "dashed")
 ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 COLOR_PATTERN = re.compile(r"^#[0-9a-f]{6}$")
 
@@ -164,9 +167,7 @@ def _group(data, path):
     title = data.get("title", "")
     if not isinstance(title, str) or len(title) > MAX_LABEL:
         raise LayoutError(f"{path}.title", f"Text up to {MAX_LABEL} characters.")
-    color = data.get("color", "")
-    if color and (not isinstance(color, str) or not COLOR_PATTERN.match(color)):
-        raise LayoutError(f"{path}.color", "Use a hex color like #3b82f6.")
+    color = _color(data.get("color", ""), f"{path}.color")
     group = {
         "id": _id(data.get("id"), f"{path}.id"),
         **_box(data, path),
@@ -190,6 +191,9 @@ def _edge(data, path, ends):
     if not isinstance(label, str) or len(label) > MAX_LABEL:
         raise LayoutError(f"{path}.label", f"Text up to {MAX_LABEL} characters.")
     edge["label"] = label
+    edge["arrow"] = _choice(data.get("arrow"), f"{path}.arrow", EDGE_ARROWS)
+    edge["stroke"] = _choice(data.get("stroke"), f"{path}.stroke", EDGE_STROKES)
+    edge["color"] = _color(data.get("color", ""), f"{path}.color")
     return edge
 
 
@@ -207,6 +211,21 @@ def _box(data, path):
             else _number(value, f"{path}.{dimension}", 1, MAX_SIZE)
         )
     return box
+
+
+def _color(value, path):
+    """A hex color, or empty for the default."""
+    if value and (not isinstance(value, str) or not COLOR_PATTERN.match(value)):
+        raise LayoutError(path, "Use a hex color like #3b82f6.")
+    return value or ""
+
+
+def _choice(value, path, choices):
+    if value is None:
+        return choices[0]
+    if value not in choices:
+        raise LayoutError(path, f"One of {', '.join(choices)}.")
+    return value
 
 
 def _unique_ids(entries, path):
