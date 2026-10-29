@@ -32,6 +32,12 @@ services: ## Start Postgres and Redis for development
 services-down: ## Stop development Postgres and Redis
 	docker compose down
 
+.PHONY: down
+# By project name, so the production stack stops even without stack.env.
+down: ## Stop every Docker service of this project (dev and local production stack)
+	docker compose -p brain-dev down --remove-orphans
+	docker compose -p brain down --remove-orphans
+
 .PHONY: dev
 dev: services migrate ## Run Django, the Celery worker and Vite together
 	$(MAKE) -j3 backend worker frontend
