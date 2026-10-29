@@ -40,7 +40,8 @@ describe('auth routing', () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: true, user })))
     renderAt('/boards')
     expect(await screen.findByRole('heading', { name: 'Boards' })).toBeInTheDocument()
-    expect(screen.getByText('carlos')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    expect(screen.getByRole('menu')).toHaveTextContent('carlos')
   })
 
   it('says it is offline, not broken, when the session cannot be fetched without network', async () => {
@@ -64,7 +65,8 @@ describe('auth routing', () => {
       }),
     )
     renderAt('/boards')
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Sign out' }))[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'Account' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }))
     expect(await screen.findByText('Sign in to continue')).toBeInTheDocument()
   })
 

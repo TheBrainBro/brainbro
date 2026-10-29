@@ -48,7 +48,7 @@ export function CollectionsPage() {
         </select>
         <button
           type="submit"
-          className="rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          className="button-primary"
           disabled={!name.trim() || create.isPending}
         >
           Add
@@ -68,7 +68,7 @@ export function CollectionsPage() {
           <li key={collection.id}>
             <Link
               to={`/collections/${collection.id}`}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+              className="surface flex items-center justify-between px-4 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
             >
               <span className="truncate font-medium">
                 {collection.icon && <span className="mr-1">{collection.icon}</span>}

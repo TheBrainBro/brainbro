@@ -30,7 +30,7 @@ export function BoardsPage() {
         />
         <button
           type="submit"
-          className="rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          className="button-primary"
           disabled={!title.trim() || create.isPending}
         >
           Create
@@ -57,7 +57,7 @@ export function BoardsPage() {
           <li key={board.id}>
             <Link
               to={`/boards/${board.id}`}
-              className="flex h-24 flex-col justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+              className="surface flex h-24 flex-col justify-between px-4 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
             >
               <span className="line-clamp-2 font-medium">{board.title}</span>
               <span className="text-xs text-zinc-500">
