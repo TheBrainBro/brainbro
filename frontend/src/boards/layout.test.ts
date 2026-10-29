@@ -8,6 +8,8 @@ import {
   freeSpot,
   drawFrame,
   groupNodes,
+  newSticky,
+  newStroke,
   sameContent,
   settle,
   toLayout,
@@ -193,5 +195,67 @@ describe('groups', () => {
     const next = ungroup(nodes, 'g')
     expect(next).toHaveLength(1)
     expect(next[0]).toMatchObject({ id: 'a', parentId: undefined, position: { x: 150, y: 150 } })
+  })
+})
+
+describe('stickies and strokes', () => {
+  it('go to React Flow and back', () => {
+    const layout: Layout = {
+      ...emptyLayout(),
+      nodes: [
+        { id: 's', type: 'sticky', x: 0, y: 0, w: 200, h: 200, parent: null, text: 'Hi', color: '' },
+        {
+          id: 'p',
+          type: 'stroke',
+          x: 5,
+          y: 5,
+          w: 30,
+          h: 20,
+          parent: null,
+          points: [
+            [0, 0],
+            [30, 20],
+          ],
+          color: '#ef4444',
+          width: 4,
+        },
+      ],
+    }
+    const scene = toScene(layout)
+    expect(scene.nodes.map((node) => node.type)).toEqual(['sticky', 'stroke'])
+    expect(toLayout(scene, layout.viewport, layout)).toEqual(layout)
+  })
+
+  it('a new sticky is centered where it was placed, ready to type in', () => {
+    const sticky = newSticky({ x: 300, y: 300 }, 's')
+    expect(sticky).toMatchObject({ position: { x: 200, y: 200 }, data: { editing: true } })
+    const layout = toLayout({ nodes: [sticky], edges: [] }, emptyLayout().viewport, emptyLayout())
+    expect(layout.nodes[0]).toEqual({
+      id: 's',
+      type: 'sticky',
+      x: 200,
+      y: 200,
+      w: 200,
+      h: 200,
+      parent: null,
+      text: '',
+      color: '',
+    })
+  })
+
+  it('boxes a pen line with room for its thickness', () => {
+    const points = [
+      { x: 10, y: 10 },
+      { x: 50, y: 30 },
+      { x: 20, y: 60 },
+    ]
+    const stroke = newStroke(points, { color: '', width: 4 }, 'p')!
+    expect(stroke).toMatchObject({ position: { x: 7, y: 7 }, width: 46, height: 56 })
+    expect(stroke.data.points).toEqual([
+      [3, 3],
+      [43, 23],
+      [13, 53],
+    ])
+    expect(newStroke(points.slice(0, 1), { color: '', width: 4 }, 'q')).toBeUndefined()
   })
 })
