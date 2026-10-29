@@ -99,7 +99,6 @@ export class Autosave<Theirs> {
   /** Something changed: save it once changes stop for a moment. */
   changed() {
     if (this.stopped || this.state.status === 'conflict') return
-    this.left = false
     this.clearTimers()
     this.set({ status: 'unsaved' })
     const now = Date.now()
@@ -196,6 +195,11 @@ export class Autosave<Theirs> {
   stop() {
     this.stopped = true
     this.clearTimers()
+  }
+
+  /** In use (again): failed saves retry. Undoes `dispose`, as a remount does. */
+  attach() {
+    this.left = false
   }
 
   /** Leaving: save what's left, once, and stop the timers. */

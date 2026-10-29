@@ -7,6 +7,7 @@ export type LeavableSaver = {
   status: SaveStatus
   flush: (options: { keepalive: boolean }) => unknown
   retryNow: () => void
+  attach: () => void
   dispose: () => void
 }
 
@@ -18,6 +19,7 @@ export type LeavableSaver = {
  */
 export function useSaveOnLeave(saver: LeavableSaver) {
   useEffect(() => {
+    saver.attach()
     const flushNow = () => saver.flush({ keepalive: true })
     const onVisibility = () => document.visibilityState === 'hidden' && flushNow()
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
