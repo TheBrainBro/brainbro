@@ -49,6 +49,15 @@ class CollectionSerializer(serializers.ModelSerializer):
         return value
 
 
+def album_images(album):
+    # Sorted here, not in the query: the prefetched images are reused.
+    return sorted(album.album_items.all(), key=lambda image: image.album_position)
+
+
+# What serializing items reads besides the row: prefetch it with them.
+ITEM_PREFETCH = ("collections", "album_items", "album_items__collections")
+
+
 class ItemSerializer(serializers.ModelSerializer):
     collections = OwnedPrimaryKeyRelatedField(
         queryset=Collection.objects.all(), many=True, required=False
@@ -56,6 +65,8 @@ class ItemSerializer(serializers.ModelSerializer):
     preview_image_url = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
     version = serializers.CharField(read_only=True)
+    # Albums only: their images, in order.
+    album_items = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -71,6 +82,8 @@ class ItemSerializer(serializers.ModelSerializer):
             "preview_image_url",
             "file_url",
             "collections",
+            "album",
+            "album_items",
             "version",
             "created_at",
             "updated_at",
@@ -84,11 +97,21 @@ class ItemSerializer(serializers.ModelSerializer):
             "url",
             "metadata",
             "preview_status",
+            "album",
             "created_at",
             "updated_at",
         ]
 
+    def get_album_items(self, item):
+        if item.kind != Item.Kind.ALBUM:
+            return None
+        return ItemSerializer(album_images(item), many=True, context=self.context).data
+
     def get_preview_image_url(self, item):
+        if item.kind == Item.Kind.ALBUM:
+            # Its cover: the first image's thumbnail.
+            images = album_images(item)
+            return self.get_preview_image_url(images[0]) if images else None
         if not item.preview_image:
             return None
         # Uploads are never public: the image goes through an authenticated
@@ -102,6 +125,24 @@ class ItemSerializer(serializers.ModelSerializer):
             return None
         path = reverse("item-file", args=[item.id])
         return f"{path}?v={item.file.name.rsplit('/', 1)[-1]}"
+
+
+class AlbumSerializer(serializers.Serializer):
+    """Images for an album, in order."""
+
+    items = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=False, max_length=500
+    )
+    title = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+    def validate_items(self, ids):
+        if len(set(ids)) != len(ids):
+            raise serializers.ValidationError("An image appears twice.")
+        owner = self.context["request"].user
+        found = {item.id: item for item in Item.objects.filter(owner=owner, id__in=ids)}
+        if len(found) != len(ids):
+            raise serializers.ValidationError("No such item.")
+        return [found[item_id] for item_id in ids]
 
 
 class TriageSerializer(serializers.Serializer):
