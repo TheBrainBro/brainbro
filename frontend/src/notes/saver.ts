@@ -60,7 +60,9 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
       save: (saveOptions) => this.send(saveOptions),
       onClean: () => this.options.drafts.remove(this.draftKey),
       describe: (error) =>
-        error instanceof ApiError && error.status === 404 ? 'This note no longer exists.' : undefined,
+        error instanceof ApiError && error.status === 404
+          ? 'This note no longer exists.'
+          : undefined,
       onChange: options.onChange,
       debounceMs: options.debounceMs ?? DEBOUNCE_MS,
     })

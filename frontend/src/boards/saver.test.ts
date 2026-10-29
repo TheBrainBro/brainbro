@@ -166,6 +166,16 @@ describe('LayoutSaver', () => {
     expect(saver.status).toBe('saved')
   })
 
+  it('tries once more on leaving, then leaves the rest to the draft', async () => {
+    save.mockRejectedValue(new TypeError('Failed to fetch'))
+    const saver = makeSaver()
+    saver.save(layoutAt(7))
+    saver.dispose()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(drafts.store.get('b1')).toEqual({ layout: layoutAt(7), base: 3 })
+  })
+
   it('does not retry an invalid layout, but shows why', async () => {
     save.mockRejectedValue(new ApiError(400, { detail: 'Too many nodes.', path: 'nodes' }))
     const saver = makeSaver()
@@ -251,7 +261,7 @@ describe('LayoutSaver', () => {
     expect(drafts.store.get('b1')).toEqual({ layout: layoutAt(2), base: 4 })
   })
 
-  it('saves with keepalive when the page is closing, unless the layout is too big for it', async () => {
+  it('saves with keepalive as the page closes, unless the layout is too big for it', async () => {
     const small = makeSaver()
     small.save(layoutAt(1))
     await small.flush({ keepalive: true })

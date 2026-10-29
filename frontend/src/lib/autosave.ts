@@ -55,6 +55,8 @@ export class Autosave<Theirs> {
   private inFlight = false
   private again = false
   private stopped = false
+  // Left (unmounted): one last try, no retries; the draft brings it back next time.
+  private left = false
   private firstChange: number | undefined
   private options: AutosaveOptions<Theirs>
 
@@ -97,13 +99,16 @@ export class Autosave<Theirs> {
   /** Something changed: save it once changes stop for a moment. */
   changed() {
     if (this.stopped || this.state.status === 'conflict') return
+    this.left = false
     this.clearTimers()
     this.set({ status: 'unsaved' })
     const now = Date.now()
     this.firstChange ??= now
     const { debounceMs, maxWaitMs } = this.options
     const wait =
-      maxWaitMs === undefined ? debounceMs : Math.min(debounceMs, this.firstChange + maxWaitMs - now)
+      maxWaitMs === undefined
+        ? debounceMs
+        : Math.min(debounceMs, this.firstChange + maxWaitMs - now)
     this.timer = setTimeout(() => this.flush(), Math.max(wait, 0))
   }
 
@@ -144,8 +149,10 @@ export class Autosave<Theirs> {
           status: offline ? 'offline' : 'error',
           error: offline ? undefined : error instanceof Error ? error.message : 'Save failed',
         })
-        this.retryTimer = setTimeout(() => this.flush(), this.retryDelay)
-        this.retryDelay = Math.min(this.retryDelay * 2, RETRY_MAX_MS)
+        if (!this.left) {
+          this.retryTimer = setTimeout(() => this.flush(), this.retryDelay)
+          this.retryDelay = Math.min(this.retryDelay * 2, RETRY_MAX_MS)
+        }
       } else {
         this.set({
           status: 'error',
@@ -191,9 +198,10 @@ export class Autosave<Theirs> {
     this.clearTimers()
   }
 
-  /** Leaving: save what's left and stop the timers. */
+  /** Leaving: save what's left, once, and stop the timers. */
   dispose({ keepalive = false } = {}) {
     this.clearTimers()
+    this.left = true
     if (this.options.dirty() && this.state.status !== 'conflict') this.flush({ keepalive })
   }
 }
