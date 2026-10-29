@@ -247,11 +247,13 @@ describe('boards', () => {
     await screen.findByText('On the board')
     fireEvent.click(screen.getByRole('button', { name: 'Add items' }))
     const panel = screen.getByRole('complementary', { name: 'Add items' })
-    fireEvent.click(await within(panel).findByRole('button', { name: 'Add' }))
+    fireEvent.click(await within(panel).findByRole('button', { name: /^Add / }))
 
     await waitFor(() => expect(saves).toHaveLength(1), SAVED)
     expect(saves[0].ifMatch).toBe('"4"')
-    expect(saves[0].layout.nodes.map((node) => node.item)).toEqual(items.map((item) => item.id))
+    expect(saves[0].layout.nodes.map((node) => 'item' in node && node.item)).toEqual(
+      items.map((item) => item.id),
+    )
     expect(saves[0].layout.nodes[1].w).toBe(280)
     expect(await screen.findAllByText('Waiting in the inbox')).not.toHaveLength(0)
     expect(screen.getByRole('button', { name: 'Undo (⌘Z)' })).toBeEnabled()
@@ -263,7 +265,7 @@ describe('boards', () => {
     await screen.findByText('On the board')
     fireEvent.click(screen.getByRole('button', { name: 'Add items' }))
     const panel = screen.getByRole('complementary', { name: 'Add items' })
-    fireEvent.click(await within(panel).findByRole('button', { name: 'Add' }))
+    fireEvent.click(await within(panel).findByRole('button', { name: /^Add / }))
     expect(await screen.findByText('Offline', {}, SAVED)).toBeInTheDocument()
     first.unmount()
 
