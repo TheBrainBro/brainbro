@@ -28,14 +28,17 @@ const VIEWER: ShortcutGroup = {
 export function shortcutsFor(pathname: string): ShortcutGroup[] {
   const everywhere: ShortcutGroup = {
     title: 'Everywhere',
-    shortcuts: [{ keys: ['?'], label: 'Show these shortcuts' }],
+    shortcuts: [
+      { keys: [combo('K')], label: 'Search' },
+      { keys: ['?'], label: 'Show these shortcuts' },
+    ],
   }
   if (pathname === '/') {
     return [
       {
         title: 'Inbox',
         shortcuts: [
-          { keys: ['/'], label: `Write in the capture box (also ${combo('K')})` },
+          { keys: ['/'], label: 'Write in the capture box' },
           { keys: ['N'], label: 'New note' },
           { keys: [MOD, 'V'], label: 'Paste anywhere to capture' },
         ],
