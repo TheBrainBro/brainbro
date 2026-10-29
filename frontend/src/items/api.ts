@@ -56,13 +56,23 @@ const PREVIEW_POLL_MS = 2000
 
 export const itemsKey = ['items']
 
-export function useItems(filters: { status?: ItemStatus; collection?: string }) {
+export type ItemFilters = {
+  status?: ItemStatus
+  collection?: string
+  kind?: ItemKind
+  /** A plain text match on title, text, URL and file name. */
+  q?: string
+}
+
+export function useItems(filters: ItemFilters) {
   return useInfiniteQuery({
     queryKey: [...itemsKey, filters],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(pageParam) })
       if (filters.status) params.set('status', filters.status)
       if (filters.collection) params.set('collection', filters.collection)
+      if (filters.kind) params.set('kind', filters.kind)
+      if (filters.q) params.set('q', filters.q)
       return api<Page<Item>>(`/items/?${params}`)
     },
     initialPageParam: 0,
