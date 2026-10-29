@@ -1,0 +1,344 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* The accent: the logo's violet. Neutrals stay zinc. */
+@theme inline {
+  --color-accent-50: var(--color-violet-50);
+  --color-accent-100: var(--color-violet-100);
+  --color-accent-200: var(--color-violet-200);
+  --color-accent-300: var(--color-violet-300);
+  --color-accent-400: var(--color-violet-400);
+  --color-accent-500: var(--color-violet-500);
+  --color-accent-600: var(--color-violet-600);
+  --color-accent-700: var(--color-violet-700);
+  --color-accent-800: var(--color-violet-800);
+  --color-accent-900: var(--color-violet-900);
+  --color-accent-950: var(--color-violet-950);
+}
+
+:root {
+  color-scheme: light dark;
+  /* Shared by the editor's live preview (CodeMirror themes can't use dark:). */
+  --md-muted: light-dark(var(--color-zinc-500), var(--color-zinc-400));
+  --md-rule: light-dark(var(--color-zinc-300), var(--color-zinc-700));
+  --md-subtle: light-dark(var(--color-zinc-100), var(--color-zinc-800));
+  --md-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
+  /* ==mark== and ::: containers in the editor (literal colors, see below). */
+  --md-highlight: light-dark(#fde68a, #f59e0b4d);
+  --box-info: #38bdf8;
+  --box-info-bg: light-dark(#f0f9ff, #0c4a6e80);
+  --box-tip: #34d399;
+  --box-tip-bg: light-dark(#ecfdf5, #064e3b80);
+  --box-warning: #fbbf24;
+  --box-warning-bg: light-dark(#fffbeb, #78350f80);
+  --box-danger: #f87171;
+  --box-danger-bg: light-dark(#fef2f2, #7f1d1d80);
+  /* Code tokens in note code blocks (literal: Tailwind only emits colors in use). */
+  --code-keyword: light-dark(#6d28d9, #c4b5fd);
+  --code-string: light-dark(#047857, #6ee7b7);
+  --code-number: light-dark(#b45309, #fcd34d);
+  --code-comment: var(--color-zinc-500);
+  --code-function: light-dark(#0369a1, #7dd3fc);
+  --code-type: light-dark(#be123c, #fda4af);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+@layer components {
+  .kbd {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded border border-b-2 border-zinc-300 bg-white px-1 font-sans text-[11px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300;
+  }
+
+  .button-primary {
+    @apply rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-500 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .button-secondary {
+    @apply rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800;
+  }
+
+  /* A secondary action that still reads as a button on its own (no toolbar around it). */
+  .button-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-xs transition hover:border-zinc-400 hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800;
+  }
+
+  /* Small text actions inside cards, headers and toolbars. */
+  .button-ghost {
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
+  }
+
+  .button-danger {
+    @apply rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-red-500 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* A square button holding one icon (with an aria-label and usually a .tooltip). */
+  .button-icon {
+    @apply relative inline-flex size-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm transition outline-none placeholder:text-zinc-400 focus:border-accent-400 focus:ring-3 focus:ring-accent-500/15 dark:border-zinc-700 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:border-accent-500;
+  }
+
+  /* A raised surface: cards, panels. */
+  .surface {
+    @apply rounded-xl border border-zinc-200 bg-white shadow-xs dark:border-zinc-800 dark:bg-zinc-900;
+  }
+
+  /* Floating over the page: menus, popovers. */
+  .popover {
+    @apply rounded-xl border border-zinc-200 bg-white shadow-lg shadow-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40;
+    animation: pop-in 120ms ease-out;
+  }
+
+  .menu-item {
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800;
+  }
+
+  /* A label shown on hover or keyboard focus of its parent (which needs `group relative`). */
+  .tooltip {
+    @apply pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-md transition-opacity delay-0 group-hover:opacity-100 group-hover:delay-300 group-focus-visible:opacity-100 dark:bg-zinc-100 dark:text-zinc-900;
+  }
+
+  /* A placeholder block while content loads. */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800;
+  }
+
+  /* A short message at the bottom of the screen (see ui/FeedbackProvider). */
+  .toast {
+    @apply pointer-events-auto w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg shadow-zinc-900/20 dark:bg-zinc-100 dark:text-zinc-900 dark:shadow-black/40;
+    animation: toast-in 180ms ease-out;
+  }
+
+  .toast-action {
+    @apply rounded-md px-1.5 py-0.5 font-semibold text-accent-300 transition hover:bg-white/10 dark:text-accent-700 dark:hover:bg-zinc-900/10;
+  }
+
+  /* The dimmed layer under a dialog. */
+  .backdrop {
+    @apply fixed inset-0 z-40 bg-zinc-950/30 backdrop-blur-[2px];
+    animation: fade-in 120ms ease-out;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 1ms !important;
+    /* Otherwise a looping animation (pulse, spin) flickers at 1ms a turn. */
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Rendered note Markdown in cards: compact, headings scaled down. */
+@layer components {
+  .markdown {
+    @apply text-sm leading-relaxed;
+
+    & > * + * {
+      @apply mt-2;
+    }
+    & :is(h1, h2, h3, h4, h5, h6) {
+      @apply font-semibold;
+    }
+    & h1 {
+      @apply text-base;
+    }
+    & a {
+      @apply underline decoration-zinc-400 underline-offset-2 hover:decoration-current;
+    }
+    & :is(ul, ol) {
+      @apply space-y-0.5 pl-5;
+    }
+    & ul {
+      @apply list-disc;
+    }
+    & ol {
+      @apply list-decimal;
+    }
+    & li:has(> input[type='checkbox']) {
+      @apply -ml-5 list-none;
+    }
+    & li > input[type='checkbox'] {
+      @apply mr-1.5 align-middle;
+    }
+    & blockquote {
+      @apply border-l-2 border-zinc-300 pl-3 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400;
+    }
+    & :not(pre) > code {
+      @apply rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.85em] dark:bg-zinc-800;
+    }
+    & pre {
+      @apply overflow-x-auto rounded-lg bg-zinc-100 p-3 font-mono text-xs dark:bg-zinc-800;
+    }
+    & hr {
+      @apply border-zinc-200 dark:border-zinc-800;
+    }
+    & table {
+      @apply block overflow-x-auto text-xs;
+    }
+    & :is(th, td) {
+      @apply border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700;
+    }
+    & mark {
+      @apply rounded-sm bg-amber-200/70 px-0.5 text-inherit dark:bg-amber-400/30;
+    }
+    & ins {
+      @apply decoration-zinc-400 underline-offset-2;
+    }
+    & abbr[title] {
+      @apply cursor-help underline decoration-dotted underline-offset-2;
+    }
+    & :is(sup, sub) {
+      @apply text-[0.75em] leading-none;
+    }
+    & .footnote-ref a {
+      @apply no-underline text-zinc-500;
+    }
+    & .footnotes-sep {
+      @apply my-3;
+    }
+    & .footnotes {
+      @apply text-xs text-zinc-600 dark:text-zinc-400;
+    }
+    & dt {
+      @apply font-semibold;
+    }
+    & dd {
+      @apply pl-5;
+    }
+    & :is(.note, .info, .tip, .warning, .danger) {
+      @apply rounded-lg border-l-4 px-3 py-2;
+    }
+    & :is(.note, .info) {
+      @apply border-sky-400 bg-sky-50 dark:bg-sky-950/50;
+    }
+    & .tip {
+      @apply border-emerald-400 bg-emerald-50 dark:bg-emerald-950/50;
+    }
+    & .warning {
+      @apply border-amber-400 bg-amber-50 dark:bg-amber-950/50;
+    }
+    & .danger {
+      @apply border-red-400 bg-red-50 dark:bg-red-950/50;
+    }
+    & .markdown-image {
+      @apply rounded bg-zinc-100 px-1 text-xs text-zinc-500 italic dark:bg-zinc-800;
+    }
+  }
+}
+
+/* The note editor: layout lives in its EditorView.theme (CodeMirror's own
+   styles are unlayered and would win); these are the colors. */
+@layer components {
+  .note-editor {
+    & .cm-selectionBackground,
+    & .cm-focused .cm-selectionBackground {
+      @apply bg-zinc-200! dark:bg-zinc-700!;
+    }
+    & .cm-placeholder {
+      @apply text-zinc-400;
+    }
+    & .cm-md-mark {
+      @apply text-zinc-400 dark:text-zinc-500;
+    }
+    & .cm-md-link {
+      @apply text-sky-700 dark:text-sky-400;
+    }
+    & .cm-md-code {
+      @apply rounded bg-zinc-100 font-mono text-[0.9em] dark:bg-zinc-800;
+    }
+    & .cm-md-quote {
+      @apply text-zinc-600 italic dark:text-zinc-400;
+    }
+  }
+}
+
+/* Board canvas (React Flow). */
+@layer components {
+  .connect-handle {
+    @apply !size-3 !rounded-full !border-2 !border-white !bg-accent-500 opacity-0 transition-opacity dark:!border-zinc-900;
+  }
+  .react-flow__node:hover .connect-handle,
+  .react-flow__node.selected .connect-handle,
+  .react-flow__connection-path ~ * .connect-handle {
+    @apply opacity-100;
+  }
+  .react-flow__node.dragging .connect-handle {
+    @apply opacity-0;
+  }
+  /* While an edge is dragged, the whole node it could end on. */
+  .connect-target {
+    @apply !absolute !inset-0 !size-full !transform-none !rounded-xl !border-2 !border-dashed !border-transparent !bg-transparent hover:!border-accent-400 hover:!bg-accent-500/5;
+  }
+  /* A group takes the pointer only where its parts do (title bar, border, resizer). */
+  .react-flow__node-frame {
+    pointer-events: none !important;
+  }
+}
+
+@layer components {
+  .react-flow__node-frame .react-flow__handle {
+    pointer-events: auto;
+  }
+}
+
+@layer components {
+  /* A pen stroke takes the pointer only on its line (see StrokeNode). */
+  .react-flow__node-stroke {
+    pointer-events: none !important;
+  }
+}
+
+/* The full-screen item viewer: always dark, whatever the theme. */
+@layer components {
+  .viewer-button {
+    @apply inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-100 transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-40;
+  }
+  .viewer-icon {
+    @apply inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-zinc-100 transition hover:bg-white/20 disabled:opacity-30;
+  }
+  .viewer-sheet {
+    @apply max-h-full w-full overflow-auto rounded-2xl bg-white p-8 text-zinc-900 shadow-2xl dark:bg-zinc-900 dark:text-zinc-100;
+  }
+}

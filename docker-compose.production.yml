@@ -1,0 +1,104 @@
+##########################################################################
+# PRODUCTION stack (Umbrel / Portainer git stack).                       #
+#                                                                        #
+#   docker compose --env-file stack.env -f docker-compose.production.yml up -d --build
+#                                                                        #
+# Only `api` publishes a port; point the Cloudflare Tunnel at it.        #
+# Postgres and Redis stay on the internal network. See docs/deployment.md.
+##########################################################################
+
+name: "brain"
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  environment:
+    ENVIRONMENT: production
+    SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required (openssl rand -base64 48)}
+    APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brain.example.com}
+    TIME_ZONE: ${TIME_ZONE:-UTC}
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    POSTGRES_DB: ${POSTGRES_DB:-brain}
+    POSTGRES_USER: ${POSTGRES_USER:-brain}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    REDIS_URL: redis://redis:6379/0
+    BACKUP_RETENTION: ${BACKUP_RETENTION:-14}
+    UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-52428800}
+    ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+  volumes:
+    - storage:/data/storage
+    - backups:/data/backups
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-brain}
+      POSTGRES_USER: ${POSTGRES_USER:-brain}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: backup if needed, migrate, ensure admin. api/worker wait for it.
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ["api"]
+    ports:
+      - "${APP_PORT:-8420}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage:
+  backups:
