@@ -9,6 +9,9 @@
 
 name: "brain"
 
+# The stack's network. `firewall` opens forwarding for exactly this subnet.
+x-subnet: &subnet 10.77.0.0/24
+
 x-app: &app
   build:
     context: .
@@ -62,12 +65,32 @@ services:
       timeout: 5s
       retries: 5
 
+  # Umbrel only needs it: lets the stack's subnet through the host firewall,
+  # otherwise containers can't reach each other. See docker/firewall/entrypoint.sh.
+  firewall:
+    build:
+      context: docker/firewall
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      STACK_SUBNET: *subnet
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   # One-shot: backup if needed, migrate, ensure admin. api/worker wait for it.
   migrate:
     <<: *app
     restart: "no"
     command: ["migrate"]
     depends_on:
+      firewall:
+        condition: service_healthy
       postgres:
         condition: service_healthy
 
@@ -97,15 +120,12 @@ services:
       redis:
         condition: service_healthy
 
-# Fixed subnet outside Docker's default 172.16.0.0/12 pool. On Umbrel the
-# Portainer stacks share the host's network namespace with umbrelOS's own
-# Docker, so an auto-assigned 172.x subnet can collide with an Umbrel app and
-# traffic between our containers gets dropped.
+# Fixed subnet so `firewall` knows which traffic to let through.
 networks:
   default:
     ipam:
       config:
-        - subnet: 10.77.0.0/24
+        - subnet: *subnet
 
 volumes:
   postgres_data:
