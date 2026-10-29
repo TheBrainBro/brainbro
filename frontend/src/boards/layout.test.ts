@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Layout } from './api'
-import { emptyLayout, freeSpot, toFlowNodes, toLayout, type ItemFlowNode } from './layout'
+import {
+  dropSpot,
+  dropSpots,
+  emptyLayout,
+  freeSpot,
+  sameContent,
+  toFlowNodes,
+  toLayout,
+  type ItemFlowNode,
+} from './layout'
 
 const stored: Layout = {
   ...emptyLayout(),
@@ -26,6 +35,24 @@ describe('layout', () => {
     expect(layout.groups).toBe(stored.groups)
     expect(layout.edges).toBe(stored.edges)
     expect(layout.viewport).toEqual({ x: 1, y: 2, zoom: 0.5 })
+  })
+
+  it('tells changes worth saving from panning alone', () => {
+    const panned = { ...stored, viewport: { x: 50, y: 0, zoom: 2 } }
+    expect(sameContent(stored, panned)).toBe(true)
+    expect(sameContent(stored, { ...stored, edges: [] })).toBe(false)
+    expect(sameContent(stored, { ...stored, nodes: stored.nodes.slice(1) })).toBe(false)
+  })
+
+  it('compares layouts whatever order the server keeps their keys in', () => {
+    const fromServer = JSON.parse(
+      '{"edges":[{"id":"e","label":"","source":"a","target":"b"}],"groups":[{"h":400,"id":"g",' +
+        '"color":"","parent":null,"title":"Ideas","w":500,"x":0,"y":0}],"nodes":[{"h":null,' +
+        '"id":"a","item":"i1","parent":null,"type":"item","w":300,"x":10,"y":20},{"h":120,' +
+        '"id":"b","item":"i2","parent":"g","type":"item","w":null,"x":-5,"y":0}],' +
+        '"schema_version":1,"viewport":{"x":0,"y":0,"zoom":1}}',
+    ) as Layout
+    expect(sameContent(stored, fromServer)).toBe(true)
   })
 
   it('rounds sub-pixel positions', () => {
@@ -54,5 +81,22 @@ describe('freeSpot', () => {
     expect(spot).not.toEqual({ x: -140, y: -80 })
     const box = { ...spot, width: 280, height: 160 }
     expect(box.x >= 164 || box.x + 280 <= -164 || box.y >= 104 || box.y + 160 <= -104).toBe(true)
+  })
+})
+
+describe('dropSpot', () => {
+  it('puts the card under the pointer, held near its top', () => {
+    expect(dropSpot({ x: 100, y: 100 }, 280, [])).toEqual({ x: -40, y: 76 })
+  })
+
+  it('stacks several cards dropped together below the pointer', () => {
+    const [first, second] = dropSpots({ x: 100, y: 100 }, [280, 260], [])
+    expect(first).toEqual({ x: -40, y: 76 })
+    expect(second).toEqual({ x: -30, y: 260 })
+  })
+
+  it('moves aside from a card already there', () => {
+    const there = { position: { x: -40, y: 76 }, width: 280, height: 160 }
+    expect(dropSpot({ x: 100, y: 100 }, 280, [there])).not.toEqual({ x: -40, y: 76 })
   })
 })

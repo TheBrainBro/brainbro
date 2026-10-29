@@ -2,13 +2,14 @@ import { useState } from 'react'
 
 import { useItems, type Item, type ItemStatus } from '../items/api'
 import { ItemSummary } from './ItemNode'
+import { ITEM_DRAG_TYPE } from './layout'
 
 const sources: { status?: ItemStatus; label: string }[] = [
   { status: 'inbox', label: 'Inbox' },
   { label: 'All' },
 ]
 
-/** Your items, to put on the board one by one. */
+/** Your items, to put on the board one by one: with Add, or dragged where they should go. */
 export function AddItemsPanel({
   onBoard,
   onAdd,
@@ -57,7 +58,15 @@ export function AddItemsPanel({
           return (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              draggable={!placed}
+              title={placed ? undefined : 'Drag onto the board'}
+              onDragStart={(event) => {
+                event.dataTransfer.setData(ITEM_DRAG_TYPE, JSON.stringify(item))
+                event.dataTransfer.effectAllowed = 'copy'
+              }}
+              className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
+                placed ? '' : 'cursor-grab active:cursor-grabbing'
+              }`}
             >
               <div className="min-w-0 flex-1 text-sm">
                 <ItemSummary item={item} />

@@ -59,9 +59,23 @@ export function toLayout(nodes: ItemFlowNode[], viewport: Viewport, base: Layout
   }
 }
 
-/** The same positions and sizes: nothing worth saving changed. */
-export function sameNodes(a: Layout, b: Layout) {
-  return JSON.stringify(a.nodes) === JSON.stringify(b.nodes)
+/** JSON with object keys sorted: the server (Postgres jsonb) stores them in its own order. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    const fields = entries.map(([key, inner]) => `${JSON.stringify(key)}:${canonical(inner)}`)
+    return `{${fields.join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+/** The same nodes, groups and edges: nothing worth saving changed (the viewport alone isn't). */
+export function sameContent(a: Layout, b: Layout) {
+  return (
+    a === b ||
+    canonical([a.nodes, a.groups, a.edges]) === canonical([b.nodes, b.groups, b.edges])
+  )
 }
 
 export function newNodeId() {
@@ -74,6 +88,9 @@ function round(value: number) {
 }
 
 type Box = { x: number; y: number; width: number; height: number }
+
+/** What placing needs to know of a card already there (or about to be). */
+export type Placed = Pick<ItemFlowNode, 'position' | 'width' | 'height' | 'measured'>
 
 // Assumed for cards not measured yet (just placed, or off screen).
 const UNMEASURED_HEIGHT = 160
@@ -92,7 +109,7 @@ function overlaps(a: Box, b: Box) {
  * Where to put a new card of `width` near `center` without covering others:
  * the closest free spot on rings of growing size around it.
  */
-export function freeSpot(center: { x: number; y: number }, width: number, nodes: ItemFlowNode[]) {
+export function freeSpot(center: { x: number; y: number }, width: number, nodes: Placed[]) {
   const boxes = nodes.map((node) => ({
     ...node.position,
     width: node.measured?.width ?? node.width ?? DEFAULT_WIDTH.note,
@@ -116,3 +133,25 @@ export function freeSpot(center: { x: number; y: number }, width: number, nodes:
   }
   return start
 }
+
+// Where the pointer holds a card dropped on the canvas: near its top, in the middle.
+const GRAB_Y = 24
+
+/** Where a card of `width` dropped at `point` goes: under the pointer, or the closest free spot. */
+export function dropSpot(point: { x: number; y: number }, width: number, nodes: Placed[]) {
+  return freeSpot({ x: point.x, y: point.y - GRAB_Y + UNMEASURED_HEIGHT / 2 }, width, nodes)
+}
+
+/** Where several cards dropped together go: the first under the pointer, the rest below it. */
+export function dropSpots(point: { x: number; y: number }, widths: number[], nodes: Placed[]) {
+  const taken = [...nodes]
+  return widths.map((width, index) => {
+    const below = { x: point.x, y: point.y + index * (UNMEASURED_HEIGHT + GAP) }
+    const position = dropSpot(below, width, taken)
+    taken.push({ position, width })
+    return position
+  })
+}
+
+/** What an item dragged onto the canvas carries (from the Add items panel). */
+export const ITEM_DRAG_TYPE = 'application/x-brain-item'
