@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react'
 
+import type { EdgeData } from './layout'
+
 export type BoardActions = {
   /** Phones: pan, zoom and open items; nothing moves. */
   readOnly: boolean
@@ -8,6 +10,11 @@ export type BoardActions = {
   /** Edits a note in its card. */
   startEditing: (nodeId: string) => void
   stopEditing: () => void
+  renameFrame: (id: string, title: string) => void
+  recolorFrame: (id: string, color: string) => void
+  /** Takes the group away; what it held stays where it is. */
+  ungroupFrame: (id: string) => void
+  updateEdge: (id: string, patch: Partial<EdgeData>) => void
 }
 
 const nothing = () => {}
@@ -17,6 +24,10 @@ export const BoardContext = createContext<BoardActions>({
   openItem: nothing,
   startEditing: nothing,
   stopEditing: nothing,
+  renameFrame: nothing,
+  recolorFrame: nothing,
+  ungroupFrame: nothing,
+  updateEdge: nothing,
 })
 
 export function useBoardActions() {

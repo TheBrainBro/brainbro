@@ -2,16 +2,24 @@ import '@xyflow/react/dist/style.css'
 
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  applyEdgeChanges,
   applyNodeChanges,
   Background,
   BackgroundVariant,
+  ConnectionMode,
   Controls,
+  MarkerType,
   MiniMap,
+  NodeToolbar,
   Panel,
+  Position,
   ReactFlow,
   useReactFlow,
+  type Connection,
+  type EdgeChange,
   type NodeChange,
 } from '@xyflow/react'
+import { Frame, Group, Hand, MousePointer2, Plus, Redo2, Undo2, type LucideIcon } from 'lucide-react'
 import {
   useEffect,
   useEffectEvent,
@@ -30,25 +38,52 @@ import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
 import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
-import { BoardContext } from './context'
+import { BoardContext, type BoardActions } from './context'
+import { EDGE_COLOR, EDGE_SELECTED, FloatingEdge } from './FloatingEdge'
+import { FrameDraw } from './FrameDraw'
+import { FrameNode } from './FrameNode'
 import { ItemNode } from './ItemNode'
 import { ItemPanel } from './ItemPanel'
 import {
+  connected,
   DEFAULT_WIDTH,
+  drawFrame,
   dropSpot,
   dropSpots,
   freeSpot,
+  groupNodes,
+  isFrame,
+  isItem,
   ITEM_DRAG_TYPE,
   newNodeId,
-  toFlowNodes,
-  type ItemFlowNode,
+  obstacles,
+  settle,
+  toScene,
+  ungroup,
+  type BoardEdge,
+  type BoardNode,
+  type Box,
+  type Scene,
 } from './layout'
 import { PendingDrops, type Drop } from './PendingDrops'
 import { layoutDrafts, type LayoutSaverState } from './saver'
 import { BoardSession } from './session'
 
-// Outside the component: React Flow remounts every node if this changes.
-const nodeTypes = { item: ItemNode }
+// Outside the component: React Flow remounts every node if these change.
+const nodeTypes = { item: ItemNode, frame: FrameNode }
+const edgeTypes = { floating: FloatingEdge }
+
+/** What a drag on the empty canvas does: select (a box), pan, or draw a group. */
+type Tool = 'select' | 'hand' | 'frame'
+
+const TOOLS: { tool: Tool; label: string; key: string; icon: LucideIcon }[] = [
+  { tool: 'select', label: 'Select', key: 'V', icon: MousePointer2 },
+  { tool: 'hand', label: 'Pan', key: 'H', icon: Hand },
+  { tool: 'frame', label: 'Group', key: 'F', icon: Frame },
+]
+
+// Drag with the middle button to pan while selecting.
+const MIDDLE_BUTTON = [1]
 
 // Zoom to fit never blows a few cards up past their real size.
 const fitViewOptions = { maxZoom: 1 }
@@ -57,7 +92,7 @@ const toolButton =
   'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800'
 
 /** The end of a gesture: a drag dropped, a resize let go, nodes deleted. */
-function isCommit(change: NodeChange<ItemFlowNode>) {
+function isCommit(change: NodeChange<BoardNode>) {
   return (
     change.type === 'remove' ||
     (change.type === 'position' && change.dragging === false) ||
@@ -70,6 +105,22 @@ function widthFor(input: CaptureInput | undefined) {
   if (input?.kind === 'url') return DEFAULT_WIDTH.link
   if (input?.kind !== 'file') return DEFAULT_WIDTH.note
   return input.file.type.startsWith('image/') ? DEFAULT_WIDTH.image : DEFAULT_WIDTH.file
+}
+
+/** Edges as React Flow draws them: arrowheads in the edge's color. */
+function withMarkers(edge: BoardEdge): BoardEdge {
+  const arrow = edge.data?.arrow ?? 'end'
+  const marker = {
+    type: MarkerType.ArrowClosed,
+    color: edge.selected ? EDGE_SELECTED : edge.data?.color || EDGE_COLOR,
+    width: 16,
+    height: 16,
+  }
+  return {
+    ...edge,
+    markerEnd: arrow === 'none' ? undefined : marker,
+    markerStart: arrow === 'both' ? marker : undefined,
+  }
 }
 
 /** The item an Add items row carries when dragged, if this drag is one. */
@@ -93,7 +144,7 @@ function draggedItem(event: DragEvent): Item | undefined {
  */
 export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boolean }) {
   const queryClient = useQueryClient()
-  const flow = useReactFlow<ItemFlowNode>()
+  const flow = useReactFlow<BoardNode, BoardEdge>()
   const container = useRef<HTMLDivElement>(null)
   const pane = useRef<HTMLDivElement>(null)
   const pipeline = useCapturePipeline()
@@ -128,9 +179,16 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   )
   const { history, saver } = session
   const saveState = reported ?? saver.snapshot
-  const [nodes, setNodes] = useState(() => session.initialNodes)
-  // Changes and commits arrive in the same tick: commits read this, not state.
+  const [tool, setTool] = useState<Tool>('select')
+  const [initial] = useState(() => session.initialScene)
+  const [nodes, setNodes] = useState(initial.nodes)
+  const [edges, setEdges] = useState(initial.edges)
+  // Changes and commits arrive in the same tick: commits read these, not state.
   const latest = useRef(nodes)
+  const latestEdges = useRef(edges)
+  // Dragged and let go: they may have moved into a group, or out of one.
+  const settling = useRef(new Set<string>())
+  const commitQueued = useRef(false)
 
   useEffect(() => session.resume(), [session])
   useSaveOnLeave(saver)
@@ -154,18 +212,105 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     }
   }, [])
 
-  function show(next: ItemFlowNode[]) {
-    latest.current = next
-    setNodes(next)
-  }
+  // Stable (refs and setters only), so the cards' actions can be too.
+  const { show, commit } = useMemo(() => {
+    function show(next: Partial<Scene>) {
+      if (next.nodes) {
+        latest.current = next.nodes
+        setNodes(next.nodes)
+      }
+      if (next.edges) {
+        latestEdges.current = next.edges
+        setEdges(next.edges)
+      }
+    }
+    // One gesture can change nodes and edges in turn (deleting a card takes
+    // its edges): commit once, after all of it.
+    function commit() {
+      if (readOnly || commitQueued.current) return
+      commitQueued.current = true
+      queueMicrotask(() => {
+        commitQueued.current = false
+        let nodes = latest.current
+        if (settling.current.size > 0) {
+          nodes = settle(nodes, [...settling.current])
+          settling.current.clear()
+        }
+        const edges = connected(nodes, latestEdges.current)
+        show({ nodes, edges })
+        if (session.commit({ nodes, edges }, flow.getViewport())) historyChanged()
+      })
+    }
+    return { show, commit }
+  }, [readOnly, session, flow])
 
-  function commit() {
-    if (!readOnly && session.commit(latest.current, flow.getViewport())) historyChanged()
-  }
-
-  function onNodesChange(changes: NodeChange<ItemFlowNode>[]) {
-    show(applyNodeChanges(changes, latest.current))
+  function onNodesChange(changes: NodeChange<BoardNode>[]) {
+    for (const change of changes) {
+      if (change.type === 'position' && change.dragging === false) settling.current.add(change.id)
+    }
+    show({ nodes: applyNodeChanges(changes, latest.current) })
     if (changes.some(isCommit)) commit()
+  }
+
+  function onEdgesChange(changes: EdgeChange<BoardEdge>[]) {
+    show({ edges: applyEdgeChanges(changes, latestEdges.current) })
+    if (changes.some((change) => change.type === 'remove')) commit()
+  }
+
+  function onConnect(connection: Connection) {
+    const { source, target } = connection
+    if (source === target) return
+    const exists = latestEdges.current.some(
+      (edge) =>
+        (edge.source === source && edge.target === target) ||
+        (edge.source === target && edge.target === source),
+    )
+    if (exists) return
+    const edge: BoardEdge = {
+      id: `e-${crypto.randomUUID()}`,
+      type: 'floating',
+      source,
+      target,
+      selected: true,
+      data: { label: '', arrow: 'end', stroke: 'solid', color: '' },
+    }
+    show({
+      nodes: latest.current.map((node) => (node.selected ? { ...node, selected: false } : node)),
+      edges: [...latestEdges.current.map((other) => ({ ...other, selected: false })), edge],
+    })
+    commit()
+  }
+
+  /** A new group around what is selected (⌘G). */
+  function groupSelection() {
+    const ids = latest.current.filter((node) => node.selected).map((node) => node.id)
+    const next = groupNodes(latest.current, ids, newNodeId())
+    if (!next) return
+    show({ nodes: next })
+    commit()
+  }
+
+  /** Takes the selected groups away, keeping what they hold (⇧⌘G). */
+  function ungroupSelection() {
+    const frames = latest.current.filter((node) => node.selected && isFrame(node))
+    if (frames.length === 0) return
+    let next = latest.current
+    for (const frame of frames) next = ungroup(next, frame.id)
+    show({ nodes: next })
+    commit()
+  }
+
+  function onFrameDrawn(screen: Box) {
+    setTool('select')
+    const corner = flow.screenToFlowPosition({ x: screen.x, y: screen.y })
+    const far = flow.screenToFlowPosition({ x: screen.x + screen.width, y: screen.y + screen.height })
+    // A click rather than a drag: a group of a useful size there.
+    const box =
+      screen.width < 12 && screen.height < 12
+        ? { x: corner.x, y: corner.y, width: 480, height: 320 }
+        : { x: corner.x, y: corner.y, width: far.x - corner.x, height: far.y - corner.y }
+    show({ nodes: drawFrame(latest.current, box, newNodeId()) })
+    commit()
   }
 
   function travel(direction: 'undo' | 'redo') {
@@ -177,23 +322,28 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 
   /** Puts an item on the board at `position` (if it isn't there already) and commits. */
   function place(item: Item, position: { x: number; y: number }, select: boolean) {
-    if (latest.current.some((node) => node.data.itemId === item.id)) return
+    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return
     queryClient.setQueryData(itemKey(item.id), item)
     session.place()
     const others = select
       ? latest.current.map((node) => (node.selected ? { ...node, selected: false } : node))
       : latest.current
-    show([
-      ...others,
-      {
-        id: newNodeId(),
-        type: 'item',
-        position,
-        width: DEFAULT_WIDTH[item.kind],
-        data: { itemId: item.id },
-        selected: select,
-      },
-    ])
+    const id = newNodeId()
+    show({
+      nodes: [
+        ...others,
+        {
+          id,
+          type: 'item',
+          position,
+          width: DEFAULT_WIDTH[item.kind],
+          data: { itemId: item.id },
+          selected: select,
+        },
+      ],
+    })
+    // Dropped on a group, it goes in it.
+    settling.current.add(id)
     commit()
   }
 
@@ -208,7 +358,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   }
 
   function add(item: Item) {
-    place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], latest.current), true)
+    place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
   }
 
   /** A paste or a drop: captured like anywhere else, each card placed once its item exists. */
@@ -219,7 +369,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       undo: false,
       onQueued: (ids) => {
         const widths = ids.map((_, index) => widthFor(found.inputs[index]))
-        const spots = dropSpots(point, widths, [...latest.current, ...latestDrops.current])
+        const taken = [...obstacles(latest.current), ...latestDrops.current]
+        const spots = dropSpots(point, widths, taken)
         const added = ids.map((id, index) => ({ id, position: spots[index], width: widths[index] }))
         showDrops([...latestDrops.current, ...added])
       },
@@ -286,7 +437,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     if (!item) return
     event.preventDefault()
     const point = flow.screenToFlowPosition({ x: event.clientX, y: event.clientY })
-    place(item, dropSpot(point, DEFAULT_WIDTH[item.kind], latest.current), true)
+    place(item, dropSpot(point, DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
   }
 
   function resolveConflict(side: 'mine' | 'theirs') {
@@ -295,47 +446,88 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     seedItems(queryClient, theirs.items)
     queryClient.setQueryData(boardKey(board.id), theirs)
     historyChanged()
-    show(toFlowNodes(theirs.layout))
+    show(toScene(theirs.layout))
   }
 
-  const shortcut = useEffectEvent((direction: 'undo' | 'redo') => travel(direction))
+  const shortcut = useEffectEvent((event: KeyboardEvent) => {
+    const key = event.key.toLowerCase()
+    if (event.metaKey || event.ctrlKey) {
+      if (key === 'z' || key === 'y') {
+        event.preventDefault()
+        travel(key === 'y' || event.shiftKey ? 'redo' : 'undo')
+      } else if (key === 'g') {
+        event.preventDefault()
+        if (event.shiftKey) ungroupSelection()
+        else groupSelection()
+      }
+      return
+    }
+    if (event.altKey || event.shiftKey) return
+    const chosen = TOOLS.find((candidate) => candidate.key.toLowerCase() === key)
+    if (chosen) setTool(chosen.tool)
+    else if (key === 'escape') setTool('select')
+  })
   useEffect(() => {
     if (readOnly) return
     function onKeyDown(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || isEditable(event.target)) return
-      const key = event.key.toLowerCase()
-      if (key === 'z' || key === 'y') {
-        event.preventDefault()
-        shortcut(key === 'y' || event.shiftKey ? 'redo' : 'undo')
-      }
+      if (!isEditable(event.target)) shortcut(event)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [readOnly])
 
-  const onBoard = useMemo(() => new Set(nodes.map((node) => node.data.itemId)), [nodes])
+  const onBoard = useMemo(
+    () => new Set(nodes.filter(isItem).map((node) => node.data.itemId)),
+    [nodes],
+  )
+  const selected = nodes.filter((node) => node.selected)
   // Stable, so cards don't re-render when the canvas does.
-  const actions = useMemo(() => {
+  const actions = useMemo((): BoardActions => {
     function setEditing(nodeId: string | null) {
-      if (!nodeId && !latest.current.some((node) => node.data.editing)) return
+      if (!nodeId && !latest.current.some((node) => isItem(node) && node.data.editing)) return
       const next = latest.current.map((node) =>
-        Boolean(node.data.editing) === (node.id === nodeId)
+        !isItem(node) || Boolean(node.data.editing) === (node.id === nodeId)
           ? node
           : { ...node, data: { ...node.data, editing: node.id === nodeId } },
       )
-      latest.current = next
-      setNodes(next)
+      show({ nodes: next })
+    }
+    function updateFrame(id: string, patch: { title?: string; color?: string }) {
+      show({
+        nodes: latest.current.map((node) =>
+          node.id === id && isFrame(node) ? { ...node, data: { ...node.data, ...patch } } : node,
+        ),
+      })
+      commit()
     }
     return {
       readOnly,
-      openItem: (itemId: string) => setPanel({ itemId }),
-      startEditing: (nodeId: string) => setEditing(nodeId),
+      openItem: (itemId) => setPanel({ itemId }),
+      startEditing: (nodeId) => setEditing(nodeId),
       stopEditing: () => setEditing(null),
+      renameFrame: (id, title) => updateFrame(id, { title }),
+      recolorFrame: (id, color) => updateFrame(id, { color }),
+      ungroupFrame: (id) => {
+        show({ nodes: ungroup(latest.current, id) })
+        commit()
+      },
+      updateEdge: (id, patch) => {
+        show({
+          edges: latestEdges.current.map((edge) =>
+            edge.id === id && edge.data ? { ...edge, data: { ...edge.data, ...patch } } : edge,
+          ),
+        })
+        commit()
+      },
     }
-  }, [readOnly])
+  }, [readOnly, show, commit])
+
+  const shownEdges = useMemo(() => edges.map(withMarkers), [edges])
 
   function removeItem(itemId: string) {
-    const node = latest.current.find((candidate) => candidate.data.itemId === itemId)
+    const node = latest.current.find(
+      (candidate) => isItem(candidate) && candidate.data.itemId === itemId,
+    )
     if (node) flow.deleteElements({ nodes: [{ id: node.id }] })
     setPanel(null)
   }
@@ -357,8 +549,17 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           onDragOver={onDragOver}
           onDrop={onDrop}
           nodes={nodes}
+          edges={shownEdges}
           onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          connectionMode={ConnectionMode.Strict}
+          connectionRadius={24}
+          connectionLineStyle={{ stroke: EDGE_SELECTED, strokeWidth: 2 }}
+          // Groups stay under the cards around them, selected or not.
+          elevateNodesOnSelect={false}
           defaultViewport={board.layout.viewport}
           // A phone shows the whole board; a desktop comes back where it was.
           fitView={readOnly}
@@ -366,19 +567,24 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           maxZoom={4}
           onlyRenderVisibleElements
           colorMode="system"
-          nodesDraggable={!readOnly}
-          nodesConnectable={false}
-          elementsSelectable={!readOnly}
+          nodesDraggable={!readOnly && tool === 'select'}
+          nodesConnectable={!readOnly && tool === 'select'}
+          elementsSelectable={!readOnly && tool === 'select'}
+          // As in design tools: drag selects, scroll pans, pinch or ⌘-scroll zooms.
+          selectionOnDrag={!readOnly && tool === 'select'}
+          panOnDrag={readOnly || tool === 'hand' ? true : MIDDLE_BUTTON}
+          panOnScroll={!readOnly}
           deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
           fitViewOptions={fitViewOptions}
           // On a phone a tap opens the item; on a desktop a click selects.
           onNodeClick={(_, node) => {
+            if (!isItem(node)) return
             if (readOnly) actions.openItem(node.data.itemId)
             else if (!node.data.editing) actions.stopEditing()
           }}
           // A note is edited in place; anything else opens in the panel.
           onNodeDoubleClick={(_, node) => {
-            if (readOnly || node.data.editing) return
+            if (readOnly || !isItem(node) || node.data.editing) return
             const item = queryClient.getQueryData<Item>(itemKey(node.data.itemId))
             if (item?.kind === 'note') actions.startEditing(node.id)
             else actions.openItem(node.data.itemId)
@@ -390,37 +596,61 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           {!readOnly && <MiniMap pannable zoomable />}
           {!readOnly && (
             <Panel position="top-right">
-              <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="surface flex items-center rounded-lg p-1">
                 <SaveStatus state={saveState} onRetry={() => saver.retryNow()} />
-                <button
-                  type="button"
-                  className={toolButton}
-                  title="⌘Z"
+              </div>
+            </Panel>
+          )}
+          {!readOnly && (
+            <Panel position="bottom-center">
+              <div role="toolbar" aria-label="Tools" className="popover flex items-center gap-0.5 p-1">
+                {TOOLS.map(({ tool: value, label, key, icon }) => (
+                  <ToolButton
+                    key={value}
+                    label={`${label} (${key})`}
+                    icon={icon}
+                    pressed={tool === value}
+                    onClick={() => setTool(value)}
+                  />
+                ))}
+                <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
+                <ToolButton
+                  label="Undo (⌘Z)"
+                  icon={Undo2}
                   disabled={!history.canUndo}
                   onClick={() => travel('undo')}
-                >
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  className={toolButton}
-                  title="⇧⌘Z"
+                />
+                <ToolButton
+                  label="Redo (⇧⌘Z)"
+                  icon={Redo2}
                   disabled={!history.canRedo}
                   onClick={() => travel('redo')}
-                >
-                  Redo
-                </button>
+                />
+                <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <button
                   type="button"
-                  className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  aria-pressed={Boolean(panel && 'adding' in panel)}
+                  className="button-primary flex items-center gap-1.5 px-3 py-1.5"
                   onClick={() =>
                     setPanel((open) => (open && 'adding' in open ? null : { adding: true }))
                   }
                 >
+                  <Plus className="size-4" aria-hidden="true" />
                   Add items
                 </button>
               </div>
             </Panel>
+          )}
+          {!readOnly && selected.length > 1 && (
+            <NodeToolbar nodeId={selected.map((node) => node.id)} isVisible position={Position.Top}>
+              <div className="popover flex items-center gap-1 p-1">
+                <span className="px-2 text-xs text-zinc-500">{selected.length} selected</span>
+                <button type="button" className={toolButton} onClick={groupSelection}>
+                  <Group className="mr-1 inline size-3.5" aria-hidden="true" />
+                  Group (⌘G)
+                </button>
+              </div>
+            </NodeToolbar>
           )}
           {nodes.length === 0 && !capturing && (
             <Panel position="top-center">
@@ -433,6 +663,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           )}
           <PendingDrops drops={visibleDrops} pending={pipeline.pending} />
         </ReactFlow>
+        {tool === 'frame' && !readOnly && <FrameDraw onDraw={onFrameDrawn} />}
         {pipeline.dragging && !readOnly && (
           <div className="pointer-events-none absolute inset-2 z-20 flex items-start justify-center rounded-2xl border-2 border-dashed border-zinc-400 bg-zinc-500/5 dark:border-zinc-500">
             <span className="mt-6 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
@@ -467,6 +698,36 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
         )}
       </div>
     </BoardContext>
+  )
+}
+
+function ToolButton({
+  label,
+  icon: Icon,
+  pressed,
+  disabled,
+  onClick,
+}: {
+  label: string
+  icon: LucideIcon
+  pressed?: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      disabled={disabled}
+      className={`button-icon group ${
+        pressed ? 'bg-accent-100 text-accent-700 hover:bg-accent-100 dark:bg-accent-500/20 dark:text-accent-300' : ''
+      }`}
+      onClick={onClick}
+    >
+      <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+      <span className="tooltip bottom-full mb-2">{label}</span>
+    </button>
   )
 }
 
