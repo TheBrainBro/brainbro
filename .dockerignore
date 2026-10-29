@@ -9,6 +9,7 @@ frontend/dist
 backend/staticfiles
 backend/storage
 backend/backups
+backend/exports
 backend/.env
 stack.env
 *.env

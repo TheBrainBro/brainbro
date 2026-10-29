@@ -36,6 +36,7 @@ x-app: &app
   volumes:
     - storage:/data/storage
     - backups:/data/backups
+    - exports:/data/exports
 
 services:
   postgres:
@@ -132,3 +133,4 @@ volumes:
   redis_data:
   storage:
   backups:
+  exports:
