@@ -12,6 +12,9 @@ export const KIND_LABEL: Record<ItemKind, string> = {
 /** A one-line name for an item, for lists and zoomed-out cards. */
 export function itemLabel(item: Item) {
   if (item.title) return item.title
+  // An image's or album's caption says more than its file name.
+  const caption = (item.kind === 'image' || item.kind === 'album') && item.body.trim()
+  if (caption) return caption.split('\n')[0].trim()
   if (item.kind === 'link') return item.metadata.title || item.url
   if (item.kind === 'note') {
     const line = item.body.split('\n').find((text) => text.trim())

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,13 +14,20 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 
-import { useSetAlbumItems, useUngroupAlbum, type Item } from '../items/api'
+import {
+  itemsKey,
+  updateNoteBody,
+  useSetAlbumItems,
+  useUngroupAlbum,
+  type Item,
+} from '../items/api'
 import { itemLabel } from '../items/label'
 import { Markdown } from '../items/Markdown'
+import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
 
@@ -117,6 +125,11 @@ export default function ItemViewer({
       // Keys stop here: the page's own shortcuts (j/k, Delete on a board) don't see them.
       onKeyDown={(event) => {
         event.stopPropagation()
+        // Typing a caption: arrows move the cursor, Esc leaves the field (saving it).
+        if (isEditable(event.target)) {
+          if (event.key === 'Escape') (event.target as HTMLElement).blur()
+          return
+        }
         if (event.key === 'Escape') onClose()
         else if (event.key === 'ArrowLeft') step(-1)
         else if (event.key === 'ArrowRight') step(1)
@@ -191,6 +204,9 @@ export default function ItemViewer({
           </button>
         )}
       </div>
+      {(item.kind === 'image' || item.kind === 'album') && (
+        <CaptionEditor key={item.id} item={item} onSaved={onReplace} />
+      )}
     </div>,
     document.body,
   )
@@ -228,6 +244,69 @@ function Content({ item }: { item: Item }) {
  * An album: one image at a time over a strip of all of them, where the
  * shown one can be moved or taken out, and the album ungrouped.
  */
+/**
+ * What an image or album is about, written under it: the context that only
+ * exists in your head when you capture it. Saved when the field is left.
+ */
+function CaptionEditor({ item, onSaved }: { item: Item; onSaved: (item: Item) => void }) {
+  const queryClient = useQueryClient()
+  const [text, setText] = useState(item.body)
+  const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle')
+  const saved = useRef(item)
+  const field = useRef<HTMLTextAreaElement>(null)
+
+  // Grows with the text, up to a few lines.
+  useLayoutEffect(() => {
+    const element = field.current
+    if (!element) return
+    element.style.height = 'auto'
+    element.style.height = `${element.scrollHeight}px`
+  }, [text])
+
+  async function save() {
+    if (text === saved.current.body) return
+    setState('saving')
+    try {
+      saved.current = await updateNoteBody(item.id, text, saved.current.version)
+      setState('idle')
+      onSaved(saved.current)
+      queryClient.invalidateQueries({ queryKey: itemsKey })
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 pb-4">
+      <textarea
+        ref={field}
+        rows={1}
+        aria-label="Caption"
+        placeholder="Add a caption: what this is, why you kept it…"
+        className="max-h-40 w-full resize-none rounded-lg border border-transparent bg-zinc-900/60 px-3 py-2 text-sm text-zinc-100 transition outline-none placeholder:text-zinc-500 hover:border-zinc-700 focus:border-zinc-600"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        onBlur={save}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) event.currentTarget.blur()
+        }}
+      />
+      {state !== 'idle' && (
+        <p role={state === 'error' ? 'alert' : 'status'} className="mt-1 text-xs text-zinc-400">
+          {state === 'saving' ? 'Saving…' : (
+            <>
+              Couldn't save the caption.{' '}
+              <button type="button" className="underline" onClick={save}>
+                Retry
+              </button>
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function AlbumView({
   album,
   at,
