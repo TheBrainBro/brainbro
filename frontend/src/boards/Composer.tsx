@@ -1,0 +1,57 @@
+import { useState } from 'react'
+
+export type ComposerKind = 'note' | 'link'
+
+/** A note or a link written from the board's toolbar; it lands near the middle of the view. */
+export function Composer({ kind, onDone }: { kind: ComposerKind; onDone: (text: string) => void }) {
+  const [text, setText] = useState('')
+  const submit = () => onDone(text.trim())
+
+  return (
+    <form
+      className="popover w-96 max-w-[calc(100vw-2rem)] space-y-2 p-2"
+      onSubmit={(event) => {
+        event.preventDefault()
+        submit()
+      }}
+    >
+      {kind === 'note' ? (
+        <textarea
+          autoFocus
+          aria-label="New note"
+          placeholder="Write a note… (Markdown)"
+          rows={4}
+          className="input resize-none"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit()
+            if (event.key === 'Escape') onDone('')
+          }}
+        />
+      ) : (
+        <input
+          autoFocus
+          type="url"
+          aria-label="New link"
+          placeholder="https://…"
+          className="input"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => event.key === 'Escape' && onDone('')}
+        />
+      )}
+      <div className="flex items-center justify-end gap-2">
+        <span className="mr-auto text-xs text-zinc-500">
+          {kind === 'note' ? '⌘↵ to add · Esc to cancel' : '↵ to add · Esc to cancel'}
+        </span>
+        <button type="button" className="button-secondary px-3 py-1.5" onClick={() => onDone('')}>
+          Cancel
+        </button>
+        <button type="submit" className="button-primary px-3 py-1.5" disabled={!text.trim()}>
+          Add
+        </button>
+      </div>
+    </form>
+  )
+}

@@ -87,6 +87,24 @@ def test_items_filter_by_status_and_collection(api, user):
     assert ids("collection=not-a-uuid") == []
 
 
+def test_items_filter_by_kind_and_text(api, user):
+    note = Item.objects.create(owner=user, kind="note", body="Paris trip ideas")
+    link = Item.objects.create(
+        owner=user, kind="link", url="https://a.io", metadata={"title": "Visit PARIS"}
+    )
+    upload = Item.objects.create(
+        owner=user, kind="file", metadata={"filename": "paris-tickets.pdf"}
+    )
+    Item.objects.create(owner=user, kind="note", body="Rome")
+
+    def ids(query):
+        return {i["id"] for i in api.get(f"/api/items/?{query}").json()["results"]}
+
+    assert ids("q=paris") == {str(note.id), str(link.id), str(upload.id)}
+    assert ids("q=paris&kind=link,file") == {str(link.id), str(upload.id)}
+    assert ids("kind=note&q=+") == {str(note.id), ids("q=rome").pop()}
+
+
 def test_items_can_be_updated_and_deleted(api, user):
     item = Item.objects.create(owner=user, kind="note", body="a")
     response = api.patch(

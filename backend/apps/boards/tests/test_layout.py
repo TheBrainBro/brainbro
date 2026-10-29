@@ -73,6 +73,62 @@ def test_accepts_groups_with_children_and_edges():
     assert result["edges"][0]["label"] == "see"
 
 
+def test_accepts_stickies_and_strokes():
+    data = layout(
+        nodes=[
+            {"id": "s", "type": "sticky", "x": 0, "y": 0, "text": "Hi"},
+            {
+                "id": "p",
+                "type": "stroke",
+                "x": 10,
+                "y": 10,
+                "w": 50,
+                "h": 20,
+                "points": [[0, 0], [25, 20], [50, 5]],
+                "color": "#ef4444",
+                "width": 4,
+            },
+        ],
+        edges=[{"id": "e", "source": "s", "target": "p"}],
+    )
+    sticky, stroke = validate_layout(data)["nodes"]
+    assert (sticky["text"], sticky["color"]) == ("Hi", "")
+    assert stroke["points"] == [[0.0, 0.0], [25.0, 20.0], [50.0, 5.0]]
+    assert (stroke["color"], stroke["width"]) == ("#ef4444", 4.0)
+
+
+PEN = {"type": "stroke", "w": 5, "h": 5}
+
+
+@pytest.mark.parametrize(
+    "fields,path",
+    [
+        ({"type": "sticky", "text": 3}, "nodes[0].text"),
+        ({"type": "sticky", "color": "blue"}, "nodes[0].color"),
+        ({"type": "stroke", "points": [[0, 0], [1, 1]]}, "nodes[0]"),
+        ({**PEN, "points": [[0, 0]]}, "nodes[0].points"),
+        ({**PEN, "points": [[0, 0], [1]]}, "nodes[0].points[1]"),
+        ({**PEN, "points": [[0, 0], [1, -1]]}, "nodes[0].points[1]"),
+        ({**PEN, "points": [[0, 0], [1, 1]], "width": 0}, "nodes[0].width"),
+    ],
+)
+def test_rejects_bad_stickies_and_strokes(fields, path):
+    data = layout(nodes=[{"id": "n", "x": 0, "y": 0, **fields}])
+    assert error_path(data) == path
+
+
+def test_prune_keeps_stickies_and_strokes():
+    data = validate_layout(
+        layout(
+            nodes=[
+                node("a"),
+                {"id": "s", "type": "sticky", "x": 0, "y": 0},
+            ]
+        )
+    )
+    assert [n["id"] for n in prune_layout(data, set())["nodes"]] == ["s"]
+
+
 def test_edges_default_to_a_plain_arrow():
     data = layout(
         nodes=[node("a"), node("b", item=ITEM_B)],
@@ -114,7 +170,7 @@ def test_rejects_unknown_edge_looks(looks, path):
         (layout(schema_version=SCHEMA_VERSION + 1), "schema_version"),
         (layout(viewport={"x": 0, "y": 0, "zoom": 0}), "viewport.zoom"),
         (layout(nodes={}), "nodes"),
-        (layout(nodes=[node(type="sticky")]), "nodes[0].type"),
+        (layout(nodes=[node(type="shape")]), "nodes[0].type"),
         (layout(nodes=[node(item="nope")]), "nodes[0].item"),
         (layout(nodes=[node(x=math.inf)]), "nodes[0].x"),
         (layout(nodes=[node(x=True)]), "nodes[0].x"),

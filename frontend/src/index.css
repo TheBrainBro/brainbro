@@ -271,3 +271,10 @@ body {
     pointer-events: auto;
   }
 }
+
+@layer components {
+  /* A pen stroke takes the pointer only on its line (see StrokeNode). */
+  .react-flow__node-stroke {
+    pointer-events: none !important;
+  }
+}

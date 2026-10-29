@@ -6,6 +6,10 @@ import { History } from './history'
 import { sameContent, toLayout, toScene, type Scene } from './layout'
 import { LayoutSaver, type LayoutDraft, type LayoutSaverState } from './saver'
 
+function itemIds(layout: Layout) {
+  return layout.nodes.flatMap((node) => (node.type === 'item' ? [node.item] : []))
+}
+
 export type BoardSessionOptions = {
   save: (layout: Layout, revision: number, options: { keepalive: boolean }) => Promise<SavedLayout>
   onSaveState: (state: LayoutSaverState) => void
@@ -45,8 +49,8 @@ export class BoardSession {
     if (draft) {
       this.base = draft
       this.history.push(draft)
-      const before = new Set(board.layout.nodes.map((node) => node.item))
-      this.placed = draft.nodes.some((node) => !before.has(node.item))
+      const before = new Set(itemIds(board.layout))
+      this.placed = itemIds(draft).some((id) => !before.has(id))
     }
   }
 

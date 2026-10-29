@@ -38,8 +38,13 @@ item nodes so the database can tell which boards an item is on.
 
 - **`viewport`**: pan (`x`, `y`) and `zoom` (0.01 to 10) when the layout was last saved.
 - **Nodes**: `id` is chosen by the client (letters, digits, `-` and `_`, up to 64). `type` is
-  `item` for now, which needs `item` (the UUID of one of your items). An item appears at most
-  once per board. `x` and `y` are the top-left corner, relative to the `parent` group if there is
+  one of:
+  - `item`, which needs `item` (the UUID of one of your items). An item appears at most once
+    per board.
+  - `sticky`: a sticky note that lives only on the board, with `text` (up to 5,000 characters)
+    and an optional hex `color`.
+  - `stroke`: a pen line, with `points` (`[x, y]` pairs relative to its corner, 2 to 5,000 of
+    them), an optional `color` and a `width` (0.5 to 64). Strokes need `w` and `h`. `x` and `y` are the top-left corner, relative to the `parent` group if there is
   one. `w` and `h` are optional: `null` means the node's natural size.
 - **Groups** (frames): a box with a title and an optional hex color. Groups can be nested
   through `parent`. Nodes and groups share one id space.
@@ -88,8 +93,17 @@ overwriting it. An invalid layout answers 400 with `detail` and the `path` of th
 `/boards` lists your boards; `/boards/<id>` opens one in the canvas (React Flow, loaded with the
 first board you open).
 
-- **Placing items**: *Add items* lists your inbox (or everything). *Add* puts a card in the first
-  free spot near the middle of the view; dragging a row onto the canvas puts it under the pointer.
+- **Placing items**: *Add items* lists your inbox (or everything) with thumbnails, a search box
+  (a plain text match on title, text, address and file name) and a filter by kind. *+* puts a
+  card in the first free spot near the middle of the view; dragging a row onto the canvas puts it
+  under the pointer. Dropped on a group, it goes in it.
+- **Sticky notes**: pick *Sticky note* and click where it goes, then type (Esc or a click
+  elsewhere to finish, a double-click to type again). Selected, it can be resized and recolored.
+  Sticky notes connect, group and undo like cards, but they aren't items: they don't show up in
+  the inbox or collections.
+- **Drawing**: pick *Pen*, choose a color and a thickness, and draw; each line is one stroke,
+  and the pen stays on until you pick another tool (V or Esc). With *Select*, click a line to
+  select it, drag it, or delete it.
 - **Pasting and dropping**: while a board is open, a paste outside a text field and a drop on the
   canvas land on the board instead of only in the inbox. Links, text and files go through the same
   capture pipeline as anywhere else (size checks, upload progress, at most three uploads at a time):
@@ -102,7 +116,9 @@ first board you open).
 - **Item status**: an inbox item becomes `organized` with the first save of a layout that has it.
   Pasted and dropped items are created in the inbox like any capture and organized by that save;
   one whose capture finishes after you leave the board stays in the inbox.
-- **Tools**: the bar at the bottom has *Select* (V), *Pan* (H) and *Group* (F), then Undo and
+- **Tools**: the bar at the bottom has *Select* (V), *Pan* (H), *Sticky note* (S), *Pen* (P) and
+  *Group* (F); then *Note* (N), *Link* (L) and *Upload files*, which put a new item on the board
+  near the middle of the view (through the capture pipeline, as a paste would); then Undo and
   Redo and *Add items*. As in design tools, with *Select* a drag on the empty canvas selects
   what it boxes in, scrolling (two fingers on a trackpad) pans, and pinching or ⌘/Ctrl-scroll
   zooms. Hold Space or drag with the middle button to pan without switching tools. *Pan* drags

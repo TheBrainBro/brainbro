@@ -2,7 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -90,9 +90,21 @@ class ItemViewSet(
         items = Item.objects.filter(owner=self.request.user).prefetch_related(
             "collections"
         )
-        if item_status := self.request.query_params.get("status"):
+        params = self.request.query_params
+        if item_status := params.get("status"):
             items = items.filter(status=item_status)
-        if collection := self.request.query_params.get("collection"):
+        if kinds := params.get("kind"):
+            items = items.filter(kind__in=kinds.split(","))
+        # A plain substring match for pickers; full-text search is #26.
+        if text := params.get("q", "").strip():
+            items = items.filter(
+                Q(title__icontains=text)
+                | Q(body__icontains=text)
+                | Q(url__icontains=text)
+                | Q(metadata__title__icontains=text)
+                | Q(metadata__filename__icontains=text)
+            )
+        if collection := params.get("collection"):
             try:
                 items = items.filter(collections=uuid.UUID(collection))
             except ValueError:

@@ -19,7 +19,21 @@ import {
   type EdgeChange,
   type NodeChange,
 } from '@xyflow/react'
-import { Frame, Group, Hand, MousePointer2, Plus, Redo2, Undo2, type LucideIcon } from 'lucide-react'
+import {
+  Frame,
+  Group,
+  Hand,
+  Link2,
+  MousePointer2,
+  NotebookPen,
+  PenLine,
+  Plus,
+  Redo2,
+  StickyNote,
+  Undo2,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   useEffect,
   useEffectEvent,
@@ -40,6 +54,7 @@ import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
 import { BoardContext, type BoardActions } from './context'
 import { EDGE_COLOR, EDGE_SELECTED, FloatingEdge } from './FloatingEdge'
+import { Composer, type ComposerKind } from './Composer'
 import { FrameDraw } from './FrameDraw'
 import { FrameNode } from './FrameNode'
 import { ItemNode } from './ItemNode'
@@ -54,8 +69,12 @@ import {
   groupNodes,
   isFrame,
   isItem,
+  isSticky,
   ITEM_DRAG_TYPE,
   newNodeId,
+  newSticky,
+  newStroke,
+  PALETTE,
   obstacles,
   settle,
   toScene,
@@ -65,22 +84,29 @@ import {
   type Box,
   type Scene,
 } from './layout'
+import { PenDraw } from './PenDraw'
 import { PendingDrops, type Drop } from './PendingDrops'
 import { layoutDrafts, type LayoutSaverState } from './saver'
 import { BoardSession } from './session'
+import { StickyNode } from './StickyNode'
+import { StrokeNode } from './StrokeNode'
 
 // Outside the component: React Flow remounts every node if these change.
-const nodeTypes = { item: ItemNode, frame: FrameNode }
+const nodeTypes = { item: ItemNode, frame: FrameNode, sticky: StickyNode, stroke: StrokeNode }
 const edgeTypes = { floating: FloatingEdge }
 
-/** What a drag on the empty canvas does: select (a box), pan, or draw a group. */
-type Tool = 'select' | 'hand' | 'frame'
+/** What a drag (or click) on the canvas does: select, pan, or draw something. */
+type Tool = 'select' | 'hand' | 'sticky' | 'pen' | 'frame'
 
 const TOOLS: { tool: Tool; label: string; key: string; icon: LucideIcon }[] = [
   { tool: 'select', label: 'Select', key: 'V', icon: MousePointer2 },
   { tool: 'hand', label: 'Pan', key: 'H', icon: Hand },
+  { tool: 'sticky', label: 'Sticky note', key: 'S', icon: StickyNote },
+  { tool: 'pen', label: 'Pen', key: 'P', icon: PenLine },
   { tool: 'frame', label: 'Group', key: 'F', icon: Frame },
 ]
+
+const PEN_WIDTHS = [2, 4, 8]
 
 // Drag with the middle button to pan while selecting.
 const MIDDLE_BUTTON = [1]
@@ -180,6 +206,10 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const { history, saver } = session
   const saveState = reported ?? saver.snapshot
   const [tool, setTool] = useState<Tool>('select')
+  const [pen, setPen] = useState({ color: '', width: 2 })
+  // Writing a note or a link to put on the board.
+  const [composing, setComposing] = useState<ComposerKind | null>(null)
+  const upload = useRef<HTMLInputElement>(null)
   const [initial] = useState(() => session.initialScene)
   const [nodes, setNodes] = useState(initial.nodes)
   const [edges, setEdges] = useState(initial.edges)
@@ -297,6 +327,29 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     let next = latest.current
     for (const frame of frames) next = ungroup(next, frame.id)
     show({ nodes: next })
+    commit()
+  }
+
+  /** A sticky note where the canvas was clicked, ready to type in. */
+  function placeSticky(at: { x: number; y: number }) {
+    setTool('select')
+    const sticky = newSticky(flow.screenToFlowPosition(at), newNodeId())
+    show({
+      nodes: [
+        ...latest.current.map((node) => (node.selected ? { ...node, selected: false } : node)),
+        sticky,
+      ],
+    })
+    settling.current.add(sticky.id)
+    commit()
+  }
+
+  function onPenDrawn(screen: { x: number; y: number }[]) {
+    const points = screen.map((point) => flow.screenToFlowPosition(point))
+    const stroke = newStroke(points, pen, newNodeId())
+    if (!stroke) return
+    show({ nodes: [...latest.current, stroke] })
+    settling.current.add(stroke.id)
     commit()
   }
 
@@ -465,6 +518,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     if (event.altKey || event.shiftKey) return
     const chosen = TOOLS.find((candidate) => candidate.key.toLowerCase() === key)
     if (chosen) setTool(chosen.tool)
+    else if (key === 'n') setComposing('note')
+    else if (key === 'l') setComposing('link')
     else if (key === 'escape') setTool('select')
   })
   useEffect(() => {
@@ -510,6 +565,21 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       ungroupFrame: (id) => {
         show({ nodes: ungroup(latest.current, id) })
         commit()
+      },
+      updateSticky: (id, patch) => {
+        show({
+          nodes: latest.current.map((node) =>
+            node.id === id && isSticky(node) ? { ...node, data: { ...node.data, ...patch } } : node,
+          ),
+        })
+        commit()
+      },
+      editSticky: (id) => {
+        show({
+          nodes: latest.current.map((node) =>
+            node.id === id && isSticky(node) ? { ...node, data: { ...node.data, editing: true } } : node,
+          ),
+        })
       },
       updateEdge: (id, patch) => {
         show({
@@ -589,7 +659,10 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             if (item?.kind === 'note') actions.startEditing(node.id)
             else actions.openItem(node.data.itemId)
           }}
-          onPaneClick={actions.stopEditing}
+          onPaneClick={(event) => {
+            actions.stopEditing()
+            if (tool === 'sticky') placeSticky({ x: event.clientX, y: event.clientY })
+          }}
         >
           <Background variant={BackgroundVariant.Dots} gap={24} />
           <Controls showInteractive={false} fitViewOptions={fitViewOptions} />
@@ -613,6 +686,38 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                     onClick={() => setTool(value)}
                   />
                 ))}
+                <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
+                <ToolButton
+                  label="Note (N)"
+                  icon={NotebookPen}
+                  pressed={composing === 'note'}
+                  onClick={() => setComposing((open) => (open === 'note' ? null : 'note'))}
+                />
+                <ToolButton
+                  label="Link (L)"
+                  icon={Link2}
+                  pressed={composing === 'link'}
+                  onClick={() => setComposing((open) => (open === 'link' ? null : 'link'))}
+                />
+                <ToolButton
+                  label="Upload files"
+                  icon={Upload}
+                  onClick={() => upload.current?.click()}
+                />
+                <input
+                  ref={upload}
+                  type="file"
+                  multiple
+                  hidden
+                  aria-label="Upload files"
+                  onChange={(event) => {
+                    const files = Array.from(event.target.files ?? [])
+                    event.target.value = ''
+                    if (files.length === 0) return
+                    const inputs = files.map((file) => ({ kind: 'file' as const, file }))
+                    captureHere({ inputs, skipped: [] }, null)
+                  }}
+                />
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <ToolButton
                   label="Undo (⌘Z)"
@@ -652,18 +757,76 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
               </div>
             </NodeToolbar>
           )}
+          {!readOnly && tool === 'pen' && (
+            <Panel position="bottom-center" className="!mb-16">
+              <div className="popover flex items-center gap-1 p-1.5" aria-label="Pen">
+                <PenColors value={pen.color} onChange={(color) => setPen({ ...pen, color })} />
+                <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
+                {PEN_WIDTHS.map((width) => (
+                  <button
+                    key={width}
+                    type="button"
+                    aria-label={`${width} px`}
+                    aria-pressed={pen.width === width}
+                    className="button-icon size-7 aria-pressed:bg-zinc-100 dark:aria-pressed:bg-zinc-800"
+                    onClick={() => setPen({ ...pen, width })}
+                  >
+                    <span
+                      className="rounded-full bg-current"
+                      style={{ width: width + 2, height: width + 2 }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </Panel>
+          )}
+          {!readOnly && composing && (
+            <Panel position="bottom-center" className="!mb-16">
+              <Composer
+                kind={composing}
+                onDone={(text) => {
+                  setComposing(null)
+                  if (!text) return
+                  const input =
+                    composing === 'link'
+                      ? { kind: 'url' as const, url: text }
+                      : { kind: 'note' as const, text }
+                  captureHere({ inputs: [input], skipped: [] }, null)
+                }}
+              />
+            </Panel>
+          )}
           {nodes.length === 0 && !capturing && (
-            <Panel position="top-center">
-              <p className="mt-16 text-sm text-zinc-500">
-                {readOnly
-                  ? 'This board is empty.'
-                  : 'An empty board. Add items, or paste or drop things here.'}
-              </p>
+            <Panel position="top-center" className="pointer-events-none">
+              {readOnly ? (
+                <p className="mt-16 text-sm text-zinc-500">This board is empty.</p>
+              ) : (
+                <div className="mt-24 max-w-md text-center text-zinc-500">
+                  <p className="text-base font-medium text-zinc-700 dark:text-zinc-300">
+                    An empty board
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed">
+                    Paste (<span className="kbd">⌘</span> <span className="kbd">V</span>) or drop
+                    links, text and files anywhere here. Press <span className="kbd">N</span> for
+                    a note, <span className="kbd">S</span> for a sticky,{' '}
+                    <span className="kbd">P</span> to draw, or pick from <em>Add items</em>.
+                  </p>
+                </div>
+              )}
             </Panel>
           )}
           <PendingDrops drops={visibleDrops} pending={pipeline.pending} />
+          {/* Over the cards, under the toolbars (React Flow's panels). */}
+          {tool === 'frame' && !readOnly && <FrameDraw onDraw={onFrameDrawn} />}
+          {tool === 'pen' && !readOnly && (
+            <PenDraw
+              color={pen.color}
+              width={pen.width}
+              zoom={flow.getZoom()}
+              onDraw={onPenDrawn}
+            />
+          )}
         </ReactFlow>
-        {tool === 'frame' && !readOnly && <FrameDraw onDraw={onFrameDrawn} />}
         {pipeline.dragging && !readOnly && (
           <div className="pointer-events-none absolute inset-2 z-20 flex items-start justify-center rounded-2xl border-2 border-dashed border-zinc-400 bg-zinc-500/5 dark:border-zinc-500">
             <span className="mt-6 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
@@ -698,6 +861,27 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
         )}
       </div>
     </BoardContext>
+  )
+}
+
+function PenColors({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Pen color" className="flex items-center gap-1 px-1">
+      {PALETTE.map((color) => (
+        <button
+          key={color || 'default'}
+          type="button"
+          role="radio"
+          aria-checked={value === color}
+          aria-label={color || 'Ink'}
+          className={`size-4 rounded-full transition hover:scale-110 ${
+            color ? '' : 'bg-zinc-800 dark:bg-zinc-100'
+          } ${value === color ? 'ring-2 ring-accent-500 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900' : ''}`}
+          style={color ? { background: color } : undefined}
+          onClick={() => onChange(color)}
+        />
+      ))}
+    </div>
   )
 }
 
