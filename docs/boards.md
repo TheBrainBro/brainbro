@@ -76,3 +76,23 @@ items removed). Without `If-Match` it answers 428. If someone saved since that r
 answers 412 with the whole current board, so the client can show the conflict instead of
 overwriting it. An invalid layout answers 400 with `detail` and the `path` of the first problem
 (for example `nodes[3].x`).
+
+## Canvas
+
+`/boards` lists your boards; `/boards/<id>` opens one in the canvas (React Flow, loaded with the
+first board you open).
+
+- **Placing items**: *Add items* lists your inbox (or everything). Each card lands in the first
+  free spot near the middle of the view.
+- **Editing the layout**: drag cards, resize the selected one from its corners, select several
+  with ⌘/Ctrl-click or by dragging a box with Shift, and press Delete or Backspace to take them
+  off the board (the items stay). Undo and redo (⌘Z, ⇧⌘Z) step through these changes.
+- **Cards**: notes render their Markdown (tasks can be ticked), links their preview, images and
+  files their thumbnail. Double-click a note to edit it in place (Esc to finish); it saves like
+  the note page. Double-click anything else, or use *Open*, to see it in the side panel.
+- **Saving**: every finished gesture saves the layout, one request at a time. If another tab or
+  device saved first, the board says so and lets you load theirs or keep yours. Panning and
+  zooming alone are not saved.
+- **Large boards**: only cards in view are rendered, and below 40% zoom cards show just their
+  kind and title.
+- **Phones**: boards are read-only. Pan, pinch to zoom, and tap a card to open it in a sheet.
