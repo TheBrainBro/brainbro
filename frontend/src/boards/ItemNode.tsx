@@ -12,7 +12,7 @@ import { lazy, memo, Suspense } from 'react'
 
 import type { Item } from '../items/api'
 import { ItemContent } from '../items/ItemCard'
-import { itemLabel } from '../items/label'
+import { itemLabel, KIND_LABEL } from '../items/label'
 import { useBoardItem } from './api'
 import { ConnectHandles } from './ConnectHandles'
 import { useBoardActions } from './context'
@@ -21,12 +21,6 @@ import type { ItemFlowNode } from './layout'
 // CodeMirror loads the first time a note is edited on a board.
 const NoteNodeEditor = lazy(() => import('./NoteNodeEditor'))
 
-const KIND_LABEL: Record<Item['kind'], string> = {
-  note: 'Note',
-  link: 'Link',
-  image: 'Image',
-  file: 'File',
-}
 
 // Below this zoom cards are too small to read: a title is enough, and much
 // cheaper than Markdown and thumbnails on a board with hundreds of them.

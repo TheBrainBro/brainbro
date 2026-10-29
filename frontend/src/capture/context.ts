@@ -35,6 +35,12 @@ export type CaptureOptions = {
    * errors resolve as `deferred` instead of leaving a failed card.
    */
   retryLater?: boolean
+  /**
+   * Two or more images captured together become one album (on by default;
+   * the toast offers to separate them). Off on a board, where each image is
+   * its own card.
+   */
+  album?: boolean
   /** Right away: the pending entry of each input and skipped one, in order. */
   onQueued?: (ids: string[]) => void
   /** Each time an entry settles (again after a retry), until it succeeds or is dismissed. */
