@@ -97,6 +97,16 @@ services:
       redis:
         condition: service_healthy
 
+# Fixed subnet outside Docker's default 172.16.0.0/12 pool. On Umbrel the
+# Portainer stacks share the host's network namespace with umbrelOS's own
+# Docker, so an auto-assigned 172.x subnet can collide with an Umbrel app and
+# traffic between our containers gets dropped.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.77.0.0/24
+
 volumes:
   postgres_data:
   redis_data:
