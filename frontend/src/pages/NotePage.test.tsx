@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -206,12 +206,13 @@ describe('NotePage', () => {
   })
 
   it('deletes the note without saving the edits still pending', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     items = [makeItem({ id: 'n1', body: 'start' })]
     renderAt('/notes/n1')
     const view = await editor()
     type(view, ' typed just before deleting')
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete this note?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(triages).toEqual([{ ids: ['n1'], action: 'delete' }]))
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))

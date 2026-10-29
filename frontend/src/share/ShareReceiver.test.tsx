@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CaptureProvider } from '../capture/CaptureProvider'
 import type { Item } from '../items/api'
 import { InboxPage } from '../pages/InboxPage'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { deleteShare, listShares, saveShare, type Share } from './queue'
 import { ShareReceiver } from './ShareReceiver'
 
@@ -77,10 +78,12 @@ function renderInbox() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <CaptureProvider>
-          <ShareReceiver />
-          <InboxPage />
-        </CaptureProvider>
+        <FeedbackProvider>
+          <CaptureProvider>
+            <ShareReceiver />
+            <InboxPage />
+          </CaptureProvider>
+        </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )

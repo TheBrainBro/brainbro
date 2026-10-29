@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Item } from '../items/api'
 import { InboxPage } from '../pages/InboxPage'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { CaptureProvider } from './CaptureProvider'
 
 function jsonResponse(body: unknown, status = 200) {
@@ -126,9 +127,11 @@ function renderApp() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <CaptureProvider>
-          <InboxPage />
-        </CaptureProvider>
+        <FeedbackProvider>
+          <CaptureProvider>
+            <InboxPage />
+          </CaptureProvider>
+        </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
