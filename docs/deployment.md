@@ -22,7 +22,7 @@ Internet ── Cloudflare Tunnel ──► api :8420 (gunicorn + Django + stati
 
 **Why `firewall`:** on Umbrel, Portainer's Docker shares the host network namespace with umbrelOS's Docker. umbrelOS's Docker sets the nftables `FORWARD` policy to drop, and Portainer's Docker writes its accept rules with iptables-legacy, which that policy ignores. Without the extra rules, containers in a new stack can't reach each other or the internet (DNS resolves, but `postgres` times out). Older stacks only work because of nftables rules left from before Portainer's Docker switched to legacy, and those are gone after a host reboot. On other hosts the chain may not exist: the service logs a warning and the stack starts anyway.
 
-Volumes: `postgres_data`, `redis_data`, `storage` (uploaded files, `/data/storage`) and `backups` (daily dumps, `/data/backups`).
+Volumes: `postgres_data`, `redis_data`, `storage` (uploaded files, `/data/storage`), `backups` (daily dumps, `/data/backups`) and `exports` (users' full exports, `/data/exports`, kept for a day; see [export.md](export.md)).
 
 **Why no nginx/Caddy:** Cloudflare terminates TLS and the tunnel points straight at `api`. Django serves static files with whitenoise, and uploaded files will go through authenticated views.
 
@@ -85,6 +85,8 @@ The service worker never touches `/api/`, `/admin/` or `/media/`: sessions, CSRF
 Cloudflare respects the `no-cache` header, so a deploy reaches installed apps on their next load; don't add a cache rule that overrides it for `/sw.js`. If you ever put Cloudflare Access in front of Brain, the manifest is fetched without cookies: add `crossorigin="use-credentials"` to its `<link>` in `frontend/index.html` or bypass Access for `/manifest.webmanifest`.
 
 ## Backups
+
+These restore the app. To take your data somewhere else, use **Export everything** in the account menu instead ([export.md](export.md)).
 
 - **Automatic:** the worker runs a daily `pg_dump` at 04:00 (`TIME_ZONE`) into the `backups` volume and keeps the latest `BACKUP_RETENTION` (14 by default).
 - **Manual, to a host folder** (from the stack folder):
