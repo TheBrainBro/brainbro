@@ -189,6 +189,49 @@ export function useSaveNoteBody() {
   })
 }
 
+/** The list an item is moved within: a collection, or else the inbox. */
+export type MoveTarget = { collection?: string }
+
+/** Its list as cached: the same filters the inbox and collection pages ask with. */
+function listKey({ collection }: MoveTarget) {
+  return [...itemsKey, collection ? { collection } : { status: 'inbox' }]
+}
+
+/**
+ * Puts an item right after `after` (null: on top) in the inbox or a
+ * collection, shown at once.
+ */
+export function useMoveItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, after, collection }: { id: string; after: string | null } & MoveTarget) =>
+      api<void>(`/items/${id}/move/`, {
+        method: 'POST',
+        body: JSON.stringify({ after, ...(collection ? { collection } : {}) }),
+      }),
+    onMutate: ({ id, after, collection }) => {
+      queryClient.setQueryData(listKey({ collection }), (data: InfiniteData<Page<Item>> | undefined) => {
+        if (!data) return data
+        const all = data.pages.flatMap((page) => page.results)
+        const moving = all.find((item) => item.id === id)
+        if (!moving) return data
+        const rest = all.filter((item) => item !== moving)
+        rest.splice(after ? rest.findIndex((item) => item.id === after) + 1 : 0, 0, moving)
+        // Same pages, same sizes: only the order changes.
+        let start = 0
+        const pages = data.pages.map((page) => {
+          const results = rest.slice(start, start + page.results.length)
+          start += page.results.length
+          return { ...page, results }
+        })
+        return { ...data, pages }
+      })
+    },
+    onSettled: (_data, _error, { collection }) =>
+      queryClient.invalidateQueries({ queryKey: listKey({ collection }) }),
+  })
+}
+
 export function useRefreshPreview() {
   const queryClient = useQueryClient()
   return useMutation({

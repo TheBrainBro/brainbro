@@ -1,5 +1,5 @@
 import { Archive, FolderInput, Images, Inbox, Pencil, Trash2, X, type LucideIcon } from 'lucide-react'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type DragEvent } from 'react'
 import { useNavigate } from 'react-router'
 
 import { isEditable } from '../lib/dom'
@@ -12,10 +12,12 @@ import { OrganizeMenu } from './OrganizeMenu'
 import type { ViewMode } from './viewMode'
 import {
   useMakeAlbum,
+  useMoveItem,
   useSetAlbumItems,
   useTriage,
   type Collection,
   type Item,
+  type MoveTarget,
   type TriageAction,
 } from './api'
 import { triageMessage, undoTriage, useUndoAction } from './triage'
@@ -28,19 +30,26 @@ const LAYOUT: Record<ViewMode, string> = {
   masonry: 'columns-1 gap-4 sm:columns-2 lg:columns-3',
 }
 
+/** Where a dragged item would land: just before or just after another one. */
+type Drop = { id: string; side: 'before' | 'after' }
+
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
  * (j/k move, Enter open a note, x select, o organize, e archive, # delete,
- * Esc clear).
+ * Esc clear). With `sortable`, items can be dragged to a new place in that
+ * list, or moved with Alt+↑/↓.
  */
 export function ItemList({
   items,
   backToInbox = false,
   mode = 'cards',
+  sortable,
 }: {
   items: Item[]
   backToInbox?: boolean
   mode?: ViewMode
+  /** The hand-sorted list these items are: the inbox, or a collection. */
+  sortable?: MoveTarget
 }) {
   const triage = useTriage()
   const makeAlbum = useMakeAlbum()
@@ -53,6 +62,9 @@ export function ItemList({
   const [focused, setFocused] = useState<string | null>(null)
   const [organizing, setOrganizing] = useState<string[] | null>(null)
   const cards = useRef(new Map<string, HTMLElement>())
+  const moveItem = useMoveItem()
+  const [dragging, setDragging] = useState<string | null>(null)
+  const [drop, setDrop] = useState<Drop | null>(null)
 
   // Forget selections of items that left this list (triaged elsewhere).
   const visibleSelection = items.filter((item) => selected.has(item.id)).map((item) => item.id)
@@ -125,10 +137,43 @@ export function ItemList({
     })
   }
 
+  /** Puts `id` right after `after` (null: first), unless that's where it is. */
+  function place(id: string, after: string | null) {
+    const index = items.findIndex((item) => item.id === id)
+    if ((index === 0 && after === null) || items[index - 1]?.id === after) return
+    moveItem.mutate({ id, after, ...sortable }, { onError: failed })
+  }
+
+  /** The item before which, or after which, the pointer is over `item`. */
+  function dropAt(event: DragEvent, item: Item): Drop {
+    const rect = event.currentTarget.getBoundingClientRect()
+    // A grid reads across; the other layouts read down.
+    const past =
+      mode === 'grid'
+        ? event.clientX > rect.left + rect.width / 2
+        : event.clientY > rect.top + rect.height / 2
+    return { id: item.id, side: past ? 'after' : 'before' }
+  }
+
+  function dropped(target: Drop) {
+    if (!dragging || dragging === target.id) return
+    const rest = items.filter((item) => item.id !== dragging)
+    const at = rest.findIndex((item) => item.id === target.id)
+    place(dragging, target.side === 'after' ? target.id : (rest[at - 1]?.id ?? null))
+  }
+
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (organizing || isEditable(event.target) || event.metaKey || event.ctrlKey) return
     const index = items.findIndex((item) => item.id === focused)
     const targets = visibleSelection.length ? visibleSelection : focused ? [focused] : []
+
+    // Alt+↑/↓ moves the focused item one place.
+    if (event.altKey && sortable && focused && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault()
+      if (event.key === 'ArrowUp' && index > 0) place(focused, items[index - 2]?.id ?? null)
+      if (event.key === 'ArrowDown' && index < items.length - 1) place(focused, items[index + 1].id)
+      return
+    }
 
     const move = (delta: number) => {
       const next = items[Math.min(Math.max(index + delta, 0), items.length - 1)]
@@ -303,13 +348,49 @@ export function ItemList({
           return (
             <li
               key={item.id}
-              className={mode === 'masonry' ? 'mb-4 break-inside-avoid' : undefined}
+              className={`relative transition-opacity ${mode === 'masonry' ? 'mb-4 break-inside-avoid' : ''} ${
+                dragging === item.id ? 'opacity-40' : ''
+              }`}
               ref={(element) => {
                 if (element) cards.current.set(item.id, element)
                 else cards.current.delete(item.id)
               }}
               onMouseDown={() => setFocused(item.id)}
+              draggable={Boolean(sortable)}
+              onDragStart={(event) => {
+                if (!sortable) return
+                setDragging(item.id)
+                event.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(event) => {
+                // Only our own drags; files from outside are captures.
+                if (!dragging) return
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+                const next = dropAt(event, item)
+                if (next.id !== drop?.id || next.side !== drop.side) setDrop(next)
+              }}
+              onDrop={(event) => {
+                if (!dragging) return
+                event.preventDefault()
+                dropped(dropAt(event, item))
+                setDrop(null)
+              }}
+              onDragEnd={() => {
+                setDragging(null)
+                setDrop(null)
+              }}
             >
+              {drop?.id === item.id && dragging !== item.id && (
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute z-10 rounded-full bg-accent-500 ${
+                    mode === 'grid'
+                      ? `inset-y-0 w-1 ${drop.side === 'before' ? '-left-2' : '-right-2'}`
+                      : `inset-x-0 h-1 ${drop.side === 'before' ? '-top-2' : '-bottom-2'}`
+                  }`}
+                />
+              )}
               {mode === 'grid' ? (
                 <ItemTile {...shared} onOpen={() => open(item)} actions={icons} />
               ) : mode === 'list' ? (
