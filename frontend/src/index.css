@@ -4,6 +4,21 @@
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* The accent: the logo's violet. Neutrals stay zinc. */
+@theme inline {
+  --color-accent-50: var(--color-violet-50);
+  --color-accent-100: var(--color-violet-100);
+  --color-accent-200: var(--color-violet-200);
+  --color-accent-300: var(--color-violet-300);
+  --color-accent-400: var(--color-violet-400);
+  --color-accent-500: var(--color-violet-500);
+  --color-accent-600: var(--color-violet-600);
+  --color-accent-700: var(--color-violet-700);
+  --color-accent-800: var(--color-violet-800);
+  --color-accent-900: var(--color-violet-900);
+  --color-accent-950: var(--color-violet-950);
+}
+
 :root {
   color-scheme: light dark;
   /* Shared by the editor's live preview (CodeMirror themes can't use dark:). */
@@ -46,15 +61,61 @@ body {
   }
 
   .button-primary {
-    @apply rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900;
+    @apply rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-500 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
   }
 
   .button-secondary {
-    @apply rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800;
+    @apply rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800;
+  }
+
+  /* A square button holding one icon (with an aria-label and usually a .tooltip). */
+  .button-icon {
+    @apply relative inline-flex size-9 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
   }
 
   .input {
-    @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-950 dark:focus:ring-zinc-800;
+    @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm transition outline-none placeholder:text-zinc-400 focus:border-accent-400 focus:ring-3 focus:ring-accent-500/15 dark:border-zinc-700 dark:bg-zinc-950 dark:placeholder:text-zinc-500 dark:focus:border-accent-500;
+  }
+
+  /* A raised surface: cards, panels. */
+  .surface {
+    @apply rounded-xl border border-zinc-200 bg-white shadow-xs dark:border-zinc-800 dark:bg-zinc-900;
+  }
+
+  /* Floating over the page: menus, popovers. */
+  .popover {
+    @apply rounded-xl border border-zinc-200 bg-white shadow-lg shadow-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40;
+    animation: pop-in 120ms ease-out;
+  }
+
+  .menu-item {
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800;
+  }
+
+  /* A label shown on hover or keyboard focus of its parent (which needs `group relative`). */
+  .tooltip {
+    @apply pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-md transition-opacity delay-0 group-hover:opacity-100 group-hover:delay-300 group-focus-visible:opacity-100 dark:bg-zinc-100 dark:text-zinc-900;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
   }
 }
 
