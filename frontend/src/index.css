@@ -265,6 +265,15 @@ body {
     & .markdown-image {
       @apply rounded bg-zinc-100 px-1 text-xs text-zinc-500 italic dark:bg-zinc-800;
     }
+    & .markdown-image[data-status='pending'] {
+      @apply animate-pulse;
+    }
+    & .markdown-image[data-status='failed'] {
+      @apply line-through decoration-zinc-400;
+    }
+    & .markdown-img {
+      @apply inline-block max-h-96 max-w-full rounded-md align-bottom;
+    }
   }
 }
 
