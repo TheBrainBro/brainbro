@@ -3,7 +3,7 @@ import { useDeferredValue, useState } from 'react'
 
 import { useItems, type Item, type ItemKind, type ItemStatus } from '../items/api'
 import { ItemThumb } from '../items/ItemThumb'
-import { itemLabel } from '../items/label'
+import { itemLabel, KIND_LABEL } from '../items/label'
 import { timeAgo } from '../lib/time'
 import { ITEM_DRAG_TYPE } from './layout'
 
@@ -18,14 +18,9 @@ const kinds: { kind?: ItemKind; label: string }[] = [
   { kind: 'link', label: 'Links' },
   { kind: 'image', label: 'Images' },
   { kind: 'file', label: 'Files' },
+  { kind: 'album', label: 'Albums' },
 ]
 
-const KIND_LABEL: Record<ItemKind, string> = {
-  note: 'Note',
-  link: 'Link',
-  image: 'Image',
-  file: 'File',
-}
 
 /** Your items, to put on the board: with +, or dragged where they should go. */
 export function AddItemsPanel({

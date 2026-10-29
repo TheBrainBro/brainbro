@@ -1,10 +1,14 @@
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Download,
   ExternalLink,
   FileText,
+  ImageMinus,
   Pencil,
+  Ungroup,
   X,
   ZoomIn,
   ZoomOut,
@@ -13,7 +17,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 
-import type { Item } from '../items/api'
+import { useSetAlbumItems, useUngroupAlbum, type Item } from '../items/api'
 import { itemLabel } from '../items/label'
 import { Markdown } from '../items/Markdown'
 import { formatBytes } from '../lib/format'
@@ -42,25 +46,43 @@ function describe(item: Item) {
 /**
  * Items full screen, over everything: images at full size with zoom, PDFs
  * in the browser's viewer, text files, audio and video, link previews and
- * notes. ← and → step through the items it was opened with; Esc closes.
+ * notes. ← and → step through the items it was opened with (and through
+ * an album's images on the way); Esc closes.
  */
 export default function ItemViewer({
   items,
   index,
   actions,
   onIndex,
+  onReplace,
   onClose,
 }: {
   items: Item[]
   index: number
   actions?: (item: Item, close: () => void) => ReactNode
   onIndex: (index: number) => void
+  /** An item changed while shown (an album edited). */
+  onReplace: (item: Item) => void
   onClose: () => void
 }) {
   const item = items[index]
   const dialog = useRef<HTMLDivElement>(null)
-  const hasPrevious = index > 0
-  const hasNext = index < items.length - 1
+  // Which of an album's images is shown; back to the first on another item.
+  const [place, setPlace] = useState({ id: '', at: 0 })
+  const images = item?.kind === 'album' ? (item.album_items ?? []) : []
+  const at = place.id === item?.id ? Math.min(place.at, Math.max(images.length - 1, 0)) : 0
+  const canBack = at > 0 || index > 0
+  const canForward = (images.length > 0 && at < images.length - 1) || index < items.length - 1
+
+  function step(delta: number) {
+    const inside = at + delta
+    if (images.length > 0 && inside >= 0 && inside < images.length) {
+      setPlace({ id: item.id, at: inside })
+      return
+    }
+    const next = index + delta
+    if (next >= 0 && next < items.length) onIndex(next)
+  }
 
   // Focus comes in, and goes back where it was on closing.
   useEffect(() => {
@@ -75,7 +97,8 @@ export default function ItemViewer({
   }, [])
 
   if (!item) return null
-  const original = item.kind === 'link' ? item.url : item.file_url
+  const shown = images[at]
+  const original = item.kind === 'link' ? item.url : (shown ?? item).file_url
 
   return createPortal(
     <div
@@ -89,8 +112,8 @@ export default function ItemViewer({
       onKeyDown={(event) => {
         event.stopPropagation()
         if (event.key === 'Escape') onClose()
-        else if (event.key === 'ArrowLeft' && hasPrevious) onIndex(index - 1)
-        else if (event.key === 'ArrowRight' && hasNext) onIndex(index + 1)
+        else if (event.key === 'ArrowLeft') step(-1)
+        else if (event.key === 'ArrowRight') step(1)
       }}
       onPaste={(event) => event.stopPropagation()}
     >
@@ -98,7 +121,7 @@ export default function ItemViewer({
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-medium">{itemLabel(item)}</h2>
           <p className="truncate text-xs text-zinc-400">
-            {describe(item)}
+            {shown ? `Album · image ${at + 1} of ${images.length}` : describe(item)}
             {items.length > 1 && ` · ${index + 1} of ${items.length}`}
           </p>
         </div>
@@ -130,23 +153,33 @@ export default function ItemViewer({
         className="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-4 sm:px-16"
         onClick={(event) => event.target === event.currentTarget && onClose()}
       >
-        <Content key={item.id} item={item} />
-        {hasPrevious && (
+        {item.kind === 'album' ? (
+          <AlbumView
+            album={item}
+            at={at}
+            onAt={(next) => setPlace({ id: item.id, at: next })}
+            onReplace={onReplace}
+            onUngrouped={onClose}
+          />
+        ) : (
+          <Content key={item.id} item={item} />
+        )}
+        {canBack && (
           <button
             type="button"
             aria-label="Previous"
             className="viewer-icon absolute top-1/2 left-2 -translate-y-1/2 sm:left-4"
-            onClick={() => onIndex(index - 1)}
+            onClick={() => step(-1)}
           >
             <ChevronLeft className="size-6" aria-hidden="true" />
           </button>
         )}
-        {hasNext && (
+        {canForward && (
           <button
             type="button"
             aria-label="Next"
             className="viewer-icon absolute top-1/2 right-2 -translate-y-1/2 sm:right-4"
-            onClick={() => onIndex(index + 1)}
+            onClick={() => step(1)}
           >
             <ChevronRight className="size-6" aria-hidden="true" />
           </button>
@@ -183,6 +216,126 @@ function Content({ item }: { item: Item }) {
     return <TextView item={item} />
   }
   return <NoPreview item={item} />
+}
+
+/**
+ * An album: one image at a time over a strip of all of them, where the
+ * shown one can be moved or taken out, and the album ungrouped.
+ */
+function AlbumView({
+  album,
+  at,
+  onAt,
+  onReplace,
+  onUngrouped,
+}: {
+  album: Item
+  at: number
+  onAt: (at: number) => void
+  onReplace: (album: Item) => void
+  onUngrouped: () => void
+}) {
+  const images = album.album_items ?? []
+  const setItems = useSetAlbumItems()
+  const ungroup = useUngroupAlbum()
+  const busy = setItems.isPending || ungroup.isPending
+  const shown = images[at]
+
+  function save(ids: string[], nextAt: number) {
+    setItems.mutate(
+      { album: album.id, ids },
+      {
+        onSuccess: (updated) => {
+          onReplace(updated)
+          onAt(nextAt)
+        },
+      },
+    )
+  }
+  function move(delta: number) {
+    const ids = images.map((image) => image.id)
+    ;[ids[at], ids[at + delta]] = [ids[at + delta], ids[at]]
+    save(ids, at + delta)
+  }
+
+  return (
+    <div className="flex size-full flex-col items-center gap-3">
+      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+        {shown && <ImageView key={shown.id} item={shown} />}
+      </div>
+      <div className="flex max-w-full flex-col items-center gap-2">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="viewer-button"
+            disabled={busy || at === 0}
+            onClick={() => move(-1)}
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Move earlier
+          </button>
+          <button
+            type="button"
+            className="viewer-button"
+            disabled={busy || at === images.length - 1}
+            onClick={() => move(1)}
+          >
+            Move later
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="viewer-button"
+            disabled={busy || images.length < 2}
+            title="It goes back on its own"
+            onClick={() =>
+              save(
+                images.filter((image) => image !== shown).map((image) => image.id),
+                Math.max(at - 1, 0),
+              )
+            }
+          >
+            <ImageMinus className="size-4" aria-hidden="true" />
+            Take out
+          </button>
+          <button
+            type="button"
+            className="viewer-button"
+            disabled={busy}
+            title="The images stay, on their own"
+            onClick={() => ungroup.mutate(album.id, { onSuccess: onUngrouped })}
+          >
+            <Ungroup className="size-4" aria-hidden="true" />
+            Ungroup
+          </button>
+        </div>
+        <div role="listbox" aria-label="Images" className="flex max-w-full gap-1.5 overflow-x-auto p-1">
+          {images.map((image, position) => (
+            <button
+              key={image.id}
+              type="button"
+              role="option"
+              aria-selected={position === at}
+              aria-label={`Image ${position + 1}`}
+              className={`size-14 shrink-0 overflow-hidden rounded-md transition ${
+                position === at ? 'ring-2 ring-accent-400' : 'opacity-60 hover:opacity-100'
+              }`}
+              onClick={() => onAt(position)}
+            >
+              {image.preview_image_url && (
+                <img src={image.preview_image_url} alt="" className="size-full object-cover" />
+              )}
+            </button>
+          ))}
+        </div>
+        {(setItems.isError || ungroup.isError) && (
+          <p role="alert" className="text-sm text-red-400">
+            {(setItems.error ?? ungroup.error)?.message}
+          </p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function ImageView({ item }: { item: Item }) {

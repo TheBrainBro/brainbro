@@ -9,7 +9,7 @@ import {
 
 import { api } from '../lib/api'
 
-export type ItemKind = 'note' | 'link' | 'image' | 'file'
+export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'album'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
 export type PreviewStatus = '' | 'pending' | 'ready' | 'failed'
 
@@ -43,6 +43,10 @@ export type Item = {
   preview_image_url: string | null
   file_url: string | null
   collections: string[]
+  /** The album this image is in, if any (it then only shows up through it). */
+  album?: string | null
+  /** Albums only: their images, in order. */
+  album_items?: Item[] | null
   /** Fingerprint of title and body, sent back as If-Match when saving. */
   version: string
   created_at: string
@@ -195,5 +199,57 @@ export function useCreateCollection() {
     mutationFn: (data: { name: string; kind?: CollectionKind }) =>
       api<Collection>('/collections/', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+function refreshLists(queryClient: QueryClient) {
+  queryClient.invalidateQueries({
+    queryKey: itemsKey,
+    predicate: (query) => query.queryKey[1] !== 'detail',
+  })
+}
+
+export function makeAlbum(ids: string[], title = '') {
+  return api<Item>('/items/albums/', {
+    method: 'POST',
+    body: JSON.stringify({ items: ids, title }),
+  })
+}
+
+/** Keeps several images as one item, in this order. */
+export function useMakeAlbum() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, title }: { ids: string[]; title?: string }) => makeAlbum(ids, title),
+    onSuccess: () => refreshLists(queryClient),
+  })
+}
+
+/** What an album holds, in order: reorders, and images left out go back on their own. */
+export function useSetAlbumItems() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ album, ids }: { album: string; ids: string[] }) =>
+      api<Item>(`/items/${album}/album-items/`, {
+        method: 'PUT',
+        body: JSON.stringify({ items: ids }),
+      }),
+    onSuccess: (album) => {
+      queryClient.setQueryData(itemKey(album.id), album)
+      refreshLists(queryClient)
+    },
+  })
+}
+
+export function ungroupAlbum(album: string) {
+  return api<Item[]>(`/items/${album}/ungroup/`, { method: 'POST' })
+}
+
+/** Takes an album away; its images stay, on their own. */
+export function useUngroupAlbum() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ungroupAlbum,
+    onSuccess: () => refreshLists(queryClient),
   })
 }

@@ -282,7 +282,7 @@ body {
 /* The full-screen item viewer: always dark, whatever the theme. */
 @layer components {
   .viewer-button {
-    @apply inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-100 transition hover:bg-white/20;
+    @apply inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-100 transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-40;
   }
   .viewer-icon {
     @apply inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-zinc-100 transition hover:bg-white/20 disabled:opacity-30;

@@ -8,7 +8,7 @@ import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
 import { ItemRow, ItemTile } from './ItemTile'
 import type { ViewMode } from './viewMode'
-import { useTriage, type Item, type TriageAction } from './api'
+import { useMakeAlbum, useSetAlbumItems, useTriage, type Item, type TriageAction } from './api'
 
 const LAYOUT: Record<ViewMode, string> = {
   cards: 'space-y-3',
@@ -36,6 +36,8 @@ export function ItemList({
   mode?: ViewMode
 }) {
   const triage = useTriage()
+  const makeAlbum = useMakeAlbum()
+  const setAlbumItems = useSetAlbumItems()
   const navigate = useNavigate()
   const viewer = useViewer()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -112,6 +114,46 @@ export function ItemList({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  /**
+   * Images selected together can become an album; with one album among
+   * them, they join it.
+   */
+  function albumAction(ids: string[]) {
+    const chosen = items.filter((item) => ids.includes(item.id))
+    const albums = chosen.filter((item) => item.kind === 'album')
+    const images = chosen.filter((item) => item.kind === 'image')
+    if (albums.length > 1 || images.length + albums.length !== chosen.length) return null
+    const done = { onSuccess: () => setSelected(new Set()) }
+    if (albums.length === 1 && images.length > 0) {
+      const album = albums[0]
+      const inside = (album.album_items ?? []).map((image) => image.id)
+      return (
+        <button
+          type="button"
+          className={actionButton}
+          onClick={() =>
+            setAlbumItems.mutate(
+              { album: album.id, ids: [...inside, ...images.map((image) => image.id)] },
+              done,
+            )
+          }
+        >
+          Add to album
+        </button>
+      )
+    }
+    if (albums.length > 0 || images.length < 2) return null
+    return (
+      <button
+        type="button"
+        className={actionButton}
+        onClick={() => makeAlbum.mutate({ ids: images.map((image) => image.id) }, done)}
+      >
+        Make album
+      </button>
+    )
+  }
+
   /** The triage actions: as words (cards, the selection bar), or as icons (tiles and rows). */
   function actionsFor(ids: string[], note?: Item, icons = false) {
     const all: { label: string; icon: LucideIcon; run: () => void }[] = [
@@ -150,15 +192,16 @@ export function ItemList({
           className="sticky top-2 z-20 mb-3 flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
         >
           <span className="mr-auto text-sm font-medium">{visibleSelection.length} selected</span>
+          {albumAction(visibleSelection)}
           {actionsFor(visibleSelection)}
           <button type="button" className={actionButton} onClick={() => setSelected(new Set())}>
             Clear
           </button>
         </div>
       )}
-      {triage.isError && (
+      {(triage.error ?? makeAlbum.error ?? setAlbumItems.error) && (
         <p role="alert" className="mb-2 text-sm text-red-600">
-          {triage.error.message}
+          {(triage.error ?? makeAlbum.error ?? setAlbumItems.error)?.message}
         </p>
       )}
 
