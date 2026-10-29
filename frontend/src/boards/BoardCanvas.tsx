@@ -12,17 +12,38 @@ import {
   useReactFlow,
   type NodeChange,
 } from '@xyflow/react'
-import { useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react'
+import {
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type DragEvent,
+} from 'react'
 
+import { useCapturePipeline } from '../capture/context'
+import type { CaptureInput, CaptureInputs } from '../capture/inputs'
 import { itemKey, itemsKey, type Item } from '../items/api'
 import { isEditable } from '../lib/dom'
+import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
 import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
 import { BoardContext } from './context'
 import { ItemNode } from './ItemNode'
 import { ItemPanel } from './ItemPanel'
-import { DEFAULT_WIDTH, freeSpot, newNodeId, toFlowNodes, type ItemFlowNode } from './layout'
+import {
+  DEFAULT_WIDTH,
+  dropSpot,
+  freeSpot,
+  ITEM_DRAG_TYPE,
+  newNodeId,
+  toFlowNodes,
+  type ItemFlowNode,
+  type Placed,
+} from './layout'
+import { PendingDrops, type Drop } from './PendingDrops'
 import { layoutDrafts, type LayoutSaverState } from './saver'
 import { BoardSession } from './session'
 
@@ -44,15 +65,38 @@ function isCommit(change: NodeChange<ItemFlowNode>) {
   )
 }
 
+/** The width a card will likely get, before its item exists (the server may infer another kind). */
+function widthFor(input: CaptureInput | undefined) {
+  if (input?.kind === 'url') return DEFAULT_WIDTH.link
+  if (input?.kind !== 'file') return DEFAULT_WIDTH.note
+  return input.file.type.startsWith('image/') ? DEFAULT_WIDTH.image : DEFAULT_WIDTH.file
+}
+
+/** The item an Add items row carries when dragged, if this drag is one. */
+function draggedItem(event: DragEvent): Item | undefined {
+  const raw = event.dataTransfer.getData(ITEM_DRAG_TYPE)
+  if (!raw) return undefined
+  try {
+    const item = JSON.parse(raw) as Item
+    return typeof item?.id === 'string' && item.kind in DEFAULT_WIDTH ? item : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * The canvas of one board. The layout it starts from is read once (remount
  * with `key` to load another); from then on the canvas owns it and saves
- * every committed change, with undo and redo over those changes.
+ * every committed change, with undo and redo over those changes. While it
+ * is open and editable, pastes and drops land on it, through the capture
+ * pipeline.
  */
 export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boolean }) {
   const queryClient = useQueryClient()
   const flow = useReactFlow<ItemFlowNode>()
   const container = useRef<HTMLDivElement>(null)
+  const pane = useRef<HTMLDivElement>(null)
+  const pipeline = useCapturePipeline()
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
   // The right-hand panel: adding items, or one item shown whole.
   const [panel, setPanel] = useState<{ adding: true } | { itemId: string } | null>(null)
@@ -91,6 +135,25 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   useEffect(() => session.resume(), [session])
   useSaveOnLeave(saver)
 
+  // What is being captured onto the board, until its item exists. Callbacks
+  // read the ref, render the state (as with nodes).
+  const [drops, setDrops] = useState<Drop[]>([])
+  const latestDrops = useRef(drops)
+  function showDrops(next: Drop[]) {
+    latestDrops.current = next
+    setDrops(next)
+  }
+  // Where the pointer last was over the canvas: where a paste lands.
+  const pointer = useRef<{ x: number; y: number } | null>(null)
+  // Captures that finish after the board is closed stay in the inbox.
+  const open = useRef(true)
+  useEffect(() => {
+    open.current = true
+    return () => {
+      open.current = false
+    }
+  }, [])
+
   function show(next: ItemFlowNode[]) {
     latest.current = next
     setNodes(next)
@@ -112,28 +175,122 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     historyChanged()
   }
 
-  function add(item: Item) {
+  /** Puts an item on the board at `position` (if it isn't there already) and commits. */
+  function place(item: Item, position: { x: number; y: number }, select: boolean) {
     if (latest.current.some((node) => node.data.itemId === item.id)) return
     queryClient.setQueryData(itemKey(item.id), item)
-    const box = container.current!.getBoundingClientRect()
-    const center = flow.screenToFlowPosition({
-      x: box.left + box.width / 2,
-      y: box.top + box.height / 3,
-    })
-    const width = DEFAULT_WIDTH[item.kind]
     session.place()
+    const others = select
+      ? latest.current.map((node) => (node.selected ? { ...node, selected: false } : node))
+      : latest.current
     show([
-      ...latest.current.map((node) => (node.selected ? { ...node, selected: false } : node)),
+      ...others,
       {
         id: newNodeId(),
         type: 'item',
-        position: freeSpot(center, width, latest.current),
-        width,
+        position,
+        width: DEFAULT_WIDTH[item.kind],
         data: { itemId: item.id },
-        selected: true,
+        selected: select,
       },
     ])
     commit()
+  }
+
+  /** Where a paste lands: under the pointer if it is over the canvas, else near the middle. */
+  function pastePoint() {
+    if (pointer.current) return flow.screenToFlowPosition(pointer.current)
+    const box = container.current!.getBoundingClientRect()
+    return flow.screenToFlowPosition({
+      x: box.left + box.width / 2,
+      y: box.top + box.height / 3,
+    })
+  }
+
+  function add(item: Item) {
+    place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], latest.current), true)
+  }
+
+  /** A paste or a drop: captured like anywhere else, each card placed once its item exists. */
+  function captureHere(found: CaptureInputs, at: { x: number; y: number } | null) {
+    const point = at ? flow.screenToFlowPosition(at) : pastePoint()
+    pipeline.capture(found, {
+      // Taking a card off the board is the undo here (⌘Z); the item stays.
+      undo: false,
+      onQueued: (ids) => {
+        const taken: Placed[] = [...latest.current, ...latestDrops.current]
+        const added = ids.map((id, index) => {
+          const width = widthFor(found.inputs[index])
+          const position = dropSpot(point, width, taken)
+          taken.push({ position, width })
+          return { id, position, width }
+        })
+        showDrops([...latestDrops.current, ...added])
+      },
+      onSettled: (result) => {
+        const drop = latestDrops.current.find((candidate) => candidate.id === result.id)
+        if (!drop || !('item' in result) || !open.current) return
+        showDrops(latestDrops.current.filter((candidate) => candidate !== drop))
+        place(result.item, drop.position, false)
+      },
+    })
+  }
+
+  const onCapture = useEffectEvent(captureHere)
+  const registerTarget = pipeline.target
+  useEffect(() => {
+    if (readOnly) return
+    return registerTarget({
+      contains: (node) => Boolean(pane.current?.contains(node)),
+      capture: (found, at) => onCapture(found, at),
+    })
+  }, [readOnly, registerTarget])
+
+  // Dismissed: the pipeline forgot it, so does the board.
+  const visibleDrops = drops.filter((drop) =>
+    pipeline.pending.some((entry) => entry.id === drop.id),
+  )
+  const forgotten = visibleDrops.length !== drops.length
+  useEffect(() => {
+    if (!forgotten) return
+    showDrops(
+      latestDrops.current.filter((drop) =>
+        pipeline.pending.some((entry) => entry.id === drop.id),
+      ),
+    )
+  }, [forgotten, pipeline.pending])
+
+  // Failed for lack of network: try again as soon as it may be back.
+  const retryDrops = useEffectEvent(() => {
+    for (const entry of pipeline.pending) {
+      const ours = latestDrops.current.some((drop) => drop.id === entry.id)
+      if (ours && entry.state === 'error' && entry.retryable) pipeline.retry(entry.id)
+    }
+  })
+  useEffect(() => whenReachable(retryDrops), [])
+
+  // What is still being captured is lost with the page.
+  const capturing = visibleDrops.length > 0
+  useEffect(() => {
+    if (!capturing) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [capturing])
+
+  function onDragOver(event: DragEvent) {
+    if (readOnly || !event.dataTransfer.types.includes(ITEM_DRAG_TYPE)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  function onDrop(event: DragEvent) {
+    if (readOnly) return
+    const item = draggedItem(event)
+    if (!item) return
+    event.preventDefault()
+    const point = flow.screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    place(item, dropSpot(point, DEFAULT_WIDTH[item.kind], latest.current), true)
   }
 
   function resolveConflict(side: 'mine' | 'theirs') {
@@ -189,8 +346,20 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 
   return (
     <BoardContext value={actions}>
-      <div ref={container} className="relative h-full min-h-0">
+      <div
+        ref={container}
+        className="relative h-full min-h-0"
+        onPointerMove={(event) => {
+          pointer.current = { x: event.clientX, y: event.clientY }
+        }}
+        onPointerLeave={() => {
+          pointer.current = null
+        }}
+      >
         <ReactFlow
+          ref={pane}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
           nodes={nodes}
           onNodesChange={onNodesChange}
           nodeTypes={nodeTypes}
@@ -257,14 +426,24 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
               </div>
             </Panel>
           )}
-          {nodes.length === 0 && (
+          {nodes.length === 0 && !capturing && (
             <Panel position="top-center">
               <p className="mt-16 text-sm text-zinc-500">
-                {readOnly ? 'This board is empty.' : 'An empty board. Add items to start.'}
+                {readOnly
+                  ? 'This board is empty.'
+                  : 'An empty board. Add items, or paste or drop things here.'}
               </p>
             </Panel>
           )}
+          <PendingDrops drops={visibleDrops} pending={pipeline.pending} />
         </ReactFlow>
+        {pipeline.dragging && !readOnly && (
+          <div className="pointer-events-none absolute inset-2 z-20 flex items-start justify-center rounded-2xl border-2 border-dashed border-zinc-400 bg-zinc-500/5 dark:border-zinc-500">
+            <span className="mt-6 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
+              Drop to add to this board
+            </span>
+          </div>
+        )}
         {saveState.status === 'conflict' && (
           <div
             role="alert"
