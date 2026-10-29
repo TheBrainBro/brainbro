@@ -1,90 +1,42 @@
-import {
-  BookMarked,
-  FolderKanban,
-  FolderOpen,
-  Layers,
-  Library,
-  Plus,
-  type LucideIcon,
-} from 'lucide-react'
+import { FolderOpen, Library, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
+import { CollectionDialog } from '../items/CollectionDialog'
+import { collectionKind } from '../items/collectionKinds'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
 import { LoadMore } from '../items/LoadMore'
-import { useCollections, useCreateCollection, useItems, type CollectionKind } from '../items/api'
+import { useCollections, useCreateCollection, useItems } from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { BackLink } from '../ui/BackLink'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
 
-const kinds: { value: CollectionKind; label: string; icon: LucideIcon }[] = [
-  { value: 'project', label: 'Project', icon: FolderKanban },
-  { value: 'area', label: 'Area', icon: Layers },
-  { value: 'resource', label: 'Resource', icon: BookMarked },
-]
-
-function kindOf(value: CollectionKind) {
-  return kinds.find((kind) => kind.value === value) ?? kinds[0]
-}
-
 export function CollectionsPage() {
   const collections = useCollections()
   const create = useCreateCollection()
   const { toast } = useFeedback()
-  const [name, setName] = useState('')
-  const [kind, setKind] = useState<CollectionKind>('project')
+  const [creating, setCreating] = useState(false)
+
+  const newButton = (
+    <button
+      type="button"
+      className="button-primary flex shrink-0 items-center gap-1.5"
+      onClick={() => setCreating(true)}
+    >
+      <Plus className="size-4" aria-hidden="true" />
+      New collection
+    </button>
+  )
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-3 text-2xl font-semibold">Collections</h1>
-      <form
-        className="mb-6 flex flex-wrap gap-2 sm:flex-nowrap"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (!name.trim()) return
-          create.mutate(
-            { name: name.trim(), kind },
-            {
-              onSuccess: (collection) => {
-                setName('')
-                toast({ message: `Created ${collection.name}` })
-              },
-              onError: (error) => toast({ message: error.message, tone: 'error' }),
-            },
-          )
-        }}
-      >
-        <input
-          className="input basis-full sm:basis-auto"
-          aria-label="New collection"
-          placeholder="New collection"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <select
-          className="input w-auto flex-1 sm:flex-none"
-          aria-label="Kind"
-          value={kind}
-          onChange={(event) => setKind(event.target.value as CollectionKind)}
-        >
-          {kinds.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="button-primary flex shrink-0 items-center gap-1.5"
-          disabled={!name.trim() || create.isPending}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          Create
-        </button>
-      </form>
+      <div className="mb-6 flex items-center gap-2">
+        <h1 className="mr-auto text-2xl font-semibold">Collections</h1>
+        {collections.isSuccess && collections.data.length > 0 && newButton}
+      </div>
 
       {collections.isPending && (
         <div role="status" aria-label="Loading collections" className="grid gap-2 sm:grid-cols-2">
@@ -97,14 +49,14 @@ export function CollectionsPage() {
         <ErrorState error={collections.error} onRetry={() => collections.refetch()} />
       )}
       {collections.isSuccess && collections.data.length === 0 && (
-        <EmptyState icon={Library} title="No collections yet">
+        <EmptyState icon={Library} title="No collections yet" action={newButton}>
           A collection gathers what belongs together: a project, an area of your life, a topic.
-          Create one above, or pick <strong>Organize</strong> on anything in the inbox.
+          Create one here, or pick <strong>Organize</strong> on anything in the inbox.
         </EmptyState>
       )}
       <ul className="grid gap-2 sm:grid-cols-2">
         {collections.data?.map((collection) => {
-          const { icon: Icon, label } = kindOf(collection.kind)
+          const { icon: Icon, label } = collectionKind(collection.kind)
           return (
             <li key={collection.id}>
               <Link
@@ -126,6 +78,27 @@ export function CollectionsPage() {
           )
         })}
       </ul>
+
+      {creating && (
+        <CollectionDialog
+          title="New collection"
+          submitLabel="Create"
+          saving={create.isPending}
+          error={create.error?.message}
+          onClose={() => {
+            setCreating(false)
+            create.reset()
+          }}
+          onSubmit={(draft) =>
+            create.mutate(draft, {
+              onSuccess: (collection) => {
+                setCreating(false)
+                toast({ message: `Created ${collection.name}` })
+              },
+            })
+          }
+        />
+      )}
     </div>
   )
 }
