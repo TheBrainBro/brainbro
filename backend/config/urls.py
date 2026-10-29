@@ -7,6 +7,7 @@ api_patterns = [
     path("health/", core_views.health, name="health"),
     path("auth/", include("apps.accounts.urls")),
     path("", include("apps.items.urls")),
+    path("", include("apps.boards.urls")),
 ]
 
 urlpatterns = [
