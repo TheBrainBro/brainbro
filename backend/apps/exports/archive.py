@@ -14,7 +14,8 @@ from django.utils import timezone
 
 from apps.boards.layout import migrate_layout, prune_layout
 from apps.boards.models import Board
-from apps.items.models import Collection, Item
+from apps.items.models import Collection, Item, NoteImage
+from apps.items.note_images import MAX_IMAGES, image_sources, replace_image_sources
 
 from .names import Folder, clean
 
@@ -34,7 +35,7 @@ def write_export(owner, target, now=None):
     root = f"brain-export-{timezone.localdate(now).isoformat()}/"
     items = list(
         Item.objects.filter(owner=owner)
-        .prefetch_related("collections")
+        .prefetch_related("collections", "note_images")
         .order_by("created_at", "id")
     )
     collections = list(Collection.objects.filter(owner=owner).order_by("name"))
@@ -95,10 +96,12 @@ class _Writer:
 
 
 class _Place:
-    def __init__(self, path, name, preview=None):
+    def __init__(self, path, name, preview=None, images=None):
         self.path = path  # relative to the export's root
         self.name = name  # how it's called in outlines
         self.preview = preview
+        # Notes: [(NoteImage, path)] for each stored image, in order.
+        self.images = images or []
 
 
 def _place(items):
@@ -135,7 +138,7 @@ def _place_item(item, folders):
     if item.kind == Item.Kind.NOTE:
         stem = clean(item.title or _first_line(item.body))
         name = folders["notes"].name(stem, "md")
-        return _Place(f"notes/{name}", name[:-3])
+        return _Place(f"notes/{name}", name[:-3], images=_note_images(item, name[:-3]))
     if item.kind == Item.Kind.LINK:
         stem = folders["links"].name(clean(_link_title(item)))
         preview = f"links/previews/{stem}.webp" if item.preview_image else None
@@ -145,6 +148,29 @@ def _place_item(item, folders):
         stem, extension = _upload_name(item)
         return _Place(f"{folder}/{folders[folder].name(stem, extension)}", stem)
     return None
+
+
+def _note_images(note, stem):
+    """
+    Where each stored image of a note goes, in order. Pasted ones keep the
+    path the note already links (`attachments/…`, next to it); copies of
+    remote ones are numbered in a folder named after the note.
+    """
+    stored = {image.src: image for image in note.note_images.all()}
+    images = [
+        stored[src] for src in image_sources(note.body)[:MAX_IMAGES] if src in stored
+    ]
+    remote = [i for i in images if i.source == NoteImage.Source.REMOTE and i.image]
+    width = max(2, len(str(len(remote))))
+    numbers = {image.id: number for number, image in enumerate(remote, 1)}
+    places = []
+    for image in images:
+        if image.id in numbers:
+            name = f"{numbers[image.id]:0{width}}.webp"
+            places.append((image, f"notes/images/{stem}/{name}"))
+        elif image.source == NoteImage.Source.PASTED and image.original:
+            places.append((image, f"notes/{image.src}"))
+    return places
 
 
 def _first_line(body):
@@ -186,9 +212,14 @@ def _write_item(writer, item, places):
     if place is None:
         return not item.file
     if item.kind == Item.Kind.NOTE:
-        body = (
-            item.body if item.body.endswith("\n") or not item.body else f"{item.body}\n"
-        )
+        place.images = [
+            (image, path)
+            for image, path in place.images
+            if _copy_note_image(writer, image, path, item.updated_at)
+        ]
+        body = _note_markdown(item.body, place.images)
+        if body and not body.endswith("\n"):
+            body += "\n"
         writer.text(place.path, _front_matter(item) + body, item.updated_at)
     elif item.kind == Item.Kind.LINK:
         if place.preview and not writer.copy(
@@ -202,6 +233,22 @@ def _write_item(writer, item, places):
         mime = item.metadata.get("mime", "")
         return writer.copy(place.path, item.file, mime, item.updated_at)
     return True
+
+
+def _copy_note_image(writer, image, path, when):
+    if image.source == NoteImage.Source.PASTED:
+        return writer.copy(path, image.original, image.metadata.get("mime", ""), when)
+    return writer.copy(path, image.image, "image/webp", when)
+
+
+def _note_markdown(body, images):
+    """The note's body with remote images pointing at their copies here."""
+    paths = {
+        image.src: _href(path, "notes/")
+        for image, path in images
+        if image.source == NoteImage.Source.REMOTE
+    }
+    return replace_image_sources(body, paths) if paths else body
 
 
 def _front_matter(item, **extra):
@@ -297,6 +344,10 @@ def _manifest(items, places, missing, now):
             entry["album_position"] = item.album_position
         if place and place.preview:
             entry["preview_path"] = place.preview
+        if place and place.images:
+            entry["images"] = [
+                {"src": image.src, "path": path} for image, path in place.images
+            ]
         entries.append(entry)
     return {
         "export_version": EXPORT_VERSION,

@@ -11,6 +11,8 @@ README.md          this file
 items.json         every item with all its data, and where its file is
 collections.json   your collections and the items in each
 notes/             one Markdown file per note
+notes/attachments/ images you pasted into notes
+notes/images/      copies of the web images in each note, a folder per note
 links/             one Markdown file per link
 links/previews/    the preview image of each link, when it had one
 images/            your images, as you uploaded them
@@ -49,7 +51,16 @@ updated: 2026-10-29T10:15:31+00:00
 ---
 ```
 
-Empty fields are left out. Links have the same block plus `url`, `site` and
+Empty fields are left out.
+
+Images in a note open from this export, without the internet: images you
+pasted into a note are in `notes/attachments/`, where the note already points.
+For images from the web, Brain kept a copy: they are in
+`notes/images/<note>/` (`01.webp`, `02.webp`… in order) and the note's
+Markdown here points at them. An image Brain had no copy of keeps its web
+address.
+
+Links have the same block plus `url`, `site` and
 `author`; below it come the link, its preview image, the page's description
 as a quote, and your own notes about it.
 
@@ -76,7 +87,8 @@ The full record of every item, including the ones that are only a file:
       "created_at": "…",
       "updated_at": "…",
       "path": "notes/Shopping list.md",
-      "preview_path": "links/previews/….webp"
+      "preview_path": "links/previews/….webp",
+      "images": [{ "src": "https://…/photo.jpg", "path": "notes/images/Shopping list/01.webp" }]
     }
   ]
 }
@@ -86,6 +98,10 @@ The full record of every item, including the ones that are only a file:
   in. It is `null` for an upload whose file was missing.
 - `album_position` is only there for images in an album; `preview_path` only
   for links with a preview image.
+- `images` is only there for notes with images in this export: each image's
+  `src`, as in `body` (read the way Markdown reads it, so `<a b.png>` is
+  `a%20b.png`), and where its file is. `body` is always the note as you wrote
+  it; only the note's `.md` file points at these files.
 - `metadata` is what Brain found out about the item. For links: `title`,
   `description`, `site_name`, `author`, `image_url`, `final_url`… For
   uploads: the original `filename`, its `mime` type, `size` in bytes and, for
