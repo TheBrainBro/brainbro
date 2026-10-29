@@ -338,17 +338,22 @@ describe('board cards', () => {
     expect(screen.getByText('Archived')).toBeInTheDocument()
   })
 
-  it('opens an item in the side panel on double click', async () => {
+  it('opens an item in the viewer on double click', async () => {
     placeAll([makeItem({ kind: 'link', url: 'https://example.com/a', title: 'A page' })])
     renderAt('/boards/b1')
     fireEvent.doubleClick(await screen.findByText('A page'))
-    const panel = await screen.findByRole('complementary', { name: 'Item' })
-    expect(within(panel).getByRole('link', { name: 'A page' })).toBeInTheDocument()
+    const viewer = await screen.findByRole('dialog', { name: 'A page' })
+    expect(within(viewer).getByRole('link', { name: 'Open original' })).toHaveAttribute(
+      'href',
+      'https://example.com/a',
+    )
+    // The board's other card is a step away.
+    expect(within(viewer).getByText(/2 of 2/)).toBeInTheDocument()
 
-    fireEvent.click(within(panel).getByRole('button', { name: 'Remove from board' }))
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Remove from board' }))
     await waitFor(() => expect(saves).toHaveLength(1), SAVED)
     expect(saves[0].layout.nodes).toHaveLength(1)
-    expect(screen.queryByRole('complementary', { name: 'Item' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('edits a note in its card and saves it like the note page', async () => {

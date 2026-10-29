@@ -142,7 +142,8 @@ first board you open).
   step.
 - **Cards**: notes render their Markdown (tasks can be ticked), links their preview, images and
   files their thumbnail. Double-click a note to edit it in place (Esc to finish); it saves like
-  the note page. Double-click anything else, or use *Open*, to see it in the side panel.
+  the note page. Double-click anything else, or use *Open*, to see it in the viewer (see
+  [Viewing items](viewer.md)), which steps through the board's cards and can take one off the board.
 - **Saving**: every finished gesture is an undo step, and the layout saves once changes stop for
   a second (at most five seconds after the first unsaved one), one request at a time, so moving
   several cards in a row is a single save. Undo and redo save the same way, and nothing is sent if
@@ -158,5 +159,5 @@ first board you open).
   go on locally (and into the draft) until you load theirs or keep yours.
 - **Large boards**: only cards in view are rendered, and below 40% zoom cards show just their
   kind and title.
-- **Phones**: boards are read-only. Pan, pinch to zoom, and tap a card to open it in a sheet.
+- **Phones**: boards are read-only. Pan, pinch to zoom, and tap a card to open it in the viewer.
   Pastes and drops there are ordinary captures into the inbox.
