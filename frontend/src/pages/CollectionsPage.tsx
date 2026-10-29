@@ -1,15 +1,17 @@
-import { FolderOpen, Library, Plus } from 'lucide-react'
+import { FolderOpen, Library, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
+import { CollectionAvatar } from '../items/CollectionAvatar'
 import { CollectionDialog } from '../items/CollectionDialog'
 import { collectionKind } from '../items/collectionKinds'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
 import { LoadMore } from '../items/LoadMore'
-import { useCollections, useCreateCollection, useItems } from '../items/api'
+import { DeleteCollectionDialog } from '../items/DeleteCollectionDialog'
+import { useCollections, useDeleteCollection, useItems, type OrphanAction } from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { BackLink } from '../ui/BackLink'
@@ -18,7 +20,6 @@ import { EmptyState, ErrorState } from '../ui/states'
 
 export function CollectionsPage() {
   const collections = useCollections()
-  const create = useCreateCollection()
   const { toast } = useFeedback()
   const [creating, setCreating] = useState(false)
 
@@ -58,16 +59,14 @@ export function CollectionsPage() {
       )}
       <ul className="grid gap-2 sm:grid-cols-2">
         {collections.data?.map((collection) => {
-          const { icon: Icon, label } = collectionKind(collection.kind)
+          const { label } = collectionKind(collection.kind)
           return (
             <li key={collection.id}>
               <Link
                 to={`/collections/${collection.id}`}
                 className="surface group flex items-center gap-3 px-3 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-lg text-accent-600 transition group-hover:bg-accent-100 dark:bg-accent-500/10 dark:text-accent-300">
-                  {collection.icon || <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />}
-                </span>
+                <CollectionAvatar collection={collection} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{collection.name}</span>
                   <span className="block text-xs text-zinc-500">
@@ -83,22 +82,11 @@ export function CollectionsPage() {
 
       {creating && (
         <CollectionDialog
-          title="New collection"
-          submitLabel="Create"
-          saving={create.isPending}
-          error={create.error?.message}
-          onClose={() => {
+          onClose={() => setCreating(false)}
+          onSaved={(collection) => {
             setCreating(false)
-            create.reset()
+            toast({ message: `Created ${collection.name}` })
           }}
-          onSubmit={(draft) =>
-            create.mutate(draft, {
-              onSuccess: (collection) => {
-                setCreating(false)
-                toast({ message: `Created ${collection.name}` })
-              },
-            })
-          }
         />
       )}
     </div>
@@ -113,6 +101,11 @@ export function CollectionPage() {
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
   const [mode, setMode] = useViewMode('collection')
   const missing = collections.isSuccess && !collection
+  const remove = useDeleteCollection()
+  const navigate = useNavigate()
+  const { toast } = useFeedback()
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const capture = useCapturePipeline()
   const pending = capture.pending.filter((entry) => entry.collection === id)
 
@@ -129,18 +122,69 @@ export function CollectionPage() {
       <div className="mt-1 mb-4 flex items-center gap-2">
         <h1 className="mr-auto min-w-0 truncate text-2xl font-semibold">
           {collection ? (
-            <>
-              {collection.icon && <span className="mr-2">{collection.icon}</span>}
-              {collection.name}
-            </>
+            <span className="flex items-center gap-3">
+              <CollectionAvatar collection={collection} />
+              <span className="truncate">{collection.name}</span>
+            </span>
           ) : missing ? (
             'Collection'
           ) : (
             <span className="skeleton inline-block h-7 w-48 align-middle" aria-label="Loading" />
           )}
         </h1>
+        {collection && (
+          <>
+            <button
+              type="button"
+              aria-label="Edit collection"
+              className="button-icon group"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="size-4" aria-hidden="true" />
+              <span className="tooltip top-full mt-1.5">Edit collection</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Delete collection"
+              className="button-icon group"
+              onClick={() => setDeleting(true)}
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              <span className="tooltip top-full mt-1.5">Delete collection</span>
+            </button>
+          </>
+        )}
         {!missing && <ViewModeSwitch mode={mode} onChange={setMode} />}
       </div>
+      {editing && collection && (
+        <CollectionDialog
+          collection={collection}
+          onClose={() => setEditing(false)}
+          onSaved={() => setEditing(false)}
+        />
+      )}
+      {deleting && collection && (
+        <DeleteCollectionDialog
+          collection={collection}
+          deleting={remove.isPending}
+          onClose={() => setDeleting(false)}
+          onDelete={(items: OrphanAction) =>
+            remove.mutate(
+              { id, items },
+              {
+                onSuccess: () => {
+                  toast({ message: `Deleted ${collection.name}` })
+                  navigate('/collections')
+                },
+                onError: (error) => {
+                  setDeleting(false)
+                  toast({ message: error.message, tone: 'error' })
+                },
+              },
+            )
+          }
+        />
+      )}
       {missing ? (
         <EmptyState
           icon={FolderOpen}

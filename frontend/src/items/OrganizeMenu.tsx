@@ -1,4 +1,4 @@
-import { Check, FolderPlus, Layers } from 'lucide-react'
+import { Check, FolderPlus } from 'lucide-react'
 import {
   useEffect,
   useLayoutEffect,
@@ -12,6 +12,7 @@ import {
 import { createPortal } from 'react-dom'
 
 import { useCollections, useCreateCollection, type Collection } from './api'
+import { CollectionAvatar } from './CollectionAvatar'
 
 const OPEN_DELAY_MS = 120
 const CLOSE_DELAY_MS = 250
@@ -225,9 +226,7 @@ function Menu({
               disabled={inIt}
               onClick={() => onPick(collection)}
             >
-              <span className="flex size-5 shrink-0 items-center justify-center text-sm">
-                {collection.icon || <Layers className="size-4 text-zinc-400" aria-hidden="true" />}
-              </span>
+              <CollectionAvatar collection={collection} size="sm" />
               <span className="flex-1 truncate">{collection.name}</span>
               {inIt && <Check className="size-4 text-accent-500" aria-label="Already in it" />}
             </button>
