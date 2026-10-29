@@ -14,7 +14,7 @@ import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { CollectionPicker } from '../items/CollectionPicker'
-import { useItem, useTriage, type Item } from '../items/api'
+import { uploadNoteImage, useItem, useTriage, type Item } from '../items/api'
 import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
@@ -220,6 +220,9 @@ function NoteWorkspace({
         autoFocus
         onChange={(body) => saver.edit(body)}
         onSave={() => saver.flush()}
+        images={(latest ?? initial)?.images}
+        uploadImage={uploadNoteImage}
+        onUploadError={(message) => toast({ message, tone: 'error' })}
       />
     </Frame>
   )

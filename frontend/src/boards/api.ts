@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
-import { itemKey, type Item } from '../items/api'
+import { isProcessing, itemKey, type Item } from '../items/api'
 import { api } from '../lib/api'
 
 /** The stored layout, schema version 1 (see docs/boards.md). */
@@ -105,11 +105,10 @@ export function useBoard(id: string) {
       seedItems(queryClient, board.items)
       return board
     },
-    // Previews and thumbnails are made in the background: poll until none is pending.
+    // Previews, thumbnails and note images are made in the background:
+    // poll until none is pending.
     refetchInterval: (query) =>
-      query.state.data?.items.some((item) => item.preview_status === 'pending')
-        ? PREVIEW_POLL_MS
-        : false,
+      query.state.data?.items.some(isProcessing) ? PREVIEW_POLL_MS : false,
   })
 }
 
@@ -120,7 +119,7 @@ export function seedItems(queryClient: QueryClient, items: Item[]) {
 /**
  * One item of an open board, from the cache `useBoard` fills. Items placed
  * since the board loaded (just captured onto it) poll on their own until
- * their preview or thumbnail is made.
+ * their preview, thumbnail or note images are made.
  */
 export function useBoardItem(id: string) {
   return useQuery({
@@ -128,7 +127,7 @@ export function useBoardItem(id: string) {
     queryFn: () => api<Item>(`/items/${id}/`),
     staleTime: Infinity,
     refetchInterval: (query) =>
-      query.state.data?.preview_status === 'pending' ? PREVIEW_POLL_MS : false,
+      query.state.data && isProcessing(query.state.data) ? PREVIEW_POLL_MS : false,
   }).data
 }
 
