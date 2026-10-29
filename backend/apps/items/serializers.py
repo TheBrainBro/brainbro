@@ -2,7 +2,7 @@ from django.db import models
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Collection, Item
+from .models import Collection, Item, NoteImage
 
 
 class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -55,7 +55,32 @@ def album_images(album):
 
 
 # What serializing items reads besides the row: prefetch it with them.
-ITEM_PREFETCH = ("collections", "album_items", "album_items__collections")
+ITEM_PREFETCH = (
+    "collections",
+    "album_items",
+    "album_items__collections",
+    "note_images",
+)
+
+
+def note_image_url(image):
+    if not image.image:
+        return None
+    # Like preview images: authenticated, and the file name busts the cache.
+    path = reverse("note-image-file", args=[image.id])
+    return f"{path}?v={image.image.name.rsplit('/', 1)[-1]}"
+
+
+class NoteImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NoteImage
+        fields = ["id", "src", "status", "url"]
+        read_only_fields = fields
+
+    def get_url(self, image):
+        return note_image_url(image)
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -67,6 +92,8 @@ class ItemSerializer(serializers.ModelSerializer):
     version = serializers.CharField(read_only=True)
     # Albums only: their images, in order.
     album_items = serializers.SerializerMethodField()
+    # Notes only: the stored copy of each image, by `src` as in the Markdown.
+    images = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -84,6 +111,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "collections",
             "album",
             "album_items",
+            "images",
             "version",
             "created_at",
             "updated_at",
@@ -106,6 +134,14 @@ class ItemSerializer(serializers.ModelSerializer):
         if item.kind != Item.Kind.ALBUM:
             return None
         return ItemSerializer(album_images(item), many=True, context=self.context).data
+
+    def get_images(self, item):
+        if item.kind != Item.Kind.NOTE:
+            return None
+        return {
+            image.src: {"status": image.status, "url": note_image_url(image)}
+            for image in item.note_images.all()
+        }
 
     def get_preview_image_url(self, item):
         if item.kind == Item.Kind.ALBUM:

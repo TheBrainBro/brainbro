@@ -196,6 +196,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.exports.tasks.delete_old_exports",
         "schedule": crontab(minute=30),
     },
+    "delete-unused-note-images": {
+        "task": "apps.items.tasks.delete_unused_note_images",
+        "schedule": crontab(hour=4, minute=30),
+    },
 }
 
 # Admin
