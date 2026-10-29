@@ -48,10 +48,24 @@ export type Item = {
   album?: string | null
   /** Albums only: their images, in order. */
   album_items?: Item[] | null
+  /** Notes only: the stored copy of each image, by its `src` as in the Markdown. */
+  images?: NoteImages | null
   /** Fingerprint of title and body, sent back as If-Match when saving. */
   version: string
   created_at: string
   updated_at: string
+}
+
+/** A copy the app keeps of an image in a note; `url` once it is ready. */
+export type NoteImage = { status: PreviewStatus; url: string | null }
+export type NoteImages = Record<string, NoteImage>
+
+/** Something about the item is still being made in the background. */
+export function isProcessing(item: Item) {
+  return (
+    item.preview_status === 'pending' ||
+    Object.values(item.images ?? {}).some((image) => image.status === 'pending')
+  )
 }
 
 type Page<T> = { count: number; next: string | null; previous: string | null; results: T[] }
@@ -82,11 +96,10 @@ export function useItems(filters: ItemFilters) {
     },
     initialPageParam: 0,
     getNextPageParam: (last, pages) => (last.next ? pages.length * PAGE_SIZE : undefined),
-    // Previews and thumbnails are made in the background: poll until none is pending.
+    // Previews, thumbnails and note images are made in the background:
+    // poll until none is pending.
     refetchInterval: (query) =>
-      query.state.data?.pages.some((page) =>
-        page.results.some((item) => item.preview_status === 'pending'),
-      )
+      query.state.data?.pages.some((page) => page.results.some(isProcessing))
         ? PREVIEW_POLL_MS
         : false,
   })
@@ -107,14 +120,28 @@ export function useSearch(q: string) {
 
 export const itemKey = (id: string) => [...itemsKey, 'detail', id]
 
-/** One item, refetched when the window regains focus so other tabs' edits show up. */
+/**
+ * One item, refetched when the window regains focus so other tabs' edits
+ * show up, and while its note images are being fetched.
+ */
 export function useItem(id: string | undefined) {
   return useQuery({
     queryKey: itemKey(id ?? ''),
     queryFn: () => api<Item>(`/items/${id}/`),
     enabled: Boolean(id),
     refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isProcessing(query.state.data) ? PREVIEW_POLL_MS : false,
   })
+}
+
+/** An image pasted or dropped into a note: uploaded first, then linked by `src`. */
+export type UploadedNoteImage = { id: string; src: string; status: PreviewStatus; url: string | null }
+
+export function uploadNoteImage(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return api<UploadedNoteImage>('/note-images/', { method: 'POST', body: form })
 }
 
 /** Saves a note's body unless someone else saved since `version` (412, with their item). */

@@ -433,6 +433,7 @@ export function ItemContent({
         <Markdown
           id={item.id}
           fill={fill}
+          images={item.images}
           onChange={save.isPending ? undefined : (body) => save.mutate({ item, body })}
         >
           {item.body}
