@@ -9,6 +9,7 @@ own shortcuts are off.
 | Item | Shown as |
 | --- | --- |
 | Image, SVG | The original at full size, fitted to the screen. A click (or the zoom buttons) goes to 100% and up to 400%, scrolling to pan. |
+| Album | Its images one at a time over a strip of all of them. ← and → go through them before moving on to the next item. See [Albums](albums.md). |
 | PDF | The browser's own PDF viewer. |
 | Text, JSON, XML, YAML up to 512 KB | The text as it is. |
 | Audio, video | A player. |

@@ -285,6 +285,67 @@ function FilePreview({
   )
 }
 
+// An album's card shows this many of its images; the rest are a count.
+const ALBUM_COVER = 4
+
+function AlbumPreview({
+  item,
+  actions,
+  onView,
+}: {
+  item: Item
+  actions?: ReactNode
+  onView?: () => void
+}) {
+  const images = item.album_items ?? []
+  const shown = images.slice(0, ALBUM_COVER)
+  const more = images.length - shown.length
+  return (
+    <>
+      {item.title && <h2 className="mb-2 font-medium">{item.title}</h2>}
+      <Viewable
+        onView={onView}
+        label={`View album of ${images.length} images`}
+        className={`grid h-64 w-full grid-rows-2 gap-1 overflow-hidden rounded-lg ${
+          shown.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+        }`}
+      >
+        {shown.map((image, index) => (
+          <div
+            key={image.id}
+            // Two: side by side; three: one tall and two stacked; four: a square of them.
+            className={`relative overflow-hidden bg-zinc-100 dark:bg-zinc-800 ${
+              shown.length < 3 || (shown.length === 3 && index === 0) ? 'row-span-2' : ''
+            }`}
+          >
+            {image.preview_image_url ? (
+              <img
+                src={image.preview_image_url}
+                alt=""
+                loading="lazy"
+                className="size-full object-cover"
+              />
+            ) : (
+              image.preview_status === 'pending' && <div className="size-full animate-pulse" />
+            )}
+            {more > 0 && index === shown.length - 1 && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-lg font-semibold text-white">
+                +{more}
+              </span>
+            )}
+          </div>
+        ))}
+      </Viewable>
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        <span>{images.length} images</span>
+        <span aria-hidden>·</span>
+        <Time iso={item.created_at} />
+        <div className="ml-auto">{actions}</div>
+      </div>
+    </>
+  )
+}
+
 export function ItemCard({
   item,
   actions,
@@ -354,6 +415,7 @@ export function ItemContent({
   if (item.kind === 'link') return <LinkPreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'image') return <ImagePreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'file') return <FilePreview item={item} actions={actions} onView={onView} />
+  if (item.kind === 'album') return <AlbumPreview item={item} actions={actions} onView={onView} />
   return (
     <div className={fill ? 'flex h-full flex-col' : undefined}>
       <div

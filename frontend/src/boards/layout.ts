@@ -49,6 +49,7 @@ export const DEFAULT_WIDTH: Record<ItemKind, number> = {
   link: 340,
   image: 260,
   file: 280,
+  album: 320,
 }
 
 export function emptyLayout(): Layout {

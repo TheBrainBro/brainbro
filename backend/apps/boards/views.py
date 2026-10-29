@@ -7,6 +7,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from apps.items.models import Item
+from apps.items.serializers import ITEM_PREFETCH
 
 from .layout import LayoutError, item_ids, migrate_layout, prune_layout, validate_layout
 from .models import Board
@@ -34,7 +35,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
     def detail_response(self, board, response_status=status.HTTP_200_OK):
         items = board.items.filter(owner=self.request.user).prefetch_related(
-            "collections"
+            *ITEM_PREFETCH
         )
         layout = prune_layout(
             migrate_layout(board.layout), {str(item.id) for item in items}

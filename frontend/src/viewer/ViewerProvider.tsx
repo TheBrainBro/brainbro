@@ -26,6 +26,12 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
             index={open.index}
             actions={open.options.actions}
             onIndex={(index) => setOpen({ ...open, index })}
+            onReplace={(item) =>
+              setOpen({
+                ...open,
+                items: open.items.map((other) => (other.id === item.id ? item : other)),
+              })
+            }
             onClose={() => setOpen(null)}
           />
         </Suspense>

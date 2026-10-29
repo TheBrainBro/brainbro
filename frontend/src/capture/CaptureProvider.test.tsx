@@ -96,6 +96,18 @@ function setUp({ limit }: { limit?: number } = {}) {
       items = items.filter((item) => !ids.includes(item.id))
       return jsonResponse({ deleted: ids.length })
     }
+    if (url === '/api/items/albums/') {
+      const { items: ids } = JSON.parse(String(init?.body))
+      const inside = ids.map((id: string) => items.find((item) => item.id === id)!)
+      const album = makeItem({ kind: 'album', album_items: inside })
+      items = [album, ...items.filter((item) => !ids.includes(item.id))]
+      return jsonResponse(album, 201)
+    }
+    if (url.endsWith('/ungroup/')) {
+      const album = items.find((item) => url.includes(item.id))!
+      items = [...album.album_items!, ...items.filter((item) => item !== album)]
+      return jsonResponse(album.album_items)
+    }
     return jsonResponse({ count: items.length, next: null, previous: null, results: items })
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -360,5 +372,41 @@ describe('CaptureProvider', () => {
     })
     expect(filePaste.defaultPrevented).toBe(true)
     await waitFor(() => expect(FakeXHR.sent).toHaveLength(1))
+  })
+
+  it('groups images captured together into an album, and separates them on request', async () => {
+    setUp()
+    renderApp()
+    await screen.findByText(/Inbox zero/)
+    const beach = new File(['a'.repeat(20)], 'beach.png', { type: 'image/png' })
+    drop(dataTransfer([png(), beach]))
+    await waitFor(() => expect(FakeXHR.sent).toHaveLength(2))
+    const [first, second] = FakeXHR.sent
+    // The second answers first: the album still keeps the order they were dropped in.
+    await act(async () => serverCreates(second, { kind: 'image', metadata: { filename: 'b' } }))
+    await act(async () => serverCreates(first, { kind: 'image', metadata: { filename: 'a' } }))
+
+    expect(await screen.findByText('Grouped 2 images into an album')).toBeInTheDocument()
+    const call = fetchMock.mock.calls.find(([url]) => url === '/api/items/albums/')!
+    const order = JSON.parse(String(call[1].body)).items
+    expect(order).toEqual([items[0].album_items![0].id, items[0].album_items![1].id])
+    expect(items[0].album_items!.map((item) => item.metadata.filename)).toEqual(['a', 'b'])
+    expect(await screen.findByText('2 images')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Separate' }))
+    await waitFor(() => expect(items.every((item) => item.kind === 'image')).toBe(true))
+    expect(screen.getByRole('status')).toHaveTextContent('Captured 2 items')
+  })
+
+  it('leaves a single image alone', async () => {
+    setUp()
+    renderApp()
+    await screen.findByText(/Inbox zero/)
+    drop(dataTransfer([png(), pdf()]))
+    await waitFor(() => expect(FakeXHR.sent).toHaveLength(2))
+    await act(async () => serverCreates(FakeXHR.sent[0], { kind: 'image' }))
+    await act(async () => serverCreates(FakeXHR.sent[1], { kind: 'file' }))
+    expect(await screen.findByText('Captured 2 items')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/items/albums/')).toBe(false)
   })
 })
