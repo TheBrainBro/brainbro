@@ -52,6 +52,7 @@ beforeEach(() => {
       kind: 'project',
       color: '',
       icon: '',
+      image_url: null,
       item_count: 0,
       created_at: '',
       updated_at: '',

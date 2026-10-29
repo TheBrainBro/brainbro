@@ -222,8 +222,12 @@ export type Collection = {
   id: string
   name: string
   kind: CollectionKind
+  /** Hex color behind the emoji, optional. */
   color: string
+  /** An emoji, optional. */
   icon: string
+  /** An uploaded square image, shown instead of the emoji. */
+  image_url: string | null
   item_count: number
   created_at: string
   updated_at: string
@@ -245,6 +249,40 @@ export function useCreateCollection() {
     mutationFn: (data: { name: string; kind?: CollectionKind }) =>
       api<Collection>('/collections/', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+export type CollectionChanges = Partial<Pick<Collection, 'name' | 'kind' | 'color' | 'icon'>>
+
+export function useUpdateCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...changes }: CollectionChanges & { id: string }) =>
+      api<Collection>(`/collections/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+/** Sets (a square image, already small) or removes a collection's image. */
+export function setCollectionImage(id: string, image: Blob | null) {
+  if (!image) return api<Collection>(`/collections/${id}/image/`, { method: 'DELETE' })
+  const form = new FormData()
+  form.append('file', image, 'image.webp')
+  return api<Collection>(`/collections/${id}/image/`, { method: 'POST', body: form })
+}
+
+/** What happens to the items that are only in a deleted collection. */
+export type OrphanAction = 'inbox' | 'archive' | 'delete'
+
+export function useDeleteCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, items }: { id: string; items: OrphanAction }) =>
+      api<void>(`/collections/${id}/?items=${items}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: collectionsKey })
+      queryClient.invalidateQueries({ queryKey: itemsKey })
+    },
   })
 }
 
