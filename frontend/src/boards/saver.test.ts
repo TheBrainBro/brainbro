@@ -176,6 +176,17 @@ describe('LayoutSaver', () => {
     expect(drafts.store.get('b1')).toEqual({ layout: layoutAt(7), base: 3 })
   })
 
+  it('retries again once back in use (a remount after leaving)', async () => {
+    save.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const saver = makeSaver()
+    saver.save(layoutAt(7))
+    saver.dispose()
+    saver.attach()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(saver.status).toBe('saved')
+  })
+
   it('does not retry an invalid layout, but shows why', async () => {
     save.mockRejectedValue(new ApiError(400, { detail: 'Too many nodes.', path: 'nodes' }))
     const saver = makeSaver()

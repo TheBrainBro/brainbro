@@ -182,6 +182,11 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
     this.options.drafts.remove(this.draftKey)
   }
 
+  /** Mounted (again): failed saves retry. */
+  attach() {
+    this.autosave.attach()
+  }
+
   /** Leaving the note: save what's left and stop the timers. */
   dispose(options: { keepalive?: boolean } = {}) {
     this.autosave.dispose(options)

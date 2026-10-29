@@ -156,6 +156,11 @@ export class LayoutSaver {
     return undefined
   }
 
+  /** Mounted (again): failed saves retry. */
+  attach() {
+    this.autosave.attach()
+  }
+
   /** Leaving the board: save what's left and stop the timers. */
   dispose(options: { keepalive?: boolean } = {}) {
     this.autosave.dispose(options)
