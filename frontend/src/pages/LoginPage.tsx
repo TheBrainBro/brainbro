@@ -1,3 +1,4 @@
+import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router'
 
@@ -15,9 +16,9 @@ export function LoginPage() {
   if (session?.authenticated) return <Navigate to={from} replace />
 
   return (
-    <div className="flex h-full items-center justify-center p-4">
+    <div className="flex h-full items-center justify-center bg-linear-to-b from-accent-50 to-zinc-50 p-4 dark:from-accent-950/40 dark:to-zinc-950">
       <form
-        className="w-full max-w-sm space-y-4 rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+        className="surface w-full max-w-sm space-y-4 rounded-2xl p-8 shadow-lg shadow-zinc-900/5 [animation:pop-in_200ms_ease-out]"
         onSubmit={(event) => {
           event.preventDefault()
           login.mutate({ username, password })
@@ -26,7 +27,7 @@ export function LoginPage() {
         <div>
           <Logo className="mb-4 size-10" />
           <h1 className="text-xl font-semibold">Brain</h1>
-          <p className="text-sm text-zinc-500">Sign in to continue</p>
+          <p className="text-sm text-zinc-500">Sign in to your second brain</p>
         </div>
 
         <label className="block space-y-1">
@@ -52,7 +53,8 @@ export function LoginPage() {
         </label>
 
         {login.isError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+            <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
             {login.error.message}
           </p>
         )}
@@ -60,8 +62,9 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={login.isPending || !username || !password}
-          className="button-primary w-full"
+          className="button-primary flex w-full items-center justify-center gap-2"
         >
+          {login.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

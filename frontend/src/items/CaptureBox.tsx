@@ -1,9 +1,9 @@
+import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useCapturePipeline } from '../capture/context'
 import { isEditable } from '../lib/dom'
-
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent)
+import { MOD } from '../lib/keys'
 
 /**
  * Always-visible capture: type, Enter and done (Shift+Enter for a new line).
@@ -75,14 +75,16 @@ export function CaptureBox() {
           }
         }}
       />
-      <p className="mt-1.5 flex items-center justify-end gap-1 text-xs text-zinc-500">
+      {/* Phones paste into the box itself and have nothing to drop. */}
+      <p className="mt-1.5 hidden items-center justify-end gap-1 text-xs text-zinc-500 sm:flex">
         or paste
-        <kbd className="kbd">{isMac ? '⌘' : 'Ctrl'}</kbd>
+        <kbd className="kbd">{MOD}</kbd>
         <kbd className="kbd">V</kbd>
         or drop files anywhere
       </p>
       {error && (
-        <p role="alert" className="mt-1 text-sm text-red-600">
+        <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+          <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
           {error}
         </p>
       )}
