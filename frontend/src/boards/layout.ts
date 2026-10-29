@@ -80,6 +80,9 @@ function round(value: number) {
 
 type Box = { x: number; y: number; width: number; height: number }
 
+/** What placing needs to know of a card already there (or about to be). */
+export type Placed = Pick<ItemFlowNode, 'position' | 'width' | 'height' | 'measured'>
+
 // Assumed for cards not measured yet (just placed, or off screen).
 const UNMEASURED_HEIGHT = 160
 const GAP = 24
@@ -97,7 +100,7 @@ function overlaps(a: Box, b: Box) {
  * Where to put a new card of `width` near `center` without covering others:
  * the closest free spot on rings of growing size around it.
  */
-export function freeSpot(center: { x: number; y: number }, width: number, nodes: ItemFlowNode[]) {
+export function freeSpot(center: { x: number; y: number }, width: number, nodes: Placed[]) {
   const boxes = nodes.map((node) => ({
     ...node.position,
     width: node.measured?.width ?? node.width ?? DEFAULT_WIDTH.note,
@@ -121,3 +124,14 @@ export function freeSpot(center: { x: number; y: number }, width: number, nodes:
   }
   return start
 }
+
+// Where the pointer holds a card dropped on the canvas: near its top, in the middle.
+const GRAB_Y = 24
+
+/** Where a card of `width` dropped at `point` goes: under the pointer, or the closest free spot. */
+export function dropSpot(point: { x: number; y: number }, width: number, nodes: Placed[]) {
+  return freeSpot({ x: point.x, y: point.y - GRAB_Y + UNMEASURED_HEIGHT / 2 }, width, nodes)
+}
+
+/** What an item dragged onto the canvas carries (from the Add items panel). */
+export const ITEM_DRAG_TYPE = 'application/x-brain-item'

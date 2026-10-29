@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Layout } from './api'
-import { emptyLayout, freeSpot, toFlowNodes, toLayout, type ItemFlowNode } from './layout'
+import {
+  dropSpot,
+  emptyLayout,
+  freeSpot,
+  sameContent,
+  toFlowNodes,
+  toLayout,
+  type ItemFlowNode,
+} from './layout'
 
 const stored: Layout = {
   ...emptyLayout(),
@@ -26,6 +34,13 @@ describe('layout', () => {
     expect(layout.groups).toBe(stored.groups)
     expect(layout.edges).toBe(stored.edges)
     expect(layout.viewport).toEqual({ x: 1, y: 2, zoom: 0.5 })
+  })
+
+  it('tells changes worth saving from panning alone', () => {
+    const panned = { ...stored, viewport: { x: 50, y: 0, zoom: 2 } }
+    expect(sameContent(stored, panned)).toBe(true)
+    expect(sameContent(stored, { ...stored, edges: [] })).toBe(false)
+    expect(sameContent(stored, { ...stored, nodes: stored.nodes.slice(1) })).toBe(false)
   })
 
   it('rounds sub-pixel positions', () => {
@@ -54,5 +69,16 @@ describe('freeSpot', () => {
     expect(spot).not.toEqual({ x: -140, y: -80 })
     const box = { ...spot, width: 280, height: 160 }
     expect(box.x >= 164 || box.x + 280 <= -164 || box.y >= 104 || box.y + 160 <= -104).toBe(true)
+  })
+})
+
+describe('dropSpot', () => {
+  it('puts the card under the pointer, held near its top', () => {
+    expect(dropSpot({ x: 100, y: 100 }, 280, [])).toEqual({ x: -40, y: 76 })
+  })
+
+  it('moves aside from a card already there', () => {
+    const there = { position: { x: -40, y: 76 }, width: 280, height: 160 }
+    expect(dropSpot({ x: 100, y: 100 }, 280, [there])).not.toEqual({ x: -40, y: 76 })
   })
 })
