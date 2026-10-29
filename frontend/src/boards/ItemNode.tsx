@@ -75,7 +75,7 @@ export const ItemNode = memo(function ItemNode({
         } ${item?.status === 'archived' ? 'opacity-60' : ''}`}
       >
         {!item ? (
-          <div className="h-6 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
+          <div className="skeleton h-6" />
         ) : editing ? (
           <Suspense fallback={<ItemContent item={item} />}>
             <NoteNodeEditor item={item} onDone={stopEditing} />

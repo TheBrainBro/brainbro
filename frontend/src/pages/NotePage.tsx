@@ -1,15 +1,28 @@
+import {
+  Archive,
+  Check,
+  CircleAlert,
+  CloudOff,
+  FileQuestion,
+  FolderInput,
+  Inbox,
+  RotateCw,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { CollectionPicker } from '../items/CollectionPicker'
 import { useItem, useTriage, type Item } from '../items/api'
+import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import { NEW_NOTE, type SaverState } from '../notes/saver'
 import { useNoteSaver } from '../notes/useNoteSaver'
-
-const actionButton =
-  'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+import { BackLink } from '../ui/BackLink'
+import { useFeedback } from '../ui/feedback'
+import { EmptyState, ErrorState } from '../ui/states'
 
 /**
  * `/notes/:id`, or `/notes/new` for a note that doesn't exist until it has
@@ -37,22 +50,47 @@ function NoteSession({ id, onCreated }: { id: string; onCreated: (id: string) =>
 
   if (isNew) return <NoteWorkspace initial={null} onCreated={onCreated} />
   if (item.isPending) {
-    return <Frame status={<span className="text-zinc-500">Loading…</span>} />
+    return (
+      <Frame>
+        <div role="status" aria-label="Loading note" className="space-y-3 pt-4">
+          <div className="skeleton h-7 w-2/3" />
+          <div className="skeleton h-4 w-full" />
+          <div className="skeleton h-4 w-5/6" />
+          <div className="skeleton h-4 w-3/5" />
+        </div>
+      </Frame>
+    )
   }
   if (item.isError) {
     const missing = item.error instanceof ApiError && item.error.status === 404
+    const inbox = (
+      <Link to="/" className={missing ? 'button-primary' : 'button-secondary'}>
+        Go to the inbox
+      </Link>
+    )
     return (
       <Frame>
-        <p role="alert" className="py-12 text-center text-zinc-500">
-          {missing ? 'This note no longer exists.' : item.error.message}
-        </p>
+        {missing ? (
+          <EmptyState icon={FileQuestion} title="This note no longer exists" action={inbox}>
+            It was deleted, maybe from another device.
+          </EmptyState>
+        ) : (
+          <ErrorState
+            error={item.error}
+            title="Couldn't open this note"
+            onRetry={() => item.refetch()}
+            action={inbox}
+          />
+        )}
       </Frame>
     )
   }
   if (item.data.kind !== 'note') {
     return (
       <Frame>
-        <p className="py-12 text-center text-zinc-500">Only notes can be edited here.</p>
+        <EmptyState icon={FileQuestion} title="Only notes open here">
+          Links, images and files open in the viewer, from the inbox or a collection.
+        </EmptyState>
       </Frame>
     )
   }
@@ -74,25 +112,53 @@ function NoteWorkspace({
     },
   })
   const triage = useTriage()
+  const { toast, confirm } = useFeedback()
+  const undoAction = useUndoAction()
   const goBack = useGoBack()
   const [organizing, setOrganizing] = useState(false)
 
   const noteId = saver.noteId
   const status = latest?.status ?? initial?.status
 
+  function failed(error: Error) {
+    toast({ message: error.message, tone: 'error' })
+  }
+
   async function archive() {
     if (!noteId) return
     // Triage doesn't touch the text, so a save still in flight is fine.
     saver.flush()
-    const toInbox = status === 'archived'
-    await triage.mutateAsync({ ids: [noteId], action: toInbox ? 'inbox' : 'archive' })
-    if (!toInbox) goBack()
+    const action = status === 'archived' ? 'inbox' : 'archive'
+    const before = latest ?? initial
+    const undo = before ? undoTriage(action, [before]) : null
+    try {
+      await triage.mutateAsync({ ids: [noteId], action })
+    } catch (error) {
+      return failed(error as Error)
+    }
+    toast({
+      message: action === 'archive' ? 'Archived the note' : 'Moved the note to the inbox',
+      actions: undoAction(undo),
+    })
+    if (action === 'archive') goBack()
   }
 
   async function remove() {
-    if (!noteId || !window.confirm('Delete this note?')) return
+    if (!noteId) return
+    const confirmed = await confirm({
+      title: 'Delete this note?',
+      message: "It can't be undone.",
+      confirm: 'Delete',
+      danger: true,
+    })
+    if (!confirmed) return
     saver.discard()
-    await triage.mutateAsync({ ids: [noteId], action: 'delete' })
+    try {
+      await triage.mutateAsync({ ids: [noteId], action: 'delete' })
+    } catch (error) {
+      return failed(error as Error)
+    }
+    toast({ message: 'Deleted the note' })
     goBack()
   }
 
@@ -102,32 +168,31 @@ function NoteWorkspace({
       actions={
         noteId && (
           <>
-            <button type="button" className={actionButton} onClick={() => setOrganizing(true)}>
-              Organize
-            </button>
-            <button type="button" className={actionButton} onClick={archive}>
-              {status === 'archived' ? 'To inbox' : 'Archive'}
-            </button>
-            <button type="button" className={actionButton} onClick={remove}>
-              Delete
-            </button>
+            <Action icon={FolderInput} label="Organize" onClick={() => setOrganizing(true)} />
+            {status === 'archived' ? (
+              <Action icon={Inbox} label="To inbox" onClick={archive} />
+            ) : (
+              <Action icon={Archive} label="Archive" onClick={archive} />
+            )}
+            <Action icon={Trash2} label="Delete" onClick={remove} />
           </>
         )
       }
     >
-      {triage.isError && (
-        <p role="alert" className="mb-2 text-sm text-red-600">
-          {triage.error.message}
-        </p>
-      )}
       {organizing && noteId && (
         <CollectionPicker
           count={1}
           onClose={() => setOrganizing(false)}
-          onConfirm={(collections) =>
+          onConfirm={(collections, names) =>
             triage.mutate(
               { ids: [noteId], action: 'organize', collections },
-              { onSuccess: () => setOrganizing(false) },
+              {
+                onSuccess: () => {
+                  setOrganizing(false)
+                  toast({ message: `Organized the note into ${names}` })
+                },
+                onError: failed,
+              },
             )
           }
         />
@@ -137,13 +202,14 @@ function NoteWorkspace({
           role="alert"
           className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950"
         >
+          <CircleAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
           <span className="mr-auto">
             This note changed in another tab or device. Your text is kept here until you choose.
           </span>
-          <button type="button" className={actionButton} onClick={() => saver.resolve('theirs')}>
+          <button type="button" className="button-ghost" onClick={() => saver.resolve('theirs')}>
             Load latest
           </button>
-          <button type="button" className={actionButton} onClick={() => saver.resolve('mine')}>
+          <button type="button" className="button-ghost" onClick={() => saver.resolve('mine')}>
             Keep mine
           </button>
         </div>
@@ -170,19 +236,28 @@ function SaveIndicator({
 }) {
   switch (state.status) {
     case 'saved':
-      return isNew ? null : <span className="text-zinc-500">Saved</span>
+      return isNew ? null : (
+        <span className="flex items-center gap-1 text-zinc-500">
+          <Check className="size-3.5" aria-hidden="true" />
+          Saved
+        </span>
+      )
     case 'unsaved':
     case 'saving':
       return <span className="text-zinc-500">Saving…</span>
     case 'offline':
       return (
-        <span className="text-amber-700 dark:text-amber-400">Offline, kept on this device</span>
+        <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+          <CloudOff className="size-3.5" aria-hidden="true" />
+          Offline, kept on this device
+        </span>
       )
     case 'error':
       return (
-        <span className="flex items-center gap-1 text-red-600">
+        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
           Couldn't save{state.error ? `: ${state.error}` : ''}
-          <button type="button" className={actionButton} onClick={onRetry}>
+          <button type="button" className="button-ghost" onClick={onRetry}>
+            <RotateCw className="size-3.5" aria-hidden="true" />
             Retry
           </button>
         </span>
@@ -214,16 +289,14 @@ function Frame({
   return (
     <div className="mx-auto max-w-2xl px-4 pb-16">
       <div className="sticky top-0 z-10 flex min-h-14 items-center gap-3 bg-zinc-50/90 py-3 text-sm backdrop-blur dark:bg-zinc-950/90">
-        <Link
+        <BackLink
           to="/"
-          className="rounded-md px-2 py-1 font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          label="Back"
           onClick={(event) => {
             event.preventDefault()
             goBack()
           }}
-        >
-          ← Back
-        </Link>
+        />
         <div role="status" aria-live="polite" className="ml-auto text-xs">
           {status}
         </div>
@@ -231,5 +304,16 @@ function Frame({
       </div>
       {children}
     </div>
+  )
+}
+
+/** An action in the note's bar: icon and word, the icon alone on phones. */
+function Action({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button type="button" aria-label={label} className="button-ghost group relative" onClick={onClick}>
+      <Icon className="size-3.5" aria-hidden="true" />
+      <span className="hidden sm:inline">{label}</span>
+      <span className="tooltip top-full mt-2 sm:hidden">{label}</span>
+    </button>
   )
 }

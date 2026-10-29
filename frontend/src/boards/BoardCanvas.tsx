@@ -32,6 +32,7 @@ import {
   StickyNote,
   Undo2,
   Upload,
+  Waypoints,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -48,8 +49,10 @@ import { useCapturePipeline } from '../capture/context'
 import type { CaptureInput, CaptureInputs } from '../capture/inputs'
 import { itemKey, itemsKey, type Item } from '../items/api'
 import { isEditable } from '../lib/dom'
+import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { EmptyState } from '../ui/states'
 import { useViewer } from '../viewer/context'
 import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
@@ -113,9 +116,6 @@ const MIDDLE_BUTTON = [1]
 
 // Zoom to fit never blows a few cards up past their real size.
 const fitViewOptions = { maxZoom: 1 }
-
-const toolButton =
-  'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800'
 
 /** The end of a gesture: a drag dropped, a resize let go, nodes deleted. */
 function isCommit(change: NodeChange<BoardNode>) {
@@ -726,7 +726,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                   onClick={() => setComposing((open) => (open === 'link' ? null : 'link'))}
                 />
                 <ToolButton
-                  label="Upload files"
+                  label="Upload"
                   icon={Upload}
                   onClick={() => upload.current?.click()}
                 />
@@ -735,7 +735,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                   type="file"
                   multiple
                   hidden
-                  aria-label="Upload files"
+                  aria-label="Upload"
                   onChange={(event) => {
                     const files = Array.from(event.target.files ?? [])
                     event.target.value = ''
@@ -746,13 +746,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 />
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <ToolButton
-                  label="Undo (⌘Z)"
+                  label={`Undo (${combo('Z')})`}
                   icon={Undo2}
                   disabled={!history.canUndo}
                   onClick={() => travel('undo')}
                 />
                 <ToolButton
-                  label="Redo (⇧⌘Z)"
+                  label={`Redo (${combo('Z', { shift: true })})`}
                   icon={Redo2}
                   disabled={!history.canRedo}
                   onClick={() => travel('redo')}
@@ -774,9 +774,9 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             <NodeToolbar nodeId={selected.map((node) => node.id)} isVisible position={Position.Top}>
               <div className="popover flex items-center gap-1 p-1">
                 <span className="px-2 text-xs text-zinc-500">{selected.length} selected</span>
-                <button type="button" className={toolButton} onClick={groupSelection}>
-                  <Group className="mr-1 inline size-3.5" aria-hidden="true" />
-                  Group (⌘G)
+                <button type="button" className="button-ghost" onClick={groupSelection}>
+                  <Group className="size-3.5" aria-hidden="true" />
+                  Group ({combo('G')})
                 </button>
               </div>
             </NodeToolbar>
@@ -822,21 +822,20 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           )}
           {nodes.length === 0 && !capturing && (
             <Panel position="top-center" className="pointer-events-none">
-              {readOnly ? (
-                <p className="mt-16 text-sm text-zinc-500">This board is empty.</p>
-              ) : (
-                <div className="mt-24 max-w-md text-center text-zinc-500">
-                  <p className="text-base font-medium text-zinc-700 dark:text-zinc-300">
-                    An empty board
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed">
-                    Paste (<span className="kbd">⌘</span> <span className="kbd">V</span>) or drop
-                    links, text and files anywhere here. Press <span className="kbd">N</span> for
-                    a note, <span className="kbd">S</span> for a sticky,{' '}
-                    <span className="kbd">P</span> to draw, or pick from <em>Add items</em>.
-                  </p>
-                </div>
-              )}
+              <div className="mt-12 max-w-md">
+                {readOnly ? (
+                  <EmptyState icon={Waypoints} title="An empty board">
+                    Open it on a larger screen to lay things out here.
+                  </EmptyState>
+                ) : (
+                  <EmptyState icon={Waypoints} title="An empty board">
+                    Paste (<span className="kbd">{MOD}</span> <span className="kbd">V</span>) or drop
+                    links, text and files anywhere here. Press <span className="kbd">N</span> for a
+                    note, <span className="kbd">S</span> for a sticky, <span className="kbd">P</span>{' '}
+                    to draw, or pick from <em>Add items</em>.
+                  </EmptyState>
+                )}
+              </div>
             </Panel>
           )}
           <PendingDrops drops={visibleDrops} pending={pipeline.pending} />
@@ -864,10 +863,10 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 flex w-fit max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm dark:border-amber-800 dark:bg-amber-950"
           >
             <span className="mr-auto">This board changed in another tab or device.</span>
-            <button type="button" className={toolButton} onClick={() => resolveConflict('theirs')}>
+            <button type="button" className="button-ghost" onClick={() => resolveConflict('theirs')}>
               Load latest
             </button>
-            <button type="button" className={toolButton} onClick={() => resolveConflict('mine')}>
+            <button type="button" className="button-ghost" onClick={() => resolveConflict('mine')}>
               Keep mine
             </button>
           </div>
@@ -951,7 +950,7 @@ function SaveStatus({ state, onRetry }: { state: LayoutSaverState; onRetry: () =
       return (
         <span className="flex items-center gap-1 px-2 text-xs text-red-600" title={state.error}>
           Couldn't save
-          <button type="button" className={toolButton} onClick={onRetry}>
+          <button type="button" className="button-ghost" onClick={onRetry}>
             Retry
           </button>
         </span>
