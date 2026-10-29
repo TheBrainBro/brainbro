@@ -267,7 +267,7 @@ describe('CaptureProvider', () => {
         file_url: '/api/items/y/file/?v=1.pdf',
       }),
     )
-    expect(await screen.findByRole('link', { name: 'Invoice.pdf' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Invoice.pdf' })).toBeInTheDocument()
     const folder = screen.getByRole('article', { name: 'Failed: Photos' })
     expect(within(folder).queryByRole('button', { name: 'Retry' })).toBeNull()
     fireEvent.click(within(folder).getByRole('button', { name: 'Dismiss' }))

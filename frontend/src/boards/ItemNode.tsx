@@ -83,7 +83,7 @@ export const ItemNode = memo(function ItemNode({
         {!item ? (
           <div className="h-6 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
         ) : editing ? (
-          <Suspense fallback={<ItemContent item={item} linkFile={false} />}>
+          <Suspense fallback={<ItemContent item={item} />}>
             <NoteNodeEditor item={item} onDone={stopEditing} />
           </Suspense>
         ) : summary ? (
@@ -91,7 +91,7 @@ export const ItemNode = memo(function ItemNode({
         ) : (
           <>
             {item.status === 'archived' && <p className="mb-1 text-xs text-zinc-500">Archived</p>}
-            <ItemContent item={item} linkFile={false} fill={Boolean(height)} />
+            <ItemContent item={item} fill={Boolean(height)} />
           </>
         )}
       </article>

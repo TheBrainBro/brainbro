@@ -50,6 +50,7 @@ import { itemKey, itemsKey, type Item } from '../items/api'
 import { isEditable } from '../lib/dom'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { useViewer } from '../viewer/context'
 import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
 import { BoardContext, type BoardActions } from './context'
@@ -58,7 +59,6 @@ import { Composer, type ComposerKind } from './Composer'
 import { FrameDraw } from './FrameDraw'
 import { FrameNode } from './FrameNode'
 import { ItemNode } from './ItemNode'
-import { ItemPanel } from './ItemPanel'
 import {
   connected,
   DEFAULT_WIDTH,
@@ -175,8 +175,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const pane = useRef<HTMLDivElement>(null)
   const pipeline = useCapturePipeline()
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
-  // The right-hand panel: adding items, or one item shown whole.
-  const [panel, setPanel] = useState<{ adding: true } | { itemId: string } | null>(null)
+  const [adding, setAdding] = useState(false)
+  const viewer = useViewer()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
@@ -547,6 +547,12 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       )
       show({ nodes: next })
     }
+    function removeNode(itemId: string) {
+      const node = latest.current.find(
+        (candidate) => isItem(candidate) && candidate.data.itemId === itemId,
+      )
+      if (node) flow.deleteElements({ nodes: [{ id: node.id }] })
+    }
     function updateFrame(id: string, patch: { title?: string; color?: string }) {
       show({
         nodes: latest.current.map((node) =>
@@ -557,7 +563,32 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     }
     return {
       readOnly,
-      openItem: (itemId) => setPanel({ itemId }),
+      // In the viewer, stepping through the board's cards in order.
+      openItem: (itemId) => {
+        const items = latest.current
+          .filter(isItem)
+          .map((node) => queryClient.getQueryData<Item>(itemKey(node.data.itemId)))
+          .filter((item): item is Item => Boolean(item))
+        const index = items.findIndex((item) => item.id === itemId)
+        if (index === -1) return
+        viewer.open(items, index, {
+          actions: readOnly
+            ? undefined
+            : (item, close) => (
+                <button
+                  type="button"
+                  className="viewer-button"
+                  title="Take it off this board (the item stays)"
+                  onClick={() => {
+                    removeNode(item.id)
+                    close()
+                  }}
+                >
+                  Remove from board
+                </button>
+              ),
+        })
+      },
       startEditing: (nodeId) => setEditing(nodeId),
       stopEditing: () => setEditing(null),
       renameFrame: (id, title) => updateFrame(id, { title }),
@@ -590,17 +621,10 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
         commit()
       },
     }
-  }, [readOnly, show, commit])
+  }, [readOnly, show, commit, queryClient, viewer, flow])
 
   const shownEdges = useMemo(() => edges.map(withMarkers), [edges])
 
-  function removeItem(itemId: string) {
-    const node = latest.current.find(
-      (candidate) => isItem(candidate) && candidate.data.itemId === itemId,
-    )
-    if (node) flow.deleteElements({ nodes: [{ id: node.id }] })
-    setPanel(null)
-  }
 
   return (
     <BoardContext value={actions}>
@@ -652,7 +676,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             if (readOnly) actions.openItem(node.data.itemId)
             else if (!node.data.editing) actions.stopEditing()
           }}
-          // A note is edited in place; anything else opens in the panel.
+          // A note is edited in place; anything else opens in the viewer.
           onNodeDoubleClick={(_, node) => {
             if (readOnly || !isItem(node) || node.data.editing) return
             const item = queryClient.getQueryData<Item>(itemKey(node.data.itemId))
@@ -734,11 +758,9 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <button
                   type="button"
-                  aria-pressed={Boolean(panel && 'adding' in panel)}
+                  aria-pressed={adding}
                   className="button-primary flex items-center gap-1.5 px-3 py-1.5"
-                  onClick={() =>
-                    setPanel((open) => (open && 'adding' in open ? null : { adding: true }))
-                  }
+                  onClick={() => setAdding((open) => !open)}
                 >
                   <Plus className="size-4" aria-hidden="true" />
                   Add items
@@ -848,16 +870,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             </button>
           </div>
         )}
-        {panel && 'adding' in panel && !readOnly && (
-          <AddItemsPanel onBoard={onBoard} onAdd={add} onClose={() => setPanel(null)} />
-        )}
-        {panel && 'itemId' in panel && onBoard.has(panel.itemId) && (
-          <ItemPanel
-            key={panel.itemId}
-            itemId={panel.itemId}
-            onRemove={readOnly ? undefined : () => removeItem(panel.itemId)}
-            onClose={() => setPanel(null)}
-          />
+        {adding && !readOnly && (
+          <AddItemsPanel onBoard={onBoard} onAdd={add} onClose={() => setAdding(false)} />
         )}
       </div>
     </BoardContext>
