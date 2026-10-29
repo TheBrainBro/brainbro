@@ -28,7 +28,10 @@ item nodes so the database can tell which boards an item is on.
     }
   ],
   "edges": [
-    { "id": "e-1", "source": "n-3f2a", "target": "g-1", "label": "" }
+    {
+      "id": "e-1", "source": "n-3f2a", "target": "g-1", "label": "",
+      "arrow": "end", "stroke": "solid", "color": ""
+    }
   ]
 }
 ```
@@ -40,7 +43,10 @@ item nodes so the database can tell which boards an item is on.
   one. `w` and `h` are optional: `null` means the node's natural size.
 - **Groups** (frames): a box with a title and an optional hex color. Groups can be nested
   through `parent`. Nodes and groups share one id space.
-- **Edges**: `source` and `target` are node or group ids, with an optional `label`.
+- **Edges**: `source` and `target` are node or group ids, with an optional `label`. `arrow` is
+  `end` (the default), `none` or `both`; `stroke` is `solid` (the default) or `dashed`; `color` is
+  a hex color or empty for the default. Edges saved before these fields existed read as the
+  defaults.
 
 Coordinates are limited to ±1,000,000 and sizes to 1–10,000. A board holds at most 2,000 nodes,
 500 groups and 4,000 edges. Unknown keys are dropped on save.
@@ -96,9 +102,28 @@ first board you open).
 - **Item status**: an inbox item becomes `organized` with the first save of a layout that has it.
   Pasted and dropped items are created in the inbox like any capture and organized by that save;
   one whose capture finishes after you leave the board stays in the inbox.
-- **Editing the layout**: drag cards, resize the selected one from its corners, select several
-  with ⌘/Ctrl-click or by dragging a box with Shift, and press Delete or Backspace to take them
-  off the board (the items stay). Undo and redo (⌘Z, ⇧⌘Z) step through these changes.
+- **Tools**: the bar at the bottom has *Select* (V), *Pan* (H) and *Group* (F), then Undo and
+  Redo and *Add items*. As in design tools, with *Select* a drag on the empty canvas selects
+  what it boxes in, scrolling (two fingers on a trackpad) pans, and pinching or ⌘/Ctrl-scroll
+  zooms. Hold Space or drag with the middle button to pan without switching tools. *Pan* drags
+  the canvas from anywhere.
+- **Editing the layout**: drag cards, resize the selected one from its corners, add to a
+  selection with ⌘/Ctrl-click, and press Delete or Backspace to take what is selected off the
+  board (the items stay).
+- **Groups**: select some cards and press ⌘G (or *Group* on the selection's toolbar), or pick the
+  *Group* tool and draw a box: it takes in whatever lies wholly inside it (a click makes a group
+  of a default size). A group is dragged by its title, which a double-click renames; moving it
+  moves what it holds, and a drag inside it selects as on the empty canvas. Selected, it can be
+  resized from its corners and recolored, and ⇧⌘G or *Ungroup* takes it away, leaving its cards
+  where they are. A card (or a group) let go with its middle over a group goes into it; let go
+  outside, it comes out. Groups nest. Deleting a group takes what it holds off the board too.
+- **Edges**: hover a card or a group and drag one of the dots on its sides onto another to
+  connect them. Edges attach to whichever sides face each other and follow the cards around.
+  Select an edge to choose no arrow, one or both ways, solid or dashed, and a color, or to give
+  it a label (or double-click it). Taking a card off the board takes its edges with it.
+- **Undo and redo** (⌘Z, ⇧⌘Z) step through all of these: moves, resizes, groups and edges, their
+  looks and titles. A gesture that changes several things (deleting a card and its edges) is one
+  step.
 - **Cards**: notes render their Markdown (tasks can be ticked), links their preview, images and
   files their thumbnail. Double-click a note to edit it in place (Esc to finish); it saves like
   the note page. Double-click anything else, or use *Open*, to see it in the side panel.
