@@ -116,14 +116,14 @@ body {
     @apply animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800;
   }
 
-  /* A short message at the bottom of the screen (see ui/FeedbackProvider). */
+  /* A short message in a corner of the screen (see ui/FeedbackProvider). Dark in both themes. */
   .toast {
-    @apply pointer-events-auto w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg shadow-zinc-900/20 dark:bg-zinc-100 dark:text-zinc-900 dark:shadow-black/40;
+    @apply pointer-events-auto w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 shadow-lg shadow-zinc-900/20 dark:border-zinc-700 dark:bg-zinc-800 dark:shadow-black/40;
     animation: toast-in 180ms ease-out;
   }
 
   .toast-action {
-    @apply rounded-md px-1.5 py-0.5 font-semibold text-accent-300 transition hover:bg-white/10 dark:text-accent-700 dark:hover:bg-zinc-900/10;
+    @apply rounded-md px-1.5 py-0.5 font-semibold text-accent-300 transition hover:bg-white/10;
   }
 
   /* The dimmed layer under a dialog. */
