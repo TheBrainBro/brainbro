@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Layout } from './api'
 import {
   dropSpot,
+  dropSpots,
   emptyLayout,
   freeSpot,
   sameContent,
@@ -86,6 +87,12 @@ describe('freeSpot', () => {
 describe('dropSpot', () => {
   it('puts the card under the pointer, held near its top', () => {
     expect(dropSpot({ x: 100, y: 100 }, 280, [])).toEqual({ x: -40, y: 76 })
+  })
+
+  it('stacks several cards dropped together below the pointer', () => {
+    const [first, second] = dropSpots({ x: 100, y: 100 }, [280, 260], [])
+    expect(first).toEqual({ x: -40, y: 76 })
+    expect(second).toEqual({ x: -30, y: 260 })
   })
 
   it('moves aside from a card already there', () => {

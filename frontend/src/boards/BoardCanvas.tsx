@@ -36,12 +36,12 @@ import { ItemPanel } from './ItemPanel'
 import {
   DEFAULT_WIDTH,
   dropSpot,
+  dropSpots,
   freeSpot,
   ITEM_DRAG_TYPE,
   newNodeId,
   toFlowNodes,
   type ItemFlowNode,
-  type Placed,
 } from './layout'
 import { PendingDrops, type Drop } from './PendingDrops'
 import { layoutDrafts, type LayoutSaverState } from './saver'
@@ -218,13 +218,9 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       // Taking a card off the board is the undo here (⌘Z); the item stays.
       undo: false,
       onQueued: (ids) => {
-        const taken: Placed[] = [...latest.current, ...latestDrops.current]
-        const added = ids.map((id, index) => {
-          const width = widthFor(found.inputs[index])
-          const position = dropSpot(point, width, taken)
-          taken.push({ position, width })
-          return { id, position, width }
-        })
+        const widths = ids.map((_, index) => widthFor(found.inputs[index]))
+        const spots = dropSpots(point, widths, [...latest.current, ...latestDrops.current])
+        const added = ids.map((id, index) => ({ id, position: spots[index], width: widths[index] }))
         showDrops([...latestDrops.current, ...added])
       },
       onSettled: (result) => {
