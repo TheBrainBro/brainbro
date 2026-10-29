@@ -39,10 +39,16 @@ const highlight = HighlightStyle.define([
 ])
 
 const theme = EditorView.theme({
-  '&': { fontSize: '1rem', backgroundColor: 'transparent' },
+  '&': { fontSize: 'var(--note-editor-font-size, 1rem)', backgroundColor: 'transparent' },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { fontFamily: 'var(--font-sans)', lineHeight: '1.65' },
-  '.cm-content': { minHeight: '60vh', padding: '0.5rem 0', caretColor: 'currentColor' },
+  // Set --note-editor-min-height (and --note-editor-font-size) on a parent
+  // for a smaller editor, as in a card.
+  '.cm-content': {
+    minHeight: 'var(--note-editor-min-height, 60vh)',
+    padding: '0.5rem 0',
+    caretColor: 'currentColor',
+  },
   '.cm-line': { padding: '0' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'currentColor' },
 })

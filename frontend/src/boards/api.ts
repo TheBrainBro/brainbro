@@ -129,7 +129,7 @@ export function useDeleteBoard() {
   })
 }
 
-/** Replaces the layout if the server still has `revision`; rejects with a 412 ApiError otherwise. */
+/** Replaces the layout if the server still has `revision`; rejects with a 412 ApiError if not. */
 export function saveLayout(id: string, layout: Layout, revision: number) {
   return api<SavedLayout>(`/boards/${id}/layout/`, {
     method: 'PUT',

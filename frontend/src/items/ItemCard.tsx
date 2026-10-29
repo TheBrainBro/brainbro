@@ -284,7 +284,9 @@ export function ItemContent({
 }) {
   const save = useSaveNoteBody()
   if (item.kind === 'link') return <LinkPreview item={item} actions={actions} />
-  if (item.kind === 'image') return <ImagePreview item={item} actions={actions} linkFile={linkFile} />
+  if (item.kind === 'image') {
+    return <ImagePreview item={item} actions={actions} linkFile={linkFile} />
+  }
   if (item.kind === 'file') return <FilePreview item={item} actions={actions} />
   return (
     <div className={fill ? 'flex h-full flex-col' : undefined}>

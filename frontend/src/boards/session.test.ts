@@ -55,7 +55,8 @@ describe('BoardSession', () => {
     const undone = session.travel('undo', viewport)
     expect(undone?.[0].position).toEqual({ x: 0, y: 0 })
     await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2))
-    expect(save.mock.calls[1]).toEqual([expect.objectContaining({ nodes: board().layout.nodes }), 2])
+    const [layout, revision] = save.mock.calls[1]
+    expect([layout.nodes, revision]).toEqual([board().layout.nodes, 2])
     expect(session.travel('undo', viewport)).toBeUndefined()
     expect(session.travel('redo', viewport)?.[0].position).toEqual({ x: 100, y: 0 })
   })

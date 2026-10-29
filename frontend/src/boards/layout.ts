@@ -3,8 +3,11 @@ import type { Node, Viewport } from '@xyflow/react'
 import type { ItemKind } from '../items/api'
 import type { Layout, LayoutNode } from './api'
 
-/** What a node carries: only the item's id. The card reads the item from the cache. */
-export type ItemNodeData = { itemId: string }
+/**
+ * What a node carries: the item's id (the card reads the item from the
+ * cache), and whether its note is being edited in place, which is never saved.
+ */
+export type ItemNodeData = { itemId: string; editing?: boolean }
 
 export type ItemFlowNode = Node<ItemNodeData, 'item'>
 
