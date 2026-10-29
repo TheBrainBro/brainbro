@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 
 import { useSession } from '../auth/session'
 import { itemsKey, type Item } from '../items/api'
@@ -10,6 +10,7 @@ import {
   CaptureContext,
   type CaptureOptions,
   type CaptureResult,
+  type CaptureTarget,
   type PendingCapture,
 } from './context'
 import { isCapturableDrag, toCaptureInputs, type CaptureInput, type CaptureInputs } from './inputs'
@@ -61,6 +62,8 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   const controllers = useRef(new Map<string, AbortController>())
   const settlers = useRef(new Map<string, (result: CaptureResult) => void>())
+  const observers = useRef(new Map<string, (result: CaptureResult) => void>())
+  const [target, setTarget] = useState<CaptureTarget | null>(null)
   const batches = useRef(new Map<string, Batch>())
   const queue = useRef<PendingCapture[]>([])
   const running = useRef(0)
@@ -88,6 +91,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   function settle(entry: PendingCapture, result: CaptureResult) {
     settlers.current.get(entry.id)?.(result)
     settlers.current.delete(entry.id)
+    const observer = observers.current.get(entry.id)
+    if (!('error' in result) || result.deferred) observers.current.delete(entry.id)
+    observer?.(result)
     const batch = batches.current.get(entry.batch)
     if (!batch) return
     if ('item' in result) batch.created.push(result.item.id)
@@ -176,7 +182,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   function capture(
     found: CaptureInputs,
-    { undo = true, retryLater = false }: CaptureOptions = {},
+    { undo = true, retryLater = false, onQueued, onSettled }: CaptureOptions = {},
   ) {
     const batchId = crypto.randomUUID()
     const entries: PendingCapture[] = []
@@ -232,6 +238,12 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       undone: false,
     }
     batches.current.set(batchId, batch)
+    if (onSettled) {
+      for (const entry of entries) {
+        if (entry.state === 'queued') observers.current.set(entry.id, onSettled)
+      }
+    }
+    onQueued?.(entries.map((entry) => entry.id))
     setPending((current) => [...entries, ...current])
     if (undo) setToast({ ...batch })
 
@@ -254,6 +266,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   }
 
   function dismiss(id: string) {
+    observers.current.delete(id)
     remove(id)
   }
 
@@ -273,6 +286,12 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       await queryClient.invalidateQueries({ queryKey: itemsKey })
     }
   }
+
+  // Stable, so a target registers once.
+  const register = useCallback((next: CaptureTarget) => {
+    setTarget(next)
+    return () => setTarget((current) => (current === next ? null : current))
+  }, [])
 
   // The toast stays while the batch is in flight, then a few seconds more.
   useEffect(() => {
@@ -298,7 +317,8 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     const found = toCaptureInputs(data)
     if (!found.inputs.length && !found.skipped.length) return
     event.preventDefault()
-    capture(found)
+    if (target) target.capture(found, null)
+    else capture(found)
   })
 
   const onDragStart = useEffectEvent(() => {
@@ -340,7 +360,13 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     if (internalDrag.current || !event.dataTransfer) return
     if (!wasCapturing && !event.dataTransfer.types.includes('Files')) return
     event.preventDefault()
-    if (wasCapturing) capture(toCaptureInputs(event.dataTransfer))
+    if (!wasCapturing) return
+    const found = toCaptureInputs(event.dataTransfer)
+    if (target && event.target instanceof Node && target.contains(event.target)) {
+      target.capture(found, { x: event.clientX, y: event.clientY })
+    } else {
+      capture(found)
+    }
   })
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
@@ -371,9 +397,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <CaptureContext value={{ pending, capture, retry, dismiss }}>
+    <CaptureContext value={{ pending, capture, retry, dismiss, target: register, dragging }}>
       {children}
-      {dragging && <DropOverlay />}
+      {dragging && !target && <DropOverlay />}
       {toast && (
         <CaptureToast batch={toast} onUndo={() => undoBatch(batches.current.get(toast.id)!)} />
       )}
