@@ -111,15 +111,22 @@ function Retry({ item }: { item: Item }) {
   )
 }
 
-function ImagePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
+function ImagePreview({
+  item,
+  actions,
+  linkFile,
+}: {
+  item: Item
+  actions?: ReactNode
+  linkFile: boolean
+}) {
   const { width, height, filename } = item.metadata
+  const Frame = linkFile ? 'a' : 'div'
   return (
     <>
       {item.title && <h2 className="mb-2 font-medium">{item.title}</h2>}
-      <a
-        href={item.file_url ?? undefined}
-        target="_blank"
-        rel="noopener"
+      <Frame
+        {...(linkFile && { href: item.file_url ?? undefined, target: '_blank', rel: 'noopener' })}
         className="block overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
         // Reserve the space before the thumbnail loads, so cards don't jump.
         style={
@@ -142,7 +149,7 @@ function ImagePreview({ item, actions }: { item: Item; actions?: ReactNode }) {
             {filename || 'Image'}
           </div>
         )}
-      </a>
+      </Frame>
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
         <Time iso={item.created_at} />
         {item.preview_status === 'failed' && (
@@ -229,7 +236,6 @@ export function ItemCard({
   /** Notes only: open the editor. Clicks on links and controls inside stay theirs. */
   onOpen?: () => void
 }) {
-  const save = useSaveNoteBody()
   const ring = selected
     ? 'border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100'
     : focused
@@ -250,39 +256,61 @@ export function ItemCard({
         />
       )}
       <div className="min-w-0 flex-1">
-        {item.kind === 'link' ? (
-          <LinkPreview item={item} actions={actions} />
-        ) : item.kind === 'image' ? (
-          <ImagePreview item={item} actions={actions} />
-        ) : item.kind === 'file' ? (
-          <FilePreview item={item} actions={actions} />
-        ) : (
-          <>
-            <div
-              className={onOpen ? 'cursor-text' : undefined}
-              onClick={(event) => {
-                const target = event.target as HTMLElement
-                if (!target.closest('a, button, input') && !window.getSelection()?.toString()) {
-                  onOpen?.()
-                }
-              }}
-            >
-              {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
-              {/* One tick at a time: each save needs the version the last one returned. */}
-              <Markdown
-                id={item.id}
-                onChange={save.isPending ? undefined : (body) => save.mutate({ item, body })}
-              >
-                {item.body}
-              </Markdown>
-            </div>
-            <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
-              <Time iso={item.created_at} />
-              <div className="ml-auto">{actions}</div>
-            </div>
-          </>
-        )}
+        <ItemContent item={item} actions={actions} onOpen={onOpen} />
       </div>
     </article>
+  )
+}
+
+/**
+ * What a card shows for each kind of item, without the card around it.
+ * `linkFile`: clicking an image opens the original (off on the canvas, where
+ * a click selects). `fill`: a note takes the height it is given instead of
+ * being cut off at a fixed one.
+ */
+export function ItemContent({
+  item,
+  actions,
+  onOpen,
+  linkFile = true,
+  fill = false,
+}: {
+  item: Item
+  actions?: ReactNode
+  /** Notes only: open the editor. Clicks on links and controls inside stay theirs. */
+  onOpen?: () => void
+  linkFile?: boolean
+  fill?: boolean
+}) {
+  const save = useSaveNoteBody()
+  if (item.kind === 'link') return <LinkPreview item={item} actions={actions} />
+  if (item.kind === 'image') return <ImagePreview item={item} actions={actions} linkFile={linkFile} />
+  if (item.kind === 'file') return <FilePreview item={item} actions={actions} />
+  return (
+    <div className={fill ? 'flex h-full flex-col' : undefined}>
+      <div
+        className={`${onOpen ? 'cursor-text' : ''} ${fill ? 'min-h-0 flex-1' : ''}`}
+        onClick={(event) => {
+          const target = event.target as HTMLElement
+          if (!target.closest('a, button, input') && !window.getSelection()?.toString()) {
+            onOpen?.()
+          }
+        }}
+      >
+        {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
+        {/* One tick at a time: each save needs the version the last one returned. */}
+        <Markdown
+          id={item.id}
+          fill={fill}
+          onChange={save.isPending ? undefined : (body) => save.mutate({ item, body })}
+        >
+          {item.body}
+        </Markdown>
+      </div>
+      <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
+        <Time iso={item.created_at} />
+        <div className="ml-auto">{actions}</div>
+      </div>
+    </div>
   )
 }
