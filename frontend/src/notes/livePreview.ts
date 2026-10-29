@@ -3,7 +3,8 @@ import { EditorState, StateEffect, StateField, type Extension, type Range } from
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
 
-import { emojiByName } from '../lib/markdown'
+import type { NoteImage, NoteImages } from '../items/api'
+import { emojiByName, imageKey } from '../lib/markdown'
 import { dialectDecorations, GlyphWidget } from './dialect'
 
 /*
@@ -89,22 +90,103 @@ class FenceWidget extends WidgetType {
   }
 }
 
-/** Remote images are not loaded (they'd tell the site the note is open); the alt text stands in. */
+/** The note's stored images, by `src` as markdown-it reads it (see items/api `NoteImage`). */
+export const setNoteImages = StateEffect.define<NoteImages>()
+
+const noteImages = StateField.define<NoteImages>({
+  create: () => ({}),
+  update(value, tr) {
+    for (const effect of tr.effects) if (effect.is(setNoteImages)) value = effect.value
+    return value
+  },
+})
+
+/** An image just added here, shown from the device until the stored copy is ready. */
+export const addLocalImage = StateEffect.define<{ src: string; url: string }>()
+
+export const localImages = StateField.define<Record<string, string>>({
+  create: () => ({}),
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(addLocalImage)) value = { ...value, [effect.value.src]: effect.value.url }
+    }
+    return value
+  },
+})
+
+/** What shows for an image: the stored copy, the local one, or how it's going. */
+function resolveImage(state: EditorState, src: string): NoteImage | null {
+  const stored = state.field(noteImages, false)?.[src]
+  if (stored?.url) return stored
+  const local = state.field(localImages, false)?.[src]
+  return local ? { status: 'ready', url: local } : (stored ?? null)
+}
+
+/**
+ * Images are never loaded from where the Markdown points (that would tell
+ * the site the note is open): the stored copy shows, and until there is one
+ * the alt text stands in.
+ */
 class ImageWidget extends WidgetType {
   readonly alt: string
-  constructor(alt: string) {
+  readonly image: NoteImage | null
+  constructor(alt: string, image: NoteImage | null) {
     super()
     this.alt = alt
+    this.image = image
   }
   eq(other: ImageWidget) {
-    return other.alt === this.alt
+    return (
+      other.alt === this.alt &&
+      other.image?.url === this.image?.url &&
+      other.image?.status === this.image?.status
+    )
   }
-  toDOM() {
+  toDOM(view: EditorView) {
+    if (this.image?.url) {
+      const img = document.createElement('img')
+      img.className = 'cm-md-img'
+      img.src = this.image.url
+      img.alt = this.alt
+      // Line heights change once it has a size.
+      img.onload = () => view.requestMeasure()
+      return img
+    }
     const chip = document.createElement('span')
     chip.className = 'cm-md-image'
     chip.textContent = this.alt || 'image'
+    if (this.image) chip.dataset.status = this.image.status
+    if (this.image?.status === 'failed') chip.title = "Couldn't load this image"
     return chip
   }
+}
+
+/** Where an image points: its own destination, or its reference's (`![a][ref]`). */
+function imageDestination(state: EditorState, node: SyntaxNode, alt: string) {
+  const url = node.getChild('URL')
+  if (url) return state.sliceDoc(url.from, url.to)
+  const label = node.getChild('LinkLabel')
+  const name = label ? state.sliceDoc(label.from + 1, label.to - 1) : ''
+  return linkReferences(state).get(normalizeLabel(name || alt)) ?? null
+}
+
+const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, ' ').toLowerCase()
+
+/** `[label]: url` definitions in the note (the first one wins, as in CommonMark). */
+function linkReferences(state: EditorState) {
+  const references = new Map<string, string>()
+  syntaxTree(state).iterate({
+    enter: (ref) => {
+      if (ref.name !== 'LinkReference') return
+      const label = ref.node.getChild('LinkLabel')
+      const url = ref.node.getChild('URL')
+      if (!label || !url) return false
+      const name = normalizeLabel(state.sliceDoc(label.from + 1, label.to - 1))
+      if (!references.has(name)) references.set(name, state.sliceDoc(url.from, url.to))
+      return false
+    },
+  })
+  return references
 }
 
 type Align = 'left' | 'center' | 'right' | null
@@ -493,7 +575,11 @@ function build(state: EditorState, focused: boolean): DecorationSet {
           if (touches(from, to)) break
           const marks = node.getChildren('LinkMark')
           const alt = marks.length > 1 ? state.sliceDoc(marks[0].to, marks[1].from) : ''
-          decorations.push(Decoration.replace({ widget: new ImageWidget(alt) }).range(from, to))
+          const destination = imageDestination(state, node, alt)
+          const image = destination === null ? null : resolveImage(state, imageKey(destination))
+          decorations.push(
+            Decoration.replace({ widget: new ImageWidget(alt, image) }).range(from, to),
+          )
           return false
         }
         case 'Table': {
@@ -543,6 +629,8 @@ const preview = StateField.define<{ focused: boolean; decorations: DecorationSet
       tr.docChanged ||
       tr.selection ||
       focused !== value.focused ||
+      tr.state.field(noteImages, false) !== tr.startState.field(noteImages, false) ||
+      tr.state.field(localImages, false) !== tr.startState.field(localImages, false) ||
       syntaxTree(tr.state) !== syntaxTree(tr.startState)
     return changed ? { focused, decorations: build(tr.state, focused) } : value
   },
@@ -565,8 +653,11 @@ function openLink(event: MouseEvent, view: EditorView) {
   return true
 }
 
-export function livePreview(): Extension {
+/** `images`: the note's stored images at the start; `setNoteImages` updates them. */
+export function livePreview(images: NoteImages = {}): Extension {
   return [
+    noteImages.init(() => images),
+    localImages,
     preview,
     EditorView.domEventHandlers({
       focus: (_event, view) => view.dispatch({ effects: setFocus.of(true) }),
@@ -590,6 +681,15 @@ export function livePreview(): Extension {
         fontStyle: 'italic',
         color: 'var(--md-muted)',
         background: 'var(--md-subtle)',
+      },
+      '.cm-md-image[data-status="pending"]': { opacity: '0.6' },
+      '.cm-md-image[data-status="failed"]': { textDecoration: 'line-through' },
+      '.cm-md-img': {
+        display: 'inline-block',
+        maxWidth: '100%',
+        maxHeight: '24rem',
+        verticalAlign: 'bottom',
+        borderRadius: '0.375rem',
       },
       // One bar per level: a 2px stripe every 0.75rem, as many as the depth.
       '.cm-line.cm-md-quote-line': {

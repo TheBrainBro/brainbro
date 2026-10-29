@@ -4,10 +4,11 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
-from .models import Item, preview_image_path
-from .previews import build_preview, download_preview_image
+from .models import Item, NoteImage, note_image_path, preview_image_path
+from .note_images import delete_unused_images
+from .previews import build_preview, download_preview_image, reencode_image
 from .safe_http import FetchError, TransientFetchError
-from .uploads import has_thumbnail, make_thumbnail
+from .uploads import IMAGE_FORMATS, MAX_IMAGE_PIXELS, has_thumbnail, make_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -106,3 +107,67 @@ def generate_thumbnail(item_id):
         default_storage.delete(name)
     elif item.preview_image and item.preview_image.name != name:
         default_storage.delete(item.preview_image.name)
+
+
+@shared_task(bind=True, max_retries=len(RETRY_DELAYS))
+def fetch_note_images(self, note_id):
+    """
+    Fetch a copy of each pending remote image of a note, re-encoded like
+    link previews. Images that can't be fetched for good are marked failed;
+    temporary errors retry the ones still pending.
+    """
+    pending = NoteImage.objects.filter(
+        note_id=note_id,
+        source=NoteImage.Source.REMOTE,
+        status=Item.PreviewStatus.PENDING,
+    )
+    unavailable = None
+    for image in pending:
+        try:
+            data = download_preview_image(image.src)
+        except TransientFetchError as exc:
+            unavailable = exc
+            continue
+        if data is None:
+            _note_image_failed(image)
+        else:
+            _store_note_image(image, data)
+    if unavailable:
+        _retry_if_possible(self, unavailable)
+        for image in pending.all():
+            logger.info("Note image unavailable: %s: %s", image.src, unavailable)
+            _note_image_failed(image)
+
+
+@shared_task
+def make_note_image_display(image_id):
+    """The WebP the app shows for a pasted image, made from its original."""
+    image = NoteImage.objects.filter(id=image_id).first()
+    if image is None or not image.original:
+        return
+    with image.original.open("rb") as source:
+        data = reencode_image(source, IMAGE_FORMATS, MAX_IMAGE_PIXELS)
+    if data is None:
+        logger.info("Could not read pasted image %s", image.id)
+        return _note_image_failed(image)
+    _store_note_image(image, data)
+
+
+@shared_task
+def delete_unused_note_images():
+    return delete_unused_images()
+
+
+def _store_note_image(image, data):
+    name = default_storage.save(note_image_path(image, "image.webp"), ContentFile(data))
+    updated = NoteImage.objects.filter(id=image.id).update(
+        status=Item.PreviewStatus.READY, image=name
+    )
+    if not updated:  # removed from the note meanwhile
+        default_storage.delete(name)
+    elif image.image and image.image.name != name:
+        default_storage.delete(image.image.name)
+
+
+def _note_image_failed(image):
+    NoteImage.objects.filter(id=image.id).update(status=Item.PreviewStatus.FAILED)

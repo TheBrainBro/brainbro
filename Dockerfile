@@ -18,7 +18,8 @@ ENV PYTHONUNBUFFERED=1 \
     ENVIRONMENT=production \
     FRONTEND_DIST_DIR=/app/frontend_dist \
     STORAGE_PATH=/data/storage \
-    BACKUP_DIR=/data/backups
+    BACKUP_DIR=/data/backups \
+    EXPORT_DIR=/data/exports
 
 # postgresql-client: pg_dump for the scheduled database backups. Trixie ships
 # version 17, matching the pgvector/pgvector:*-pg17 server.
@@ -42,7 +43,7 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 
 RUN chmod +x /usr/local/bin/entrypoint \
     && SECRET_KEY=build APP_HOSTNAMES=build python manage.py collectstatic --no-input \
-    && mkdir -p /data/storage /data/backups \
+    && mkdir -p /data/storage /data/backups /data/exports \
     && chown -R brain:brain /data
 
 USER brain

@@ -4,7 +4,8 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { livePreview } from './livePreview'
+import type { NoteImages } from '../items/api'
+import { livePreview, setNoteImages } from './livePreview'
 
 const NOTE = [
   '# Title',
@@ -29,10 +30,10 @@ const NOTE = [
 
 let view: EditorView
 
-function open(doc: string) {
+function open(doc: string, images?: NoteImages) {
   const state = EditorState.create({
     doc,
-    extensions: [markdown({ base: markdownLanguage }), livePreview()],
+    extensions: [markdown({ base: markdownLanguage }), livePreview(images)],
   })
   ensureSyntaxTree(state, state.doc.length)
   view = new EditorView({ state, parent: document.body })
@@ -193,5 +194,55 @@ describe('live preview', () => {
     ])
     expect(lines('.cm-md-container-warning')).toEqual(['warning', 'here be dragons', ''])
     expect(view.state.doc.toString()).toContain('::: warning\n*here be dragons*\n:::')
+  })
+
+  it('shows the stored copy of an image, looked up by its src, never the remote one', () => {
+    const doc = [
+      '![cat](https://tracker.example/cat.png) ![spaced](<https://x.example/a b.png>)',
+      '',
+      '![dog][pet] ![gone](https://x.example/gone.png) ![new](https://x.example/new.png)',
+      '',
+      '[pet]: https://x.example/dog.png',
+      '',
+    ].join('\n')
+    open(doc, {
+      'https://tracker.example/cat.png': { status: 'ready', url: '/api/note-images/1/file/?v=a' },
+      'https://x.example/a%20b.png': { status: 'ready', url: '/api/note-images/2/file/?v=b' },
+      'https://x.example/dog.png': { status: 'ready', url: '/api/note-images/3/file/?v=c' },
+      'https://x.example/gone.png': { status: 'failed', url: null },
+      'https://x.example/new.png': { status: 'pending', url: null },
+    })
+    const sources = [...view.contentDOM.querySelectorAll('img.cm-md-img')].map((img) =>
+      img.getAttribute('src'),
+    )
+    expect(sources).toEqual([
+      '/api/note-images/1/file/?v=a',
+      '/api/note-images/2/file/?v=b',
+      '/api/note-images/3/file/?v=c',
+    ])
+    expect(view.contentDOM.querySelector('img[alt="cat"]')).not.toBeNull()
+    const failed = view.contentDOM.querySelector('.cm-md-image[data-status="failed"]')!
+    expect(failed).toHaveTextContent('gone')
+    expect(failed).toHaveAttribute('title', "Couldn't load this image")
+    expect(view.contentDOM.querySelector('.cm-md-image[data-status="pending"]')).toHaveTextContent(
+      'new',
+    )
+    expect(view.state.doc.toString()).toBe(doc)
+  })
+
+  it('swaps the placeholder for the copy once it is ready', () => {
+    open('![cat](https://x.example/cat.png)\n', {
+      'https://x.example/cat.png': { status: 'pending', url: null },
+    })
+    expect(view.contentDOM.querySelector('img.cm-md-img')).toBeNull()
+    view.dispatch({
+      effects: setNoteImages.of({
+        'https://x.example/cat.png': { status: 'ready', url: '/api/note-images/1/file/' },
+      }),
+    })
+    expect(view.contentDOM.querySelector('img.cm-md-img')).toHaveAttribute(
+      'src',
+      '/api/note-images/1/file/',
+    )
   })
 })

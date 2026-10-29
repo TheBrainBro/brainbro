@@ -53,6 +53,7 @@ export default function ItemViewer({
   items,
   index,
   actions,
+  image,
   onIndex,
   onReplace,
   onClose,
@@ -60,6 +61,8 @@ export default function ItemViewer({
   items: Item[]
   index: number
   actions?: (item: Item, close: () => void) => ReactNode
+  /** The album image to start on, if the item opened is an album. */
+  image?: string
   onIndex: (index: number) => void
   /** An item changed while shown (an album edited). */
   onReplace: (item: Item) => void
@@ -68,7 +71,10 @@ export default function ItemViewer({
   const item = items[index]
   const dialog = useRef<HTMLDivElement>(null)
   // Which of an album's images is shown; back to the first on another item.
-  const [place, setPlace] = useState({ id: '', at: 0 })
+  const [place, setPlace] = useState(() => {
+    const start = items[index]?.album_items?.findIndex((shown) => shown.id === image) ?? -1
+    return start > 0 ? { id: items[index].id, at: start } : { id: '', at: 0 }
+  })
   const images = item?.kind === 'album' ? (item.album_items ?? []) : []
   const at = place.id === item?.id ? Math.min(place.at, Math.max(images.length - 1, 0)) : 0
   const canBack = at > 0 || index > 0
@@ -198,7 +204,7 @@ function Content({ item }: { item: Item }) {
     return (
       <div className="viewer-sheet max-w-3xl">
         {item.title && <h1 className="mb-3 text-2xl font-semibold">{item.title}</h1>}
-        <Markdown id={`viewer-${item.id}`} fill>
+        <Markdown id={`viewer-${item.id}`} fill images={item.images}>
           {item.body}
         </Markdown>
       </div>

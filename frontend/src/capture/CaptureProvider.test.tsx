@@ -7,6 +7,7 @@ import type { Item } from '../items/api'
 import { InboxPage } from '../pages/InboxPage'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { CaptureProvider } from './CaptureProvider'
+import { claimEvent } from './claims'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -411,5 +412,30 @@ describe('CaptureProvider', () => {
     await act(async () => serverCreates(FakeXHR.sent[1], { kind: 'file' }))
     expect(await screen.findByText('Captured 2 items')).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/items/albums/')).toBe(false)
+  })
+
+  it('leaves pastes and drops a note took for itself alone', async () => {
+    setUp()
+    renderApp()
+    await screen.findByText(/Inbox zero/)
+    const note = document.createElement('div')
+    document.body.append(note)
+    for (const type of ['paste', 'dragover', 'drop']) note.addEventListener(type, claimEvent)
+
+    dispatchDrag('dragenter', dataTransfer([png()]))
+    expect(screen.getByText('Drop to capture')).toBeInTheDocument()
+    dispatchDrag('dragover', dataTransfer([png()]), note)
+    expect(screen.queryByText('Drop to capture')).toBeNull()
+    dispatchDrag('drop', dataTransfer([png()]), note)
+
+    const paste = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(paste, 'clipboardData', { value: dataTransfer([png()]) })
+    act(() => {
+      note.dispatchEvent(paste)
+    })
+
+    expect(paste.defaultPrevented).toBe(false)
+    expect(FakeXHR.sent).toHaveLength(0)
+    note.remove()
   })
 })

@@ -3,11 +3,13 @@ import { markdown, markdownKeymap, markdownLanguage } from '@codemirror/lang-mar
 import { languages } from '@codemirror/language-data'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorState } from '@codemirror/state'
-import { EditorView, keymap, placeholder } from '@codemirror/view'
+import { dropCursor, EditorView, keymap, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { useEffect, useEffectEvent, useRef } from 'react'
 
-import { livePreview } from './livePreview'
+import type { NoteImages } from '../items/api'
+import { imageUploads } from './imageUploads'
+import { livePreview, setNoteImages } from './livePreview'
 
 // The text is the note. Live preview renders it around the cursor; this
 // styles what stays visible: headings large, emphasis emphasized, markers
@@ -57,28 +59,38 @@ const theme = EditorView.theme({
  * CodeMirror over the raw Markdown: the document is the stored text, so what
  * comes in is exactly what goes out, and it reads rendered except where the
  * cursor is (live preview). `initial` is read once; remount (key)
- * to load other text.
+ * to load other text. Images show the note's stored copies (`images`);
+ * pasted or dropped ones are uploaded with `uploadImage` and linked.
  */
 export function NoteEditor({
   initial,
   onChange,
   onSave,
   autoFocus = false,
+  images,
+  uploadImage,
+  onUploadError,
 }: {
   initial: string
   onChange: (body: string) => void
   /** Mod-S: save now instead of waiting for the debounce. */
   onSave?: () => void
   autoFocus?: boolean
+  images?: NoteImages | null
+  uploadImage?: (file: File) => Promise<{ src: string }>
+  onUploadError?: (message: string) => void
 }) {
   const host = useRef<HTMLDivElement>(null)
+  const view = useRef<EditorView>(null)
   // Only the starting text and focus: the editor owns the document from here.
-  const startup = useRef({ initial, autoFocus })
+  const startup = useRef({ initial, autoFocus, images, uploads: Boolean(uploadImage) })
   const changed = useEffectEvent((body: string) => onChange(body))
   const save = useEffectEvent(() => onSave?.())
+  const upload = useEffectEvent((file: File) => uploadImage!(file))
+  const uploadFailed = useEffectEvent((message: string) => onUploadError?.(message))
 
   useEffect(() => {
-    const view = new EditorView({
+    const editor = new EditorView({
       parent: host.current!,
       state: EditorState.create({
         doc: startup.current.initial,
@@ -86,7 +98,10 @@ export function NoteEditor({
           history(),
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
-          livePreview(),
+          livePreview(startup.current.images ?? {}),
+          startup.current.uploads
+            ? [imageUploads({ upload, onError: uploadFailed }), dropCursor()]
+            : [],
           theme,
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': 'Note', spellcheck: 'true' }),
@@ -103,12 +118,21 @@ export function NoteEditor({
         ],
       }),
     })
+    view.current = editor
     if (startup.current.autoFocus) {
-      view.focus()
-      view.dispatch({ selection: { anchor: view.state.doc.length } })
+      editor.focus()
+      editor.dispatch({ selection: { anchor: editor.state.doc.length } })
     }
-    return () => view.destroy()
+    return () => {
+      view.current = null
+      editor.destroy()
+    }
   }, [])
+
+  // Copies made since (fetched, or pasted ones re-encoded) replace the placeholders.
+  useEffect(() => {
+    view.current?.dispatch({ effects: setNoteImages.of(images ?? {}) })
+  }, [images])
 
   return <div ref={host} className="note-editor" />
 }

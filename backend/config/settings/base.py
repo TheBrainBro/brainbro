@@ -39,6 +39,7 @@ LOCAL_APPS = [
     "apps.accounts.apps.AccountsConfig",
     "apps.items.apps.ItemsConfig",
     "apps.boards.apps.BoardsConfig",
+    "apps.exports.apps.ExportsConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -146,6 +147,11 @@ UPLOAD_MAX_SIZE = int(get_env_variable("UPLOAD_MAX_SIZE", str(50 * 1024 * 1024))
 BACKUP_DIR = Path(get_env_variable("BACKUP_DIR", str(BASE_DIR / "backups")))
 BACKUP_RETENTION = int(get_env_variable("BACKUP_RETENTION", "14"))
 
+# Full exports (apps.exports): zips of everything a user has, kept for a while
+# to be downloaded. Shared by api (serves them) and worker (builds them).
+EXPORT_DIR = Path(get_env_variable("EXPORT_DIR", str(BASE_DIR / "exports")))
+EXPORT_RETENTION_HOURS = int(get_env_variable("EXPORT_RETENTION_HOURS", "24"))
+
 # Link previews (apps.items.tasks.fetch_link_preview). Private, loopback and
 # link-local addresses are always refused unless explicitly allowed (tests).
 LINK_PREVIEW_ALLOWED_PORTS = {80, 443}
@@ -185,6 +191,14 @@ CELERY_BEAT_SCHEDULE = {
     "backup-database": {
         "task": "apps.core.tasks.backup_database",
         "schedule": crontab(hour=4, minute=0),
+    },
+    "delete-old-exports": {
+        "task": "apps.exports.tasks.delete_old_exports",
+        "schedule": crontab(minute=30),
+    },
+    "delete-unused-note-images": {
+        "task": "apps.items.tasks.delete_unused_note_images",
+        "schedule": crontab(hour=4, minute=30),
     },
 }
 

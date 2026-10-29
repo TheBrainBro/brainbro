@@ -1,8 +1,18 @@
-import { Inbox, Keyboard, Library, LogOut, Waypoints, type LucideIcon } from 'lucide-react'
+import {
+  Inbox,
+  Keyboard,
+  Library,
+  LogOut,
+  PackageOpen,
+  Search,
+  Waypoints,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router'
 
 import { useLogout, useSession } from '../auth/session'
+import { combo } from '../lib/keys'
 import { Logo } from './Logo'
 
 type Section = { to: string; label: string; icon: LucideIcon; end?: boolean }
@@ -13,8 +23,16 @@ const sections: Section[] = [
   { to: '/collections', label: 'Collections', icon: Library },
 ]
 
-/** Logo, the three sections as icons in the middle, and the account menu. */
-export function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
+/** Logo, the three sections as icons in the middle, search and the account menu. */
+export function TopBar({
+  onSearch,
+  onShortcuts,
+  onExport,
+}: {
+  onSearch: () => void
+  onShortcuts: () => void
+  onExport: () => void
+}) {
   return (
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
       <Link
@@ -35,8 +53,14 @@ export function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
         ))}
       </nav>
 
-      <div className="justify-self-end">
-        <AccountMenu onShortcuts={onShortcuts} />
+      <div className="flex items-center gap-1 justify-self-end sm:gap-2">
+        <button type="button" aria-label="Search" className="button-icon group" onClick={onSearch}>
+          <Search className="size-5" strokeWidth={1.75} aria-hidden="true" />
+          <span role="tooltip" className="tooltip top-full mt-2">
+            Search {combo('K')}
+          </span>
+        </button>
+        <AccountMenu onShortcuts={onShortcuts} onExport={onExport} />
       </div>
     </header>
   )
@@ -64,7 +88,13 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
   )
 }
 
-function AccountMenu({ onShortcuts }: { onShortcuts: () => void }) {
+function AccountMenu({
+  onShortcuts,
+  onExport,
+}: {
+  onShortcuts: () => void
+  onExport: () => void
+}) {
   const { data: session } = useSession()
   const logout = useLogout()
   const [open, setOpen] = useState(false)
@@ -122,6 +152,18 @@ function AccountMenu({ onShortcuts }: { onShortcuts: () => void }) {
             <Keyboard className="size-4" aria-hidden="true" />
             <span className="mr-auto">Keyboard shortcuts</span>
             <kbd className="kbd">?</kbd>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onExport()
+            }}
+          >
+            <PackageOpen className="size-4" aria-hidden="true" />
+            Export everything
           </button>
           <button
             type="button"

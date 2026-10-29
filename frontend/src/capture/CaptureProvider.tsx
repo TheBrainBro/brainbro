@@ -7,6 +7,7 @@ import { api, ApiError, upload } from '../lib/api'
 import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
 import { useFeedback, type Toast } from '../ui/feedback'
+import { isClaimed } from './claims'
 import {
   CaptureContext,
   type CaptureOptions,
@@ -69,6 +70,8 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<PendingCapture[]>([])
   const [toast, setToast] = useState<Batch | null>(null)
   const [dragging, setDragging] = useState(false)
+  // The drag is over something that takes the drop itself (a note).
+  const [overClaimed, setOverClaimed] = useState(false)
 
   const controllers = useRef(new Map<string, AbortController>())
   const settlers = useRef(new Map<string, (result: CaptureResult) => void>())
@@ -366,7 +369,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   const onPaste = useEffectEvent((event: ClipboardEvent) => {
     const data = event.clipboardData
-    if (!data) return
+    if (!data || isClaimed(event)) return
     // Text fields keep their own paste, unless it's a file they can't hold.
     // An editor that already took the paste (CodeMirror) may have replaced
     // the target node by now, so a handled paste counts as a text field's.
@@ -404,6 +407,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   const onDragOver = useEffectEvent((event: DragEvent) => {
     if (internalDrag.current || !event.dataTransfer) return
+    setOverClaimed(isClaimed(event))
     // Always for files: otherwise the browser navigates away to open them.
     if (dragDepth.current > 0 || event.dataTransfer.types.includes('Files')) {
       event.preventDefault()
@@ -415,7 +419,8 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     const wasCapturing = dragDepth.current > 0 && !cancelled.current
     dragDepth.current = 0
     setDragging(false)
-    if (internalDrag.current || !event.dataTransfer) return
+    setOverClaimed(false)
+    if (internalDrag.current || !event.dataTransfer || isClaimed(event)) return
     if (!wasCapturing && !event.dataTransfer.types.includes('Files')) return
     event.preventDefault()
     if (!wasCapturing) return
@@ -457,14 +462,15 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   return (
     <CaptureContext value={{ pending, capture, retry, dismiss, target: register, dragging }}>
       {children}
-      {dragging && !target && <DropOverlay />}
+      {dragging && !target && !overClaimed && <DropOverlay />}
     </CaptureContext>
   )
 }
 
+/** Lets drags through, so an element that takes drops itself (a note) gets them. */
 function DropOverlay() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-6 backdrop-blur-sm">
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-6 backdrop-blur-sm">
       <div className="pointer-events-none flex size-full items-center justify-center rounded-3xl border-2 border-dashed border-white/80 text-2xl font-semibold text-white">
         Drop to capture
       </div>
