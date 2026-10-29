@@ -1,11 +1,15 @@
 import hashlib
 import uuid
 
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
 from apps.core.models import OwnedModel
+
+from . import search
 
 
 class Collection(OwnedModel):
@@ -47,6 +51,12 @@ def upload_path(item, filename):
     # client. The original name lives in metadata["filename"].
     extension = filename.rsplit(".", 1)[-1]
     return f"uploads/{item.id}/{uuid.uuid4().hex}.{extension}"
+
+
+class ItemManager(models.Manager):
+    def get_queryset(self):
+        # Only searches read them, and they're as large as the item itself.
+        return super().get_queryset().defer("search_text", "search_vector")
 
 
 class Item(OwnedModel):
@@ -104,11 +114,29 @@ class Item(OwnedModel):
         limit_choices_to={"kind": "album"},
     )
     album_position = models.PositiveIntegerField(default=0)
+    # Kept up to date by Postgres; see `search`.
+    search_text = models.GeneratedField(
+        expression=search.search_text(),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
+    search_vector = models.GeneratedField(
+        expression=search.search_vector(),
+        output_field=SearchVectorField(),
+        db_persist=True,
+    )
+
+    objects = ItemManager()
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["owner", "status", "-created_at"]),
+            GinIndex(
+                fields=["search_text"],
+                opclasses=["gin_trgm_ops"],
+                name="item_search_text_trgm",
+            ),
         ]
 
     def __str__(self):
