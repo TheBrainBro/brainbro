@@ -64,7 +64,7 @@ export function CollectionPicker({
         role="dialog"
         aria-modal="true"
         aria-label="Organize into collections"
-        className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
+        className="popover w-full max-w-sm p-3"
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose()
         }}
@@ -120,7 +120,7 @@ export function CollectionPicker({
           </button>
           <button
             type="button"
-            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            className="button-primary px-3 py-1.5"
             disabled={checked.size === 0}
             onClick={() => onConfirm([...checked])}
           >
