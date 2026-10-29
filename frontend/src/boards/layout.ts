@@ -3,6 +3,14 @@ import type { Edge, Node, Viewport } from '@xyflow/react'
 import type { ItemKind } from '../items/api'
 import type { EdgeArrow, EdgeStroke, Layout, LayoutEdge, LayoutGroup, LayoutNode } from './api'
 
+export type StickyNodeData = { text: string; color: string; editing?: boolean }
+
+export type StickyFlowNode = Node<StickyNodeData, 'sticky'>
+
+export type StrokeNodeData = { points: [number, number][]; color: string; width: number }
+
+export type StrokeFlowNode = Node<StrokeNodeData, 'stroke'>
+
 /**
  * What a node carries: the item's id (the card reads the item from the
  * cache), and whether its note is being edited in place, which is never saved.
@@ -19,7 +27,7 @@ export type FrameFlowNode = Node<FrameNodeData, 'frame'>
 /** A group is dragged by its title bar; inside it, a drag selects. */
 export const FRAME_HANDLE = '.frame-handle'
 
-export type BoardNode = ItemFlowNode | FrameFlowNode
+export type BoardNode = ItemFlowNode | FrameFlowNode | StickyFlowNode | StrokeFlowNode
 
 export type EdgeData = {
   label: string
@@ -49,6 +57,7 @@ export function emptyLayout(): Layout {
 
 export const isFrame = (node: BoardNode): node is FrameFlowNode => node.type === 'frame'
 export const isItem = (node: BoardNode): node is ItemFlowNode => node.type === 'item'
+export const isSticky = (node: BoardNode): node is StickyFlowNode => node.type === 'sticky'
 
 function edgeData(edge: LayoutEdge): EdgeData {
   // Older layouts may lack the looks: the server's defaults.
@@ -73,17 +82,27 @@ export function toScene(layout: Layout): Scene {
       data: { title: group.title, color: group.color },
     }),
   )
-  const items = layout.nodes.map(
-    (node): ItemFlowNode => ({
+  const items = layout.nodes.map((node): BoardNode => {
+    const box = {
       id: node.id,
-      type: 'item',
       position: { x: node.x, y: node.y },
       width: node.w ?? undefined,
       height: node.h ?? undefined,
       parentId: node.parent ?? undefined,
-      data: { itemId: node.item },
-    }),
-  )
+    }
+    switch (node.type) {
+      case 'item':
+        return { ...box, type: 'item', data: { itemId: node.item } }
+      case 'sticky':
+        return { ...box, type: 'sticky', data: { text: node.text, color: node.color } }
+      case 'stroke':
+        return {
+          ...box,
+          type: 'stroke',
+          data: { points: node.points, color: node.color, width: node.width },
+        }
+    }
+  })
   const edges = layout.edges.map(
     (edge): BoardEdge => ({
       id: edge.id,
@@ -115,15 +134,20 @@ export function toLayout(scene: Scene, viewport: Viewport, base: Layout): Layout
         w: round(size(node).width),
         h: round(size(node).height),
       })
+      continue
+    }
+    const sized = {
+      id: node.id,
+      ...box,
+      w: node.width ? round(node.width) : null,
+      h: node.height ? round(node.height) : null,
+    }
+    if (node.type === 'item') nodes.push({ ...sized, type: 'item', item: node.data.itemId })
+    else if (node.type === 'sticky') {
+      nodes.push({ ...sized, type: 'sticky', text: node.data.text, color: node.data.color })
     } else {
-      nodes.push({
-        id: node.id,
-        type: 'item',
-        item: node.data.itemId,
-        ...box,
-        w: node.width ? round(node.width) : null,
-        h: node.height ? round(node.height) : null,
-      })
+      const { points, color, width } = node.data
+      nodes.push({ ...sized, type: 'stroke', points, color, width })
     }
   }
   return {
@@ -297,7 +321,7 @@ export function ordered(nodes: BoardNode[]) {
     .map((node) => ({ node, depth: depth(index, node) }))
     .sort((a, b) => a.depth - b.depth)
     .map(({ node }) => node as BoardNode)
-  return [...frames, ...nodes.filter(isItem)]
+  return [...frames, ...nodes.filter((node) => !isFrame(node))]
 }
 
 /** The node's id and every id inside it, at any depth. */
@@ -464,5 +488,68 @@ export function connected(nodes: BoardNode[], edges: BoardEdge[]) {
 
 /** Where cards are on the canvas, for placing new ones among them (groups don't get in the way). */
 export function obstacles(nodes: BoardNode[]): Placed[] {
-  return nodes.filter(isItem).map((node) => ({ position: absolute(nodes, node), ...size(node) }))
+  return nodes
+    .filter((node) => !isFrame(node))
+    .map((node) => ({ position: absolute(nodes, node), ...size(node) }))
+}
+
+/** Sticky note colors, pastel; '' is the default yellow. */
+export const STICKY_DEFAULT = '#fef08a'
+export const STICKY_COLORS = ['', '#fbcfe8', '#bfdbfe', '#bbf7d0', '#ddd6fe', '#fed7aa', '#e4e4e7']
+export const STICKY_SIZE = 200
+
+/** A new sticky note centered on `point`, ready to type in. */
+export function newSticky(point: { x: number; y: number }, id: string): StickyFlowNode {
+  return {
+    id,
+    type: 'sticky',
+    position: { x: point.x - STICKY_SIZE / 2, y: point.y - STICKY_SIZE / 2 },
+    width: STICKY_SIZE,
+    height: STICKY_SIZE,
+    selected: true,
+    data: { text: '', color: '', editing: true },
+  }
+}
+
+/** A pen line from points on the canvas: boxed, with its points relative to the box. */
+export function newStroke(
+  points: { x: number; y: number }[],
+  pen: { color: string; width: number },
+  id: string,
+): StrokeFlowNode | undefined {
+  if (points.length < 2) return undefined
+  // The box leaves room for the line's own thickness.
+  const pad = pen.width / 2 + 1
+  const left = Math.min(...points.map((point) => point.x)) - pad
+  const top = Math.min(...points.map((point) => point.y)) - pad
+  const right = Math.max(...points.map((point) => point.x)) + pad
+  const bottom = Math.max(...points.map((point) => point.y)) + pad
+  return {
+    id,
+    type: 'stroke',
+    position: { x: round(left), y: round(top) },
+    width: round(right - left),
+    height: round(bottom - top),
+    data: {
+      points: points.map((point): [number, number] => [
+        round(point.x - left),
+        round(point.y - top),
+      ]),
+      color: pen.color,
+      width: pen.width,
+    },
+  }
+}
+
+/** A smooth SVG path through the points (curves between their midpoints). */
+export function strokePath(points: [number, number][]) {
+  if (points.length < 3) return `M${points.map(([x, y]) => `${x} ${y}`).join(' L')}`
+  let path = `M${points[0][0]} ${points[0][1]}`
+  for (let index = 1; index < points.length - 1; index++) {
+    const [x, y] = points[index]
+    const [nextX, nextY] = points[index + 1]
+    path += ` Q${x} ${y} ${(x + nextX) / 2} ${(y + nextY) / 2}`
+  }
+  const [lastX, lastY] = points[points.length - 1]
+  return `${path} L${lastX} ${lastY}`
 }

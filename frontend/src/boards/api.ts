@@ -12,10 +12,8 @@ export type Layout = {
   edges: LayoutEdge[]
 }
 
-export type LayoutNode = {
+type LayoutBox = {
   id: string
-  type: 'item'
-  item: string
   x: number
   y: number
   /** Null: the node's natural size. */
@@ -23,6 +21,21 @@ export type LayoutNode = {
   h: number | null
   parent: string | null
 }
+
+export type LayoutItemNode = LayoutBox & { type: 'item'; item: string }
+
+/** Text on a colored card that lives only on the board. */
+export type LayoutStickyNode = LayoutBox & { type: 'sticky'; text: string; color: string }
+
+/** A pen line: points relative to its corner, in a box of `w` by `h`. */
+export type LayoutStrokeNode = LayoutBox & {
+  type: 'stroke'
+  points: [number, number][]
+  color: string
+  width: number
+}
+
+export type LayoutNode = LayoutItemNode | LayoutStickyNode | LayoutStrokeNode
 
 export type LayoutGroup = {
   id: string

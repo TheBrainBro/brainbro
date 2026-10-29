@@ -22,8 +22,12 @@ MAX_COORDINATE = 1_000_000
 MAX_SIZE = 10_000
 MIN_ZOOM, MAX_ZOOM = 0.01, 10
 MAX_LABEL = 500
+MAX_STICKY_TEXT = 5000
+MAX_STROKE_POINTS = 5000
+MIN_PEN, MAX_PEN = 0.5, 64
 
-NODE_TYPES = {"item"}
+# item: one of your items. sticky: text on a colored card. stroke: a pen line.
+NODE_TYPES = {"item", "sticky", "stroke"}
 # Edge looks; a missing key reads as the first of each.
 EDGE_ARROWS = ("end", "none", "both")
 EDGE_STROKES = ("solid", "dashed")
@@ -159,7 +163,33 @@ def _node(data, path, group_ids):
     }
     if node_type == "item":
         node["item"] = _uuid(data.get("item"), f"{path}.item")
+    elif node_type == "sticky":
+        text = data.get("text", "")
+        if not isinstance(text, str) or len(text) > MAX_STICKY_TEXT:
+            message = f"Text up to {MAX_STICKY_TEXT} characters."
+            raise LayoutError(f"{path}.text", message)
+        node["text"] = text
+        node["color"] = _color(data.get("color", ""), f"{path}.color")
+    elif node_type == "stroke":
+        if node["w"] is None or node["h"] is None:
+            raise LayoutError(path, "Strokes need a width and a height.")
+        node["points"] = _points(data.get("points"), f"{path}.points")
+        node["color"] = _color(data.get("color", ""), f"{path}.color")
+        node["width"] = _number(data.get("width", 2), f"{path}.width", MIN_PEN, MAX_PEN)
     return node
+
+
+def _points(value, path):
+    """A pen line: [x, y] pairs relative to the stroke's corner."""
+    points = _list(value, path, MAX_STROKE_POINTS)
+    if len(points) < 2:
+        raise LayoutError(path, "At least two points.")
+    result = []
+    for i, point in enumerate(points):
+        if not isinstance(point, list) or len(point) != 2:
+            raise LayoutError(f"{path}[{i}]", "An [x, y] pair.")
+        result.append([_number(c, f"{path}[{i}]", 0, MAX_SIZE) for c in point])
+    return result
 
 
 def _group(data, path):

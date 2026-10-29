@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-import type { EdgeData } from './layout'
+import type { EdgeData, StickyNodeData } from './layout'
 
 export type BoardActions = {
   /** Phones: pan, zoom and open items; nothing moves. */
@@ -15,6 +15,9 @@ export type BoardActions = {
   /** Takes the group away; what it held stays where it is. */
   ungroupFrame: (id: string) => void
   updateEdge: (id: string, patch: Partial<EdgeData>) => void
+  updateSticky: (id: string, patch: Partial<StickyNodeData>) => void
+  /** Types in a sticky note. */
+  editSticky: (id: string) => void
 }
 
 const nothing = () => {}
@@ -28,6 +31,8 @@ export const BoardContext = createContext<BoardActions>({
   recolorFrame: nothing,
   ungroupFrame: nothing,
   updateEdge: nothing,
+  updateSticky: nothing,
+  editSticky: nothing,
 })
 
 export function useBoardActions() {

@@ -20,7 +20,7 @@ export function FrameDraw({ onDraw }: { onDraw: (screen: Box) => void }) {
   return (
     <div
       aria-label="Draw a group"
-      className="absolute inset-0 z-10 cursor-crosshair"
+      className="absolute inset-0 z-[4] cursor-crosshair"
       onPointerDown={(event) => {
         if (event.button !== 0) return
         event.currentTarget.setPointerCapture(event.pointerId)
