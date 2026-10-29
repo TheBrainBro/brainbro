@@ -1,4 +1,13 @@
-import { Inbox, Keyboard, Library, LogOut, Search, Waypoints, type LucideIcon } from 'lucide-react'
+import {
+  Inbox,
+  Keyboard,
+  Library,
+  LogOut,
+  PackageOpen,
+  Search,
+  Waypoints,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router'
 
@@ -18,9 +27,11 @@ const sections: Section[] = [
 export function TopBar({
   onSearch,
   onShortcuts,
+  onExport,
 }: {
   onSearch: () => void
   onShortcuts: () => void
+  onExport: () => void
 }) {
   return (
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
@@ -49,7 +60,7 @@ export function TopBar({
             Search {combo('K')}
           </span>
         </button>
-        <AccountMenu onShortcuts={onShortcuts} />
+        <AccountMenu onShortcuts={onShortcuts} onExport={onExport} />
       </div>
     </header>
   )
@@ -77,7 +88,13 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
   )
 }
 
-function AccountMenu({ onShortcuts }: { onShortcuts: () => void }) {
+function AccountMenu({
+  onShortcuts,
+  onExport,
+}: {
+  onShortcuts: () => void
+  onExport: () => void
+}) {
   const { data: session } = useSession()
   const logout = useLogout()
   const [open, setOpen] = useState(false)
@@ -135,6 +152,18 @@ function AccountMenu({ onShortcuts }: { onShortcuts: () => void }) {
             <Keyboard className="size-4" aria-hidden="true" />
             <span className="mr-auto">Keyboard shortcuts</span>
             <kbd className="kbd">?</kbd>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onExport()
+            }}
+          >
+            <PackageOpen className="size-4" aria-hidden="true" />
+            Export everything
           </button>
           <button
             type="button"
