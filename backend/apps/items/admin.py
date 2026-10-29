@@ -1,7 +1,7 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 
-from .models import Collection, Item, NoteImage
+from .models import Collection, CollectionItem, Item, NoteImage
 
 
 @admin.register(Collection)
@@ -11,12 +11,18 @@ class CollectionAdmin(ModelAdmin):
     search_fields = ["name"]
 
 
+class CollectionItemInline(TabularInline):
+    model = CollectionItem
+    extra = 0
+    autocomplete_fields = ["collection"]
+
+
 @admin.register(Item)
 class ItemAdmin(ModelAdmin):
     list_display = ["__str__", "kind", "status", "preview_status", "created_at"]
     list_filter = ["kind", "status", "preview_status"]
     search_fields = ["title", "body", "url"]
-    filter_horizontal = ["collections"]
+    inlines = [CollectionItemInline]
     readonly_fields = ["created_at", "updated_at"]
 
 

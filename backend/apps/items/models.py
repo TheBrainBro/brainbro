@@ -6,6 +6,7 @@ from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.utils import timezone
 
 from apps.core.models import OwnedModel
 
@@ -52,6 +53,15 @@ class Collection(OwnedModel):
 def delete_collection_image(sender, instance, **kwargs):
     if instance.image:
         instance.image.delete(save=False)
+
+
+def rank_now():
+    """
+    Where something new goes in a hand-sorted list: lists sort by rank, highest
+    first, so now is on top. Moving an item gives it a rank between its new
+    neighbours (see `ordering`).
+    """
+    return timezone.now().timestamp()
 
 
 def preview_image_path(item, filename):
@@ -114,7 +124,11 @@ class Item(OwnedModel):
     preview_image = models.ImageField(upload_to=preview_image_path, blank=True)
     # The uploaded original, for image and file items.
     file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
-    collections = models.ManyToManyField(Collection, related_name="items", blank=True)
+    collections = models.ManyToManyField(
+        Collection, related_name="items", blank=True, through="CollectionItem"
+    )
+    # Its place in the inbox; see `rank_now`. Back to the inbox, back on top.
+    inbox_rank = models.FloatField(default=rank_now)
     # Images in an album are items of their own (their files, thumbnails and
     # URLs work as usual) that only show up through it, in `album_position`
     # order. Deleting the album deletes them.
@@ -145,6 +159,7 @@ class Item(OwnedModel):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["owner", "status", "-created_at"]),
+            models.Index(fields=["owner", "status", "-inbox_rank"]),
             GinIndex(
                 fields=["search_text"],
                 opclasses=["gin_trgm_ops"],
@@ -163,6 +178,21 @@ class Item(OwnedModel):
         """
         content = f"{self.title}\0{self.body}".encode()
         return hashlib.sha256(content).hexdigest()[:16]
+
+
+class CollectionItem(models.Model):
+    """An item in a collection, at its place there (see `rank_now`)."""
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
+    rank = models.FloatField(default=rank_now)
+
+    class Meta:
+        # The table and constraint Django made for the plain many-to-many,
+        # before it had a rank.
+        db_table = "items_item_collections"
+        unique_together = [("item", "collection")]
+        indexes = [models.Index(fields=["collection", "-rank"])]
 
 
 @receiver(post_delete, sender=Item)
