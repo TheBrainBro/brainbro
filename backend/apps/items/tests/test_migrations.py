@@ -19,3 +19,24 @@ def test_personal_collections_become_resources(transactional_db, user):
     Collection = new.get_model("items", "Collection")
     kinds = dict(Collection.objects.values_list("name", "kind"))
     assert kinds == {"Home": "resource", "Work": "project"}
+
+
+def test_ranks_keep_the_newest_first_order(transactional_db, user):
+    old = migrate_to(("items", "0007_collection_image"))
+    Item = old.get_model("items", "Item")
+    Collection = old.get_model("items", "Collection")
+    work = Collection.objects.create(owner_id=user.id, name="Work")
+    first = Item.objects.create(owner_id=user.id, kind="note", body="first")
+    second = Item.objects.create(owner_id=user.id, kind="note", body="second")
+    first.collections.add(work)
+    second.collections.add(work)
+
+    new = migrate_to(("items", "0008_ranks"))
+    Item = new.get_model("items", "Item")
+    CollectionItem = new.get_model("items", "CollectionItem")
+    inbox = list(Item.objects.order_by("-inbox_rank").values_list("body", flat=True))
+    assert inbox == ["second", "first"]
+    in_work = CollectionItem.objects.filter(collection_id=work.id).order_by("-rank")
+    assert [link.item.body for link in in_work] == ["second", "first"]
+    second = Item.objects.get(body="second")
+    assert second.inbox_rank == second.created_at.timestamp()
