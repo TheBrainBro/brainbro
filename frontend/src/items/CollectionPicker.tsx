@@ -1,3 +1,4 @@
+import { FolderPlus } from 'lucide-react'
 import { useState } from 'react'
 
 import { useCollections, useCreateCollection } from './api'
@@ -12,7 +13,8 @@ export function CollectionPicker({
   onClose,
 }: {
   count: number
-  onConfirm: (collectionIds: string[]) => void
+  /** The chosen collections, and their names for a message ("Work, Reading"). */
+  onConfirm: (collectionIds: string[], names: string) => void
   onClose: () => void
 }) {
   const collections = useCollections()
@@ -34,9 +36,14 @@ export function CollectionPicker({
     })
   }
 
+  function confirm() {
+    const names = all.filter((c) => checked.has(c.id)).map((c) => c.name)
+    onConfirm([...checked], names.join(', '))
+  }
+
   function onEnter() {
     if (!needle) {
-      if (checked.size) onConfirm([...checked])
+      if (checked.size) confirm()
       return
     }
     if (exact) {
@@ -57,7 +64,7 @@ export function CollectionPicker({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-start justify-center bg-zinc-950/30 p-4 pt-[15vh]"
+      className="backdrop flex items-start justify-center p-4 pt-[15vh]"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <div
@@ -94,9 +101,10 @@ export function CollectionPicker({
         <ul className="mt-2 max-h-64 overflow-auto">
           {visible.map((collection) => (
             <li key={collection.id}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <input
                   type="checkbox"
+                  className="accent-accent-600"
                   checked={checked.has(collection.id)}
                   onChange={() => toggle(collection.id)}
                 />
@@ -108,21 +116,27 @@ export function CollectionPicker({
               </label>
             </li>
           ))}
-          {needle && !exact && (
+          {!needle && all.length === 0 && collections.isSuccess && (
             <li className="px-2 py-1.5 text-sm text-zinc-500">
+              No collections yet: type a name to create the first one.
+            </li>
+          )}
+          {needle && !exact && (
+            <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-zinc-500">
+              <FolderPlus className="size-4" aria-hidden="true" />
               Enter to create “{query.trim()}”
             </li>
           )}
         </ul>
         <div className="mt-2 flex justify-end gap-2">
-          <button type="button" className="rounded-lg px-3 py-1.5 text-sm text-zinc-500" onClick={onClose}>
+          <button type="button" className="button-secondary px-3 py-1.5" onClick={onClose}>
             Cancel
           </button>
           <button
             type="button"
             className="button-primary px-3 py-1.5"
             disabled={checked.size === 0}
-            onClick={() => onConfirm([...checked])}
+            onClick={confirm}
           >
             Organize
           </button>
