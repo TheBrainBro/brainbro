@@ -20,12 +20,16 @@ import { AddItemsPanel } from './AddItemsPanel'
 import { boardKey, boardsKey, saveLayout, seedItems, type Board } from './api'
 import { BoardContext } from './context'
 import { ItemNode } from './ItemNode'
+import { ItemPanel } from './ItemPanel'
 import { DEFAULT_WIDTH, freeSpot, newNodeId, toFlowNodes, type ItemFlowNode } from './layout'
 import { type LayoutSaverState } from './saver'
 import { BoardSession } from './session'
 
 // Outside the component: React Flow remounts every node if this changes.
 const nodeTypes = { item: ItemNode }
+
+// Zoom to fit never blows a few cards up past their real size.
+const fitViewOptions = { maxZoom: 1 }
 
 const toolButton =
   'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800'
@@ -52,7 +56,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   // Changes and commits arrive in the same tick: commits read this, not state.
   const latest = useRef(nodes)
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
-  const [adding, setAdding] = useState(false)
+  // The right-hand panel: adding items, or one item shown whole.
+  const [panel, setPanel] = useState<{ adding: true } | { itemId: string } | null>(null)
   const [saveState, setSaveState] = useState<LayoutSaverState>({ status: 'saved' })
 
   const [session] = useState(
@@ -149,7 +154,31 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   }, [readOnly])
 
   const onBoard = useMemo(() => new Set(nodes.map((node) => node.data.itemId)), [nodes])
-  const actions = useMemo(() => ({ readOnly }), [readOnly])
+  // Stable, so cards don't re-render when the canvas does.
+  const actions = useMemo(() => {
+    function setEditing(nodeId: string | null) {
+      if (!nodeId && !latest.current.some((node) => node.data.editing)) return
+      const next = latest.current.map((node) =>
+        Boolean(node.data.editing) === (node.id === nodeId)
+          ? node
+          : { ...node, data: { ...node.data, editing: node.id === nodeId } },
+      )
+      latest.current = next
+      setNodes(next)
+    }
+    return {
+      readOnly,
+      openItem: (itemId: string) => setPanel({ itemId }),
+      startEditing: (nodeId: string) => setEditing(nodeId),
+      stopEditing: () => setEditing(null),
+    }
+  }, [readOnly])
+
+  function removeItem(itemId: string) {
+    const node = latest.current.find((candidate) => candidate.data.itemId === itemId)
+    if (node) flow.deleteElements({ nodes: [{ id: node.id }] })
+    setPanel(null)
+  }
 
   return (
     <BoardContext value={actions}>
@@ -169,10 +198,23 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           nodesConnectable={false}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
-          proOptions={{ hideAttribution: true }}
+          fitViewOptions={fitViewOptions}
+          // On a phone a tap opens the item; on a desktop a click selects.
+          onNodeClick={(_, node) => {
+            if (readOnly) actions.openItem(node.data.itemId)
+            else if (!node.data.editing) actions.stopEditing()
+          }}
+          // A note is edited in place; anything else opens in the panel.
+          onNodeDoubleClick={(_, node) => {
+            if (readOnly || node.data.editing) return
+            const item = queryClient.getQueryData<Item>(itemKey(node.data.itemId))
+            if (item?.kind === 'note') actions.startEditing(node.id)
+            else actions.openItem(node.data.itemId)
+          }}
+          onPaneClick={actions.stopEditing}
         >
           <Background variant={BackgroundVariant.Dots} gap={24} />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false} fitViewOptions={fitViewOptions} />
           {!readOnly && <MiniMap pannable zoomable />}
           {!readOnly && (
             <Panel position="top-right">
@@ -199,7 +241,9 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 <button
                   type="button"
                   className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  onClick={() => setAdding((open) => !open)}
+                  onClick={() =>
+                    setPanel((open) => (open && 'adding' in open ? null : { adding: true }))
+                  }
                 >
                   Add items
                 </button>
@@ -228,8 +272,16 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             </button>
           </div>
         )}
-        {adding && !readOnly && (
-          <AddItemsPanel onBoard={onBoard} onAdd={add} onClose={() => setAdding(false)} />
+        {panel && 'adding' in panel && !readOnly && (
+          <AddItemsPanel onBoard={onBoard} onAdd={add} onClose={() => setPanel(null)} />
+        )}
+        {panel && 'itemId' in panel && onBoard.has(panel.itemId) && (
+          <ItemPanel
+            key={panel.itemId}
+            itemId={panel.itemId}
+            onRemove={readOnly ? undefined : () => removeItem(panel.itemId)}
+            onClose={() => setPanel(null)}
+          />
         )}
       </div>
     </BoardContext>

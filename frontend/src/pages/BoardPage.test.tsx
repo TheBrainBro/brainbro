@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router'
@@ -38,6 +39,7 @@ function makeItem(overrides: Partial<Item>): Item {
 let board: Board
 let items: Item[]
 let saves: { layout: Layout; ifMatch: string | null }[]
+let patches: { id: string; body: string; ifMatch: string | null }[]
 let desktop: boolean
 
 function summary(): BoardSummary {
@@ -57,11 +59,14 @@ beforeEach(() => {
     updated_at: new Date().toISOString(),
     layout: {
       ...emptyLayout(),
-      nodes: [{ id: 'n1', type: 'item', item: placed.id, x: 0, y: 0, w: 280, h: null, parent: null }],
+      nodes: [
+        { id: 'n1', type: 'item', item: placed.id, x: 0, y: 0, w: 280, h: null, parent: null },
+      ],
     },
     items: [placed],
   }
   saves = []
+  patches = []
   desktop = true
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: desktop && query.includes('min-width'),
@@ -88,6 +93,15 @@ beforeEach(() => {
         board = { ...board, layout, revision: board.revision + 1 }
         return jsonResponse({ revision: board.revision, layout, updated_at: '' })
       }
+      const detail = url.match(/^\/api\/items\/([0-9a-f-]+)\/$/)
+      if (detail && method === 'PATCH') {
+        const { body } = JSON.parse(String(init?.body))
+        patches.push({ id: detail[1], body, ifMatch: new Headers(init?.headers).get('If-Match') })
+        const item = items.find((candidate) => candidate.id === detail[1])!
+        Object.assign(item, { body, version: `v${patches.length + 1}` })
+        return jsonResponse(item)
+      }
+      if (detail) return jsonResponse(items.find((candidate) => candidate.id === detail[1]))
       if (url.startsWith('/api/items/?')) {
         const status = new URL(url, 'http://x').searchParams.get('status')
         const results = items.filter((item) => !status || item.status === status)
@@ -153,5 +167,91 @@ describe('boards', () => {
     renderAt('/boards/b1')
     expect(await screen.findByText('On the board')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add items' })).not.toBeInTheDocument()
+  })
+})
+
+describe('board cards', () => {
+  function placeAll(extra: Item[]) {
+    items = [...items, ...extra]
+    board = {
+      ...board,
+      items: [...board.items, ...extra],
+      layout: {
+        ...board.layout,
+        nodes: [
+          ...board.layout.nodes,
+          ...extra.map((item, i) => ({
+            id: `x${i}`,
+            type: 'item' as const,
+            item: item.id,
+            // At the origin: jsdom has no size, so only cards there are "visible".
+            x: 0,
+            y: 0,
+            w: 300,
+            h: null,
+            parent: null,
+          })),
+        ],
+      },
+    }
+  }
+
+  it('shows each kind of item as its card', async () => {
+    placeAll([
+      makeItem({
+        kind: 'link',
+        url: 'https://example.com/a',
+        metadata: { title: 'A page', site_name: 'Example' },
+        preview_status: 'ready',
+      }),
+      makeItem({ kind: 'file', metadata: { filename: 'plan.pdf', mime: 'application/pdf' } }),
+      makeItem({ kind: 'image', metadata: { filename: 'sun.png' }, file_url: '/f/sun.png' }),
+      makeItem({ kind: 'note', body: '- [ ] milk', status: 'archived' }),
+    ])
+    renderAt('/boards/b1')
+    // Cards stay hidden until React Flow measures them, which jsdom can't:
+    // query by text, not by role.
+    expect((await screen.findByText('A page')).closest('a')).toHaveAttribute(
+      'href',
+      'https://example.com/a',
+    )
+    expect(screen.getByText('plan.pdf')).toBeInTheDocument()
+    // On the canvas a click selects: the image doesn't open the original.
+    expect(screen.getByText('sun.png').closest('a')).toBeNull()
+    expect(document.querySelector('input[data-task-line]')).not.toBeChecked()
+    expect(screen.getByText('Archived')).toBeInTheDocument()
+  })
+
+  it('opens an item in the side panel on double click', async () => {
+    placeAll([makeItem({ kind: 'link', url: 'https://example.com/a', title: 'A page' })])
+    renderAt('/boards/b1')
+    fireEvent.doubleClick(await screen.findByText('A page'))
+    const panel = await screen.findByRole('complementary', { name: 'Item' })
+    expect(within(panel).getByRole('link', { name: 'A page' })).toBeInTheDocument()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Remove from board' }))
+    await waitFor(() => expect(saves).toHaveLength(1))
+    expect(saves[0].layout.nodes).toHaveLength(1)
+    expect(screen.queryByRole('complementary', { name: 'Item' })).not.toBeInTheDocument()
+  })
+
+  it('edits a note in its card and saves it like the note page', async () => {
+    renderAt('/boards/b1')
+    fireEvent.doubleClick(await screen.findByText('On the board'))
+    const content = await waitFor(() => {
+      const element = document.querySelector('.cm-content')
+      expect(element).not.toBeNull()
+      return element as HTMLElement
+    })
+    const view = EditorView.findFromDOM(content)!
+    view.dispatch({ changes: { from: 0, insert: 'Written on the board' } })
+    fireEvent.keyDown(content, { key: 'Escape' })
+
+    await waitFor(() => expect(patches).toHaveLength(1))
+    expect(patches[0]).toEqual({ id: items[0].id, body: 'Written on the board', ifMatch: '"v1"' })
+    await waitFor(() => expect(document.querySelector('.cm-content')).toBeNull())
+    expect(await screen.findByText('Written on the board')).toBeInTheDocument()
+    // Editing a note is not a layout change.
+    expect(saves).toHaveLength(0)
   })
 })
