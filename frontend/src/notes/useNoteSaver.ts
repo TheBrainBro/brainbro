@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { useCapturePipeline } from '../capture/context'
 import { itemKey, itemsKey, updateNoteBody, useItem, type Item } from '../items/api'
+import { useSaveOnLeave } from '../lib/useSaveOnLeave'
 import { NoteSaver, localDrafts, type SaverState } from './saver'
 
 /**
@@ -51,27 +52,8 @@ export function useNoteSaver(
     return noteSaver
   })
 
-  useEffect(() => {
-    saver.resume()
-    const flushNow = () => saver.flush({ keepalive: true })
-    const onVisibility = () => document.visibilityState === 'hidden' && flushNow()
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Pending edits go out with keepalive on pagehide; warn only when they can't.
-      if (['offline', 'error', 'conflict'].includes(saver.status)) event.preventDefault()
-    }
-    const onOnline = () => saver.retryNow()
-    window.addEventListener('pagehide', flushNow)
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('beforeunload', onBeforeUnload)
-    window.addEventListener('online', onOnline)
-    return () => {
-      window.removeEventListener('pagehide', flushNow)
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('beforeunload', onBeforeUnload)
-      window.removeEventListener('online', onOnline)
-      saver.dispose()
-    }
-  }, [saver])
+  useEffect(() => saver.resume(), [saver])
+  useSaveOnLeave(saver)
 
   // Saved elsewhere (another tab, on focus): take it if nothing here is pending.
   // A new note is followed from the save that creates it (which re-renders).
