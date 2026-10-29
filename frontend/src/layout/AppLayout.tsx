@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 
 import { CaptureProvider } from '../capture/CaptureProvider'
 import { isEditable } from '../lib/dom'
+import { SearchPalette } from '../search/SearchPalette'
 import { ShareReceiver } from '../share/ShareReceiver'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ShortcutsDialog } from '../ui/ShortcutsDialog'
@@ -16,10 +17,17 @@ export function AppLayout() {
   // Where it would only get in the way: capturing already, or writing.
   const capturing = pathname === '/capture' || pathname.startsWith('/notes/')
   const [shortcuts, setShortcuts] = useState(false)
+  const [searching, setSearching] = useState(false)
 
-  // `?` lists the shortcuts of the screen it's pressed on.
+  // `?` lists the shortcuts of the screen it's pressed on; Ctrl/Cmd+K
+  // searches from anywhere, text fields included.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey) {
+        event.preventDefault()
+        setSearching(true)
+        return
+      }
       if (event.key !== '?' || event.metaKey || event.ctrlKey || isEditable(event.target)) return
       event.preventDefault()
       setShortcuts(true)
@@ -34,7 +42,7 @@ export function AppLayout() {
         <ViewerProvider>
           <ShareReceiver />
           <div className="flex h-full flex-col">
-            <TopBar onShortcuts={() => setShortcuts(true)} />
+            <TopBar onSearch={() => setSearching(true)} onShortcuts={() => setShortcuts(true)} />
             <main className="min-h-0 min-w-0 flex-1 overflow-auto">
               <Outlet />
             </main>
@@ -48,6 +56,7 @@ export function AppLayout() {
               </Link>
             )}
           </div>
+          {searching && <SearchPalette onClose={() => setSearching(false)} />}
           {shortcuts && (
             <ShortcutsDialog pathname={pathname} onClose={() => setShortcuts(false)} />
           )}
