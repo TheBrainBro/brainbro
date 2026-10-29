@@ -10,9 +10,25 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.3
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix, --config, backend/pyproject.toml]
         files: ^backend/
       - id: ruff-format
         args: [--config, backend/pyproject.toml]
         files: ^backend/
+
+  # Frontend: the same checks CI runs, with the project's own tools.
+  - repo: local
+    hooks:
+      - id: oxlint
+        name: oxlint
+        entry: npm --prefix frontend exec -- oxlint
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+      - id: tsc
+        name: tsc
+        entry: npm --prefix frontend run typecheck
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$|^frontend/tsconfig.*\.json$
+        pass_filenames: false
