@@ -391,3 +391,16 @@ def test_note_images_missing_from_the_disk_keep_their_link(user, tmp_path):
     assert not any(name.startswith("notes/images/") for name in names)
     assert "![x](https://x.example/1.png)" in read(archive, "notes/N.md")
     assert "images" not in manifest(archive)[str(note.id)]
+
+
+def test_collection_images_are_exported(user, tmp_path):
+    work = Collection.objects.create(owner=user, name="Work")
+    work.image.save("image.webp", ContentFile(b"RIFF....WEBP"), save=True)
+    Collection.objects.create(owner=user, name="Home")
+
+    archive, names = export(user, tmp_path)
+
+    assert f"collections/{work.id}.webp" in names
+    collections = {c["name"]: c for c in json.loads(read(archive, "collections.json"))}
+    assert collections["Work"]["image"] == f"collections/{work.id}.webp"
+    assert collections["Home"]["image"] is None
