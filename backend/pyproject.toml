@@ -1,0 +1,59 @@
+[tool.poetry]
+name = "brain-backend"
+version = "0.1.0"
+description = "Brain: segundo cerebro self-hosted"
+authors = ["Carlos Lugones <contact@carloslugones.com>"]
+readme = "../README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+django = "^6.1.2"
+djangorestframework = "^3.18.3"
+psycopg = {extras = ["binary"], version = "^3.3.6"}
+python-dotenv = "^1.2.4"
+whitenoise = "^6.12.0"
+celery = {extras = ["redis"], version = "^5.6.3"}
+django-unfold = "^0.110.0"
+gunicorn = "^26.2.0"
+requests = "^2.34.2"
+pillow = "^13.0.0"
+python-magic = "^0.4.27"
+pillow-heif = "^1.8.1"
+pypdfium2 = "^5.14.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.17.3"
+pytest = "^9.1.1"
+pytest-django = "^4.14.0"
+pre-commit = "^4.7.0"
+
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+
+[tool.ruff]
+line-length = 88
+respect-gitignore = true
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "C", # flake8-comprehensions
+    "E", # pycodestyle errors
+    "F", # pyflakes
+    "I", # isort
+    "W", # pycodestyle warnings
+]
+
+[tool.ruff.lint.isort]
+# Explicit so imports sort the same whether ruff runs from backend/ or the
+# repo root (pre-commit).
+known-first-party = ["apps", "config"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.testing"
+python_files = ["tests.py", "test_*.py", "tests_*.py"]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

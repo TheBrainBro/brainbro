@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.1-pg17
+        env:
+          POSTGRES_DB: brain
+          POSTGRES_USER: brain
+          POSTGRES_PASSWORD: brain
+        ports: ["5442:5432"]
+        options: >-
+          --health-cmd "pg_isready -U brain" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pipx install poetry==2.3.2 && pipx inject poetry poetry-plugin-export
+      - run: poetry install --no-interaction
+      - name: requirements*.txt match poetry.lock
+        run: |
+          poetry export -f requirements.txt --without-hashes | diff - requirements.txt
+          poetry export -f requirements.txt --without-hashes --only=dev | diff - requirements-dev.txt
+      - run: poetry run ruff check .
+      - run: poetry run ruff format --check .
+      - run: poetry run python manage.py makemigrations --check --dry-run
+      - run: poetry run pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t brain:ci .

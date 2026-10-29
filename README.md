@@ -26,7 +26,7 @@ docs/       documentation (deployment, etc.)
 
 ## Development
 
-Requirements: Python 3.12, Poetry 2 (with `poetry-plugin-export`), Node 24, Docker.
+Requirements: Python 3.12, Poetry 2 (with `poetry-plugin-export`), Node 24, Docker and libmagic (`brew install libmagic`; preinstalled on most Linux distros).
 
 ```bash
 make install       # dependencies + pre-commit hooks
@@ -37,6 +37,17 @@ make superuser     # create your user (in another terminal)
 Open http://localhost:5173. Vite proxies `/api` and `/admin` to Django (:8000).
 
 In development, Postgres and Redis use ports **5442** and **6389** to avoid clashing with other projects.
+
+### Trying the PWA on a phone
+
+The service worker (install, share target, offline) only runs in the production build, and phones only allow it over HTTPS. Stop `make dev` first (two Celery workers would share the queue), then:
+
+```bash
+make preview                 # build the frontend, serve it from Django on :8000, with the worker
+ngrok http 8000              # or: cloudflared tunnel --url http://localhost:8000
+```
+
+Open the tunnel's `https://` URL in Chrome (Android) or Safari (iOS), not in an in-app browser. `*.ngrok-free.app` and `*.trycloudflare.com` are allowed in the develop settings. Rebuild (`make frontend-build`) after frontend changes; the service worker picks the new build up on the next load.
 
 ```bash
 make test          # pytest + vitest

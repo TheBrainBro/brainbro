@@ -1,0 +1,96 @@
+import { Plus, Waypoints } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+
+import { useBoards, useCreateBoard } from '../boards/api'
+import { timeAgo } from '../lib/time'
+import { useFeedback } from '../ui/feedback'
+import { EmptyState, ErrorState } from '../ui/states'
+
+export function BoardsPage() {
+  const boards = useBoards()
+  const create = useCreateBoard()
+  const navigate = useNavigate()
+  const { toast } = useFeedback()
+  const [title, setTitle] = useState('')
+  const input = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      <h1 className="mb-3 text-2xl font-semibold">Boards</h1>
+      <form
+        className="mb-6 flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (!title.trim()) return
+          create.mutate(title.trim(), {
+            onSuccess: (board) => navigate(`/boards/${board.id}`),
+            onError: (error) => toast({ message: error.message, tone: 'error' }),
+          })
+        }}
+      >
+        <input
+          ref={input}
+          className="input"
+          aria-label="New board"
+          placeholder="New board"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+        <button
+          type="submit"
+          className="button-primary flex shrink-0 items-center gap-1.5"
+          disabled={!title.trim() || create.isPending}
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          Create
+        </button>
+      </form>
+
+      {boards.isPending && (
+        <div role="status" aria-label="Loading boards" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="skeleton h-28 rounded-xl" />
+          ))}
+        </div>
+      )}
+      {boards.isError && <ErrorState error={boards.error} onRetry={() => boards.refetch()} />}
+      {boards.isSuccess && boards.data.length === 0 && (
+        <EmptyState
+          icon={Waypoints}
+          title="No boards yet"
+          action={
+            <button type="button" className="button-primary" onClick={() => input.current?.focus()}>
+              Name your first board
+            </button>
+          }
+        >
+          A board is an infinite canvas: lay out notes, links and images, group them and draw the
+          connections between them.
+        </EmptyState>
+      )}
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {boards.data?.map((board) => (
+          <li key={board.id}>
+            <Link
+              to={`/boards/${board.id}`}
+              className="surface group flex h-28 flex-col justify-between px-4 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
+            >
+              <span className="flex items-start gap-2">
+                <Waypoints
+                  className="mt-0.5 size-4 shrink-0 text-zinc-400 transition group-hover:text-accent-500"
+                  aria-hidden="true"
+                />
+                <span className="line-clamp-2 font-medium">{board.title}</span>
+              </span>
+              <span className="text-xs text-zinc-500">
+                {board.item_count} {board.item_count === 1 ? 'item' : 'items'} · edited{' '}
+                {timeAgo(board.updated_at)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
