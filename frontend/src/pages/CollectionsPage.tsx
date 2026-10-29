@@ -222,7 +222,7 @@ export function CollectionPage() {
               ))}
             </ul>
           )}
-          <ItemList items={all} backToInbox mode={mode} />
+          <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
           {items.hasNextPage && (
             <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
           )}

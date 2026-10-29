@@ -72,7 +72,7 @@ export function InboxPage() {
           </ul>
         )}
 
-        <ItemList items={all} mode={mode} />
+        <ItemList items={all} mode={mode} sortable={{}} />
 
         {items.hasNextPage && (
           <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
