@@ -59,9 +59,14 @@ export function toLayout(nodes: ItemFlowNode[], viewport: Viewport, base: Layout
   }
 }
 
-/** The same positions and sizes: nothing worth saving changed. */
-export function sameNodes(a: Layout, b: Layout) {
-  return JSON.stringify(a.nodes) === JSON.stringify(b.nodes)
+/** The same nodes, groups and edges: nothing worth saving changed (the viewport alone isn't). */
+export function sameContent(a: Layout, b: Layout) {
+  return (
+    a === b ||
+    (JSON.stringify(a.nodes) === JSON.stringify(b.nodes) &&
+      JSON.stringify(a.groups) === JSON.stringify(b.groups) &&
+      JSON.stringify(a.edges) === JSON.stringify(b.edges))
+  )
 }
 
 export function newNodeId() {
