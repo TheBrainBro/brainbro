@@ -178,4 +178,22 @@ describe('InboxPage', () => {
     renderInbox()
     expect(await screen.findByText(/Inbox zero/)).toBeInTheDocument()
   })
+
+  it('lays items out as chosen, and remembers it', async () => {
+    localStorage.clear()
+    const items = [makeItem({ body: 'First' }), makeItem({ body: 'Second' })]
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(page(items))))
+    const first = renderInbox()
+    await screen.findAllByText('First')
+    fireEvent.click(screen.getByRole('radio', { name: 'Grid' }))
+    expect(screen.getAllByRole('button', { name: /^Open / })).toHaveLength(2)
+    first.unmount()
+
+    renderInbox()
+    await screen.findAllByText('First')
+    expect(screen.getByRole('radio', { name: 'Grid' })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'List' }))
+    expect(screen.getAllByRole('button', { name: /First|Second/ })).toHaveLength(2)
+    localStorage.clear()
+  })
 })
