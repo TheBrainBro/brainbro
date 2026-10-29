@@ -3,7 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Count
+from django.db.models import Count, OuterRef, Subquery
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -14,8 +14,9 @@ from rest_framework.response import Response
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .collection_images import make_collection_image
-from .models import Collection, Item, NoteImage
+from .models import Collection, CollectionItem, Item, NoteImage, rank_now
 from .note_images import MAX_PASTED_SIZE, sync_note_images
+from .ordering import move_in_collection, move_in_inbox
 from .search import find
 from .serializers import (
     ITEM_PREFETCH,
@@ -69,6 +70,13 @@ class CaptureSerializer(serializers.Serializer):
                     {"file": f"The file is too large (max {limit} MB)."}
                 ) from None
         return data
+
+
+class MoveSerializer(serializers.Serializer):
+    after = serializers.UUIDField(allow_null=True, required=False, default=None)
+    collection = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), required=False, allow_null=True
+    )
 
 
 def enqueue_preview(item):
@@ -125,17 +133,30 @@ class ItemViewSet(
         if self.action == "list":
             items = items.filter(album__isnull=True)
         params = self.request.query_params
-        if item_status := params.get("status"):
+        item_status = params.get("status")
+        if item_status:
             items = items.filter(status=item_status)
         if kinds := params.get("kind"):
             items = items.filter(kind__in=kinds.split(","))
-        if self.action == "list" and (text := params.get("q", "").strip()):
-            items = find(items, text).order_by("-rank", "-created_at")
+        searching = self.action == "list" and params.get("q", "").strip()
+        if searching:
+            items = find(items, searching).order_by("-rank", "-created_at")
         if collection := params.get("collection"):
             try:
-                items = items.filter(collections=uuid.UUID(collection))
+                collection = uuid.UUID(collection)
             except ValueError:
                 return items.none()
+            items = items.filter(collections=collection)
+            if not searching:
+                # In the order it was sorted into, by hand.
+                place = CollectionItem.objects.filter(
+                    item=OuterRef("pk"), collection=collection
+                ).values("rank")[:1]
+                items = items.annotate(place=Subquery(place)).order_by(
+                    "-place", "-created_at"
+                )
+        elif item_status == Item.Status.INBOX and not searching:
+            items = items.order_by("-inbox_rank", "-created_at")
         return items
 
     def update(self, request, *args, **kwargs):
@@ -295,10 +316,38 @@ class ItemViewSet(
                 Action.ARCHIVE: Item.Status.ARCHIVED,
                 Action.INBOX: Item.Status.INBOX,
             }[data["action"]]
+            if new_status == Item.Status.INBOX:
+                # Back in the inbox, on top; already there, it stays put.
+                items.exclude(status=Item.Status.INBOX).update(inbox_rank=rank_now())
             items.update(status=new_status, updated_at=timezone.now())
 
         updated = self.get_queryset().filter(id__in=data["ids"])
         return Response(self.get_serializer(updated, many=True).data)
+
+    @action(detail=True, methods=["post"])
+    def move(self, request, pk=None):
+        """
+        Puts the item right after `after` (an item id, or null for the top)
+        in the inbox, or in `collection` when given.
+        """
+        item = self.get_object()
+        payload = MoveSerializer(data=request.data, context={"request": request})
+        payload.is_valid(raise_exception=True)
+        after = payload.validated_data.get("after")
+        collection = payload.validated_data.get("collection")
+        if collection:
+            if not item.collections.filter(id=collection.id).exists():
+                raise serializers.ValidationError(
+                    {"collection": "The item isn't in this collection."}
+                )
+            placed = move_in_collection(item, collection, after)
+        else:
+            if item.status != Item.Status.INBOX:
+                raise serializers.ValidationError({"detail": "Not in the inbox."})
+            placed = move_in_inbox(item, after)
+        if not placed:
+            raise serializers.ValidationError({"after": "Not in the same list."})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):
