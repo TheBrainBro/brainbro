@@ -1,4 +1,4 @@
-import { Inbox, Library, LogOut, Waypoints, type LucideIcon } from 'lucide-react'
+import { Inbox, Keyboard, Library, LogOut, Waypoints, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router'
 
@@ -14,7 +14,7 @@ const sections: Section[] = [
 ]
 
 /** Logo, the three sections as icons in the middle, and the account menu. */
-export function TopBar() {
+export function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
   return (
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
       <Link
@@ -36,7 +36,7 @@ export function TopBar() {
       </nav>
 
       <div className="justify-self-end">
-        <AccountMenu />
+        <AccountMenu onShortcuts={onShortcuts} />
       </div>
     </header>
   )
@@ -64,7 +64,7 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
   )
 }
 
-function AccountMenu() {
+function AccountMenu({ onShortcuts }: { onShortcuts: () => void }) {
   const { data: session } = useSession()
   const logout = useLogout()
   const [open, setOpen] = useState(false)
@@ -109,6 +109,20 @@ function AccountMenu() {
             <div className="truncate text-sm font-medium">{username}</div>
           </div>
           <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+          {/* Phones have no keyboard to speak of. */}
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item hidden md:flex"
+            onClick={() => {
+              setOpen(false)
+              onShortcuts()
+            }}
+          >
+            <Keyboard className="size-4" aria-hidden="true" />
+            <span className="mr-auto">Keyboard shortcuts</span>
+            <kbd className="kbd">?</kbd>
+          </button>
           <button
             type="button"
             role="menuitem"
