@@ -2,7 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .models import Collection, Item
+from .search import find
 from .serializers import (
     ITEM_PREFETCH,
     AlbumSerializer,
@@ -77,6 +78,9 @@ def create_upload_item(owner, file, upload):
     return item
 
 
+SEARCH_LIMIT = 20
+
+
 class ItemViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -88,7 +92,8 @@ class ItemViewSet(
     Items of the current user. They are created through `capture`, which
     infers the type; everything else is reading and triage.
 
-    Filters: `?status=inbox|organized|archived`, `?collection=<id>`.
+    Filters: `?status=inbox|organized|archived`, `?kind=note,link`,
+    `?collection=<id>`, `?q=<text>` (sorted by relevance).
     """
 
     serializer_class = ItemSerializer
@@ -105,15 +110,8 @@ class ItemViewSet(
             items = items.filter(status=item_status)
         if kinds := params.get("kind"):
             items = items.filter(kind__in=kinds.split(","))
-        # A plain substring match for pickers; full-text search is #26.
-        if text := params.get("q", "").strip():
-            items = items.filter(
-                Q(title__icontains=text)
-                | Q(body__icontains=text)
-                | Q(url__icontains=text)
-                | Q(metadata__title__icontains=text)
-                | Q(metadata__filename__icontains=text)
-            )
+        if self.action == "list" and (text := params.get("q", "").strip()):
+            items = find(items, text).order_by("-rank", "-created_at")
         if collection := params.get("collection"):
             try:
                 items = items.filter(collections=uuid.UUID(collection))
@@ -162,6 +160,40 @@ class ItemViewSet(
         if item.preview_status == Item.PreviewStatus.PENDING:
             enqueue_preview(item)
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def search(self, request):
+        """
+        `?q=<text>`: the best matches, archived included, as
+        `[{"item", "album_image"}]`. An album's image shows up as its album,
+        with `album_image` saying which one matched.
+        """
+        text = request.query_params.get("q", "").strip()
+        if not text:
+            return Response([])
+        mine = Item.objects.filter(owner=request.user)
+        matches = find(mine, text).order_by("-rank", "-created_at")
+        found = {}
+        # More rows than needed: several images of one album take one place.
+        for item_id, album_id in matches.values_list("id", "album_id")[
+            : SEARCH_LIMIT * 5
+        ]:
+            if album_id:
+                found.setdefault(album_id, item_id)
+            else:
+                found.setdefault(item_id, None)
+            if len(found) == SEARCH_LIMIT:
+                break
+        items = mine.prefetch_related(*ITEM_PREFETCH).in_bulk(found)
+        return Response(
+            [
+                {
+                    "item": self.get_serializer(items[item_id]).data,
+                    "album_image": found[item_id],
+                }
+                for item_id in found
+            ]
+        )
 
     @action(detail=False, methods=["post"])
     def albums(self, request):
