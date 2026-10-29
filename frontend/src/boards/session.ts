@@ -3,7 +3,7 @@ import type { Viewport } from '@xyflow/react'
 import type { DraftStore } from '../lib/autosave'
 import type { Board, Layout, SavedLayout } from './api'
 import { History } from './history'
-import { sameContent, toFlowNodes, toLayout, type ItemFlowNode } from './layout'
+import { sameContent, toLayout, toScene, type Scene } from './layout'
 import { LayoutSaver, type LayoutDraft, type LayoutSaverState } from './saver'
 
 export type BoardSessionOptions = {
@@ -23,7 +23,7 @@ export type BoardSessionOptions = {
 export class BoardSession {
   readonly history: History<Layout>
   readonly saver: LayoutSaver
-  // Groups and edges are kept from here until the canvas edits them.
+  // Whatever the canvas doesn't know about is kept from here.
   private base: Layout
   private placed = false
 
@@ -51,8 +51,8 @@ export class BoardSession {
   }
 
   /** What the canvas starts with: the server's layout, or a restored draft. */
-  get initialNodes() {
-    return toFlowNodes(this.history.present)
+  get initialScene() {
+    return toScene(this.history.present)
   }
 
   /** Starts saving a restored draft, once the canvas shows it. */
@@ -61,20 +61,20 @@ export class BoardSession {
   }
 
   /** Records what the canvas shows and saves it soon; false if nothing worth saving changed. */
-  commit(nodes: ItemFlowNode[], viewport: Viewport) {
-    const layout = toLayout(nodes, viewport, this.base)
+  commit(scene: Scene, viewport: Viewport) {
+    const layout = toLayout(scene, viewport, this.base)
     if (sameContent(layout, this.history.present)) return false
     this.history.push(layout)
     this.saver.save(layout)
     return true
   }
 
-  /** Steps back or forward; the nodes to show, or undefined at either end. */
+  /** Steps back or forward; what to show, or undefined at either end. */
   travel(direction: 'undo' | 'redo', viewport: Viewport) {
     const layout = direction === 'undo' ? this.history.undo() : this.history.redo()
     if (!layout) return undefined
     this.saver.save({ ...layout, viewport })
-    return toFlowNodes(layout)
+    return toScene(layout)
   }
 
   /** Before committing a newly placed item, so the save refreshes item lists. */
@@ -82,7 +82,7 @@ export class BoardSession {
     this.placed = true
   }
 
-  /** Ends a conflict; with `theirs`, their board, whose nodes the canvas should show. */
+  /** Ends a conflict; with `theirs`, their board, whose layout the canvas should show. */
   resolve(side: 'mine' | 'theirs') {
     const theirs = this.saver.resolve(side)
     if (!theirs) return undefined

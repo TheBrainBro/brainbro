@@ -7,12 +7,14 @@ import {
   type NodeProps,
   type ReactFlowState,
 } from '@xyflow/react'
+import { Maximize2, Pencil, X } from 'lucide-react'
 import { lazy, memo, Suspense } from 'react'
 
 import type { Item } from '../items/api'
 import { ItemContent } from '../items/ItemCard'
 import { itemLabel } from '../items/label'
 import { useBoardItem } from './api'
+import { ConnectHandles } from './ConnectHandles'
 import { useBoardActions } from './context'
 import type { ItemFlowNode } from './layout'
 
@@ -31,9 +33,6 @@ const KIND_LABEL: Record<Item['kind'], string> = {
 const DETAIL_ZOOM = 0.4
 const zoomedOut = (state: ReactFlowState) => state.transform[2] < DETAIL_ZOOM
 
-const toolButton =
-  'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
-
 /** A card on the canvas for one item, read from the cache by id. */
 export const ItemNode = memo(function ItemNode({
   id,
@@ -47,7 +46,7 @@ export const ItemNode = memo(function ItemNode({
   const flow = useReactFlow()
   const editing = Boolean(data.editing) && item?.kind === 'note'
   const ring = selected
-    ? 'border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100'
+    ? 'border-accent-500 ring-2 ring-accent-500/30'
     : 'border-zinc-200 dark:border-zinc-800'
 
   return (
@@ -58,33 +57,26 @@ export const ItemNode = memo(function ItemNode({
             isVisible={selected && !editing}
             minWidth={160}
             minHeight={48}
-            color="#71717a"
+            color="#8b5cf6"
           />
           {/* Only for a single selected card (React Flow's default). */}
           <NodeToolbar isVisible={editing ? false : undefined} position={Position.Top}>
-            <div className="flex gap-0.5 rounded-lg border border-zinc-200 bg-white p-0.5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
-              <button type="button" className={toolButton} onClick={() => openItem(data.itemId)}>
-                Open
-              </button>
+            <div className="popover flex gap-0.5 p-1">
+              <ToolButton label="Open" icon={Maximize2} onClick={() => openItem(data.itemId)} />
               {item?.kind === 'note' && (
-                <button type="button" className={toolButton} onClick={() => startEditing(id)}>
-                  Edit
-                </button>
+                <ToolButton label="Edit" icon={Pencil} onClick={() => startEditing(id)} />
               )}
-              <button
-                type="button"
-                className={toolButton}
-                title="Take it off this board (the item stays)"
+              <ToolButton
+                label="Remove from board"
+                icon={X}
                 onClick={() => flow.deleteElements({ nodes: [{ id }] })}
-              >
-                Remove
-              </button>
+              />
             </div>
           </NodeToolbar>
         </>
       )}
       <article
-        className={`overflow-hidden rounded-xl border bg-white p-3 shadow-xs dark:bg-zinc-900 ${ring} ${
+        className={`overflow-hidden rounded-xl border bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:bg-zinc-900 ${ring} ${
           height ? 'h-full' : ''
         } ${item?.status === 'archived' ? 'opacity-60' : ''}`}
       >
@@ -103,9 +95,27 @@ export const ItemNode = memo(function ItemNode({
           </>
         )}
       </article>
+      {!editing && <ConnectHandles id={id} readOnly={readOnly} />}
     </>
   )
 })
+
+function ToolButton({
+  label,
+  icon: Icon,
+  onClick,
+}: {
+  label: string
+  icon: typeof X
+  onClick: () => void
+}) {
+  return (
+    <button type="button" aria-label={label} className="button-icon group size-7" onClick={onClick}>
+      <Icon className="size-4" aria-hidden="true" />
+      <span className="tooltip bottom-full mb-1">{label}</span>
+    </button>
+  )
+}
 
 export function ItemSummary({ item }: { item: Item }) {
   return (
