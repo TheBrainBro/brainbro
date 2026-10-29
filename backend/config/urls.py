@@ -8,6 +8,7 @@ api_patterns = [
     path("auth/", include("apps.accounts.urls")),
     path("", include("apps.items.urls")),
     path("", include("apps.boards.urls")),
+    path("", include("apps.exports.urls")),
 ]
 
 urlpatterns = [
