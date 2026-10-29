@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ItemList } from './ItemList'
 import type { Collection, Item } from './api'
 
@@ -79,7 +80,9 @@ function renderList() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ItemList items={items} />
+        <FeedbackProvider>
+          <ItemList items={items} />
+        </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -96,8 +99,27 @@ describe('ItemList triage', () => {
     await waitFor(() => expect(triageCalls()).toEqual([{ ids: ['b'], action: 'archive' }]))
   })
 
+  it('says what it archived and puts it back on Undo', async () => {
+    renderList()
+    fireEvent.click(within(card('Second')).getByRole('button', { name: 'Archive' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Archived 1 item')
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await waitFor(() =>
+      expect(triageCalls()).toEqual([
+        { ids: ['b'], action: 'archive' },
+        { ids: ['b'], action: 'inbox' },
+      ]),
+    )
+  })
+
+  it('shows a failed triage as an error toast', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ detail: 'Server is down.' }, 500))
+    renderList()
+    fireEvent.click(within(card('Second')).getByRole('button', { name: 'Archive' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server is down.')
+  })
+
   it('bulk deletes the selection after confirming', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderList()
     fireEvent.click(within(card('First')).getByRole('checkbox', { name: 'Select' }))
     fireEvent.click(within(card('Third')).getByRole('checkbox', { name: 'Select' }))
@@ -106,14 +128,19 @@ describe('ItemList triage', () => {
     expect(toolbar).toHaveTextContent('2 selected')
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Delete' }))
 
-    expect(confirm).toHaveBeenCalledWith('Delete 2 items?')
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 items?' })
+    expect(triageCalls()).toEqual([])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(triageCalls()).toEqual([{ ids: ['a', 'c'], action: 'delete' }]))
+    expect(await screen.findByRole('status')).toHaveTextContent('Deleted 2 items')
   })
 
-  it('does not delete when the confirmation is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('does not delete when the confirmation is cancelled', async () => {
     renderList()
     fireEvent.click(within(card('First')).getByRole('button', { name: 'Delete' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete this item?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     expect(triageCalls()).toEqual([])
   })
 
@@ -158,7 +185,9 @@ describe('ItemList tasks', () => {
     render(
       <QueryClientProvider client={new QueryClient()}>
         <MemoryRouter>
-          <ItemList items={[tasks]} />
+          <FeedbackProvider>
+            <ItemList items={[tasks]} />
+          </FeedbackProvider>
         </MemoryRouter>
       </QueryClientProvider>,
     )
