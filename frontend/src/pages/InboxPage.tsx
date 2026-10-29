@@ -18,7 +18,7 @@ import { EmptyState, ErrorState } from '../ui/states'
 export function InboxPage() {
   const items = useItems({ status: 'inbox' })
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
-  const { pending } = useCapturePipeline()
+  const pending = useCapturePipeline().pending.filter((entry) => !entry.collection)
   const navigate = useNavigate()
   const [mode, setMode] = useViewMode('inbox')
 

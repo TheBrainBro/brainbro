@@ -18,7 +18,12 @@ export type PendingCapture = {
   retryable: boolean
   /** Local object URL, so an image shows before its thumbnail exists. */
   previewUrl?: string
+  /** The collection it goes into; none for the inbox. */
+  collection?: string
 }
+
+/** A collection captures go into while it is open, instead of the inbox. */
+export type CaptureDestination = { id: string; name: string }
 
 /**
  * Per input, in order; `id` is its pending entry (gone once it succeeded).
@@ -41,6 +46,8 @@ export type CaptureOptions = {
    * its own card.
    */
   album?: boolean
+  /** Into this collection instead of the inbox. */
+  into?: CaptureDestination
   /** Right away: the pending entry of each input and skipped one, in order. */
   onQueued?: (ids: string[]) => void
   /** Each time an entry settles (again after a retry), until it succeeds or is dismissed. */
@@ -65,6 +72,8 @@ export type CapturePipeline = {
   dismiss: (id: string) => void
   /** Registers where pastes and drops go; returns the cleanup. */
   target: (target: CaptureTarget) => () => void
+  /** Pastes and drops go into this collection while registered; returns the cleanup. */
+  destination: (destination: CaptureDestination) => () => void
   /** Something capturable is dragged over the app (a registered target shows its own hint). */
   dragging: boolean
 }

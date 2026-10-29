@@ -7,9 +7,11 @@ import {
   Plus,
   type LucideIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
+import { useCapturePipeline } from '../capture/context'
+import { PendingCard } from '../capture/PendingCard'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
 import { LoadMore } from '../items/LoadMore'
@@ -138,6 +140,15 @@ export function CollectionPage() {
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
   const [mode, setMode] = useViewMode('collection')
   const missing = collections.isSuccess && !collection
+  const capture = useCapturePipeline()
+  const pending = capture.pending.filter((entry) => entry.collection === id)
+
+  // Pastes and drops while it is open land here, not in the inbox.
+  const name = collection?.name
+  const { destination } = capture
+  useEffect(() => {
+    if (name) return destination({ id, name })
+  }, [destination, id, name])
 
   return (
     <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 py-8 transition-[max-width]`}>
@@ -171,7 +182,7 @@ export function CollectionPage() {
         <>
           {items.isPending && <ItemListSkeleton mode={mode} />}
           {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-          {items.isSuccess && all.length === 0 && (
+          {items.isSuccess && all.length === 0 && pending.length === 0 && (
             <EmptyState
               icon={FolderOpen}
               title="Nothing here yet"
@@ -181,9 +192,18 @@ export function CollectionPage() {
                 </Link>
               }
             >
-              Pick <strong>Organize</strong> on an inbox item, or press <kbd className="kbd">O</kbd>{' '}
-              on it, to bring it into this collection.
+              Paste or drop anything here, or pick <strong>Organize</strong> on an inbox item, to
+              bring it into this collection.
             </EmptyState>
+          )}
+          {pending.length > 0 && (
+            <ul className="mb-3 space-y-3" aria-label="Capturing">
+              {pending.map((entry) => (
+                <li key={entry.id}>
+                  <PendingCard entry={entry} />
+                </li>
+              ))}
+            </ul>
           )}
           <ItemList items={all} backToInbox mode={mode} />
           {items.hasNextPage && (
