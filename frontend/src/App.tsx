@@ -4,16 +4,21 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './layout/AppLayout'
+import { BoardsPage } from './pages/BoardsPage'
 import { CapturePage } from './pages/CapturePage'
 import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
 import { LoginPage } from './pages/LoginPage'
-import { Placeholder } from './pages/Placeholder'
 import { SharePage } from './pages/SharePage'
 
 // The editor (CodeMirror) loads when a note is first opened, not with the inbox.
 const NotePage = lazy(() =>
   import('./pages/NotePage').then((module) => ({ default: module.NotePage })),
+)
+
+// React Flow loads with the first board opened.
+const BoardPage = lazy(() =>
+  import('./pages/BoardPage').then((module) => ({ default: module.BoardPage })),
 )
 
 const queryClient = new QueryClient({
@@ -29,9 +34,14 @@ export function AppRoutes() {
           <Route index element={<InboxPage />} />
           <Route path="capture" element={<CapturePage />} />
           <Route path="share" element={<SharePage />} />
+          <Route path="boards" element={<BoardsPage />} />
           <Route
-            path="boards"
-            element={<Placeholder title="Boards" description="The infinite canvas arrives in phase 2." />}
+            path="boards/:id"
+            element={
+              <Suspense>
+                <BoardPage />
+              </Suspense>
+            }
           />
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="collections/:id" element={<CollectionPage />} />
