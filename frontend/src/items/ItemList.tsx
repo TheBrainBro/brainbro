@@ -1,3 +1,4 @@
+import { Archive, FolderInput, Inbox, Pencil, Trash2, type LucideIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -5,7 +6,17 @@ import { isEditable } from '../lib/dom'
 import { useViewer } from '../viewer/context'
 import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
+import { ItemRow, ItemTile } from './ItemTile'
+import type { ViewMode } from './viewMode'
 import { useTriage, type Item, type TriageAction } from './api'
+
+const LAYOUT: Record<ViewMode, string> = {
+  cards: 'space-y-3',
+  list: 'space-y-1.5',
+  grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4',
+  // Columns, Pinterest-like: each card keeps its own height.
+  masonry: 'columns-1 gap-4 sm:columns-2 lg:columns-3',
+}
 
 const actionButton =
   'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
@@ -15,7 +26,15 @@ const actionButton =
  * (j/k move, Enter open a note, x select, o organize, e archive, # delete,
  * Esc clear).
  */
-export function ItemList({ items, backToInbox = false }: { items: Item[]; backToInbox?: boolean }) {
+export function ItemList({
+  items,
+  backToInbox = false,
+  mode = 'cards',
+}: {
+  items: Item[]
+  backToInbox?: boolean
+  mode?: ViewMode
+}) {
   const triage = useTriage()
   const navigate = useNavigate()
   const viewer = useViewer()
@@ -93,29 +112,32 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  function actionsFor(ids: string[], note?: Item) {
-    return (
-      <>
-        {note && (
-          <button type="button" className={actionButton} onClick={() => open(note)}>
-            Edit
-          </button>
-        )}
-        <button type="button" className={actionButton} onClick={() => run(ids, 'organize')}>
-          Organize
+  /** The triage actions: as words (cards, the selection bar), or as icons (tiles and rows). */
+  function actionsFor(ids: string[], note?: Item, icons = false) {
+    const all: { label: string; icon: LucideIcon; run: () => void }[] = [
+      ...(note ? [{ label: 'Edit', icon: Pencil, run: () => open(note) }] : []),
+      { label: 'Organize', icon: FolderInput, run: () => run(ids, 'organize') },
+      ...(backToInbox ? [{ label: 'To inbox', icon: Inbox, run: () => run(ids, 'inbox') }] : []),
+      { label: 'Archive', icon: Archive, run: () => run(ids, 'archive') },
+      { label: 'Delete', icon: Trash2, run: () => run(ids, 'delete') },
+    ]
+    return all.map(({ label, icon: Icon, run: action }) =>
+      icons ? (
+        <button
+          key={label}
+          type="button"
+          aria-label={label}
+          title={label}
+          className="button-icon size-7"
+          onClick={action}
+        >
+          <Icon className="size-4" aria-hidden="true" />
         </button>
-        {backToInbox && (
-          <button type="button" className={actionButton} onClick={() => run(ids, 'inbox')}>
-            To inbox
-          </button>
-        )}
-        <button type="button" className={actionButton} onClick={() => run(ids, 'archive')}>
-          Archive
+      ) : (
+        <button key={label} type="button" className={actionButton} onClick={action}>
+          {label}
         </button>
-        <button type="button" className={actionButton} onClick={() => run(ids, 'delete')}>
-          Delete
-        </button>
-      </>
+      ),
     )
   }
 
@@ -140,31 +162,49 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
         </p>
       )}
 
-      <ul className="space-y-3">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            ref={(element) => {
-              if (element) cards.current.set(item.id, element)
-              else cards.current.delete(item.id)
-            }}
-            onMouseDown={() => setFocused(item.id)}
-          >
-            <ItemCard
-              item={item}
-              selected={selected.has(item.id)}
-              focused={focused === item.id}
-              onToggleSelect={() => toggle(item.id)}
-              onOpen={item.kind === 'note' ? () => open(item) : undefined}
-              onView={() => open(item)}
-              actions={
-                <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                  {actionsFor([item.id], item.kind === 'note' ? item : undefined)}
-                </div>
-              }
-            />
-          </li>
-        ))}
+      <ul className={LAYOUT[mode]}>
+        {items.map((item) => {
+          const note = item.kind === 'note' ? item : undefined
+          const shared = {
+            item,
+            selected: selected.has(item.id),
+            focused: focused === item.id,
+            onToggleSelect: () => toggle(item.id),
+          }
+          const icons = (
+            <div className="popover flex gap-0.5 p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+              {actionsFor([item.id], note, true)}
+            </div>
+          )
+          return (
+            <li
+              key={item.id}
+              className={mode === 'masonry' ? 'mb-4 break-inside-avoid' : undefined}
+              ref={(element) => {
+                if (element) cards.current.set(item.id, element)
+                else cards.current.delete(item.id)
+              }}
+              onMouseDown={() => setFocused(item.id)}
+            >
+              {mode === 'grid' ? (
+                <ItemTile {...shared} onOpen={() => open(item)} actions={icons} />
+              ) : mode === 'list' ? (
+                <ItemRow {...shared} onOpen={() => open(item)} actions={icons} />
+              ) : (
+                <ItemCard
+                  {...shared}
+                  onOpen={note ? () => open(item) : undefined}
+                  onView={() => open(item)}
+                  actions={
+                    <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                      {actionsFor([item.id], note)}
+                    </div>
+                  }
+                />
+              )}
+            </li>
+          )
+        })}
       </ul>
 
       {organizing && (

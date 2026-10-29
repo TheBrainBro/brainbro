@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router'
 
 import { ItemList } from '../items/ItemList'
 import { useCollections, useCreateCollection, useItems, type CollectionKind } from '../items/api'
+import { MODE_WIDTH, useViewMode } from '../items/viewMode'
+import { ViewModeSwitch } from '../items/ViewModeSwitch'
 
 const kinds: { value: CollectionKind; label: string }[] = [
   { value: 'project', label: 'Project' },
@@ -91,15 +93,23 @@ export function CollectionPage() {
   const items = useItems({ collection: id })
   const collection = collections.data?.find((c) => c.id === id)
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
+  const [mode, setMode] = useViewMode('collection')
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 py-8 transition-[max-width]`}>
       <Link to="/collections" className="text-sm text-zinc-500 hover:underline">
         ← Collections
       </Link>
-      <h1 className="mt-1 mb-4 text-2xl font-semibold">{collection?.name ?? 'Collection'}</h1>
-      {items.isSuccess && all.length === 0 && <p className="text-zinc-500">Nothing here yet.</p>}
-      <ItemList items={all} backToInbox />
+      <div className="mt-1 mb-4 flex items-center gap-2">
+        <h1 className="mr-auto text-2xl font-semibold">{collection?.name ?? 'Collection'}</h1>
+        <ViewModeSwitch mode={mode} onChange={setMode} />
+      </div>
+      {items.isSuccess && all.length === 0 && (
+        <p className="py-12 text-center text-zinc-500">
+          Nothing here yet. Organize items from the inbox into this collection.
+        </p>
+      )}
+      <ItemList items={all} backToInbox mode={mode} />
       {items.hasNextPage && (
         <button
           type="button"
