@@ -12,16 +12,23 @@ from rest_framework.response import Response
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
-from .models import Collection, Item
+from .models import Collection, Item, NoteImage
+from .note_images import MAX_PASTED_SIZE, sync_note_images
 from .search import find
 from .serializers import (
     ITEM_PREFETCH,
     AlbumSerializer,
     CollectionSerializer,
     ItemSerializer,
+    NoteImageSerializer,
     TriageSerializer,
 )
-from .tasks import fetch_link_preview, generate_thumbnail
+from .tasks import (
+    fetch_link_preview,
+    fetch_note_images,
+    generate_thumbnail,
+    make_note_image_display,
+)
 from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
@@ -61,6 +68,11 @@ def enqueue_preview(item):
     # After commit, so the worker never looks for a row it can't see yet.
     task = fetch_link_preview if item.kind == Item.Kind.LINK else generate_thumbnail
     transaction.on_commit(lambda: task.delay(str(item.id)))
+
+
+def sync_images(note):
+    if sync_note_images(note):
+        transaction.on_commit(lambda: fetch_note_images.delay(str(note.id)))
 
 
 def create_upload_item(owner, file, upload):
@@ -140,6 +152,11 @@ class ItemViewSet(
                     )
             return super().update(request, *args, **kwargs)
 
+    def perform_update(self, serializer):
+        item = serializer.save()
+        if item.kind == Item.Kind.NOTE and "body" in serializer.validated_data:
+            sync_images(item)
+
     @action(detail=False, methods=["post"])
     def capture(self, request):
         """
@@ -157,6 +174,8 @@ class ItemViewSet(
             if fields["kind"] == Item.Kind.LINK:
                 fields["preview_status"] = Item.PreviewStatus.PENDING
             item = Item.objects.create(owner=request.user, **fields)
+            if item.kind == Item.Kind.NOTE:
+                sync_images(item)
         if item.preview_status == Item.PreviewStatus.PENDING:
             enqueue_preview(item)
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
@@ -315,6 +334,65 @@ class ItemViewSet(
         )
         response["X-Content-Type-Options"] = "nosniff"
         response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+
+class NoteImageUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(allow_empty_file=False)
+
+    def validate(self, data):
+        limit = MAX_PASTED_SIZE // (1024 * 1024)
+        too_large = {"file": f"The image is too large (max {limit} MB)."}
+        if data["file"].size > MAX_PASTED_SIZE:
+            raise serializers.ValidationError(too_large)
+        try:
+            data["upload"] = inspect_upload(data["file"])
+        except UploadTooLarge:
+            raise serializers.ValidationError(too_large) from None
+        if data["upload"].kind != Item.Kind.IMAGE:
+            raise serializers.ValidationError({"file": "Only images can go in a note."})
+        return data
+
+
+class NoteImageViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """
+    Images pasted or dropped into a note are uploaded here first; the note
+    then links them by the returned `src`. `file` serves the copy the app
+    shows of any image in a note, pasted or remote.
+    """
+
+    serializer_class = NoteImageSerializer
+
+    def get_queryset(self):
+        return NoteImage.objects.filter(owner=self.request.user)
+
+    def create(self, request):
+        payload = NoteImageUploadSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        upload = data["upload"]
+        # Unused until a note saves the link to it.
+        image = NoteImage(
+            owner=request.user,
+            source=NoteImage.Source.PASTED,
+            metadata=upload.metadata,
+            unused_since=timezone.now(),
+        )
+        image.src = f"attachments/{image.id}.{upload.extension}"
+        image.original.save(f"original.{upload.extension}", data["file"], save=False)
+        image.save()
+        transaction.on_commit(lambda: make_note_image_display.delay(str(image.id)))
+        return Response(self.get_serializer(image).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def file(self, request, pk=None):
+        image = self.get_object()
+        if not image.image:
+            raise Http404
+        response = FileResponse(image.image.open("rb"), content_type="image/webp")
+        response["X-Content-Type-Options"] = "nosniff"
+        # The URL carries a per-file version, so the content never changes.
         response["Cache-Control"] = "private, max-age=31536000, immutable"
         return response
 
