@@ -155,6 +155,16 @@ function Retry({ item }: { item: Item }) {
   )
 }
 
+/** What was written about an image or album when it was captured. */
+function Caption({ text }: { text: string }) {
+  if (!text.trim()) return null
+  return (
+    <p className="mt-2 line-clamp-4 text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+      {text}
+    </p>
+  )
+}
+
 function ImagePreview({
   item,
   actions,
@@ -194,6 +204,7 @@ function ImagePreview({
           </div>
         )}
       </Viewable>
+      <Caption text={item.body} />
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
         <Time iso={item.created_at} />
         {item.preview_status === 'failed' && (
@@ -336,6 +347,7 @@ function AlbumPreview({
           </div>
         ))}
       </Viewable>
+      <Caption text={item.body} />
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
         <span>{images.length} images</span>
         <span aria-hidden>·</span>
