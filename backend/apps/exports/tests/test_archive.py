@@ -7,7 +7,7 @@ from django.core.files.base import ContentFile
 
 from apps.boards.models import Board
 from apps.exports.archive import write_export
-from apps.items.models import Collection, Item
+from apps.items.models import Collection, Item, NoteImage
 
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=UTC)
 ROOT = "brain-export-2026-10-29/"
@@ -298,3 +298,96 @@ def test_only_the_owners_data_and_the_readme(user, other_user, tmp_path):
     data = json.loads(read(archive, "items.json"))
     assert (data["export_version"], data["items"]) == (1, [])
     assert json.loads(read(archive, "collections.json")) == []
+
+
+def note_image(owner, note, src, source="remote", content=b"RIFFcopy", **fields):
+    image = NoteImage.objects.create(
+        owner=owner, note=note, source=source, src=src, status="ready", **fields
+    )
+    if source == "pasted":
+        image.original.save("original.png", ContentFile(content))
+    else:
+        image.image.save("copy.webp", ContentFile(content))
+    return image
+
+
+def test_note_images_go_next_to_the_note(user, tmp_path):
+    body = (
+        "Intro ![a](https://x.example/a.png) and ![b](<https://x.example/b c.png>)\n\n"
+        "![pasted](attachments/{pasted}.png)\n\n"
+        "![missing](https://x.example/pending.png) [link](https://x.example/a.png)\n"
+    )
+    note = Item.objects.create(owner=user, kind="note", title="Trip", body="")
+    pasted = note_image(user, note, "", source="pasted", content=b"\x89PNG original")
+    pasted.src = f"attachments/{pasted.id}.png"
+    pasted.save()
+    note.body = body.format(pasted=pasted.id)
+    note.save()
+    note_image(user, note, "https://x.example/a.png", content=b"RIFFa")
+    note_image(user, note, "https://x.example/b%20c.png", content=b"RIFFb")
+    NoteImage.objects.create(
+        owner=user, note=note, source="remote", src="https://x.example/pending.png"
+    )
+    # Pasted but no longer linked: not exported.
+    note_image(user, note, "attachments/unused.png", source="pasted")
+
+    archive, names = export(user, tmp_path)
+
+    assert {
+        "notes/Trip.md",
+        "notes/images/Trip/01.webp",
+        "notes/images/Trip/02.webp",
+        f"notes/attachments/{pasted.id}.png",
+    } <= names
+    assert not any("unused" in name for name in names)
+    assert archive.read(ROOT + "notes/images/Trip/02.webp") == b"RIFFb"
+    assert archive.read(ROOT + f"notes/attachments/{pasted.id}.png") == (
+        b"\x89PNG original"
+    )
+    text = read(archive, "notes/Trip.md")
+    assert (
+        "Intro ![a](images/Trip/01.webp) and ![b](images/Trip/02.webp)\n\n"
+        f"![pasted](attachments/{pasted.id}.png)\n\n"
+        "![missing](https://x.example/pending.png) [link](https://x.example/a.png)\n"
+    ) in text
+    entry = manifest(archive)[str(note.id)]
+    assert entry["body"] == note.body
+    assert entry["images"] == [
+        {"src": "https://x.example/a.png", "path": "notes/images/Trip/01.webp"},
+        {"src": "https://x.example/b%20c.png", "path": "notes/images/Trip/02.webp"},
+        {
+            "src": f"attachments/{pasted.id}.png",
+            "path": f"notes/attachments/{pasted.id}.png",
+        },
+    ]
+
+
+def test_note_image_folders_follow_the_notes_name(user, tmp_path):
+    first = Item.objects.create(
+        owner=user,
+        kind="note",
+        title="Ideas: big",
+        body="![x](https://x.example/1.png)",
+    )
+    note_image(user, first, "https://x.example/1.png")
+    plain = Item.objects.create(owner=user, kind="note", title="Plain", body="text")
+
+    archive, names = export(user, tmp_path)
+
+    assert "notes/images/Ideas big/01.webp" in names
+    assert "![x](images/Ideas%20big/01.webp)" in read(archive, "notes/Ideas big.md")
+    assert "images" not in manifest(archive)[str(plain.id)]
+
+
+def test_note_images_missing_from_the_disk_keep_their_link(user, tmp_path):
+    note = Item.objects.create(
+        owner=user, kind="note", title="N", body="![x](https://x.example/1.png)"
+    )
+    image = note_image(user, note, "https://x.example/1.png")
+    image.image.storage.delete(image.image.name)
+
+    archive, names = export(user, tmp_path)
+
+    assert not any(name.startswith("notes/images/") for name in names)
+    assert "![x](https://x.example/1.png)" in read(archive, "notes/N.md")
+    assert "images" not in manifest(archive)[str(note.id)]
