@@ -142,5 +142,16 @@ export function dropSpot(point: { x: number; y: number }, width: number, nodes: 
   return freeSpot({ x: point.x, y: point.y - GRAB_Y + UNMEASURED_HEIGHT / 2 }, width, nodes)
 }
 
+/** Where several cards dropped together go: the first under the pointer, the rest below it. */
+export function dropSpots(point: { x: number; y: number }, widths: number[], nodes: Placed[]) {
+  const taken = [...nodes]
+  return widths.map((width, index) => {
+    const below = { x: point.x, y: point.y + index * (UNMEASURED_HEIGHT + GAP) }
+    const position = dropSpot(below, width, taken)
+    taken.push({ position, width })
+    return position
+  })
+}
+
 /** What an item dragged onto the canvas carries (from the Add items panel). */
 export const ITEM_DRAG_TYPE = 'application/x-brain-item'
