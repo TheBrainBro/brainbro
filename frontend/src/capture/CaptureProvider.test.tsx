@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { useEffect, type ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,6 +9,7 @@ import { InboxPage } from '../pages/InboxPage'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { CaptureProvider } from './CaptureProvider'
 import { claimEvent } from './claims'
+import { useCapturePipeline } from './context'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -123,14 +125,21 @@ function serverCreates(xhr: FakeXHR, overrides: Partial<Item>) {
   xhr.respond(201, item)
 }
 
-function renderApp() {
+/** Stands in for an open collection page. */
+function OpenCollection() {
+  const { destination } = useCapturePipeline()
+  useEffect(() => destination({ id: 'work', name: 'Work' }), [destination])
+  return null
+}
+
+function renderApp(page: ReactNode = <InboxPage />) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <FeedbackProvider>
           <CaptureProvider>
-            <InboxPage />
+            {page}
           </CaptureProvider>
         </FeedbackProvider>
       </MemoryRouter>
@@ -340,6 +349,34 @@ describe('CaptureProvider', () => {
     )
     expect(screen.queryByRole('status')).toBeNull()
     expect(await screen.findByText(/Inbox zero/)).toBeInTheDocument()
+  })
+
+  it('captures into the open collection instead of the inbox', async () => {
+    setUp()
+    renderApp(
+      <>
+        <OpenCollection />
+        <InboxPage />
+      </>,
+    )
+    await screen.findByLabelText('Capture')
+
+    const paste = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(paste, 'clipboardData', {
+      value: { types: ['text/plain'], getData: () => 'Call Ana' },
+    })
+    act(() => {
+      window.dispatchEvent(paste)
+    })
+    // Its card isn't the inbox's.
+    expect(screen.queryByRole('list', { name: 'Capturing' })).not.toBeInTheDocument()
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Captured 1 item into Work')
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === '/api/items/capture/')!
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      text: 'Call Ana',
+      collection: 'work',
+    })
   })
 
   it('lets text fields keep text pastes but captures pasted files', async () => {
