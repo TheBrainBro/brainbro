@@ -12,6 +12,11 @@ from apps.core.models import OwnedModel
 from . import search
 
 
+def collection_image_path(collection, filename):
+    # A fresh name per upload, so a new image never hits a stale cache.
+    return f"collections/{collection.id}/{uuid.uuid4().hex}.webp"
+
+
 class Collection(OwnedModel):
     """
     A named group of items, following PARA: a project (a goal with an end),
@@ -28,6 +33,8 @@ class Collection(OwnedModel):
     # Hex color (#rrggbb) and an emoji or icon name, both optional.
     color = models.CharField(max_length=7, blank=True)
     icon = models.CharField(max_length=32, blank=True)
+    # An uploaded square image; shown instead of the icon when set.
+    image = models.ImageField(upload_to=collection_image_path, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -39,6 +46,12 @@ class Collection(OwnedModel):
 
     def __str__(self):
         return self.name
+
+
+@receiver(post_delete, sender=Collection)
+def delete_collection_image(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
 
 
 def preview_image_path(item, filename):

@@ -1,7 +1,8 @@
 import uuid
 
 from django.conf import settings
-from django.db import transaction
+from django.core.files.base import ContentFile
+from django.db import models, transaction
 from django.db.models import Count
 from django.http import FileResponse, Http404
 from django.utils import timezone
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
+from .collection_images import make_collection_image
 from .models import Collection, Item, NoteImage
 from .note_images import MAX_PASTED_SIZE, sync_note_images
 from .search import find
@@ -406,6 +408,22 @@ class NoteImageViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return response
 
 
+class CollectionDeleteSerializer(serializers.Serializer):
+    """What happens to the items that are in no other collection."""
+
+    class Items(models.TextChoices):
+        INBOX = "inbox"  # back to the inbox, to sort again
+        ARCHIVE = "archive"
+        DELETE = "delete"
+
+    items = serializers.ChoiceField(choices=Items.choices, default=Items.INBOX)
+
+
+class CollectionImageSerializer(serializers.Serializer):
+    # Checked by make_collection_image, size first.
+    file = serializers.FileField(allow_empty_file=False)
+
+
 class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
 
@@ -416,3 +434,70 @@ class CollectionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        `?items=inbox|archive|delete` (inbox by default) says what happens to
+        the items only in this collection. Items in other collections too
+        just leave this one. Archived items stay archived unless deleted.
+        """
+        options = CollectionDeleteSerializer(data=request.query_params)
+        options.is_valid(raise_exception=True)
+        Items = CollectionDeleteSerializer.Items
+        choice = options.validated_data["items"]
+        collection = self.get_object()
+
+        with transaction.atomic():
+            # Counted before filtering by this collection, or the count would
+            # only see this one.
+            only_here = (
+                Item.objects.filter(owner=request.user)
+                .annotate(placed=Count("collections"))
+                .filter(collections=collection, placed=1)
+            )
+            ids = list(only_here.values_list("id", flat=True))
+            orphans = Item.objects.filter(id__in=ids)
+            if choice == Items.DELETE:
+                # Per-object signals still run, so their files are removed.
+                orphans.delete()
+            else:
+                new_status = {
+                    Items.INBOX: Item.Status.INBOX,
+                    Items.ARCHIVE: Item.Status.ARCHIVED,
+                }[choice]
+                orphans.filter(status=Item.Status.ORGANIZED).update(
+                    status=new_status, updated_at=timezone.now()
+                )
+            collection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get", "post", "delete"])
+    def image(self, request, pk=None):
+        """GET the image, POST a new one (multipart `file`), DELETE it."""
+        collection = self.get_object()
+        if request.method == "GET":
+            if not collection.image:
+                raise Http404
+            response = FileResponse(
+                collection.image.open("rb"), content_type="image/webp"
+            )
+            # The URL carries a per-file version, so the content never changes.
+            response["Cache-Control"] = "private, max-age=31536000, immutable"
+            return response
+
+        old = collection.image.name if collection.image else None
+        if request.method == "POST":
+            upload = CollectionImageSerializer(data=request.data)
+            upload.is_valid(raise_exception=True)
+            data = make_collection_image(upload.validated_data["file"])
+            if data is None:
+                raise serializers.ValidationError(
+                    {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
+                )
+            collection.image.save("image.webp", ContentFile(data), save=True)
+        else:
+            collection.image = ""
+            collection.save(update_fields=["image", "updated_at"])
+        if old:
+            collection.image.storage.delete(old)
+        return Response(self.get_serializer(self.get_queryset().get(pk=pk)).data)

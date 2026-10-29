@@ -15,6 +15,8 @@ class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
 class CollectionSerializer(serializers.ModelSerializer):
     # Annotated by the viewset; absent on freshly created collections.
     item_count = serializers.IntegerField(read_only=True, default=0)
+    # Set through `POST /collections/<id>/image/`.
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Collection
@@ -24,11 +26,19 @@ class CollectionSerializer(serializers.ModelSerializer):
             "kind",
             "color",
             "icon",
+            "image_url",
             "item_count",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+    def get_image_url(self, collection):
+        if not collection.image:
+            return None
+        # Authenticated, and the file name busts the cache.
+        path = reverse("collection-image", args=[collection.id])
+        return f"{path}?v={collection.image.name.rsplit('/', 1)[-1]}"
 
     def validate_color(self, value):
         if value and not (
