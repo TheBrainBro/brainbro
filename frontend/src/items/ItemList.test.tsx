@@ -77,13 +77,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderList(mode?: ViewMode) {
+function renderList(mode?: ViewMode, sortable?: { collection?: string }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <FeedbackProvider>
-          <ItemList items={items} mode={mode} />
+          <ItemList items={items} mode={mode} sortable={sortable} />
         </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -214,6 +214,48 @@ describe('ItemList triage', () => {
       ]),
     )
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+function moveCalls() {
+  return fetchMock.mock.calls
+    .filter(([url]) => String(url).endsWith('/move/'))
+    .map(([url, init]) => [url, JSON.parse(String((init as RequestInit).body))])
+}
+
+describe('ItemList sorting', () => {
+  const transfer = () => ({ effectAllowed: '', dropEffect: '', setData: () => {} })
+
+  it('drags an item between two others', async () => {
+    renderList('cards', {})
+    const first = card('First').closest('li')!
+    const third = card('Third').closest('li')!
+    const dataTransfer = transfer()
+    fireEvent.dragStart(first, { dataTransfer })
+    // jsdom has no pointer position for drags: it lands before Third.
+    fireEvent.dragOver(third, { dataTransfer })
+    fireEvent.drop(third, { dataTransfer })
+    fireEvent.dragEnd(first, { dataTransfer })
+
+    await waitFor(() => expect(moveCalls()).toEqual([['/api/items/a/move/', { after: 'b' }]]))
+  })
+
+  it('moves the focused item with Alt+arrows, within its collection', async () => {
+    renderList('cards', { collection: 'work' })
+    fireEvent.mouseDown(card('Second'))
+    fireEvent.keyDown(window, { key: 'ArrowUp', altKey: true })
+    fireEvent.keyDown(window, { key: 'ArrowDown', altKey: true })
+    await waitFor(() =>
+      expect(moveCalls()).toEqual([
+        ['/api/items/b/move/', { after: null, collection: 'work' }],
+        ['/api/items/b/move/', { after: 'c', collection: 'work' }],
+      ]),
+    )
+  })
+
+  it("isn't draggable outside a hand-sorted list", () => {
+    renderList()
+    expect(card('First').closest('li')).toHaveAttribute('draggable', 'false')
   })
 })
 
