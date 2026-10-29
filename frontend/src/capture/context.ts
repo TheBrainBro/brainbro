@@ -35,6 +35,21 @@ export type CaptureOptions = {
    * errors resolve as `deferred` instead of leaving a failed card.
    */
   retryLater?: boolean
+  /** Right away: the pending entry of each input and skipped one, in order. */
+  onQueued?: (ids: string[]) => void
+  /** Each time an entry settles (again after a retry), until it succeeds or is dismissed. */
+  onSettled?: (result: CaptureResult) => void
+}
+
+/**
+ * Where pastes and drops go instead of the inbox while it is registered (an
+ * open board). Pastes outside text fields are its own; drops only on its
+ * element.
+ */
+export type CaptureTarget = {
+  contains: (node: Node) => boolean
+  /** `at`: where it was dropped, in client coordinates; null for a paste. */
+  capture: (found: CaptureInputs, at: { x: number; y: number } | null) => void
 }
 
 export type CapturePipeline = {
@@ -42,6 +57,10 @@ export type CapturePipeline = {
   capture: (found: CaptureInputs, options?: CaptureOptions) => Promise<CaptureResult[]>
   retry: (id: string) => void
   dismiss: (id: string) => void
+  /** Registers where pastes and drops go; returns the cleanup. */
+  target: (target: CaptureTarget) => () => void
+  /** Something capturable is dragged over the app (a registered target shows its own hint). */
+  dragging: boolean
 }
 
 export const CaptureContext = createContext<CapturePipeline | null>(null)
