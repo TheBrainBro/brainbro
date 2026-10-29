@@ -6,6 +6,7 @@ import { itemsKey, makeAlbum, ungroupAlbum, type Item } from '../items/api'
 import { api, ApiError, upload } from '../lib/api'
 import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
+import { useFeedback, type Toast } from '../ui/feedback'
 import {
   CaptureContext,
   type CaptureOptions,
@@ -17,6 +18,7 @@ import { isCapturableDrag, toCaptureInputs, type CaptureInput, type CaptureInput
 
 const MAX_PARALLEL_UPLOADS = 3
 const TOAST_MS = 6000
+const CAPTURE_TOAST = 'capture'
 
 type Batch = {
   id: string
@@ -60,6 +62,7 @@ function isTransient(error: unknown) {
  */
 export function CaptureProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
+  const feedback = useFeedback()
   const { data: session } = useSession()
   const maxSize = session?.limits?.upload_max_size
 
@@ -335,6 +338,19 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     return () => setTarget((current) => (current === next ? null : current))
   }, [])
 
+  // One toast for the batch on screen, kept in step with it.
+  const showToast = useEffectEvent((batch: Batch | null) => {
+    if (!batch) return feedback.dismissToast(CAPTURE_TOAST)
+    feedback.toast(
+      batchToast(
+        batch,
+        () => undoBatch(batches.current.get(batch.id)!),
+        () => separate(batches.current.get(batch.id)!),
+      ),
+    )
+  })
+  useEffect(() => showToast(toast), [toast])
+
   // The toast stays while the batch is in flight, then a few seconds more.
   useEffect(() => {
     if (!toast?.settled) return
@@ -442,13 +458,6 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     <CaptureContext value={{ pending, capture, retry, dismiss, target: register, dragging }}>
       {children}
       {dragging && !target && <DropOverlay />}
-      {toast && (
-        <CaptureToast
-          batch={toast}
-          onUndo={() => undoBatch(batches.current.get(toast.id)!)}
-          onSeparate={() => separate(batches.current.get(toast.id)!)}
-        />
-      )}
     </CaptureContext>
   )
 }
@@ -463,15 +472,8 @@ function DropOverlay() {
   )
 }
 
-function CaptureToast({
-  batch,
-  onUndo,
-  onSeparate,
-}: {
-  batch: Batch
-  onUndo: () => void
-  onSeparate: () => void
-}) {
+/** What the toast says about a batch, and what it offers (Undo, Separate). */
+function batchToast(batch: Batch, onUndo: () => void, onSeparate: () => void): Toast {
   const done = batch.created.length
   const later = batch.deferred.length
   const count = (n: number) => (n === 1 ? '1 item' : `${n} items`)
@@ -490,38 +492,15 @@ function CaptureToast({
           : `Captured ${done} of ${batch.total}`
   const canUndo = batch.undoable && (done > 0 || !batch.settled)
 
-  return (
-    <div
-      role="status"
-      className="fixed bottom-20 left-1/2 z-50 md:bottom-4 w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
-    >
-      <div className="flex items-center gap-3">
-        <span className="mr-auto">{message}</span>
-        {batch.albumId && (
-          <button
-            type="button"
-            className="font-semibold hover:underline"
-            title="Keep them as separate images"
-            onClick={onSeparate}
-          >
-            Separate
-          </button>
-        )}
-        {canUndo && (
-          <button type="button" className="font-semibold hover:underline" onClick={onUndo}>
-            Undo
-          </button>
-        )}
-      </div>
-      {batch.failed.length > 0 && (
-        <ul className="mt-1.5 space-y-0.5 text-xs text-red-300 dark:text-red-700">
-          {batch.failed.map((failure, index) => (
-            <li key={index} className="truncate">
-              {failure.label}: {failure.error}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
+  return {
+    id: CAPTURE_TOAST,
+    message,
+    // The provider's own timer: in flight it stays, then TOAST_MS more.
+    duration: null,
+    actions: [
+      ...(batch.albumId ? [{ label: 'Separate', onClick: onSeparate }] : []),
+      ...(canUndo ? [{ label: 'Undo', onClick: onUndo }] : []),
+    ],
+    details: batch.failed.map((failure) => `${failure.label}: ${failure.error}`),
+  }
 }

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Item } from '../items/api'
 import { ItemList } from '../items/ItemList'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ViewerProvider } from './ViewerProvider'
 
 function item(id: string, fields: Partial<Item>): Item {
@@ -52,9 +53,11 @@ function renderList() {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
-        <ViewerProvider>
-          <ItemList items={items} />
-        </ViewerProvider>
+        <FeedbackProvider>
+          <ViewerProvider>
+            <ItemList items={items} />
+          </ViewerProvider>
+        </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )

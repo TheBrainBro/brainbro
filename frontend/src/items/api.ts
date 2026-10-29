@@ -158,11 +158,16 @@ export function useRefreshPreview() {
 
 export type TriageAction = 'organize' | 'archive' | 'inbox' | 'delete'
 
+export type TriagePayload = { ids: string[]; action: TriageAction; collections?: string[] }
+
+export function triageItems(payload: TriagePayload) {
+  return api<unknown>('/items/triage/', { method: 'POST', body: JSON.stringify(payload) })
+}
+
 export function useTriage() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { ids: string[]; action: TriageAction; collections?: string[] }) =>
-      api<unknown>('/items/triage/', { method: 'POST', body: JSON.stringify(payload) }),
+    mutationFn: triageItems,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: itemsKey })
       queryClient.invalidateQueries({ queryKey: collectionsKey })

@@ -33,7 +33,7 @@ describe('auth routing', () => {
   it('redirects anonymous users to the login page', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: false, user: null })))
     renderAt('/boards')
-    expect(await screen.findByText('Sign in to continue')).toBeInTheDocument()
+    expect(await screen.findByText('Sign in to your second brain')).toBeInTheDocument()
   })
 
   it('shows the app to authenticated users', async () => {
@@ -48,8 +48,27 @@ describe('auth routing', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))))
     const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     renderAt('/')
-    expect(await screen.findByText(/You're offline\. Anything you share is kept/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: "You're offline" })).toBeInTheDocument()
+    expect(screen.getByText(/Anything you share is kept on this device/)).toBeInTheDocument()
     onLine.mockRestore()
+  })
+
+  it('opens the keyboard shortcuts with ? or from the account menu, not while typing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: true, user })))
+    renderAt('/boards')
+    const input = await screen.findByRole('textbox', { name: 'New board' })
+
+    fireEvent.keyDown(input, { key: '?' })
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
+
+    fireEvent.keyDown(window, { key: '?' })
+    const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(dialog).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Keyboard shortcuts/ }))
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
   })
 
   it('goes back to the login page after signing out', async () => {
@@ -67,7 +86,7 @@ describe('auth routing', () => {
     renderAt('/boards')
     fireEvent.click(await screen.findByRole('button', { name: 'Account' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }))
-    expect(await screen.findByText('Sign in to continue')).toBeInTheDocument()
+    expect(await screen.findByText('Sign in to your second brain')).toBeInTheDocument()
   })
 
   it('logs in and sends the CSRF token', async () => {

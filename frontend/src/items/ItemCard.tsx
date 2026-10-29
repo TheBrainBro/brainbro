@@ -53,11 +53,11 @@ function LinkPreview({
       <div className="flex gap-4" aria-busy="true">
         <div className="min-w-0 flex-1 space-y-2">
           <p className="truncate text-sm text-zinc-500">{item.url}</p>
-          <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-          <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+          <div className="skeleton h-4 w-3/4" />
+          <div className="skeleton h-3 w-1/2" />
           <p className="sr-only">Fetching preview…</p>
         </div>
-        <div className="h-20 w-32 shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+        <div className="skeleton h-20 w-32 shrink-0 rounded-lg" />
       </div>
     )
   }
@@ -146,7 +146,7 @@ function Retry({ item }: { item: Item }) {
   return (
     <button
       type="button"
-      className="font-medium text-zinc-700 hover:underline disabled:opacity-50 dark:text-zinc-300"
+      className="font-medium text-accent-600 hover:underline disabled:opacity-50 dark:text-accent-400"
       disabled={refresh.isPending}
       onClick={() => refresh.mutate(item.id)}
     >
@@ -239,7 +239,7 @@ function FilePreview({
       ) : (
         item.preview_status === 'pending' && (
           <div
-            className="mb-3 h-40 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800"
+            className="skeleton mb-3 h-40 w-32 rounded-lg"
             aria-busy="true"
           >
             <span className="sr-only">Making preview…</span>
@@ -365,21 +365,22 @@ export function ItemCard({
   /** Open the item in the viewer (images, files, link previews). */
   onView?: () => void
 }) {
+  // The same selection and focus look as tiles and rows (ItemTile).
   const ring = selected
-    ? 'border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100'
+    ? 'border-accent-500 ring-2 ring-accent-500/30'
     : focused
       ? 'border-zinc-400 dark:border-zinc-600'
-      : 'border-zinc-200 dark:border-zinc-800'
+      : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'
   return (
     <article
       aria-current={focused || undefined}
-      className={`group flex gap-3 rounded-xl border bg-white p-4 shadow-xs dark:bg-zinc-900 ${ring}`}
+      className={`group flex gap-3 rounded-xl border bg-white p-4 shadow-xs transition dark:bg-zinc-900 ${ring}`}
     >
       {onToggleSelect && (
         <input
           type="checkbox"
           aria-label="Select"
-          className={`mt-1 shrink-0 self-start ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+          className={`mt-1 shrink-0 self-start accent-accent-600 transition-opacity ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
           checked={selected}
           onChange={onToggleSelect}
         />

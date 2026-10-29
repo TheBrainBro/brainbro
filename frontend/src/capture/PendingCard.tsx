@@ -1,8 +1,7 @@
+import { CircleAlert, RotateCw, X } from 'lucide-react'
+
 import { formatBytes } from '../lib/format'
 import { useCapturePipeline, type PendingCapture } from './context'
-
-const actionButton =
-  'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
 
 /** An input on its way in, or one that failed, before it is a server item. */
 export function PendingCard({ entry }: { entry: PendingCapture }) {
@@ -26,15 +25,18 @@ export function PendingCard({ entry }: { entry: PendingCapture }) {
 
         {failed ? (
           <div className="mt-2 flex items-center gap-1 text-xs">
-            <p role="alert" className="mr-auto text-red-600">
+            <p role="alert" className="mr-auto flex items-center gap-1.5 text-red-600 dark:text-red-400">
+              <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
               {entry.error}
             </p>
             {entry.retryable && (
-              <button type="button" className={actionButton} onClick={() => retry(entry.id)}>
+              <button type="button" className="button-ghost" onClick={() => retry(entry.id)}>
+                <RotateCw className="size-3.5" aria-hidden="true" />
                 Retry
               </button>
             )}
-            <button type="button" className={actionButton} onClick={() => dismiss(entry.id)}>
+            <button type="button" className="button-ghost" onClick={() => dismiss(entry.id)}>
+              <X className="size-3.5" aria-hidden="true" />
               Dismiss
             </button>
           </div>
@@ -48,12 +50,12 @@ export function PendingCard({ entry }: { entry: PendingCapture }) {
             className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
           >
             <div
-              className="h-full rounded-full bg-zinc-900 transition-[width] dark:bg-zinc-100"
+              className="h-full rounded-full bg-accent-500 transition-[width]"
               style={{ width: `${Math.max(entry.progress, 0.02) * 100}%` }}
             />
           </div>
         ) : (
-          <div className="mt-2 h-3 w-1/3 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+          <div className="skeleton mt-2 h-3 w-1/3" />
         )}
       </div>
       {entry.previewUrl && (
