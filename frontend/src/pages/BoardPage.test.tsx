@@ -441,13 +441,23 @@ describe('dropping onto the board', () => {
       'aria-valuenow',
       '50',
     )
-    const created = makeItem({ kind: 'image', metadata: { filename: 'sun.png' } })
-    items = [created, ...items]
+    const created = makeItem({
+      kind: 'image',
+      metadata: { filename: 'sun.png' },
+      preview_status: 'pending',
+    })
     FakeXHR.sent[0].respond(201, created)
+    // The worker makes the thumbnail meanwhile.
+    items = [{ ...created, preview_status: 'ready', preview_image_url: '/thumb/sun.webp' }, ...items]
 
     await waitFor(() => expect(saves).toHaveLength(1), SAVED)
     expect(saves[0].layout.nodes[1]).toMatchObject({ item: created.id, x: 470, y: 376, w: 260 })
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    // Captured after the board loaded, it still picks up its thumbnail.
+    await waitFor(
+      () => expect(document.querySelector('img[src="/thumb/sun.webp"]')).not.toBeNull(),
+      { timeout: 4000 },
+    )
   })
 
   it('leaves drops on the phone to the inbox', async () => {

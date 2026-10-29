@@ -91,12 +91,18 @@ export function seedItems(queryClient: QueryClient, items: Item[]) {
   for (const item of items) queryClient.setQueryData(itemKey(item.id), item)
 }
 
-/** One item of an open board, from the cache `useBoard` fills. */
+/**
+ * One item of an open board, from the cache `useBoard` fills. Items placed
+ * since the board loaded (just captured onto it) poll on their own until
+ * their preview or thumbnail is made.
+ */
 export function useBoardItem(id: string) {
   return useQuery({
     queryKey: itemKey(id),
     queryFn: () => api<Item>(`/items/${id}/`),
     staleTime: Infinity,
+    refetchInterval: (query) =>
+      query.state.data?.preview_status === 'pending' ? PREVIEW_POLL_MS : false,
   }).data
 }
 
