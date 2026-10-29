@@ -8,7 +8,7 @@ import { MOD } from '../lib/keys'
 /**
  * Always-visible capture: type, Enter and done (Shift+Enter for a new line).
  * Pasting or dropping anywhere is handled by the capture pipeline, with no
- * box involved. `/` or Ctrl/Cmd+K focuses the box.
+ * box involved. `/` focuses the box.
  */
 export function CaptureBox() {
   const { capture, dismiss } = useCapturePipeline()
@@ -19,10 +19,7 @@ export function CaptureBox() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      const shortcut =
-        (event.key === 'k' && (event.metaKey || event.ctrlKey)) ||
-        (event.key === '/' && !isEditable(event.target))
-      if (shortcut) {
+      if (event.key === '/' && !isEditable(event.target)) {
         event.preventDefault()
         textarea.current?.focus()
       }
