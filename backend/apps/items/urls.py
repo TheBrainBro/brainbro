@@ -4,6 +4,7 @@ from . import views
 
 router = SimpleRouter()
 router.register("items", views.ItemViewSet, basename="item")
+router.register("note-images", views.NoteImageViewSet, basename="note-image")
 router.register("collections", views.CollectionViewSet, basename="collection")
 
 urlpatterns = router.urls

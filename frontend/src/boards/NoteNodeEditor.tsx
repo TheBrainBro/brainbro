@@ -1,7 +1,8 @@
-import type { Item } from '../items/api'
+import { uploadNoteImage, type Item } from '../items/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import type { SaveStatus } from '../notes/saver'
 import { useNoteSaver } from '../notes/useNoteSaver'
+import { useFeedback } from '../ui/feedback'
 
 const STATUS: Record<SaveStatus, string> = {
   saved: 'Saved',
@@ -21,7 +22,8 @@ const actionButton =
  * saved then. Loaded on first use, with CodeMirror.
  */
 export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: () => void }) {
-  const { saver, state } = useNoteSaver(item)
+  const { saver, state, latest } = useNoteSaver(item)
+  const { toast } = useFeedback()
 
   return (
     // nodrag/nowheel/nopan: selecting text and scrolling stay in the editor.
@@ -55,6 +57,9 @@ export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: (
         autoFocus
         onChange={(body) => saver.edit(body)}
         onSave={() => saver.flush()}
+        images={(latest ?? item).images}
+        uploadImage={uploadNoteImage}
+        onUploadError={(message) => toast({ message, tone: 'error' })}
       />
       <p className="mt-1 text-xs text-zinc-500">{STATUS[state.status]} · Esc to finish</p>
     </div>

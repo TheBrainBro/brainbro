@@ -204,7 +204,7 @@ function Content({ item }: { item: Item }) {
     return (
       <div className="viewer-sheet max-w-3xl">
         {item.title && <h1 className="mb-3 text-2xl font-semibold">{item.title}</h1>}
-        <Markdown id={`viewer-${item.id}`} fill>
+        <Markdown id={`viewer-${item.id}`} fill images={item.images}>
           {item.body}
         </Markdown>
       </div>
