@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router'
 
 import { useLogin, useSession } from '../auth/session'
+import { Logo } from '../layout/Logo'
 
 export function LoginPage() {
   const { data: session } = useSession()
@@ -23,6 +24,7 @@ export function LoginPage() {
         }}
       >
         <div>
+          <Logo className="mb-4 size-10" />
           <h1 className="text-xl font-semibold">Brain</h1>
           <p className="text-sm text-zinc-500">Sign in to continue</p>
         </div>
@@ -58,7 +60,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={login.isPending || !username || !password}
-          className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+          className="button-primary w-full"
         >
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </button>
