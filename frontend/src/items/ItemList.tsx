@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { isEditable } from '../lib/dom'
+import { useViewer } from '../viewer/context'
 import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
 import { useTriage, type Item, type TriageAction } from './api'
@@ -17,6 +18,7 @@ const actionButton =
 export function ItemList({ items, backToInbox = false }: { items: Item[]; backToInbox?: boolean }) {
   const triage = useTriage()
   const navigate = useNavigate()
+  const viewer = useViewer()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focused, setFocused] = useState<string | null>(null)
   const [organizing, setOrganizing] = useState<string[] | null>(null)
@@ -40,8 +42,11 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
     triage.mutate({ ids, action }, { onSuccess: () => setSelected(new Set()) })
   }
 
+  /** Notes open in the editor; anything else in the viewer, stepping through this list. */
   function open(item: Item | undefined) {
-    if (item?.kind === 'note') navigate(`/notes/${item.id}`)
+    if (!item) return
+    if (item.kind === 'note') navigate(`/notes/${item.id}`)
+    else viewer.open(items, items.indexOf(item))
   }
 
   function toggle(id: string) {
@@ -151,6 +156,7 @@ export function ItemList({ items, backToInbox = false }: { items: Item[]; backTo
               focused={focused === item.id}
               onToggleSelect={() => toggle(item.id)}
               onOpen={item.kind === 'note' ? () => open(item) : undefined}
+              onView={() => open(item)}
               actions={
                 <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                   {actionsFor([item.id], item.kind === 'note' ? item : undefined)}

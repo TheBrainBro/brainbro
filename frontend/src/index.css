@@ -278,3 +278,16 @@ body {
     pointer-events: none !important;
   }
 }
+
+/* The full-screen item viewer: always dark, whatever the theme. */
+@layer components {
+  .viewer-button {
+    @apply inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-100 transition hover:bg-white/20;
+  }
+  .viewer-icon {
+    @apply inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-zinc-100 transition hover:bg-white/20 disabled:opacity-30;
+  }
+  .viewer-sheet {
+    @apply max-h-full w-full overflow-auto rounded-2xl bg-white p-8 text-zinc-900 shadow-2xl dark:bg-zinc-900 dark:text-zinc-100;
+  }
+}
