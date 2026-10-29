@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "brain-backend"
-version = "0.1.0"
+version = "0.1.1"
 description = "Brain: segundo cerebro self-hosted"
 authors = ["Carlos Lugones <contact@carloslugones.com>"]
 readme = "../README.md"
