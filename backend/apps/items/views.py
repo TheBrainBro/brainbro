@@ -14,8 +14,9 @@ from rest_framework.response import Response
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .collection_images import make_collection_image
-from .models import Collection, CollectionItem, Item, NoteImage, rank_now
+from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
 from .note_images import MAX_PASTED_SIZE, sync_note_images
+from .note_links import sync_note_links
 from .ordering import move_in_collection, move_in_inbox
 from .search import find
 from .serializers import (
@@ -30,6 +31,7 @@ from .serializers import (
 from .tasks import (
     fetch_link_preview,
     fetch_note_images,
+    fetch_note_links,
     generate_thumbnail,
     make_note_image_display,
 )
@@ -86,8 +88,11 @@ def enqueue_preview(item):
 
 
 def sync_images(note):
+    """Images and link previews the note now shows, fetched in the background."""
     if sync_note_images(note):
         transaction.on_commit(lambda: fetch_note_images.delay(str(note.id)))
+    if sync_note_links(note):
+        transaction.on_commit(lambda: fetch_note_links.delay(str(note.id)))
 
 
 def create_upload_item(owner, file, upload):
@@ -451,6 +456,24 @@ class NoteImageViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         if not image.image:
             raise Http404
         response = FileResponse(image.image.open("rb"), content_type="image/webp")
+        response["X-Content-Type-Options"] = "nosniff"
+        # The URL carries a per-file version, so the content never changes.
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+
+class NoteLinkViewSet(viewsets.GenericViewSet):
+    """Serves the image of a card or embed link in a note (see `NoteLink`)."""
+
+    def get_queryset(self):
+        return NoteLink.objects.filter(owner=self.request.user)
+
+    @action(detail=True, methods=["get"])
+    def image(self, request, pk=None):
+        link = self.get_object()
+        if not link.image:
+            raise Http404
+        response = FileResponse(link.image.open("rb"), content_type="image/webp")
         response["X-Content-Type-Options"] = "nosniff"
         # The URL carries a per-file version, so the content never changes.
         response["Cache-Control"] = "private, max-age=31536000, immutable"
