@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "apps.items.apps.ItemsConfig",
     "apps.boards.apps.BoardsConfig",
     "apps.exports.apps.ExportsConfig",
+    "apps.graph.apps.GraphConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
