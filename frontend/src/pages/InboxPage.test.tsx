@@ -39,14 +39,14 @@ function makeItem(overrides: Partial<Item>): Item {
   }
 }
 
-function renderInbox() {
+function renderInbox({ archived = false } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[archived ? '/archive' : '/']}>
         <FeedbackProvider>
           <CaptureProvider>
-            <InboxPage />
+            <InboxPage archived={archived} />
           </CaptureProvider>
         </FeedbackProvider>
       </MemoryRouter>
@@ -60,6 +60,21 @@ afterEach(() => {
 })
 
 describe('InboxPage', () => {
+  it('lists archived items under the Archive tab', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      jsonResponse(
+        page(url.includes('status=archived') ? [makeItem({ body: 'Old idea', status: 'archived' })] : []),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    renderInbox({ archived: true })
+
+    expect(await screen.findByText('Old idea')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Archive' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Inbox' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('button', { name: 'To inbox' })).toBeInTheDocument()
+  })
+
   it('captures text on Enter and clears the box', async () => {
     let items: Item[] = []
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
