@@ -524,6 +524,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
         `?items=inbox|archive|delete` (inbox by default) says what happens to
         the items only in this collection. Items in other collections too
         just leave this one. Archived items stay archived unless deleted.
+        Its subcollections move up to its parent (or to the top).
         """
         options = CollectionDeleteSerializer(data=request.query_params)
         options.is_valid(raise_exception=True)
@@ -552,6 +553,9 @@ class CollectionViewSet(viewsets.ModelViewSet):
                 orphans.filter(status=Item.Status.ORGANIZED).update(
                     status=new_status, updated_at=timezone.now()
                 )
+            collection.children.update(
+                parent=collection.parent, updated_at=timezone.now()
+            )
             collection.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

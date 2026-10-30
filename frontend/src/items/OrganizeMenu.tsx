@@ -13,6 +13,7 @@ import { createPortal } from 'react-dom'
 
 import { useCollections, useCreateCollection, type Collection } from './api'
 import { CollectionAvatar } from './CollectionAvatar'
+import { CollectionPlace } from './CollectionPlace'
 
 const OPEN_DELAY_MS = 120
 const CLOSE_DELAY_MS = 250
@@ -227,7 +228,10 @@ function Menu({
               onClick={() => onPick(collection)}
             >
               <CollectionAvatar collection={collection} size="sm" />
-              <span className="flex-1 truncate">{collection.name}</span>
+              <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                <span className="truncate">{collection.name}</span>
+                <CollectionPlace collections={all} id={collection.id} />
+              </span>
               {inIt && <Check className="size-4 text-accent-500" aria-label="Already in it" />}
             </button>
           )

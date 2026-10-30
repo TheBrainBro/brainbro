@@ -53,6 +53,7 @@ beforeEach(() => {
       color: '',
       icon: '',
       image_url: null,
+      parent: null,
       item_count: 0,
       created_at: '',
       updated_at: '',
