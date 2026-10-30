@@ -284,6 +284,25 @@ def test_boards_come_with_their_items_and_an_outline(user, tmp_path):
         "- Plan → Research: needs\n\n"
         "_1 pen drawing is only in Ideas.json._\n"
     )
+    canvas = json.loads(read(archive, "boards/Ideas.canvas"))
+    assert [(n["id"], n["type"]) for n in canvas["nodes"]] == [
+        ("g1", "group"),
+        ("n1", "file"),
+        ("n2", "file"),
+        ("n3", "text"),
+    ]
+    assert canvas["nodes"][2]["file"] == "links/Ref.md"
+    assert (canvas["nodes"][2]["x"], canvas["nodes"][2]["y"]) == (10, 120)
+    assert canvas["edges"] == [
+        {
+            "id": "e1",
+            "fromNode": "n1",
+            "fromEnd": "none",
+            "toNode": "g1",
+            "toEnd": "arrow",
+            "label": "needs",
+        }
+    ]
 
 
 def test_only_the_owners_data_and_the_readme(user, other_user, tmp_path):
