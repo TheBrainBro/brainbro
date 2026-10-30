@@ -128,3 +128,68 @@ def test_collection_image_must_be_an_image(api, work, media):
 @pytest.mark.django_db
 def test_collection_image_needs_authentication(work):
     assert APIClient().get(f"/api/collections/{work.id}/image/").status_code == 403
+
+
+def test_a_collection_can_go_inside_another(api, user, work):
+    clients = Collection.objects.create(owner=user, name="Clients")
+    response = api.patch(
+        f"/api/collections/{clients.id}/", {"parent": str(work.id)}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.json()["parent"] == str(work.id)
+    clients.refresh_from_db()
+    assert clients.parent == work
+
+    response = api.patch(
+        f"/api/collections/{clients.id}/", {"parent": None}, format="json"
+    )
+    assert response.status_code == 200
+    clients.refresh_from_db()
+    assert clients.parent is None
+
+
+def test_a_collection_can_be_created_inside_another(api, work):
+    response = api.post(
+        "/api/collections/", {"name": "Clients", "parent": str(work.id)}, format="json"
+    )
+    assert response.status_code == 201
+    assert Collection.objects.get(name="Clients").parent == work
+
+
+def test_a_collection_cant_go_inside_itself_or_its_own(api, user, work):
+    clients = Collection.objects.create(owner=user, name="Clients", parent=work)
+    acme = Collection.objects.create(owner=user, name="Acme", parent=clients)
+
+    for parent in (work, acme):
+        response = api.patch(
+            f"/api/collections/{work.id}/", {"parent": str(parent.id)}, format="json"
+        )
+        assert response.status_code == 400
+        assert "parent" in response.json()
+    work.refresh_from_db()
+    assert work.parent is None
+
+
+def test_a_collection_cant_go_inside_someone_elses(api, work, django_user_model):
+    other = django_user_model.objects.create_user(username="other", password="x")
+    theirs = Collection.objects.create(owner=other, name="Theirs")
+    response = api.patch(
+        f"/api/collections/{work.id}/", {"parent": str(theirs.id)}, format="json"
+    )
+    assert response.status_code == 400
+
+
+def test_deleting_a_collection_moves_its_children_up_a_level(api, user, work):
+    clients = Collection.objects.create(owner=user, name="Clients", parent=work)
+    acme = Collection.objects.create(owner=user, name="Acme", parent=clients)
+    globex = Collection.objects.create(owner=user, name="Globex", parent=clients)
+    deep = Collection.objects.create(owner=user, name="Contracts", parent=acme)
+
+    assert api.delete(f"/api/collections/{clients.id}/").status_code == 204
+    for collection in (acme, globex, deep):
+        collection.refresh_from_db()
+    assert (acme.parent, globex.parent, deep.parent) == (work, work, acme)
+
+    assert api.delete(f"/api/collections/{work.id}/").status_code == 204
+    acme.refresh_from_db()
+    assert acme.parent is None
