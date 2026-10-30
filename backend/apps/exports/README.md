@@ -19,8 +19,9 @@ links/previews/    the preview image of each link, when it had one
 images/            your images, as you uploaded them
 files/             your other files, as you uploaded them
 albums/<album>/    the album's images in order, plus album.md
-boards/            each board twice: <board>.json (the full canvas) and
-                   <board>.md (an outline you can read)
+boards/            each board three times: <board>.json (the full canvas),
+                   <board>.md (an outline you can read) and <board>.canvas
+                   (for Obsidian and other JSON Canvas apps)
 ```
 
 Archived items are included; their `status` says so. Thumbnails aren't: they
@@ -154,3 +155,10 @@ sense on the canvas, so the outline just counts them.
     a `parent` is positioned from that frame's corner. `w` or `h` can be
     `null`: the node takes its natural size. Colors are hex (`#3b82f6`) or
     empty for the default.
+
+`<board>.canvas` is the same board in the [JSON Canvas](https://jsoncanvas.org)
+format, so the export folder opens as an Obsidian vault with its boards.
+Items are `file` nodes pointing at their file in this export, sticky notes are
+`text` nodes and frames are `group` nodes. Pen drawings and dashed lines have
+no equivalent there and are left out; cards that take their natural size get a
+default one.
