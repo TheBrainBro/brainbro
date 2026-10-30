@@ -17,6 +17,11 @@ ALLOWED_HOSTS = APP_HOSTNAMES + ["api", "localhost", "127.0.0.1"]
 
 CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in APP_HOSTNAMES]
 
+# The bot's updates come through the tunnel, like everything else.
+TELEGRAM_WEBHOOK_URL = TELEGRAM_WEBHOOK_URL or (  # noqa: F405
+    f"https://{APP_HOSTNAMES[0]}/api/telegram/webhook/"
+)
+
 # Cloudflare terminates TLS and forwards the original scheme.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True

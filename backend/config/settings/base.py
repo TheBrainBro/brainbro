@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "apps.items.apps.ItemsConfig",
     "apps.boards.apps.BoardsConfig",
     "apps.exports.apps.ExportsConfig",
+    "apps.telegram.apps.TelegramConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -151,6 +152,13 @@ BACKUP_RETENTION = int(get_env_variable("BACKUP_RETENTION", "14"))
 # to be downloaded. Shared by api (serves them) and worker (builds them).
 EXPORT_DIR = Path(get_env_variable("EXPORT_DIR", str(BASE_DIR / "exports")))
 EXPORT_RETENTION_HOURS = int(get_env_variable("EXPORT_RETENTION_HOURS", "24"))
+
+# Telegram bot (apps.telegram): messages sent or forwarded to it land in the
+# inbox of the account that connected the chat. Off without a token. The
+# worker points the bot at TELEGRAM_WEBHOOK_URL when it starts.
+TELEGRAM_BOT_TOKEN = get_env_variable("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_USERNAME = get_env_variable("TELEGRAM_BOT_USERNAME", "").lstrip("@")
+TELEGRAM_WEBHOOK_URL = get_env_variable("TELEGRAM_WEBHOOK_URL", "")
 
 # Link previews (apps.items.tasks.fetch_link_preview). Private, loopback and
 # link-local addresses are always refused unless explicitly allowed (tests).
