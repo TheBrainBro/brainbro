@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
+import type { LinkPreview } from '../lib/linkPreviews'
 
 export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'album'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
@@ -50,6 +51,8 @@ export type Item = {
   album_items?: Item[] | null
   /** Notes only: the stored copy of each image, by its `src` as in the Markdown. */
   images?: NoteImages | null
+  /** Notes only: the preview of each card or embed link, by URL. */
+  links?: NoteLinks | null
   /** Fingerprint of title and body, sent back as If-Match when saving. */
   version: string
   created_at: string
@@ -60,11 +63,15 @@ export type Item = {
 export type NoteImage = { status: PreviewStatus; url: string | null }
 export type NoteImages = Record<string, NoteImage>
 
+/** The preview of a card or embed link in a note (see lib/linkPreviews). */
+export type NoteLinks = Record<string, LinkPreview>
+
 /** Something about the item is still being made in the background. */
 export function isProcessing(item: Item) {
   return (
     item.preview_status === 'pending' ||
-    Object.values(item.images ?? {}).some((image) => image.status === 'pending')
+    Object.values(item.images ?? {}).some((image) => image.status === 'pending') ||
+    Object.values(item.links ?? {}).some((link) => link.status === 'pending')
   )
 }
 
