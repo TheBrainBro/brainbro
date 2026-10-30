@@ -1,4 +1,4 @@
-import { combo, MOD } from '../lib/keys'
+import { ALT, combo, MOD } from '../lib/keys'
 
 export type Shortcut = { keys: string[]; label: string }
 export type ShortcutGroup = { title: string; shortcuts: Shortcut[] }
@@ -13,6 +13,7 @@ const LIST: ShortcutGroup = {
     { keys: ['E'], label: 'Archive' },
     { keys: ['#'], label: 'Delete' },
     { keys: ['Esc'], label: 'Clear selection' },
+    { keys: [ALT, '↑', '↓'], label: 'Move the item up or down (or drag it)' },
   ],
 }
 
@@ -48,7 +49,9 @@ export function shortcutsFor(pathname: string): ShortcutGroup[] {
       everywhere,
     ]
   }
-  if (pathname.startsWith('/collections/')) return [LIST, VIEWER, everywhere]
+  if (pathname.startsWith('/collections/') || pathname === '/archive') {
+    return [LIST, VIEWER, everywhere]
+  }
   if (pathname.startsWith('/notes/')) {
     return [
       {

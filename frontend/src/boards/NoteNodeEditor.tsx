@@ -58,6 +58,7 @@ export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: (
         onChange={(body) => saver.edit(body)}
         onSave={() => saver.flush()}
         images={(latest ?? item).images}
+        links={(latest ?? item).links}
         uploadImage={uploadNoteImage}
         onUploadError={(message) => toast({ message, tone: 'error' })}
       />

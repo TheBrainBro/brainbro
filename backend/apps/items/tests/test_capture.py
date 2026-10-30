@@ -76,14 +76,16 @@ def test_items_are_scoped_to_owner(api, user, other_user):
 def test_items_filter_by_status_and_collection(api, user):
     work = Collection.objects.create(owner=user, name="Work")
     inbox = Item.objects.create(owner=user, kind="note", body="a")
-    archived = Item.objects.create(owner=user, kind="note", body="b", status="archived")
-    archived.collections.add(work)
+    organized = Item.objects.create(
+        owner=user, kind="note", body="b", status="organized"
+    )
+    organized.collections.add(work)
 
     def ids(query):
         return [i["id"] for i in api.get(f"/api/items/?{query}").json()["results"]]
 
     assert ids("status=inbox") == [str(inbox.id)]
-    assert ids(f"collection={work.id}") == [str(archived.id)]
+    assert ids(f"collection={work.id}") == [str(organized.id)]
     assert ids("collection=not-a-uuid") == []
 
 
