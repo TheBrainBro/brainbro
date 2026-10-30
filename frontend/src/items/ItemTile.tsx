@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { timeAgo } from '../lib/time'
 import type { Item } from './api'
 import { ItemThumb } from './ItemThumb'
-import { itemLabel, KIND_LABEL } from './label'
+import { itemLabel, KIND_LABEL, plainLinks } from './label'
 
 type Props = {
   item: Item
@@ -49,7 +49,7 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
       >
         {item.kind === 'note' ? (
           <p className="line-clamp-6 p-3 text-sm leading-relaxed whitespace-pre-line text-zinc-600 dark:text-zinc-300">
-            {item.body}
+            {plainLinks(item.body)}
           </p>
         ) : (
           <ItemThumb item={item} className="size-full rounded-none" />
