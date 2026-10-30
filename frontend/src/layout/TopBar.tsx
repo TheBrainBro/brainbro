@@ -6,6 +6,7 @@ import {
   LogOut,
   PackageOpen,
   Search,
+  Send,
   Waypoints,
   type LucideIcon,
 } from 'lucide-react'
@@ -30,11 +31,13 @@ export function TopBar({
   onShortcuts,
   onExport,
   onImport,
+  onTelegram,
 }: {
   onSearch: () => void
   onShortcuts: () => void
   onExport: () => void
   onImport: () => void
+  onTelegram: () => void
 }) {
   return (
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
@@ -63,7 +66,12 @@ export function TopBar({
             Search {combo('K')}
           </span>
         </button>
-        <AccountMenu onShortcuts={onShortcuts} onExport={onExport} onImport={onImport} />
+        <AccountMenu
+          onShortcuts={onShortcuts}
+          onExport={onExport}
+          onImport={onImport}
+          onTelegram={onTelegram}
+        />
       </div>
     </header>
   )
@@ -95,10 +103,12 @@ function AccountMenu({
   onShortcuts,
   onExport,
   onImport,
+  onTelegram,
 }: {
   onShortcuts: () => void
   onExport: () => void
   onImport: () => void
+  onTelegram: () => void
 }) {
   const { data: session } = useSession()
   const logout = useLogout()
@@ -181,6 +191,18 @@ function AccountMenu({
           >
             <FolderInput className="size-4" aria-hidden="true" />
             Import from Obsidian
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onTelegram()
+            }}
+          >
+            <Send className="size-4" aria-hidden="true" />
+            Telegram
           </button>
           <button
             type="button"
