@@ -12,6 +12,7 @@ from urllib.parse import quote, urlsplit
 
 from django.utils import timezone
 
+from apps.boards.canvas import to_canvas
 from apps.boards.layout import migrate_layout, prune_layout
 from apps.boards.models import Board
 from apps.items.models import Collection, Item, NoteImage
@@ -425,6 +426,12 @@ def _write_boards(writer, boards, items, places):
             _board_outline(board, stem, layout, referenced),
             board.updated_at,
         )
+        files = {
+            item_id: (entry["path"], entry["kind"])
+            for item_id, entry in referenced.items()
+            if entry["path"]
+        }
+        writer.json(f"boards/{stem}.canvas", to_canvas(layout, files), board.updated_at)
 
 
 def _item_name(item, places):
