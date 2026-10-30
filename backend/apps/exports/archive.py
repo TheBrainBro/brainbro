@@ -382,6 +382,7 @@ def _collections(collections, items, images):
             "color": collection.color,
             "icon": collection.icon,
             "image": images.get(collection.id),
+            "parent": str(collection.parent_id) if collection.parent_id else None,
             "created_at": collection.created_at.isoformat(),
             "items": members[collection.id],
         }

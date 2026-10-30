@@ -22,6 +22,8 @@ class Collection(OwnedModel):
     """
     A named group of items, following PARA: a project (a goal with an end),
     an area (an ongoing responsibility) or a resource (a topic of interest).
+
+    Collections nest like folders: each one can sit inside another (`parent`).
     """
 
     class Kind(models.TextChoices):
@@ -36,6 +38,15 @@ class Collection(OwnedModel):
     icon = models.CharField(max_length=32, blank=True)
     # An uploaded square image; shown instead of the icon when set.
     image = models.ImageField(upload_to=collection_image_path, blank=True)
+    # Deleting through the API moves the children up to this one's parent
+    # first; anything else that deletes a collection leaves them at the top.
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="children",
+    )
 
     class Meta:
         ordering = ["name"]

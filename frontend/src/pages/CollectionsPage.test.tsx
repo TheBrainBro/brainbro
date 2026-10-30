@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CaptureProvider } from '../capture/CaptureProvider'
-import type { Collection } from '../items/api'
+import type { Collection, Item } from '../items/api'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { CollectionPage, CollectionsPage } from './CollectionsPage'
 
@@ -16,10 +16,12 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 let collections: Collection[]
+let collectionItems: Item[]
 let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   collections = []
+  collectionItems = []
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.startsWith('/api/collections/work/') && init?.method === 'PATCH') {
       collections = [{ ...collections[0], ...JSON.parse(String(init.body)) }]
@@ -30,7 +32,8 @@ beforeEach(() => {
       return new Response(null, { status: 204 })
     }
     if (url.startsWith('/api/items/')) {
-      return jsonResponse({ count: 0, next: null, previous: null, results: [] })
+      const results = collectionItems.filter((item) => url.includes(`collection=${item.collections[0]}`))
+      return jsonResponse({ count: results.length, next: null, previous: null, results })
     }
     if (url === '/api/collections/' && init?.method === 'POST') {
       const created = {
@@ -85,6 +88,7 @@ describe('CollectionsPage', () => {
     )!
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       name: 'Health',
+      parent: null,
       kind: 'area',
       icon: '🏃',
       color: '#22c55e',
@@ -106,16 +110,17 @@ const work: Collection = {
   color: '',
   icon: '',
   image_url: null,
+  parent: null,
   item_count: 2,
   created_at: '',
   updated_at: '',
 }
 
-function renderCollection() {
+function renderCollection(id = 'work') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/collections/work']}>
+      <MemoryRouter initialEntries={[`/collections/${id}`]}>
         <FeedbackProvider>
           <CaptureProvider>
             <Routes>
@@ -159,5 +164,114 @@ describe('CollectionPage', () => {
       expect.objectContaining({ method: 'DELETE' }),
     )
     expect(screen.getByRole('status')).toHaveTextContent('Deleted Work')
+  })
+
+  it('shows where it sits, and the collections inside it', async () => {
+    collections = [work, clients, acme]
+    renderCollection('acme')
+    const breadcrumb = await screen.findByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(breadcrumb).getByRole('link', { name: 'Work' })).toHaveAttribute(
+      'href',
+      '/collections/work',
+    )
+    expect(within(breadcrumb).getByRole('link', { name: 'Clients' })).toBeInTheDocument()
+  })
+
+  it('lists the collections inside it, and creates one there', async () => {
+    collections = [work, clients]
+    renderCollection()
+    const inside = await screen.findByRole('list', { name: 'Collections inside' })
+    expect(within(inside).getByRole('link', { name: /Clients/ })).toHaveAttribute(
+      'href',
+      '/collections/clients',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'New collection inside' }))
+    expect(screen.getByLabelText('Inside')).toHaveValue('work')
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Suppliers' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Created Suppliers in Work'),
+    )
+    const [, init] = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')!
+    expect(JSON.parse(String((init as RequestInit).body))).toMatchObject({
+      name: 'Suppliers',
+      parent: 'work',
+    })
+  })
+
+  it('moves a collection anywhere but inside itself', async () => {
+    collections = [work, clients, acme, home]
+    renderCollection()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit collection' }))
+    const inside = screen.getByLabelText('Inside')
+    const options = within(inside)
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+    expect(options).toEqual(['Nothing, at the top', 'Home'])
+
+    fireEvent.change(inside, { target: { value: 'home' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true))
+    const [, init] = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')!
+    expect(JSON.parse(String((init as RequestInit).body))).toMatchObject({ parent: 'home' })
+  })
+
+  it('says the collections inside move up when it is deleted', async () => {
+    collections = [work, clients]
+    renderCollection()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete collection' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'The collection inside it moves to the top.',
+    )
+  })
+})
+
+const clients: Collection = { ...work, id: 'clients', name: 'Clients', parent: 'work', item_count: 1 }
+const acme: Collection = { ...work, id: 'acme', name: 'Acme', parent: 'clients', item_count: 0 }
+const home: Collection = { ...work, id: 'home', name: 'Home', item_count: 0 }
+
+function note(id: string, body: string, collection: string): Item {
+  return {
+    id,
+    kind: 'note',
+    status: 'organized',
+    title: '',
+    body,
+    url: '',
+    metadata: {},
+    preview_status: '',
+    preview_image_url: null,
+    file_url: null,
+    collections: [collection],
+    version: 'v1',
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+describe('Collections tree', () => {
+  it('shows the top collections, and opens one into what is inside it', async () => {
+    collections = [work, clients, acme, home]
+    collectionItems = [note('n1', 'Plan the launch', 'work'), note('n2', 'Call Acme', 'clients')]
+    renderPage()
+    const tree = await screen.findByRole('list', { name: 'Collections' })
+    expect(within(tree).getByRole('link', { name: /Work/ })).toHaveTextContent(
+      'Project · 2 items · 1 collection',
+    )
+    expect(within(tree).getByRole('link', { name: /Home/ })).toBeInTheDocument()
+    expect(within(tree).queryByRole('link', { name: /Clients/ })).toBeNull()
+    // Nothing inside: nothing to open.
+    expect(screen.queryByRole('button', { name: 'Open Home' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Work' }))
+    const inWork = screen.getByRole('list', { name: 'In Work' })
+    expect(within(inWork).getByRole('link', { name: /Clients/ })).toBeInTheDocument()
+    expect(await within(inWork).findByRole('button', { name: /Plan the launch/ })).toBeInTheDocument()
+    expect(within(inWork).queryByText('Call Acme')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Clients' }))
+    expect(await screen.findByRole('button', { name: /Call Acme/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close Work' })).toHaveAttribute('aria-expanded', 'true')
   })
 })

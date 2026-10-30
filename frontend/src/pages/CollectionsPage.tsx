@@ -1,5 +1,5 @@
-import { FolderOpen, Library, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ChevronRight, FolderOpen, FolderPlus, Library, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
@@ -7,16 +7,30 @@ import { PendingCard } from '../capture/PendingCard'
 import { CollectionAvatar } from '../items/CollectionAvatar'
 import { CollectionDialog } from '../items/CollectionDialog'
 import { collectionKind } from '../items/collectionKinds'
+import { ancestorsOf, childrenOf } from '../items/collectionTree'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
+import { ItemThumb } from '../items/ItemThumb'
+import { itemLabel } from '../items/label'
 import { LoadMore } from '../items/LoadMore'
 import { DeleteCollectionDialog } from '../items/DeleteCollectionDialog'
-import { useCollections, useDeleteCollection, useItems, type OrphanAction } from '../items/api'
+import {
+  useCollections,
+  useDeleteCollection,
+  useItems,
+  type Collection,
+  type Item,
+  type OrphanAction,
+} from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { BackLink } from '../ui/BackLink'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
+import { useViewer } from '../viewer/context'
+
+/** How many of a collection's items the tree shows before pointing to its page. */
+const TREE_ITEMS = 20
 
 export function CollectionsPage() {
   const collections = useCollections()
@@ -57,28 +71,18 @@ export function CollectionsPage() {
           Create one here, or pick <strong>Organize</strong> on anything in the inbox.
         </EmptyState>
       )}
-      <ul className="grid gap-2 sm:grid-cols-2">
-        {collections.data?.map((collection) => {
-          const { label } = collectionKind(collection.kind)
-          return (
-            <li key={collection.id}>
-              <Link
-                to={`/collections/${collection.id}`}
-                className="surface group flex items-center gap-3 px-3 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
-              >
-                <CollectionAvatar collection={collection} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{collection.name}</span>
-                  <span className="block text-xs text-zinc-500">
-                    {label} · {collection.item_count}{' '}
-                    {collection.item_count === 1 ? 'item' : 'items'}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      {collections.isSuccess && collections.data.length > 0 && (
+        <ul aria-label="Collections" className="surface p-1.5">
+          {childrenOf(collections.data, null).map((collection) => (
+            <CollectionNode
+              key={collection.id}
+              collection={collection}
+              collections={collections.data}
+              depth={0}
+            />
+          ))}
+        </ul>
+      )}
 
       {creating && (
         <CollectionDialog
@@ -90,6 +94,155 @@ export function CollectionsPage() {
         />
       )}
     </div>
+  )
+}
+
+/** "Project · 3 items · 2 collections": what a collection is and holds. */
+function summary(collection: Collection, inside: number) {
+  const parts = [
+    collectionKind(collection.kind).label,
+    `${collection.item_count} ${collection.item_count === 1 ? 'item' : 'items'}`,
+  ]
+  if (inside) parts.push(`${inside} ${inside === 1 ? 'collection' : 'collections'}`)
+  return parts.join(' · ')
+}
+
+/** Indents a tree row by its depth. */
+function indent(depth: number) {
+  return { paddingLeft: `${depth * 1.25 + 0.25}rem` }
+}
+
+/**
+ * A collection in the tree: its row, and once opened the collections inside
+ * it, then its items. Items load only when it is opened.
+ */
+function CollectionNode({
+  collection,
+  collections,
+  depth,
+}: {
+  collection: Collection
+  collections: Collection[]
+  depth: number
+}) {
+  const [open, setOpen] = useState(false)
+  const inside = childrenOf(collections, collection.id)
+  const opens = inside.length > 0 || collection.item_count > 0
+
+  return (
+    <li>
+      <div
+        className="flex items-center gap-1 rounded-lg pr-2 transition hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+        style={indent(depth)}
+      >
+        {opens ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={`${open ? 'Close' : 'Open'} ${collection.name}`}
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+            onClick={() => setOpen(!open)}
+          >
+            <ChevronRight
+              className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+        ) : (
+          <span className="size-7 shrink-0" />
+        )}
+        <Link
+          to={`/collections/${collection.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 py-1.5"
+        >
+          <CollectionAvatar collection={collection} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium">{collection.name}</span>
+            <span className="block truncate text-xs text-zinc-500">
+              {summary(collection, inside.length)}
+            </span>
+          </span>
+        </Link>
+      </div>
+      {open && (
+        <ul aria-label={`In ${collection.name}`}>
+          {inside.map((child) => (
+            <CollectionNode
+              key={child.id}
+              collection={child}
+              collections={collections}
+              depth={depth + 1}
+            />
+          ))}
+          {collection.item_count > 0 && <TreeItems collection={collection} depth={depth + 1} />}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+/** A collection's items in the tree: a short list; its page has the rest. */
+function TreeItems({ collection, depth }: { collection: Collection; depth: number }) {
+  const items = useItems({ collection: collection.id })
+  const navigate = useNavigate()
+  const viewer = useViewer()
+  const all = items.data?.pages.flatMap((page) => page.results) ?? []
+  const shown = all.slice(0, TREE_ITEMS)
+  const more = collection.item_count - shown.length
+
+  function open(item: Item) {
+    if (item.kind === 'note') navigate(`/notes/${item.id}`)
+    else viewer.open(shown, shown.indexOf(item))
+  }
+
+  const row = 'flex items-center gap-3 rounded-lg py-1 pr-2 text-sm'
+  // Lines up with the collection names: past the chevron's column.
+  const style = { paddingLeft: `${depth * 1.25 + 2.25}rem` }
+
+  if (items.isPending) {
+    return (
+      <li role="status" aria-label={`Loading ${collection.name}`} className={row} style={style}>
+        <span className="skeleton size-8 rounded-lg" />
+        <span className="skeleton h-4 w-40" />
+      </li>
+    )
+  }
+  if (items.isError) {
+    return (
+      <li className={`${row} text-red-600 dark:text-red-400`} style={style}>
+        Couldn't load these items.
+        <button type="button" className="button-ghost" onClick={() => items.refetch()}>
+          Retry
+        </button>
+      </li>
+    )
+  }
+  return (
+    <>
+      {shown.map((item) => (
+        <li key={item.id}>
+          <button
+            type="button"
+            className={`${row} w-full text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800/60`}
+            style={style}
+            onClick={() => open(item)}
+          >
+            <ItemThumb item={item} className="size-8" />
+            <span className="min-w-0 flex-1 truncate">{itemLabel(item)}</span>
+          </button>
+        </li>
+      ))}
+      {more > 0 && (
+        <li className={row} style={style}>
+          <Link
+            to={`/collections/${collection.id}`}
+            className="text-xs font-medium text-accent-600 hover:underline dark:text-accent-300"
+          >
+            {more} more in {collection.name}
+          </Link>
+        </li>
+      )}
+    </>
   )
 }
 
@@ -106,8 +259,11 @@ export function CollectionPage() {
   const { toast } = useFeedback()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [adding, setAdding] = useState(false)
   const capture = useCapturePipeline()
   const pending = capture.pending.filter((entry) => entry.collection === id)
+  const ancestors = ancestorsOf(collections.data ?? [], id)
+  const inside = childrenOf(collections.data ?? [], id)
 
   // Pastes and drops while it is open land here, not in the inbox.
   const name = collection?.name
@@ -118,7 +274,24 @@ export function CollectionPage() {
 
   return (
     <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 py-8 transition-[max-width]`}>
-      <BackLink to="/collections" label="Collections" />
+      {ancestors.length === 0 ? (
+        <BackLink to="/collections" label="Collections" />
+      ) : (
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-sm">
+          <BackLink to="/collections" label="Collections" />
+          {ancestors.map((ancestor) => (
+            <Fragment key={ancestor.id}>
+              <ChevronRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden="true" />
+              <Link
+                to={`/collections/${ancestor.id}`}
+                className="min-w-0 truncate rounded-md px-1.5 py-1 font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              >
+                {ancestor.name}
+              </Link>
+            </Fragment>
+          ))}
+        </nav>
+      )}
       <div className="mt-1 mb-4 flex items-center gap-2">
         <h1 className="mr-auto min-w-0 truncate text-2xl font-semibold">
           {collection ? (
@@ -134,6 +307,15 @@ export function CollectionPage() {
         </h1>
         {collection && (
           <>
+            <button
+              type="button"
+              aria-label="New collection inside"
+              className="button-icon group"
+              onClick={() => setAdding(true)}
+            >
+              <FolderPlus className="size-4" aria-hidden="true" />
+              <span className="tooltip top-full mt-1.5">New collection inside</span>
+            </button>
             <button
               type="button"
               aria-label="Edit collection"
@@ -163,6 +345,16 @@ export function CollectionPage() {
           onSaved={() => setEditing(false)}
         />
       )}
+      {adding && collection && (
+        <CollectionDialog
+          parent={collection.id}
+          onClose={() => setAdding(false)}
+          onSaved={(created) => {
+            setAdding(false)
+            toast({ message: `Created ${created.name} in ${collection.name}` })
+          }}
+        />
+      )}
       {deleting && collection && (
         <DeleteCollectionDialog
           collection={collection}
@@ -174,7 +366,7 @@ export function CollectionPage() {
               {
                 onSuccess: () => {
                   toast({ message: `Deleted ${collection.name}` })
-                  navigate('/collections')
+                  navigate(collection.parent ? `/collections/${collection.parent}` : '/collections')
                 },
                 onError: (error) => {
                   setDeleting(false)
@@ -197,9 +389,29 @@ export function CollectionPage() {
         />
       ) : (
         <>
+          {inside.length > 0 && (
+            <ul aria-label="Collections inside" className="mb-4 grid gap-2 sm:grid-cols-2">
+              {inside.map((child) => (
+                <li key={child.id}>
+                  <Link
+                    to={`/collections/${child.id}`}
+                    className="surface flex items-center gap-3 px-3 py-2.5 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
+                  >
+                    <CollectionAvatar collection={child} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{child.name}</span>
+                      <span className="block truncate text-xs text-zinc-500">
+                        {summary(child, childrenOf(collections.data ?? [], child.id).length)}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
           {items.isPending && <ItemListSkeleton mode={mode} />}
           {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-          {items.isSuccess && all.length === 0 && pending.length === 0 && (
+          {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
             <EmptyState
               icon={FolderOpen}
               title="Nothing here yet"
