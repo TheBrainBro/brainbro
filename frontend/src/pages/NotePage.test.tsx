@@ -220,4 +220,39 @@ describe('NotePage', () => {
     expect(patches).toEqual([])
     expect(localStorage.getItem('brain:note-draft:n1')).toBeNull()
   })
+
+  it('prints the note as a document, named after its first line, with the latest text', async () => {
+    items = [makeItem({ id: 'n1', body: '# Trip plan\n\nPack **light**' })]
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    renderAt('/notes/n1')
+    const view = await editor()
+    type(view, ' and early')
+    const title = document.title
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
+    await waitFor(() => expect(print).toHaveBeenCalledOnce())
+    const page = document.querySelector('.print-root')!
+    expect(page.querySelector('h1')).toHaveTextContent('Trip plan')
+    expect(page).toHaveTextContent('Pack light and early')
+    expect(document.title).toBe('Trip plan')
+
+    act(() => window.dispatchEvent(new Event('afterprint')))
+    expect(document.querySelector('.print-root')).toBeNull()
+    expect(document.title).toBe(title)
+  })
+
+  it('prints the note on Cmd+P instead of the page', async () => {
+    items = [makeItem({ id: 'n1', body: 'short note' })]
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    renderAt('/notes/n1')
+    await editor()
+
+    const event = new KeyboardEvent('keydown', { key: 'p', metaKey: true, cancelable: true })
+    act(() => window.dispatchEvent(event))
+    expect(event.defaultPrevented).toBe(true)
+    await waitFor(() => expect(print).toHaveBeenCalledOnce())
+    expect(document.querySelector('.print-root')).toHaveTextContent('short note')
+  })
 })
