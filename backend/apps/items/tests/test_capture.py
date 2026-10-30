@@ -76,14 +76,16 @@ def test_items_are_scoped_to_owner(api, user, other_user):
 def test_items_filter_by_status_and_collection(api, user):
     work = Collection.objects.create(owner=user, name="Work")
     inbox = Item.objects.create(owner=user, kind="note", body="a")
-    archived = Item.objects.create(owner=user, kind="note", body="b", status="archived")
-    archived.collections.add(work)
+    organized = Item.objects.create(
+        owner=user, kind="note", body="b", status="organized"
+    )
+    organized.collections.add(work)
 
     def ids(query):
         return [i["id"] for i in api.get(f"/api/items/?{query}").json()["results"]]
 
     assert ids("status=inbox") == [str(inbox.id)]
-    assert ids(f"collection={work.id}") == [str(archived.id)]
+    assert ids(f"collection={work.id}") == [str(organized.id)]
     assert ids("collection=not-a-uuid") == []
 
 
@@ -120,3 +122,26 @@ def test_items_can_be_updated_and_deleted(api, user):
 def test_items_cannot_be_created_bypassing_capture(api):
     response = api.post("/api/items/", {"kind": "note", "body": "x"}, format="json")
     assert response.status_code == 405
+
+
+def test_capture_into_a_collection_organizes_it(api, user):
+    collection = Collection.objects.create(owner=user, name="Work")
+    response = api.post(
+        "/api/items/capture/",
+        {"text": "Call Ana", "collection": str(collection.id)},
+        format="json",
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert (data["status"], data["collections"]) == ("organized", [str(collection.id)])
+
+
+def test_capture_into_someone_elses_collection_is_rejected(api, other_user):
+    collection = Collection.objects.create(owner=other_user, name="Theirs")
+    response = api.post(
+        "/api/items/capture/",
+        {"text": "x", "collection": str(collection.id)},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert not Item.objects.exists()

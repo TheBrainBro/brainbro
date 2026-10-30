@@ -116,14 +116,14 @@ body {
     @apply animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800;
   }
 
-  /* A short message at the bottom of the screen (see ui/FeedbackProvider). */
+  /* A short message in a corner of the screen (see ui/FeedbackProvider). Dark in both themes. */
   .toast {
-    @apply pointer-events-auto w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg shadow-zinc-900/20 dark:bg-zinc-100 dark:text-zinc-900 dark:shadow-black/40;
+    @apply pointer-events-auto w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 shadow-lg shadow-zinc-900/20 dark:border-zinc-700 dark:bg-zinc-800 dark:shadow-black/40;
     animation: toast-in 180ms ease-out;
   }
 
   .toast-action {
-    @apply rounded-md px-1.5 py-0.5 font-semibold text-accent-300 transition hover:bg-white/10 dark:text-accent-700 dark:hover:bg-zinc-900/10;
+    @apply rounded-md px-1.5 py-0.5 font-semibold text-accent-300 transition hover:bg-white/10;
   }
 
   /* The dimmed layer under a dialog. */
@@ -277,10 +277,69 @@ body {
   }
 }
 
+/* Card and embed links in notes (lib/linkPreviews): the same in the editor and in cards. */
+@layer components {
+  .link-card {
+    @apply my-1 flex max-w-xl overflow-hidden rounded-lg border border-zinc-200 bg-white text-left no-underline transition hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600;
+    color: var(--md-text);
+    text-decoration: none;
+  }
+  .link-card-text {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5 px-3 py-2;
+  }
+  .link-card-title {
+    @apply truncate text-sm font-medium;
+  }
+  .link-card-description {
+    @apply line-clamp-2 text-xs;
+    color: var(--md-muted);
+  }
+  .link-card[data-status='pending'] .link-card-description {
+    @apply animate-pulse;
+  }
+  .link-card-site {
+    @apply mt-auto truncate text-xs;
+    color: var(--md-muted);
+  }
+  .link-card-image {
+    @apply w-28 shrink-0 object-cover sm:w-36;
+  }
+  .link-embed {
+    @apply my-1 block aspect-video w-full max-w-xl overflow-hidden rounded-lg bg-black;
+    & iframe {
+      @apply size-full border-0;
+    }
+  }
+}
+
 /* The note editor: layout lives in its EditorView.theme (CodeMirror's own
    styles are unlayered and would win); these are the colors. */
 @layer components {
   .note-editor {
+    /* Link / Card / Embed: on hover over a link line, or over its card. */
+    & .cm-link-switch {
+      @apply ml-2 inline-flex gap-0.5 rounded-md border border-zinc-200 bg-white p-0.5 align-middle font-sans text-[11px] leading-none opacity-0 shadow-xs transition-opacity dark:border-zinc-700 dark:bg-zinc-900;
+      & button {
+        @apply rounded px-1.5 py-1 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
+      }
+      & button[aria-pressed='true'] {
+        @apply bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-300;
+      }
+    }
+    & .cm-line:hover .cm-link-switch,
+    & .cm-link-preview:hover .cm-link-switch,
+    & .cm-link-switch:focus-within {
+      @apply opacity-100;
+    }
+    & .cm-link-preview {
+      @apply relative py-1;
+      & .cm-link-switch {
+        @apply absolute top-3 right-2 ml-0;
+      }
+      & .link-card {
+        @apply cursor-text;
+      }
+    }
     & .cm-selectionBackground,
     & .cm-focused .cm-selectionBackground {
       @apply bg-zinc-200! dark:bg-zinc-700!;

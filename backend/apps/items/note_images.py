@@ -27,9 +27,9 @@ MAX_PASTED_SIZE = 20 * 1024 * 1024
 # How long a pasted image no note links to is kept.
 UNUSED_GRACE = timedelta(days=7)
 
-# The app's dialect, as far as where images can be: CommonMark plus GFM
-# tables and strikethrough. Raw HTML is off, as in the app.
-_md = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"])
+# The app's dialect, as far as where images and links can be: CommonMark
+# plus GFM tables and strikethrough. Raw HTML is off, as in the app.
+markdown = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"])
 
 ATTACHMENT = re.compile(
     r"attachments/(?P<id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
@@ -40,7 +40,7 @@ ATTACHMENT = re.compile(
 def image_sources(body):
     """The `src` of each image in `body`, in order, without repeats."""
     found = {}
-    stack = list(reversed(_md.parse(body)))
+    stack = list(reversed(markdown.parse(body)))
     while stack:
         token = stack.pop()
         if token.type == "image":
@@ -55,7 +55,7 @@ def source_key(destination):
     """A link destination as written (`<a b>`, escapes) as image_sources reports it."""
     if destination.startswith("<") and destination.endswith(">"):
         destination = destination[1:-1]
-    return _md.normalizeLink(unescapeAll(destination))
+    return markdown.normalizeLink(unescapeAll(destination))
 
 
 def is_remote(src):

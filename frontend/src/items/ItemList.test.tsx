@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ItemList } from './ItemList'
 import type { Collection, Item } from './api'
+import type { ViewMode } from './viewMode'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -51,6 +52,7 @@ beforeEach(() => {
       kind: 'project',
       color: '',
       icon: '',
+      image_url: null,
       item_count: 0,
       created_at: '',
       updated_at: '',
@@ -75,13 +77,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderList() {
+function renderList(mode?: ViewMode, sortable?: { collection?: string }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <FeedbackProvider>
-          <ItemList items={items} />
+          <ItemList items={items} mode={mode} sortable={sortable} />
         </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -93,6 +95,12 @@ function card(text: string) {
 }
 
 describe('ItemList triage', () => {
+  it('shows card actions as icons in narrow masonry columns', () => {
+    renderList('masonry')
+    const archive = within(card('Second')).getByRole('button', { name: 'Archive' })
+    expect(archive).toHaveAttribute('aria-label', 'Archive')
+  })
+
   it('archives a single item from its card', async () => {
     renderList()
     fireEvent.click(within(card('Second')).getByRole('button', { name: 'Archive' }))
@@ -156,9 +164,39 @@ describe('ItemList triage', () => {
     await waitFor(() => expect(triageCalls()).toEqual([{ ids: ['a', 'b'], action: 'archive' }]))
   })
 
+  it('organizes in one click from the menu that opens on hover', async () => {
+    renderList()
+    const organize = within(card('First')).getByRole('button', { name: 'Organize' })
+    fireEvent.pointerEnter(organize, { pointerType: 'mouse' })
+
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    fireEvent.click(await within(menu).findByRole('menuitem', { name: /Work/ }))
+    await waitFor(() =>
+      expect(triageCalls()).toEqual([{ ids: ['a'], action: 'organize', collections: ['work'] }]),
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Organized 1 item into Work')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('creates a collection from the menu and organizes into it', async () => {
+    renderList()
+    fireEvent.click(within(card('First')).getByRole('button', { name: 'Organize' }))
+
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    const input = within(menu).getByLabelText('Find or create a collection')
+    expect(input).toHaveFocus()
+    fireEvent.change(input, { target: { value: 'Reading' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() =>
+      expect(triageCalls()).toEqual([{ ids: ['a'], action: 'organize', collections: ['new'] }]),
+    )
+  })
+
   it('organizes into an existing and a newly created collection', async () => {
     renderList()
     fireEvent.click(within(card('First')).getByRole('button', { name: 'Organize' }))
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Several collections…' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Organize into collections' })
     fireEvent.click(await within(dialog).findByRole('checkbox', { name: /Work/ }))
@@ -176,6 +214,76 @@ describe('ItemList triage', () => {
       ]),
     )
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+function moveCalls() {
+  return fetchMock.mock.calls
+    .filter(([url]) => String(url).endsWith('/move/'))
+    .map(([url, init]) => [url, JSON.parse(String((init as RequestInit).body))])
+}
+
+describe('ItemList sorting', () => {
+  const transfer = () => ({ effectAllowed: '', dropEffect: '', setData: () => {} })
+
+  it('makes way while dragging, and drops the item where it is shown', async () => {
+    renderList('cards', {})
+    const first = card('First').closest('li')!
+    const dataTransfer = transfer()
+    fireEvent.dragStart(first, { dataTransfer })
+    // Over Third: the dragged item takes its place, the others move up.
+    fireEvent.dragOver(card('Third').closest('li')!, { dataTransfer })
+    const order = screen.getAllByRole('listitem').map((li) => li.textContent)
+    expect(order.map((text) => text?.match(/First|Second|Third/)?.[0])).toEqual([
+      'Second',
+      'Third',
+      'First',
+    ])
+    fireEvent.drop(card('First').closest('li')!, { dataTransfer })
+    fireEvent.dragEnd(first, { dataTransfer })
+
+    await waitFor(() => expect(moveCalls()).toEqual([['/api/items/a/move/', { after: 'c' }]]))
+  })
+
+  it('shows a grab cursor only on hand-sorted lists', () => {
+    renderList('cards', {})
+    expect(card('First').closest('li')).toHaveClass('cursor-grab')
+  })
+
+  it('moves the focused item with Alt+arrows, within its collection', async () => {
+    renderList('cards', { collection: 'work' })
+    fireEvent.mouseDown(card('Second'))
+    fireEvent.keyDown(window, { key: 'ArrowUp', altKey: true })
+    fireEvent.keyDown(window, { key: 'ArrowDown', altKey: true })
+    await waitFor(() =>
+      expect(moveCalls()).toEqual([
+        ['/api/items/b/move/', { after: null, collection: 'work' }],
+        ['/api/items/b/move/', { after: 'c', collection: 'work' }],
+      ]),
+    )
+  })
+
+  it("isn't draggable outside a hand-sorted list", () => {
+    renderList()
+    expect(card('First').closest('li')).toHaveAttribute('draggable', 'false')
+  })
+})
+
+describe('ItemList archived', () => {
+  it('offers To inbox instead of Archive', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <FeedbackProvider>
+            <ItemList items={items} archived />
+          </FeedbackProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const actions = within(card('First'))
+    expect(actions.getByRole('button', { name: 'To inbox' })).toBeInTheDocument()
+    expect(actions.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
   })
 })
 

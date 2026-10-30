@@ -49,7 +49,8 @@ def write_export(owner, target, now=None):
         for item in items:
             if not _write_item(writer, item, places):
                 missing.add(item.id)
-        writer.json("collections.json", _collections(collections, items))
+        images = _write_collection_images(writer, collections)
+        writer.json("collections.json", _collections(collections, items, images))
         _write_boards(writer, boards, items, places)
         writer.json("items.json", _manifest(items, places, missing, now))
 
@@ -356,7 +357,19 @@ def _manifest(items, places, missing, now):
     }
 
 
-def _collections(collections, items):
+def _write_collection_images(writer, collections):
+    """Each collection's image as `collections/<id>.webp`, by collection id."""
+    paths = {}
+    for collection in collections:
+        if not collection.image:
+            continue
+        path = f"collections/{collection.id}.webp"
+        if writer.copy(path, collection.image, "image/webp", collection.updated_at):
+            paths[collection.id] = path
+    return paths
+
+
+def _collections(collections, items, images):
     members = defaultdict(list)
     for item in items:
         for collection in item.collections.all():
@@ -368,6 +381,7 @@ def _collections(collections, items):
             "kind": collection.kind,
             "color": collection.color,
             "icon": collection.icon,
+            "image": images.get(collection.id),
             "created_at": collection.created_at.isoformat(),
             "items": members[collection.id],
         }

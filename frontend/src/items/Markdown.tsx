@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import type { NoteImages } from './api'
+import type { NoteImages, NoteLinks } from './api'
 import { renderNote, toggleTaskAt } from '../lib/markdown'
 
 /**
@@ -8,13 +8,16 @@ import { renderNote, toggleTaskAt } from '../lib/markdown'
  * lib/markdown). Long notes are cut off with a fade, at a fixed height or,
  * with `fill`, at the height of the box it is in. With `onChange`, task
  * checkboxes can be ticked and the new text is handed back. Images show the
- * note's stored copies (`images`), never the remote ones.
+ * note's stored copies (`images`), never the remote ones, and card links
+ * the stored previews (`links`); embed links play in place with `embeds`.
  */
 export function Markdown({
   children,
   id,
   fill = false,
   images,
+  links,
+  embeds = false,
   onChange,
 }: {
   children: string
@@ -22,6 +25,8 @@ export function Markdown({
   id?: string
   fill?: boolean
   images?: NoteImages | null
+  links?: NoteLinks | null
+  embeds?: boolean
   onChange?: (body: string) => void
 }) {
   const box = useRef<HTMLDivElement>(null)
@@ -30,8 +35,8 @@ export function Markdown({
   // a checkbox under the pointer is never replaced between press and click.
   const tasks = Boolean(onChange)
   const html = useMemo(
-    () => renderNote(children, { docId: id, tasks, images }),
-    [children, id, tasks, images],
+    () => renderNote(children, { docId: id, tasks, images, links, embeds }),
+    [children, id, tasks, images, links, embeds],
   )
 
   useLayoutEffect(() => {

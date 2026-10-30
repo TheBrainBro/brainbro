@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
+import type { LinkPreview } from '../lib/linkPreviews'
 
 export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'album'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
@@ -50,6 +51,8 @@ export type Item = {
   album_items?: Item[] | null
   /** Notes only: the stored copy of each image, by its `src` as in the Markdown. */
   images?: NoteImages | null
+  /** Notes only: the preview of each card or embed link, by URL. */
+  links?: NoteLinks | null
   /** Fingerprint of title and body, sent back as If-Match when saving. */
   version: string
   created_at: string
@@ -60,11 +63,15 @@ export type Item = {
 export type NoteImage = { status: PreviewStatus; url: string | null }
 export type NoteImages = Record<string, NoteImage>
 
+/** The preview of a card or embed link in a note (see lib/linkPreviews). */
+export type NoteLinks = Record<string, LinkPreview>
+
 /** Something about the item is still being made in the background. */
 export function isProcessing(item: Item) {
   return (
     item.preview_status === 'pending' ||
-    Object.values(item.images ?? {}).some((image) => image.status === 'pending')
+    Object.values(item.images ?? {}).some((image) => image.status === 'pending') ||
+    Object.values(item.links ?? {}).some((link) => link.status === 'pending')
   )
 }
 
@@ -189,6 +196,49 @@ export function useSaveNoteBody() {
   })
 }
 
+/** The list an item is moved within: a collection, or else the inbox. */
+export type MoveTarget = { collection?: string }
+
+/** Its list as cached: the same filters the inbox and collection pages ask with. */
+function listKey({ collection }: MoveTarget) {
+  return [...itemsKey, collection ? { collection } : { status: 'inbox' }]
+}
+
+/**
+ * Puts an item right after `after` (null: on top) in the inbox or a
+ * collection, shown at once.
+ */
+export function useMoveItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, after, collection }: { id: string; after: string | null } & MoveTarget) =>
+      api<void>(`/items/${id}/move/`, {
+        method: 'POST',
+        body: JSON.stringify({ after, ...(collection ? { collection } : {}) }),
+      }),
+    onMutate: ({ id, after, collection }) => {
+      queryClient.setQueryData(listKey({ collection }), (data: InfiniteData<Page<Item>> | undefined) => {
+        if (!data) return data
+        const all = data.pages.flatMap((page) => page.results)
+        const moving = all.find((item) => item.id === id)
+        if (!moving) return data
+        const rest = all.filter((item) => item !== moving)
+        rest.splice(after ? rest.findIndex((item) => item.id === after) + 1 : 0, 0, moving)
+        // Same pages, same sizes: only the order changes.
+        let start = 0
+        const pages = data.pages.map((page) => {
+          const results = rest.slice(start, start + page.results.length)
+          start += page.results.length
+          return { ...page, results }
+        })
+        return { ...data, pages }
+      })
+    },
+    onSettled: (_data, _error, { collection }) =>
+      queryClient.invalidateQueries({ queryKey: listKey({ collection }) }),
+  })
+}
+
 export function useRefreshPreview() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -222,8 +272,12 @@ export type Collection = {
   id: string
   name: string
   kind: CollectionKind
+  /** Hex color behind the emoji, optional. */
   color: string
+  /** An emoji, optional. */
   icon: string
+  /** An uploaded square image, shown instead of the emoji. */
+  image_url: string | null
   item_count: number
   created_at: string
   updated_at: string
@@ -245,6 +299,40 @@ export function useCreateCollection() {
     mutationFn: (data: { name: string; kind?: CollectionKind }) =>
       api<Collection>('/collections/', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+export type CollectionChanges = Partial<Pick<Collection, 'name' | 'kind' | 'color' | 'icon'>>
+
+export function useUpdateCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...changes }: CollectionChanges & { id: string }) =>
+      api<Collection>(`/collections/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+/** Sets (a square image, already small) or removes a collection's image. */
+export function setCollectionImage(id: string, image: Blob | null) {
+  if (!image) return api<Collection>(`/collections/${id}/image/`, { method: 'DELETE' })
+  const form = new FormData()
+  form.append('file', image, 'image.webp')
+  return api<Collection>(`/collections/${id}/image/`, { method: 'POST', body: form })
+}
+
+/** What happens to the items that are only in a deleted collection. */
+export type OrphanAction = 'inbox' | 'archive' | 'delete'
+
+export function useDeleteCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, items }: { id: string; items: OrphanAction }) =>
+      api<void>(`/collections/${id}/?items=${items}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: collectionsKey })
+      queryClient.invalidateQueries({ queryKey: itemsKey })
+    },
   })
 }
 

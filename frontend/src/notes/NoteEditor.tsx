@@ -7,8 +7,9 @@ import { dropCursor, EditorView, keymap, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { useEffect, useEffectEvent, useRef } from 'react'
 
-import type { NoteImages } from '../items/api'
+import type { NoteImages, NoteLinks } from '../items/api'
 import { imageUploads } from './imageUploads'
+import { setNoteLinks } from './linkWidgets'
 import { livePreview, setNoteImages } from './livePreview'
 
 // The text is the note. Live preview renders it around the cursor; this
@@ -68,6 +69,7 @@ export function NoteEditor({
   onSave,
   autoFocus = false,
   images,
+  links,
   uploadImage,
   onUploadError,
 }: {
@@ -77,13 +79,15 @@ export function NoteEditor({
   onSave?: () => void
   autoFocus?: boolean
   images?: NoteImages | null
+  /** The previews of its card and embed links, by URL. */
+  links?: NoteLinks | null
   uploadImage?: (file: File) => Promise<{ src: string }>
   onUploadError?: (message: string) => void
 }) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(null)
   // Only the starting text and focus: the editor owns the document from here.
-  const startup = useRef({ initial, autoFocus, images, uploads: Boolean(uploadImage) })
+  const startup = useRef({ initial, autoFocus, images, links, uploads: Boolean(uploadImage) })
   const changed = useEffectEvent((body: string) => onChange(body))
   const save = useEffectEvent(() => onSave?.())
   const upload = useEffectEvent((file: File) => uploadImage!(file))
@@ -98,7 +102,7 @@ export function NoteEditor({
           history(),
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
-          livePreview(startup.current.images ?? {}),
+          livePreview(startup.current.images ?? {}, startup.current.links ?? {}),
           startup.current.uploads
             ? [imageUploads({ upload, onError: uploadFailed }), dropCursor()]
             : [],
@@ -133,6 +137,10 @@ export function NoteEditor({
   useEffect(() => {
     view.current?.dispatch({ effects: setNoteImages.of(images ?? {}) })
   }, [images])
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: setNoteLinks.of(links ?? {}) })
+  }, [links])
 
   return <div ref={host} className="note-editor" />
 }
