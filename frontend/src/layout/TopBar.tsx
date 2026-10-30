@@ -5,6 +5,7 @@ import {
   LogOut,
   PackageOpen,
   Search,
+  Send,
   Waypoints,
   type LucideIcon,
 } from 'lucide-react'
@@ -28,10 +29,12 @@ export function TopBar({
   onSearch,
   onShortcuts,
   onExport,
+  onTelegram,
 }: {
   onSearch: () => void
   onShortcuts: () => void
   onExport: () => void
+  onTelegram: () => void
 }) {
   return (
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
@@ -60,7 +63,7 @@ export function TopBar({
             Search {combo('K')}
           </span>
         </button>
-        <AccountMenu onShortcuts={onShortcuts} onExport={onExport} />
+        <AccountMenu onShortcuts={onShortcuts} onExport={onExport} onTelegram={onTelegram} />
       </div>
     </header>
   )
@@ -91,9 +94,11 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
 function AccountMenu({
   onShortcuts,
   onExport,
+  onTelegram,
 }: {
   onShortcuts: () => void
   onExport: () => void
+  onTelegram: () => void
 }) {
   const { data: session } = useSession()
   const logout = useLogout()
@@ -164,6 +169,18 @@ function AccountMenu({
           >
             <PackageOpen className="size-4" aria-hidden="true" />
             Export everything
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onTelegram()
+            }}
+          >
+            <Send className="size-4" aria-hidden="true" />
+            Telegram
           </button>
           <button
             type="button"
