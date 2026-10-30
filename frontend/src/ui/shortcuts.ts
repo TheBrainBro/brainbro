@@ -49,7 +49,9 @@ export function shortcutsFor(pathname: string): ShortcutGroup[] {
       everywhere,
     ]
   }
-  if (pathname.startsWith('/collections/')) return [LIST, VIEWER, everywhere]
+  if (pathname.startsWith('/collections/') || pathname === '/archive') {
+    return [LIST, VIEWER, everywhere]
+  }
   if (pathname.startsWith('/notes/')) {
     return [
       {

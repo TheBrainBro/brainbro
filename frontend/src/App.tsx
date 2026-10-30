@@ -32,6 +32,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<InboxPage />} />
+          <Route path="archive" element={<InboxPage archived />} />
           <Route path="capture" element={<CapturePage />} />
           <Route path="share" element={<SharePage />} />
           <Route path="boards" element={<BoardsPage />} />
