@@ -3,6 +3,7 @@ import {
   Check,
   CircleAlert,
   CloudOff,
+  FileDown,
   FileQuestion,
   FolderInput,
   Inbox,
@@ -10,7 +11,7 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { CollectionPicker } from '../items/CollectionPicker'
@@ -19,6 +20,7 @@ import { uploadNoteImage, useItem, useTriage, type Item } from '../items/api'
 import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
+import { NotePrint } from '../notes/NotePrint'
 import { NEW_NOTE, type SaverState } from '../notes/saver'
 import { useNoteSaver } from '../notes/useNoteSaver'
 import { BackLink } from '../ui/BackLink'
@@ -117,9 +119,21 @@ function NoteWorkspace({
   const undoAction = useUndoAction()
   const goBack = useGoBack()
   const [organizing, setOrganizing] = useState(false)
+  const [printing, setPrinting] = useState(false)
 
   const noteId = saver.noteId
   const status = latest?.status ?? initial?.status
+
+  // The browser's own print would print the editor: ⌘P prints the note instead.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'p' || !(event.metaKey || event.ctrlKey) || event.altKey) return
+      event.preventDefault()
+      if (saver.body.trim()) setPrinting(true)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [saver])
 
   function failed(error: Error) {
     toast({ message: error.message, tone: 'error' })
@@ -188,6 +202,7 @@ function NoteWorkspace({
             ) : (
               <Action icon={Archive} label="Archive" onClick={archive} />
             )}
+            <Action icon={FileDown} label="Export PDF" onClick={() => setPrinting(true)} />
             <Action icon={Trash2} label="Delete" onClick={remove} />
           </>
         )
@@ -209,6 +224,14 @@ function NoteWorkspace({
               },
             )
           }
+        />
+      )}
+      {printing && (
+        <NotePrint
+          body={saver.body}
+          images={(latest ?? initial)?.images}
+          links={(latest ?? initial)?.links}
+          onDone={() => setPrinting(false)}
         />
       )}
       {state.status === 'conflict' && (
