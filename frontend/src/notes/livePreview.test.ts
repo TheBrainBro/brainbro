@@ -4,7 +4,8 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { NoteImages } from '../items/api'
+import type { NoteImages, NoteLinks } from '../items/api'
+import { setNoteLinks } from './linkWidgets'
 import { livePreview, setNoteImages } from './livePreview'
 
 const NOTE = [
@@ -244,5 +245,60 @@ describe('live preview', () => {
       'src',
       '/api/note-images/1/file/',
     )
+  })
+})
+
+describe('livePreview link cards', () => {
+  const preview = {
+    status: 'ready',
+    title: 'A post',
+    description: 'What it says',
+    site_name: 'Blog',
+    image_url: '/api/note-links/1/image/?v=a.webp',
+  }
+
+  function switchTo(label: string) {
+    const button = [...view.dom.querySelectorAll<HTMLButtonElement>('.cm-link-switch button')].find(
+      (candidate) => candidate.textContent === label,
+    )!
+    button.click()
+  }
+
+  it('shows a card line as the card, with its stored preview once it is in', () => {
+    open('Intro\n\n[read](https://blog.example/a "card")\n')
+    expect(view.dom.querySelector('.link-card')?.getAttribute('data-status')).toBe('pending')
+    view.dispatch({ effects: setNoteLinks.of({ 'https://blog.example/a': preview } as NoteLinks) })
+    const card = view.dom.querySelector('.link-card')!
+    expect(card.textContent).toContain('A post')
+    expect(card.querySelector('img')?.getAttribute('src')).toBe(preview.image_url)
+  })
+
+  it('turns a bare link into a card and back, rewriting only its line', () => {
+    open('Intro\n\nhttps://blog.example/a\n')
+    switchTo('Card')
+    expect(view.state.doc.toString()).toBe(
+      'Intro\n\n[https://blog.example/a](https://blog.example/a "card")\n',
+    )
+    switchTo('Link')
+    expect(view.state.doc.toString()).toBe('Intro\n\nhttps://blog.example/a\n')
+  })
+
+  it('offers Embed only for sites with a player, and plays it in place', () => {
+    open('[talk](https://vimeo.com/12345)\n')
+    switchTo('Embed')
+    expect(view.state.doc.toString()).toBe('[talk](https://vimeo.com/12345 "embed")\n')
+    expect(view.dom.querySelector('iframe')?.getAttribute('src')).toBe(
+      'https://player.vimeo.com/video/12345',
+    )
+
+    view.destroy()
+    open('https://blog.example/a\n')
+    const labels = [...view.dom.querySelectorAll('.cm-link-switch button')].map((b) => b.textContent)
+    expect(labels).toEqual(['Link', 'Card'])
+  })
+
+  it('leaves links inside code alone', () => {
+    open('```\nhttps://blog.example/a\n```\n')
+    expect(view.dom.querySelector('.cm-link-switch')).toBeNull()
   })
 })
