@@ -268,3 +268,51 @@ def delete_note_image_files(sender, instance, **kwargs):
         instance.image.delete(save=False)
     if instance.original:
         instance.original.delete(save=False)
+
+
+def note_link_image_path(link, filename):
+    return f"note-links/{link.id}/{uuid.uuid4().hex}.webp"
+
+
+class NoteLink(OwnedModel):
+    """
+    The preview of a link a note shows as a card or an embed (written
+    `[text](url "card")` or `"embed"`), looked up by its URL as markdown-it
+    reads it. Fetched once, in the background, like remote images: opening
+    the note never tells the site. An embed itself does load the site; that
+    is why it is chosen link by link.
+    """
+
+    note = models.ForeignKey(
+        Item,
+        on_delete=models.CASCADE,
+        related_name="note_links",
+        limit_choices_to={"kind": "note"},
+    )
+    url = models.CharField(max_length=2048)
+    status = models.CharField(
+        max_length=8,
+        choices=Item.PreviewStatus,
+        default=Item.PreviewStatus.PENDING,
+    )
+    # Title, description, site name and the like, as for link items.
+    metadata = models.JSONField(default=dict, blank=True)
+    image = models.ImageField(
+        upload_to=note_link_image_path, max_length=255, blank=True
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["note", "url"], name="unique_note_link_url"
+            ),
+        ]
+
+    def __str__(self):
+        return self.url
+
+
+@receiver(post_delete, sender=NoteLink)
+def delete_note_link_image(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)

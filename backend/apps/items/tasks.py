@@ -4,7 +4,14 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
-from .models import Item, NoteImage, note_image_path, preview_image_path
+from .models import (
+    Item,
+    NoteImage,
+    NoteLink,
+    note_image_path,
+    note_link_image_path,
+    preview_image_path,
+)
 from .note_images import delete_unused_images
 from .previews import build_preview, download_preview_image, reencode_image
 from .safe_http import FetchError, TransientFetchError
@@ -171,3 +178,49 @@ def _store_note_image(image, data):
 
 def _note_image_failed(image):
     NoteImage.objects.filter(id=image.id).update(status=Item.PreviewStatus.FAILED)
+
+
+@shared_task(bind=True, max_retries=len(RETRY_DELAYS))
+def fetch_note_links(self, note_id):
+    """
+    Fetch the preview of each pending card or embed link of a note, image
+    included, like link items. Links that can't be fetched for good are
+    marked failed; temporary errors retry the ones still pending.
+    """
+    pending = NoteLink.objects.filter(
+        note_id=note_id, status=Item.PreviewStatus.PENDING
+    )
+    unavailable = None
+    for link in pending:
+        try:
+            preview = build_preview(link.url)
+        except TransientFetchError as exc:
+            unavailable = exc
+            continue
+        except FetchError as exc:
+            logger.info("Note link preview failed for %s: %s", link.url, exc)
+            NoteLink.objects.filter(id=link.id).update(status=Item.PreviewStatus.FAILED)
+            continue
+        image = None
+        if preview.image_url:
+            try:
+                image = download_preview_image(preview.image_url)
+            except TransientFetchError as exc:
+                logger.info("Preview image unavailable for %s: %s", link.url, exc)
+        _store_note_link(link, preview, image)
+    if unavailable:
+        _retry_if_possible(self, unavailable)
+        for link in pending.all():
+            logger.info("Note link unavailable: %s: %s", link.url, unavailable)
+            NoteLink.objects.filter(id=link.id).update(status=Item.PreviewStatus.FAILED)
+
+
+def _store_note_link(link, preview, image):
+    name = ""
+    if image:
+        name = default_storage.save(note_link_image_path(link, ""), ContentFile(image))
+    updated = NoteLink.objects.filter(id=link.id).update(
+        status=Item.PreviewStatus.READY, metadata=preview.metadata, image=name
+    )
+    if not updated and name:  # taken out of the note meanwhile
+        default_storage.delete(name)

@@ -70,6 +70,7 @@ ITEM_PREFETCH = (
     "album_items",
     "album_items__collections",
     "note_images",
+    "note_links",
 )
 
 
@@ -79,6 +80,22 @@ def note_image_url(image):
     # Like preview images: authenticated, and the file name busts the cache.
     path = reverse("note-image-file", args=[image.id])
     return f"{path}?v={image.image.name.rsplit('/', 1)[-1]}"
+
+
+def note_link_preview(link):
+    """What a card shows: never the site's own image URL, only our copy."""
+    meta = link.metadata
+    image_url = None
+    if link.image:
+        path = reverse("note-link-image", args=[link.id])
+        image_url = f"{path}?v={link.image.name.rsplit('/', 1)[-1]}"
+    return {
+        "status": link.status,
+        "title": meta.get("title", ""),
+        "description": meta.get("description", ""),
+        "site_name": meta.get("site_name", ""),
+        "image_url": image_url,
+    }
 
 
 class NoteImageSerializer(serializers.ModelSerializer):
@@ -104,6 +121,8 @@ class ItemSerializer(serializers.ModelSerializer):
     album_items = serializers.SerializerMethodField()
     # Notes only: the stored copy of each image, by `src` as in the Markdown.
     images = serializers.SerializerMethodField()
+    # Notes only: the preview of each card or embed link, by URL.
+    links = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -122,6 +141,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "album",
             "album_items",
             "images",
+            "links",
             "version",
             "created_at",
             "updated_at",
@@ -144,6 +164,11 @@ class ItemSerializer(serializers.ModelSerializer):
         if item.kind != Item.Kind.ALBUM:
             return None
         return ItemSerializer(album_images(item), many=True, context=self.context).data
+
+    def get_links(self, item):
+        if item.kind != Item.Kind.NOTE:
+            return None
+        return {link.url: note_link_preview(link) for link in item.note_links.all()}
 
     def get_images(self, item):
         if item.kind != Item.Kind.NOTE:
