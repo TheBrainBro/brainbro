@@ -1,5 +1,12 @@
 import { Archive, FolderInput, Images, Inbox, Pencil, Trash2, X, type LucideIcon } from 'lucide-react'
-import { useEffect, useEffectEvent, useRef, useState, type DragEvent } from 'react'
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent,
+} from 'react'
 import { useNavigate } from 'react-router'
 
 import { isEditable } from '../lib/dom'
@@ -30,23 +37,28 @@ const LAYOUT: Record<ViewMode, string> = {
   masonry: 'columns-1 gap-4 sm:columns-2 lg:columns-3',
 }
 
-/** Where a dragged item would land: just before or just after another one. */
-type Drop = { id: string; side: 'before' | 'after' }
+/** The order shown while dragging, for the list it was taken from. */
+type Preview = { base: Item[]; ids: string[] }
+
+const MOVE_MS = 180
 
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
  * (j/k move, Enter open a note, x select, o organize, e archive, # delete,
  * Esc clear). With `sortable`, items can be dragged to a new place in that
- * list, or moved with Alt+↑/↓.
+ * list (the others make way as it moves), or moved with Alt+↑/↓.
  */
 export function ItemList({
   items,
   backToInbox = false,
+  archived = false,
   mode = 'cards',
   sortable,
 }: {
   items: Item[]
   backToInbox?: boolean
+  /** Archived items: they can go back to the inbox, not be archived again. */
+  archived?: boolean
   mode?: ViewMode
   /** The hand-sorted list these items are: the inbox, or a collection. */
   sortable?: MoveTarget
@@ -64,7 +76,43 @@ export function ItemList({
   const cards = useRef(new Map<string, HTMLElement>())
   const moveItem = useMoveItem()
   const [dragging, setDragging] = useState<string | null>(null)
-  const [drop, setDrop] = useState<Drop | null>(null)
+  // Kept until the list itself has the new order (or changes otherwise).
+  const [preview, setPreview] = useState<Preview | null>(null)
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const shown =
+    preview?.base === items
+      ? preview.ids.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item))
+      : items
+  const list = useRef<HTMLUListElement>(null)
+  const layout = useRef<{ key: string; rects: Map<string, { x: number; y: number }> }>(null)
+
+  // Items that change place glide there (FLIP): measured after each render,
+  // relative to the list so scrolling isn't movement.
+  useLayoutEffect(() => {
+    const origin = list.current?.getBoundingClientRect()
+    if (!origin) return
+    const key = shown.map((item) => item.id).join()
+    const rects = new Map<string, { x: number; y: number }>()
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    for (const item of shown) {
+      const element = cards.current.get(item.id)
+      if (!element) continue
+      const rect = element.getBoundingClientRect()
+      const at = { x: rect.left - origin.left, y: rect.top - origin.top }
+      rects.set(item.id, at)
+      const before = layout.current?.rects.get(item.id)
+      if (!before || layout.current?.key === key || reduced) continue
+      const dx = before.x - at.x
+      const dy = before.y - at.y
+      if (dx || dy) {
+        element.animate?.(
+          [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+          { duration: MOVE_MS, easing: 'ease-out' },
+        )
+      }
+    }
+    layout.current = { key, rects }
+  })
 
   // Forget selections of items that left this list (triaged elsewhere).
   const visibleSelection = items.filter((item) => selected.has(item.id)).map((item) => item.id)
@@ -144,22 +192,32 @@ export function ItemList({
     moveItem.mutate({ id, after, ...sortable }, { onError: failed })
   }
 
-  /** The item before which, or after which, the pointer is over `item`. */
-  function dropAt(event: DragEvent, item: Item): Drop {
+  /**
+   * The dragged item takes `item`'s place once the pointer is past the middle
+   * of it (in the direction of travel), so it doesn't flip back and forth
+   * over items of another size.
+   */
+  function dragOver(event: DragEvent, item: Item) {
+    if (!dragging || item.id === dragging) return
+    const ids = preview?.base === items ? preview.ids : items.map((each) => each.id)
+    const from = ids.indexOf(dragging)
+    const to = ids.indexOf(item.id)
     const rect = event.currentTarget.getBoundingClientRect()
-    // A grid reads across; the other layouts read down.
-    const past =
-      mode === 'grid'
-        ? event.clientX > rect.left + rect.width / 2
-        : event.clientY > rect.top + rect.height / 2
-    return { id: item.id, side: past ? 'after' : 'before' }
+    if (rect.height && mode !== 'grid') {
+      const middle = rect.top + rect.height / 2
+      if (to > from ? event.clientY < middle : event.clientY > middle) return
+    }
+    const next = ids.filter((id) => id !== dragging)
+    next.splice(to, 0, dragging)
+    setPreview({ base: items, ids: next })
   }
 
-  function dropped(target: Drop) {
-    if (!dragging || dragging === target.id) return
-    const rest = items.filter((item) => item.id !== dragging)
-    const at = rest.findIndex((item) => item.id === target.id)
-    place(dragging, target.side === 'after' ? target.id : (rest[at - 1]?.id ?? null))
+  function dropped() {
+    if (!dragging) return
+    const ids = shown.map((item) => item.id)
+    const at = ids.indexOf(dragging)
+    place(dragging, ids[at - 1] ?? null)
+    setDragging(null)
   }
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
@@ -269,8 +327,10 @@ export function ItemList({
     const all: { label: string; icon: LucideIcon; run: () => void }[] = [
       ...(note ? [{ label: 'Edit', icon: Pencil, run: () => open(note) }] : []),
       { label: 'Organize', icon: FolderInput, run: () => run(ids, 'organize') },
-      ...(backToInbox ? [{ label: 'To inbox', icon: Inbox, run: () => run(ids, 'inbox') }] : []),
-      { label: 'Archive', icon: Archive, run: () => run(ids, 'archive') },
+      ...(backToInbox || archived
+        ? [{ label: 'To inbox', icon: Inbox, run: () => run(ids, 'inbox') }]
+        : []),
+      ...(archived ? [] : [{ label: 'Archive', icon: Archive, run: () => run(ids, 'archive') }]),
       { label: 'Delete', icon: Trash2, run: () => run(ids, 'delete') },
     ]
     // Already in them, for a single item.
@@ -331,8 +391,23 @@ export function ItemList({
         </div>
       )}
 
-      <ul className={LAYOUT[mode]}>
-        {items.map((item) => {
+      <ul
+        ref={list}
+        className={LAYOUT[mode]}
+        // Dropped anywhere on the list, gaps included: where it is shown now.
+        onDragOver={(event) => {
+          // Only our own drags; files from outside are captures.
+          if (!dragging) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+        }}
+        onDrop={(event) => {
+          if (!dragging) return
+          event.preventDefault()
+          dropped()
+        }}
+      >
+        {shown.map((item) => {
           const note = item.kind === 'note' ? item : undefined
           const shared = {
             item,
@@ -349,8 +424,8 @@ export function ItemList({
             <li
               key={item.id}
               className={`relative transition-opacity ${mode === 'masonry' ? 'mb-4 break-inside-avoid' : ''} ${
-                dragging === item.id ? 'opacity-40' : ''
-              }`}
+                sortable ? 'cursor-grab active:cursor-grabbing' : ''
+              } ${dragging === item.id ? 'opacity-40' : ''}`}
               ref={(element) => {
                 if (element) cards.current.set(item.id, element)
                 else cards.current.delete(item.id)
@@ -362,35 +437,13 @@ export function ItemList({
                 setDragging(item.id)
                 event.dataTransfer.effectAllowed = 'move'
               }}
-              onDragOver={(event) => {
-                // Only our own drags; files from outside are captures.
-                if (!dragging) return
-                event.preventDefault()
-                event.dataTransfer.dropEffect = 'move'
-                const next = dropAt(event, item)
-                if (next.id !== drop?.id || next.side !== drop.side) setDrop(next)
-              }}
-              onDrop={(event) => {
-                if (!dragging) return
-                event.preventDefault()
-                dropped(dropAt(event, item))
-                setDrop(null)
-              }}
+              onDragOver={(event) => dragOver(event, item)}
               onDragEnd={() => {
+                // Let go outside the list: everything goes back.
+                if (dragging) setPreview(null)
                 setDragging(null)
-                setDrop(null)
               }}
             >
-              {drop?.id === item.id && dragging !== item.id && (
-                <span
-                  aria-hidden="true"
-                  className={`pointer-events-none absolute z-10 rounded-full bg-accent-500 ${
-                    mode === 'grid'
-                      ? `inset-y-0 w-1 ${drop.side === 'before' ? '-left-2' : '-right-2'}`
-                      : `inset-x-0 h-1 ${drop.side === 'before' ? '-top-2' : '-bottom-2'}`
-                  }`}
-                />
-              )}
               {mode === 'grid' ? (
                 <ItemTile {...shared} onOpen={() => open(item)} actions={icons} />
               ) : mode === 'list' ? (
