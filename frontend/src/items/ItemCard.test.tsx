@@ -68,6 +68,17 @@ describe('ItemCard files', () => {
   })
 })
 
+describe('ItemCard images', () => {
+  it('shows the caption under the image', () => {
+    renderCard({
+      ...fileItem({ filename: 'IMG_0042.png', mime: 'image/png', width: 40, height: 20 }),
+      kind: 'image',
+      body: 'Whiteboard from the pricing workshop',
+    })
+    expect(screen.getByText('Whiteboard from the pricing workshop')).toBeInTheDocument()
+  })
+})
+
 describe('ItemCard notes', () => {
   const note = (body: string): Item => ({
     ...fileItem({}),
