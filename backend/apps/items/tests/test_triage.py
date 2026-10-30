@@ -77,6 +77,7 @@ def test_collections_crud_with_item_counts(api, user, other_user, notes):
     assert response.status_code == 201
     work_id = response.json()["id"]
     assert response.json()["color"] == "#3b82f6"
+    Item.objects.filter(id__in=[notes[0].id, notes[1].id]).update(status="organized")
     Collection.objects.get(id=work_id).items.add(notes[0], notes[1])
 
     listed = api.get("/api/collections/").json()["results"]
@@ -88,3 +89,51 @@ def test_collections_crud_with_item_counts(api, user, other_user, notes):
     assert api.delete(f"/api/collections/{work_id}/").status_code == 204
     # Deleting a collection keeps its items.
     assert Item.objects.count() == 3
+
+
+@pytest.mark.parametrize("action", ["inbox", "archive"])
+def test_back_to_inbox_or_archived_leaves_its_collections(api, user, notes, action):
+    work = Collection.objects.create(owner=user, name="Work")
+    item = notes[0]
+    api.post(
+        "/api/items/triage/",
+        {"ids": [str(item.id)], "action": "organize", "collections": [str(work.id)]},
+        format="json",
+    )
+    api.post(
+        "/api/items/triage/", {"ids": [str(item.id)], "action": action}, format="json"
+    )
+
+    assert list(item.collections.all()) == []
+    assert api.get("/api/items/", {"collection": str(work.id)}).json()["results"] == []
+    counts = {
+        c["name"]: c["item_count"]
+        for c in api.get("/api/collections/").json()["results"]
+    }
+    assert counts == {"Work": 0}
+
+
+def test_a_collection_lists_only_what_is_organized_in_it(api, user, notes):
+    work = Collection.objects.create(owner=user, name="Work")
+    organized, archived = notes[0], notes[1]
+    organized.status = "organized"
+    organized.save()
+    archived.status = "archived"
+    archived.save()
+    for item in (organized, archived):
+        item.collections.add(work)
+
+    listed = api.get("/api/items/", {"collection": str(work.id)}).json()["results"]
+    assert [item["id"] for item in listed] == [str(organized.id)]
+
+
+def test_archive_lists_last_archived_first(api, notes):
+    first, second = notes[0], notes[1]
+    for item in (first, second):
+        api.post(
+            "/api/items/triage/",
+            {"ids": [str(item.id)], "action": "archive"},
+            format="json",
+        )
+    listed = api.get("/api/items/", {"status": "archived"}).json()["results"]
+    assert [item["id"] for item in listed] == [str(second.id), str(first.id)]

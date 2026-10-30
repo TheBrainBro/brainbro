@@ -154,3 +154,16 @@ def test_search_columns_follow_edits(user):
     note.save()
     assert Item.objects.filter(search_text__contains="final").get() == note
     assert not Item.objects.filter(search_text__contains="draft").exists()
+
+
+def test_finds_images_by_their_caption(api, user):
+    image = Item.objects.create(
+        owner=user, kind="image", metadata={"filename": "IMG_0042.png"}
+    )
+    response = api.patch(
+        f"/api/items/{image.id}/",
+        {"body": "Whiteboard from the pricing workshop"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert ids(search(api, "pricing workshop")) == [str(image.id)]

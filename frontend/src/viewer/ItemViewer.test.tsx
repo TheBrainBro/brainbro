@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -64,6 +64,37 @@ function renderList() {
 }
 
 describe('ItemViewer', () => {
+  it('saves a caption under an image when leaving the field', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/items/a/' && init?.method === 'PATCH'
+        ? new Response(JSON.stringify({ ...items[0], body: 'Our first trip', version: 'v2' }), {
+            headers: { 'Content-Type': 'application/json' },
+          })
+        : new Response('{}'),
+    )
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))
+    const viewer = await screen.findByRole('dialog', { name: 'beach.jpg' })
+    const caption = within(viewer).getByLabelText('Caption')
+
+    fireEvent.change(caption, { target: { value: 'Our first trip' } })
+    // Arrows move the cursor in the field, not to the next item.
+    fireEvent.keyDown(caption, { key: 'ArrowRight' })
+    expect(within(viewer).getByText(/1 of 3/)).toBeInTheDocument()
+    fireEvent.blur(caption)
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/items/a/',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ body: 'Our first trip' }) }),
+      ),
+    )
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === '/api/items/a/')!
+    expect(new Headers((init as RequestInit).headers).get('If-Match')).toBe('"v1"')
+    // Its caption names it now.
+    expect(await screen.findByRole('dialog', { name: 'Our first trip' })).toBeInTheDocument()
+  })
+
   it('opens an image full size and steps through the list', async () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))

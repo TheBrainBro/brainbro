@@ -1,6 +1,6 @@
-import { Inbox, SquarePen } from 'lucide-react'
+import { Archive, Inbox, SquarePen } from 'lucide-react'
 import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, NavLink, useNavigate } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
@@ -15,10 +15,16 @@ import { isEditable } from '../lib/dom'
 import { MOD } from '../lib/keys'
 import { EmptyState, ErrorState } from '../ui/states'
 
-export function InboxPage() {
-  const items = useItems({ status: 'inbox' })
+const TAB =
+  'rounded-md px-1 text-2xl font-semibold transition aria-[current=page]:text-zinc-900 dark:aria-[current=page]:text-zinc-100 text-zinc-400 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400'
+
+/** The inbox, or with `archived` what was archived, to bring back or delete. */
+export function InboxPage({ archived = false }: { archived?: boolean }) {
+  const items = useItems({ status: archived ? 'archived' : 'inbox' })
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
-  const pending = useCapturePipeline().pending.filter((entry) => !entry.collection)
+  const captures = useCapturePipeline().pending.filter((entry) => !entry.collection)
+  // Captures land in the inbox: that is where they show.
+  const pending = archived ? [] : captures
   const navigate = useNavigate()
   const [mode, setMode] = useViewMode('inbox')
 
@@ -40,7 +46,15 @@ export function InboxPage() {
       <div className="sticky top-0 z-10 -mx-4 bg-zinc-50/90 px-4 pt-8 pb-4 backdrop-blur dark:bg-zinc-950/90">
         <div className={`mx-auto ${MODE_WIDTH.cards}`}>
           <div className="mb-3 flex items-center gap-2">
-            <h1 className="mr-auto text-2xl font-semibold">Inbox</h1>
+            <h1 className="sr-only">{archived ? 'Archive' : 'Inbox'}</h1>
+            <nav aria-label="Inbox or archive" className="mr-auto flex items-baseline gap-3">
+              <NavLink to="/" end className={TAB}>
+                Inbox
+              </NavLink>
+              <NavLink to="/archive" className={TAB}>
+                Archive
+              </NavLink>
+            </nav>
             <ViewModeSwitch mode={mode} onChange={setMode} />
             <Link to="/notes/new" aria-label="New note" className="button-outline group relative px-3 py-1.5">
               <SquarePen className="size-4" aria-hidden="true" />
@@ -55,7 +69,12 @@ export function InboxPage() {
       <div className={`mx-auto ${MODE_WIDTH[mode]} transition-[max-width]`}>
         {items.isPending && <ItemListSkeleton mode={mode} />}
         {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-        {items.isSuccess && all.length === 0 && pending.length === 0 && (
+        {archived && items.isSuccess && all.length === 0 && (
+          <EmptyState icon={Archive} title="Nothing archived">
+            Archive what you want to keep out of the way: it waits here, and search still finds it.
+          </EmptyState>
+        )}
+        {!archived && items.isSuccess && all.length === 0 && pending.length === 0 && (
           <EmptyState icon={Inbox} title="Inbox zero">
             Everything is sorted. Type above, paste with <kbd className="kbd">{MOD}</kbd>{' '}
             <kbd className="kbd">V</kbd> or drop files anywhere: it all lands here, to sort later.
@@ -72,7 +91,11 @@ export function InboxPage() {
           </ul>
         )}
 
-        <ItemList items={all} mode={mode} />
+        {archived ? (
+          <ItemList items={all} mode={mode} archived />
+        ) : (
+          <ItemList items={all} mode={mode} sortable={{}} />
+        )}
 
         {items.hasNextPage && (
           <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />

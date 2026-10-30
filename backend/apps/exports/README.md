@@ -10,6 +10,7 @@ files, albums, collections and boards. Everything you need is in plain files
 README.md          this file
 items.json         every item with all its data, and where its file is
 collections.json   your collections and the items in each
+collections/       the image of each collection, when it had one
 notes/             one Markdown file per note
 notes/attachments/ images you pasted into notes
 notes/images/      copies of the web images in each note, a folder per note
@@ -109,8 +110,10 @@ The full record of every item, including the ones that are only a file:
 
 ## collections.json
 
-A list of `{id, name, kind, color, icon, created_at, items}`. `kind` is
-`project`, `area` or `resource`; `items` are item ids, as in `items.json`.
+A list of `{id, name, kind, color, icon, image, created_at, items}`. `kind`
+is `project`, `area` or `resource`; `icon` is an emoji and `color` a hex
+color, both optional; `image` is the path of its image in this export, or
+null; `items` are item ids, as in `items.json`.
 
 ## Boards
 

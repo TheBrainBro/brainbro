@@ -6,10 +6,16 @@ from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.utils import timezone
 
 from apps.core.models import OwnedModel
 
 from . import search
+
+
+def collection_image_path(collection, filename):
+    # A fresh name per upload, so a new image never hits a stale cache.
+    return f"collections/{collection.id}/{uuid.uuid4().hex}.webp"
 
 
 class Collection(OwnedModel):
@@ -28,6 +34,8 @@ class Collection(OwnedModel):
     # Hex color (#rrggbb) and an emoji or icon name, both optional.
     color = models.CharField(max_length=7, blank=True)
     icon = models.CharField(max_length=32, blank=True)
+    # An uploaded square image; shown instead of the icon when set.
+    image = models.ImageField(upload_to=collection_image_path, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -39,6 +47,21 @@ class Collection(OwnedModel):
 
     def __str__(self):
         return self.name
+
+
+@receiver(post_delete, sender=Collection)
+def delete_collection_image(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)
+
+
+def rank_now():
+    """
+    Where something new goes in a hand-sorted list: lists sort by rank, highest
+    first, so now is on top. Moving an item gives it a rank between its new
+    neighbours (see `ordering`).
+    """
+    return timezone.now().timestamp()
 
 
 def preview_image_path(item, filename):
@@ -101,7 +124,11 @@ class Item(OwnedModel):
     preview_image = models.ImageField(upload_to=preview_image_path, blank=True)
     # The uploaded original, for image and file items.
     file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
-    collections = models.ManyToManyField(Collection, related_name="items", blank=True)
+    collections = models.ManyToManyField(
+        Collection, related_name="items", blank=True, through="CollectionItem"
+    )
+    # Its place in the inbox; see `rank_now`. Back to the inbox, back on top.
+    inbox_rank = models.FloatField(default=rank_now)
     # Images in an album are items of their own (their files, thumbnails and
     # URLs work as usual) that only show up through it, in `album_position`
     # order. Deleting the album deletes them.
@@ -132,6 +159,7 @@ class Item(OwnedModel):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["owner", "status", "-created_at"]),
+            models.Index(fields=["owner", "status", "-inbox_rank"]),
             GinIndex(
                 fields=["search_text"],
                 opclasses=["gin_trgm_ops"],
@@ -150,6 +178,21 @@ class Item(OwnedModel):
         """
         content = f"{self.title}\0{self.body}".encode()
         return hashlib.sha256(content).hexdigest()[:16]
+
+
+class CollectionItem(models.Model):
+    """An item in a collection, at its place there (see `rank_now`)."""
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
+    rank = models.FloatField(default=rank_now)
+
+    class Meta:
+        # The table and constraint Django made for the plain many-to-many,
+        # before it had a rank.
+        db_table = "items_item_collections"
+        unique_together = [("item", "collection")]
+        indexes = [models.Index(fields=["collection", "-rank"])]
 
 
 @receiver(post_delete, sender=Item)
@@ -225,3 +268,51 @@ def delete_note_image_files(sender, instance, **kwargs):
         instance.image.delete(save=False)
     if instance.original:
         instance.original.delete(save=False)
+
+
+def note_link_image_path(link, filename):
+    return f"note-links/{link.id}/{uuid.uuid4().hex}.webp"
+
+
+class NoteLink(OwnedModel):
+    """
+    The preview of a link a note shows as a card or an embed (written
+    `[text](url "card")` or `"embed"`), looked up by its URL as markdown-it
+    reads it. Fetched once, in the background, like remote images: opening
+    the note never tells the site. An embed itself does load the site; that
+    is why it is chosen link by link.
+    """
+
+    note = models.ForeignKey(
+        Item,
+        on_delete=models.CASCADE,
+        related_name="note_links",
+        limit_choices_to={"kind": "note"},
+    )
+    url = models.CharField(max_length=2048)
+    status = models.CharField(
+        max_length=8,
+        choices=Item.PreviewStatus,
+        default=Item.PreviewStatus.PENDING,
+    )
+    # Title, description, site name and the like, as for link items.
+    metadata = models.JSONField(default=dict, blank=True)
+    image = models.ImageField(
+        upload_to=note_link_image_path, max_length=255, blank=True
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["note", "url"], name="unique_note_link_url"
+            ),
+        ]
+
+    def __str__(self):
+        return self.url
+
+
+@receiver(post_delete, sender=NoteLink)
+def delete_note_link_image(sender, instance, **kwargs):
+    if instance.image:
+        instance.image.delete(save=False)

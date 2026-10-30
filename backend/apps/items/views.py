@@ -1,8 +1,9 @@
 import uuid
 
 from django.conf import settings
-from django.db import transaction
-from django.db.models import Count
+from django.core.files.base import ContentFile
+from django.db import models, transaction
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -12,8 +13,11 @@ from rest_framework.response import Response
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
-from .models import Collection, Item, NoteImage
+from .collection_images import make_collection_image
+from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
 from .note_images import MAX_PASTED_SIZE, sync_note_images
+from .note_links import sync_note_links
+from .ordering import move_in_collection, move_in_inbox
 from .search import find
 from .serializers import (
     ITEM_PREFETCH,
@@ -27,6 +31,7 @@ from .serializers import (
 from .tasks import (
     fetch_link_preview,
     fetch_note_images,
+    fetch_note_links,
     generate_thumbnail,
     make_note_image_display,
 )
@@ -69,6 +74,13 @@ class CaptureSerializer(serializers.Serializer):
         return data
 
 
+class MoveSerializer(serializers.Serializer):
+    after = serializers.UUIDField(allow_null=True, required=False, default=None)
+    collection = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), required=False, allow_null=True
+    )
+
+
 def enqueue_preview(item):
     # After commit, so the worker never looks for a row it can't see yet.
     task = fetch_link_preview if item.kind == Item.Kind.LINK else generate_thumbnail
@@ -76,8 +88,11 @@ def enqueue_preview(item):
 
 
 def sync_images(note):
+    """Images and link previews the note now shows, fetched in the background."""
     if sync_note_images(note):
         transaction.on_commit(lambda: fetch_note_images.delay(str(note.id)))
+    if sync_note_links(note):
+        transaction.on_commit(lambda: fetch_note_links.delay(str(note.id)))
 
 
 def create_upload_item(owner, file, upload):
@@ -123,18 +138,39 @@ class ItemViewSet(
         if self.action == "list":
             items = items.filter(album__isnull=True)
         params = self.request.query_params
-        if item_status := params.get("status"):
+        item_status = params.get("status")
+        if item_status:
             items = items.filter(status=item_status)
         if kinds := params.get("kind"):
             items = items.filter(kind__in=kinds.split(","))
-        if self.action == "list" and (text := params.get("q", "").strip()):
-            items = find(items, text).order_by("-rank", "-created_at")
+        searching = self.action == "list" and params.get("q", "").strip()
+        if searching:
+            items = find(items, searching).order_by("-rank", "-created_at")
         if collection := params.get("collection"):
             try:
-                items = items.filter(collections=uuid.UUID(collection))
+                collection = uuid.UUID(collection)
             except ValueError:
                 return items.none()
+            return self._in_collection(items, collection, item_status, searching)
+        if item_status == Item.Status.INBOX and not searching:
+            items = items.order_by("-inbox_rank", "-created_at")
+        elif item_status == Item.Status.ARCHIVED and not searching:
+            # Last archived first.
+            items = items.order_by("-updated_at")
         return items
+
+    def _in_collection(self, items, collection, item_status, searching):
+        items = items.filter(collections=collection)
+        if not item_status:
+            # What is in it now: items sent back or archived have left it.
+            items = items.filter(status=Item.Status.ORGANIZED)
+        if searching:
+            return items
+        # In the order it was sorted into, by hand.
+        place = CollectionItem.objects.filter(
+            item=OuterRef("pk"), collection=collection
+        ).values("rank")[:1]
+        return items.annotate(place=Subquery(place)).order_by("-place", "-created_at")
 
     def update(self, request, *args, **kwargs):
         """
@@ -293,10 +329,42 @@ class ItemViewSet(
                 Action.ARCHIVE: Item.Status.ARCHIVED,
                 Action.INBOX: Item.Status.INBOX,
             }[data["action"]]
+            if new_status == Item.Status.INBOX:
+                # Back in the inbox, on top; already there, it stays put.
+                items.exclude(status=Item.Status.INBOX).update(inbox_rank=rank_now())
+            if new_status != Item.Status.ORGANIZED:
+                # Back to the inbox or archived, it leaves its collections
+                # (undo organizes it into them again).
+                CollectionItem.objects.filter(item__in=items).delete()
             items.update(status=new_status, updated_at=timezone.now())
 
         updated = self.get_queryset().filter(id__in=data["ids"])
         return Response(self.get_serializer(updated, many=True).data)
+
+    @action(detail=True, methods=["post"])
+    def move(self, request, pk=None):
+        """
+        Puts the item right after `after` (an item id, or null for the top)
+        in the inbox, or in `collection` when given.
+        """
+        item = self.get_object()
+        payload = MoveSerializer(data=request.data, context={"request": request})
+        payload.is_valid(raise_exception=True)
+        after = payload.validated_data.get("after")
+        collection = payload.validated_data.get("collection")
+        if collection:
+            if not item.collections.filter(id=collection.id).exists():
+                raise serializers.ValidationError(
+                    {"collection": "The item isn't in this collection."}
+                )
+            placed = move_in_collection(item, collection, after)
+        else:
+            if item.status != Item.Status.INBOX:
+                raise serializers.ValidationError({"detail": "Not in the inbox."})
+            placed = move_in_inbox(item, after)
+        if not placed:
+            raise serializers.ValidationError({"after": "Not in the same list."})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):
@@ -406,13 +474,114 @@ class NoteImageViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return response
 
 
+class NoteLinkViewSet(viewsets.GenericViewSet):
+    """Serves the image of a card or embed link in a note (see `NoteLink`)."""
+
+    def get_queryset(self):
+        return NoteLink.objects.filter(owner=self.request.user)
+
+    @action(detail=True, methods=["get"])
+    def image(self, request, pk=None):
+        link = self.get_object()
+        if not link.image:
+            raise Http404
+        response = FileResponse(link.image.open("rb"), content_type="image/webp")
+        response["X-Content-Type-Options"] = "nosniff"
+        # The URL carries a per-file version, so the content never changes.
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
+
+
+class CollectionDeleteSerializer(serializers.Serializer):
+    """What happens to the items that are in no other collection."""
+
+    class Items(models.TextChoices):
+        INBOX = "inbox"  # back to the inbox, to sort again
+        ARCHIVE = "archive"
+        DELETE = "delete"
+
+    items = serializers.ChoiceField(choices=Items.choices, default=Items.INBOX)
+
+
+class CollectionImageSerializer(serializers.Serializer):
+    # Checked by make_collection_image, size first.
+    file = serializers.FileField(allow_empty_file=False)
+
+
 class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
 
     def get_queryset(self):
         return Collection.objects.filter(owner=self.request.user).annotate(
-            item_count=Count("items")
+            item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
         )
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        `?items=inbox|archive|delete` (inbox by default) says what happens to
+        the items only in this collection. Items in other collections too
+        just leave this one. Archived items stay archived unless deleted.
+        """
+        options = CollectionDeleteSerializer(data=request.query_params)
+        options.is_valid(raise_exception=True)
+        Items = CollectionDeleteSerializer.Items
+        choice = options.validated_data["items"]
+        collection = self.get_object()
+
+        with transaction.atomic():
+            # Counted before filtering by this collection, or the count would
+            # only see this one.
+            only_here = (
+                Item.objects.filter(owner=request.user)
+                .annotate(placed=Count("collections"))
+                .filter(collections=collection, placed=1)
+            )
+            ids = list(only_here.values_list("id", flat=True))
+            orphans = Item.objects.filter(id__in=ids)
+            if choice == Items.DELETE:
+                # Per-object signals still run, so their files are removed.
+                orphans.delete()
+            else:
+                new_status = {
+                    Items.INBOX: Item.Status.INBOX,
+                    Items.ARCHIVE: Item.Status.ARCHIVED,
+                }[choice]
+                orphans.filter(status=Item.Status.ORGANIZED).update(
+                    status=new_status, updated_at=timezone.now()
+                )
+            collection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get", "post", "delete"])
+    def image(self, request, pk=None):
+        """GET the image, POST a new one (multipart `file`), DELETE it."""
+        collection = self.get_object()
+        if request.method == "GET":
+            if not collection.image:
+                raise Http404
+            response = FileResponse(
+                collection.image.open("rb"), content_type="image/webp"
+            )
+            # The URL carries a per-file version, so the content never changes.
+            response["Cache-Control"] = "private, max-age=31536000, immutable"
+            return response
+
+        old = collection.image.name if collection.image else None
+        if request.method == "POST":
+            upload = CollectionImageSerializer(data=request.data)
+            upload.is_valid(raise_exception=True)
+            data = make_collection_image(upload.validated_data["file"])
+            if data is None:
+                raise serializers.ValidationError(
+                    {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
+                )
+            collection.image.save("image.webp", ContentFile(data), save=True)
+        else:
+            collection.image = ""
+            collection.save(update_fields=["image", "updated_at"])
+        if old:
+            collection.image.storage.delete(old)
+        return Response(self.get_serializer(self.get_queryset().get(pk=pk)).data)
