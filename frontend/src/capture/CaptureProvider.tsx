@@ -10,6 +10,7 @@ import { useFeedback, type Toast } from '../ui/feedback'
 import { isClaimed } from './claims'
 import {
   CaptureContext,
+  type CaptureDestination,
   type CaptureOptions,
   type CaptureResult,
   type CaptureTarget,
@@ -39,6 +40,8 @@ type Batch = {
   /** Where each entry's input was, to keep the album in the order given. */
   positions: Map<string, number>
   albumId?: string
+  /** The collection it all went into, for the toast. */
+  into?: CaptureDestination
 }
 
 function labelOf(input: CaptureInput) {
@@ -59,7 +62,8 @@ function isTransient(error: unknown) {
 /**
  * The one capture pipeline. Pastes and drops anywhere in the app, and the
  * capture box, all come through here: each input becomes an optimistic card
- * (with upload progress for files) until the server item replaces it.
+ * (with upload progress for files) until the server item replaces it. They
+ * land in the inbox, or in the collection that is open.
  */
 export function CaptureProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
@@ -77,6 +81,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   const settlers = useRef(new Map<string, (result: CaptureResult) => void>())
   const observers = useRef(new Map<string, (result: CaptureResult) => void>())
   const [target, setTarget] = useState<CaptureTarget | null>(null)
+  const [destination, setDestination] = useState<CaptureDestination | null>(null)
   const batches = useRef(new Map<string, Batch>())
   const queue = useRef<PendingCapture[]>([])
   const running = useRef(0)
@@ -149,13 +154,14 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   async function send(entry: PendingCapture, signal: AbortSignal) {
     const input = entry.input!
+    const collection = entry.collection ? { collection: entry.collection } : {}
     if (input.kind !== 'file') {
       const payload =
         input.kind === 'url'
-          ? { text: input.url }
+          ? { text: input.url, ...collection }
           : input.kind === 'note'
-            ? { text: input.text, kind: 'note' }
-            : { text: input.text }
+            ? { text: input.text, kind: 'note', ...collection }
+            : { text: input.text, ...collection }
       return api<Item>('/items/capture/', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -164,6 +170,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     }
     const form = new FormData()
     form.append('file', input.file)
+    if (entry.collection) form.append('collection', entry.collection)
     return upload<Item>('/items/capture/', form, {
       signal,
       onProgress: (progress) => update(entry.id, { progress }),
@@ -225,7 +232,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
   function capture(
     found: CaptureInputs,
-    { undo = true, retryLater = false, album = true, onQueued, onSettled }: CaptureOptions = {},
+    { undo = true, retryLater = false, album = true, into, onQueued, onSettled }: CaptureOptions = {},
   ) {
     const batchId = crypto.randomUUID()
     const entries: PendingCapture[] = []
@@ -245,6 +252,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
         error,
         retryable: false,
         previewUrl: !error && isImage ? URL.createObjectURL(input.file) : undefined,
+        collection: into?.id,
       }
       entries.push(entry)
       if (error) {
@@ -264,6 +272,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
         progress: 0,
         error,
         retryable: false,
+        collection: into?.id,
       })
       refused.push({ label: skipped.name, error })
     }
@@ -282,6 +291,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       album,
       images: new Map(),
       positions: new Map(entries.map((entry, position) => [entry.id, position])),
+      into,
     }
     batches.current.set(batchId, batch)
     if (onSettled) {
@@ -341,6 +351,13 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     return () => setTarget((current) => (current === next ? null : current))
   }, [])
 
+  const registerDestination = useCallback((next: CaptureDestination) => {
+    setDestination(next)
+    return () => setDestination((current) => (current === next ? null : current))
+  }, [])
+
+  const here = destination ? { into: destination } : undefined
+
   // One toast for the batch on screen, kept in step with it.
   const showToast = useEffectEvent((batch: Batch | null) => {
     if (!batch) return feedback.dismissToast(CAPTURE_TOAST)
@@ -379,7 +396,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     if (!found.inputs.length && !found.skipped.length) return
     event.preventDefault()
     if (target) target.capture(found, null)
-    else capture(found)
+    else capture(found, here)
   })
 
   const onDragStart = useEffectEvent(() => {
@@ -428,7 +445,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     if (target && event.target instanceof Node && target.contains(event.target)) {
       target.capture(found, { x: event.clientX, y: event.clientY })
     } else {
-      capture(found)
+      capture(found, here)
     }
   })
 
@@ -460,19 +477,29 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <CaptureContext value={{ pending, capture, retry, dismiss, target: register, dragging }}>
+    <CaptureContext
+      value={{
+        pending,
+        capture,
+        retry,
+        dismiss,
+        target: register,
+        destination: registerDestination,
+        dragging,
+      }}
+    >
       {children}
-      {dragging && !target && !overClaimed && <DropOverlay />}
+      {dragging && !target && !overClaimed && <DropOverlay into={destination} />}
     </CaptureContext>
   )
 }
 
 /** Lets drags through, so an element that takes drops itself (a note) gets them. */
-function DropOverlay() {
+function DropOverlay({ into }: { into: CaptureDestination | null }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-6 backdrop-blur-sm">
       <div className="pointer-events-none flex size-full items-center justify-center rounded-3xl border-2 border-dashed border-white/80 text-2xl font-semibold text-white">
-        Drop to capture
+        {into ? `Drop to add to ${into.name}` : 'Drop to capture'}
       </div>
     </div>
   )
@@ -483,6 +510,7 @@ function batchToast(batch: Batch, onUndo: () => void, onSeparate: () => void): T
   const done = batch.created.length
   const later = batch.deferred.length
   const count = (n: number) => (n === 1 ? '1 item' : `${n} items`)
+  const where = batch.into ? ` into ${batch.into.name}` : ''
   const message = !batch.settled
     ? `Capturing ${count(batch.total)}…`
     : batch.albumId
@@ -492,7 +520,7 @@ function batchToast(batch: Batch, onUndo: () => void, onSeparate: () => void): T
     : later > 0
       ? `${done > 0 ? `Captured ${done}, kept` : 'Kept'} ${count(later)} on this device to send later`
       : batch.failed.length === 0
-        ? `Captured ${count(done)}`
+        ? `Captured ${count(done)}${where}`
         : done === 0
           ? `Couldn't capture ${count(batch.total)}`
           : `Captured ${done} of ${batch.total}`

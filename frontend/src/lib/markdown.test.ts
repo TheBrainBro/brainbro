@@ -53,3 +53,50 @@ describe('imageKey', () => {
     expect(imageKey('attachments/0f.png')).toBe('attachments/0f.png')
   })
 })
+
+describe('card and embed links', () => {
+  const preview = {
+    status: 'ready',
+    title: 'A post',
+    description: 'What it says',
+    site_name: 'Blog',
+    image_url: '/api/note-links/1/image/?v=a.webp',
+  }
+
+  it('shows a link alone in its paragraph as a card with the stored preview', () => {
+    const html = renderNote('[read](https://blog.example/a "card")', {
+      links: { 'https://blog.example/a': preview },
+    })
+    const card = new DOMParser().parseFromString(html, 'text/html').querySelector('a.link-card')!
+    expect(card.getAttribute('href')).toBe('https://blog.example/a')
+    expect(card.textContent).toBe('A postWhat it saysBlog')
+    expect(card.querySelector('img')!.getAttribute('src')).toBe(preview.image_url)
+    expect(html).not.toContain('<p>')
+  })
+
+  it('shows a pending card with the link text until the preview is in', () => {
+    const html = renderNote('[read](https://blog.example/a "card")')
+    expect(html).toContain('data-status="pending"')
+    expect(html).toContain('>read<')
+  })
+
+  it('plays embeds only where asked, from the privacy-enhanced player', () => {
+    const body = '[video](https://www.youtube.com/watch?v=dQw4w9WgXcQ "embed")'
+    expect(renderNote(body)).not.toContain('<iframe')
+    expect(renderNote(body, { embeds: true })).toContain(
+      'src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"',
+    )
+  })
+
+  it('shows embeds of unknown sites as cards', () => {
+    const html = renderNote('[x](https://evil.example/x "embed")', { embeds: true })
+    expect(html).not.toContain('<iframe')
+    expect(html).toContain('link-card')
+  })
+
+  it('leaves other links alone', () => {
+    expect(renderNote('see [read](https://blog.example/a "card")')).not.toContain('link-card')
+    expect(renderNote('[read](https://blog.example/a "A title")')).not.toContain('link-card')
+    expect(renderNote('[read](javascript:alert(1) "card")')).not.toContain('link-card')
+  })
+})

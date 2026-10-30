@@ -4,7 +4,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
-from apps.items.models import Item
+from apps.items.models import Collection, Item
 from apps.items.tasks import generate_thumbnail
 
 
@@ -281,3 +281,16 @@ def test_refresh_preview_regenerates_pdf_thumbnails(
         response = api.post(f"/api/items/{item_id}/refresh-preview/")
     assert response.status_code == 200
     assert Item.objects.get(id=item_id).preview_image.name != first
+
+
+def test_upload_into_a_collection_organizes_it(api, user, media):
+    collection = Collection.objects.create(owner=user, name="Docs")
+    upload = SimpleUploadedFile("a.pdf", PDF, content_type="application/pdf")
+    response = api.post(
+        "/api/items/capture/",
+        {"file": upload, "collection": str(collection.id)},
+        format="multipart",
+    )
+    assert response.status_code == 201
+    assert response.json()["status"] == "organized"
+    assert list(collection.items.values_list("kind", flat=True)) == ["file"]

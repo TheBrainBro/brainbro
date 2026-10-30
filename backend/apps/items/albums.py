@@ -42,11 +42,28 @@ def _place(album, images):
 
 @transaction.atomic
 def make_album(owner, images, title=""):
-    """A new album in the inbox holding `images`, in order."""
+    """
+    A new album holding `images`, in order. It lands where they all are: in
+    the collections they share and with their status when they agree (images
+    dropped into a collection stay there), otherwise in the inbox.
+    """
     if len(images) < 2:
         raise AlbumError("An album needs at least two images.")
     _check(images)
-    album = Item.objects.create(owner=owner, kind=Item.Kind.ALBUM, title=title)
+    statuses = {image.status for image in images}
+    in_collections = {image.id: set() for image in images}
+    links = Item.collections.through.objects.filter(item_id__in=in_collections)
+    for item_id, collection_id in links.values_list("item_id", "collection_id"):
+        in_collections[item_id].add(collection_id)
+    shared = set.intersection(*in_collections.values())
+    status = statuses.pop() if len(statuses) == 1 else Item.Status.INBOX
+    if status == Item.Status.ORGANIZED and not shared:
+        status = Item.Status.INBOX
+    album = Item.objects.create(
+        owner=owner, kind=Item.Kind.ALBUM, title=title, status=status
+    )
+    if status == Item.Status.ORGANIZED:
+        album.collections.set(shared)
     _place(album, images)
     return album
 
