@@ -1,6 +1,6 @@
 import pytest
 
-from apps.items.models import Item
+from apps.items.models import Collection, Item
 
 
 def image(owner, name="a.png"):
@@ -108,3 +108,26 @@ def test_deleting_an_album_deletes_its_images(api, images):
 def test_only_albums_have_contents(api, images):
     response = api.post(f"/api/items/{images[0].id}/ungroup/")
     assert response.status_code == 400
+
+
+def test_an_album_of_images_in_a_collection_stays_there(api, user, images):
+    work = Collection.objects.create(owner=user, name="Work")
+    home = Collection.objects.create(owner=user, name="Home")
+    for item in images[:2]:
+        item.status = Item.Status.ORGANIZED
+        item.save()
+        item.collections.add(work)
+    images[0].collections.add(home)
+
+    album = make(api, images[:2]).json()
+    assert (album["status"], album["collections"]) == ("organized", [str(work.id)])
+
+
+def test_an_album_of_images_from_different_places_goes_to_the_inbox(api, user, images):
+    work = Collection.objects.create(owner=user, name="Work")
+    images[0].status = Item.Status.ORGANIZED
+    images[0].save()
+    images[0].collections.add(work)
+
+    album = make(api, images[:2]).json()
+    assert (album["status"], album["collections"]) == ("inbox", [])
