@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "apps.items.apps.ItemsConfig",
     "apps.boards.apps.BoardsConfig",
     "apps.exports.apps.ExportsConfig",
+    "apps.imports.apps.ImportsConfig",
     "apps.telegram.apps.TelegramConfig",
 ]
 
@@ -152,6 +153,10 @@ BACKUP_RETENTION = int(get_env_variable("BACKUP_RETENTION", "14"))
 # to be downloaded. Shared by api (serves them) and worker (builds them).
 EXPORT_DIR = Path(get_env_variable("EXPORT_DIR", str(BASE_DIR / "exports")))
 EXPORT_RETENTION_HOURS = int(get_env_variable("EXPORT_RETENTION_HOURS", "24"))
+
+# Obsidian vault imports (apps.imports): the largest zip accepted. Cloudflare's
+# free plan refuses requests over 100 MB anyway.
+IMPORT_MAX_SIZE = int(get_env_variable("IMPORT_MAX_SIZE", str(100 * 1024 * 1024)))
 
 # Telegram bot (apps.telegram): messages sent or forwarded to it land in the
 # inbox of the account that connected the chat. Off without a token. The
