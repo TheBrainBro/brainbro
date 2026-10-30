@@ -14,6 +14,7 @@ import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { CollectionPicker } from '../items/CollectionPicker'
+import { OrganizeMenu, type OrganizeTriggerProps } from '../items/OrganizeMenu'
 import { uploadNoteImage, useItem, useTriage, type Item } from '../items/api'
 import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
@@ -168,7 +169,20 @@ function NoteWorkspace({
       actions={
         noteId && (
           <>
-            <Action icon={FolderInput} label="Organize" onClick={() => setOrganizing(true)} />
+            <OrganizeMenu
+              current={latest?.collections}
+              onPick={(collection) =>
+                triage.mutate(
+                  { ids: [noteId], action: 'organize', collections: [collection.id] },
+                  {
+                    onSuccess: () => toast({ message: `Organized the note into ${collection.name}` }),
+                    onError: failed,
+                  },
+                )
+              }
+              onMore={() => setOrganizing(true)}
+              trigger={(props) => <Action icon={FolderInput} label="Organize" {...props} />}
+            />
             {status === 'archived' ? (
               <Action icon={Inbox} label="To inbox" onClick={archive} />
             ) : (
@@ -311,9 +325,13 @@ function Frame({
 }
 
 /** An action in the note's bar: icon and word, the icon alone on phones. */
-function Action({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+function Action({
+  icon: Icon,
+  label,
+  ...props
+}: { icon: LucideIcon; label: string; onClick: () => void } & Partial<OrganizeTriggerProps>) {
   return (
-    <button type="button" aria-label={label} className="button-ghost group relative" onClick={onClick}>
+    <button type="button" aria-label={label} className="button-ghost group relative" {...props}>
       <Icon className="size-3.5" aria-hidden="true" />
       <span className="hidden sm:inline">{label}</span>
       <span className="tooltip top-full mt-2 sm:hidden">{label}</span>

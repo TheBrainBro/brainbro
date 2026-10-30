@@ -8,8 +8,16 @@ import { useViewer } from '../viewer/context'
 import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
 import { ItemRow, ItemTile } from './ItemTile'
+import { OrganizeMenu } from './OrganizeMenu'
 import type { ViewMode } from './viewMode'
-import { useMakeAlbum, useSetAlbumItems, useTriage, type Item, type TriageAction } from './api'
+import {
+  useMakeAlbum,
+  useSetAlbumItems,
+  useTriage,
+  type Collection,
+  type Item,
+  type TriageAction,
+} from './api'
 import { triageMessage, undoTriage, useUndoAction } from './triage'
 
 const LAYOUT: Record<ViewMode, string> = {
@@ -81,6 +89,20 @@ export function ItemList({
             message: triageMessage(action, ids.length),
             actions: undoAction(undo),
           })
+        },
+        onError: failed,
+      },
+    )
+  }
+
+  /** One click from the organize menu. */
+  function organizeInto(ids: string[], collection: Collection) {
+    triage.mutate(
+      { ids, action: 'organize', collections: [collection.id] },
+      {
+        onSuccess: () => {
+          setSelected(new Set())
+          toast({ message: triageMessage('organize', ids.length, collection.name) })
         },
         onError: failed,
       },
@@ -206,25 +228,39 @@ export function ItemList({
       { label: 'Archive', icon: Archive, run: () => run(ids, 'archive') },
       { label: 'Delete', icon: Trash2, run: () => run(ids, 'delete') },
     ]
-    return all.map(({ label, icon: Icon, run: action }) =>
-      icons ? (
-        <button
+    // Already in them, for a single item.
+    const current = ids.length === 1 ? (items.find((item) => item.id === ids[0])?.collections ?? []) : []
+    return all.map(({ label, icon: Icon, run: action }) => {
+      const button = (props: object = {}) =>
+        icons ? (
+          <button
+            key={label}
+            type="button"
+            aria-label={label}
+            className="button-icon group size-7"
+            onClick={action}
+            {...props}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+            <span className="tooltip top-full mt-1.5">{label}</span>
+          </button>
+        ) : (
+          <button key={label} type="button" className="button-ghost" onClick={action} {...props}>
+            <Icon className="size-3.5" aria-hidden="true" />
+            {label}
+          </button>
+        )
+      if (label !== 'Organize') return button()
+      return (
+        <OrganizeMenu
           key={label}
-          type="button"
-          aria-label={label}
-          className="button-icon group size-7"
-          onClick={action}
-        >
-          <Icon className="size-4" aria-hidden="true" />
-          <span className="tooltip top-full mt-1.5">{label}</span>
-        </button>
-      ) : (
-        <button key={label} type="button" className="button-ghost" onClick={action}>
-          <Icon className="size-3.5" aria-hidden="true" />
-          {label}
-        </button>
-      ),
-    )
+          current={current}
+          onPick={(collection) => organizeInto(ids, collection)}
+          onMore={action}
+          trigger={button}
+        />
+      )
+    })
   }
 
   return (

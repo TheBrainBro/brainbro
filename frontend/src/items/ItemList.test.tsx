@@ -163,9 +163,39 @@ describe('ItemList triage', () => {
     await waitFor(() => expect(triageCalls()).toEqual([{ ids: ['a', 'b'], action: 'archive' }]))
   })
 
+  it('organizes in one click from the menu that opens on hover', async () => {
+    renderList()
+    const organize = within(card('First')).getByRole('button', { name: 'Organize' })
+    fireEvent.pointerEnter(organize, { pointerType: 'mouse' })
+
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    fireEvent.click(await within(menu).findByRole('menuitem', { name: /Work/ }))
+    await waitFor(() =>
+      expect(triageCalls()).toEqual([{ ids: ['a'], action: 'organize', collections: ['work'] }]),
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Organized 1 item into Work')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('creates a collection from the menu and organizes into it', async () => {
+    renderList()
+    fireEvent.click(within(card('First')).getByRole('button', { name: 'Organize' }))
+
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    const input = within(menu).getByLabelText('Find or create a collection')
+    expect(input).toHaveFocus()
+    fireEvent.change(input, { target: { value: 'Reading' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() =>
+      expect(triageCalls()).toEqual([{ ids: ['a'], action: 'organize', collections: ['new'] }]),
+    )
+  })
+
   it('organizes into an existing and a newly created collection', async () => {
     renderList()
     fireEvent.click(within(card('First')).getByRole('button', { name: 'Organize' }))
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Several collections…' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Organize into collections' })
     fireEvent.click(await within(dialog).findByRole('checkbox', { name: /Work/ }))

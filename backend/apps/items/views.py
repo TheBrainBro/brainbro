@@ -21,6 +21,7 @@ from .serializers import (
     CollectionSerializer,
     ItemSerializer,
     NoteImageSerializer,
+    OwnedPrimaryKeyRelatedField,
     TriageSerializer,
 )
 from .tasks import (
@@ -35,7 +36,8 @@ from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 class CaptureSerializer(serializers.Serializer):
     """
     Either `text` (JSON or form) or one `file` (multipart). `kind: "note"`
-    skips inference and keeps the text as written.
+    skips inference and keeps the text as written. With `collection`, the
+    item lands organized in it instead of in the inbox.
     """
 
     # Not trimmed here: inference strips it, and notes keep it as written.
@@ -44,6 +46,9 @@ class CaptureSerializer(serializers.Serializer):
     )
     kind = serializers.ChoiceField(choices=[Item.Kind.NOTE], required=False)
     file = serializers.FileField(required=False, allow_empty_file=False)
+    collection = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), required=False
+    )
 
     def validate_text(self, value):
         if not value.strip():
@@ -160,11 +165,11 @@ class ItemViewSet(
     @action(detail=False, methods=["post"])
     def capture(self, request):
         """
-        Universal capture: drop text, a URL or a file; it lands in the inbox.
-        Images become `image` items (thumbnail made in the background), any
-        other file a `file` item.
+        Universal capture: drop text, a URL or a file; it lands in the inbox,
+        or in `collection` when one is open. Images become `image` items
+        (thumbnail made in the background), any other file a `file` item.
         """
-        payload = CaptureSerializer(data=request.data)
+        payload = CaptureSerializer(data=request.data, context={"request": request})
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
         if "file" in data:
@@ -176,6 +181,10 @@ class ItemViewSet(
             item = Item.objects.create(owner=request.user, **fields)
             if item.kind == Item.Kind.NOTE:
                 sync_images(item)
+        if collection := data.get("collection"):
+            item.status = Item.Status.ORGANIZED
+            item.save(update_fields=["status"])
+            item.collections.add(collection)
         if item.preview_status == Item.PreviewStatus.PENDING:
             enqueue_preview(item)
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
