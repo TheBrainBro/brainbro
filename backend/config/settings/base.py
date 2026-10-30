@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "apps.items.apps.ItemsConfig",
     "apps.boards.apps.BoardsConfig",
     "apps.exports.apps.ExportsConfig",
+    "apps.graph.apps.GraphConfig",
     "apps.imports.apps.ImportsConfig",
     "apps.telegram.apps.TelegramConfig",
 ]
