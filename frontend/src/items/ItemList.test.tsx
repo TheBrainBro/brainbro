@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ItemList } from './ItemList'
 import type { Collection, Item } from './api'
+import type { ViewMode } from './viewMode'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -75,13 +76,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderList() {
+function renderList(mode?: ViewMode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <FeedbackProvider>
-          <ItemList items={items} />
+          <ItemList items={items} mode={mode} />
         </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -93,6 +94,12 @@ function card(text: string) {
 }
 
 describe('ItemList triage', () => {
+  it('shows card actions as icons in narrow masonry columns', () => {
+    renderList('masonry')
+    const archive = within(card('Second')).getByRole('button', { name: 'Archive' })
+    expect(archive).toHaveAttribute('aria-label', 'Archive')
+  })
+
   it('archives a single item from its card', async () => {
     renderList()
     fireEvent.click(within(card('Second')).getByRole('button', { name: 'Archive' }))

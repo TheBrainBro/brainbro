@@ -35,44 +35,49 @@ export function InboxPage() {
   }, [navigate])
 
   return (
-    <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 pb-8 transition-[max-width]`}>
-      <div className="sticky top-0 z-10 bg-zinc-50/90 pt-8 pb-4 backdrop-blur dark:bg-zinc-950/90">
-        <div className="mb-3 flex items-center gap-2">
-          <h1 className="mr-auto text-2xl font-semibold">Inbox</h1>
-          <ViewModeSwitch mode={mode} onChange={setMode} />
-          <Link to="/notes/new" aria-label="New note" className="button-outline group relative px-3 py-1.5">
-            <SquarePen className="size-4" aria-hidden="true" />
-            <span className="hidden sm:inline">New note</span>
-            <span className="tooltip top-full mt-2">New note (N)</span>
-          </Link>
+    <div className="px-4 pb-8">
+      {/* The header keeps one width; only the list below follows the view mode. */}
+      <div className="sticky top-0 z-10 -mx-4 bg-zinc-50/90 px-4 pt-8 pb-4 backdrop-blur dark:bg-zinc-950/90">
+        <div className={`mx-auto ${MODE_WIDTH.cards}`}>
+          <div className="mb-3 flex items-center gap-2">
+            <h1 className="mr-auto text-2xl font-semibold">Inbox</h1>
+            <ViewModeSwitch mode={mode} onChange={setMode} />
+            <Link to="/notes/new" aria-label="New note" className="button-outline group relative px-3 py-1.5">
+              <SquarePen className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">New note</span>
+              <span className="tooltip top-full mt-2">New note (N)</span>
+            </Link>
+          </div>
+          <CaptureBox />
         </div>
-        <CaptureBox />
       </div>
 
-      {items.isPending && <ItemListSkeleton mode={mode} />}
-      {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-      {items.isSuccess && all.length === 0 && pending.length === 0 && (
-        <EmptyState icon={Inbox} title="Inbox zero">
-          Everything is sorted. Type above, paste with <kbd className="kbd">{MOD}</kbd>{' '}
-          <kbd className="kbd">V</kbd> or drop files anywhere: it all lands here, to sort later.
-        </EmptyState>
-      )}
+      <div className={`mx-auto ${MODE_WIDTH[mode]} transition-[max-width]`}>
+        {items.isPending && <ItemListSkeleton mode={mode} />}
+        {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
+        {items.isSuccess && all.length === 0 && pending.length === 0 && (
+          <EmptyState icon={Inbox} title="Inbox zero">
+            Everything is sorted. Type above, paste with <kbd className="kbd">{MOD}</kbd>{' '}
+            <kbd className="kbd">V</kbd> or drop files anywhere: it all lands here, to sort later.
+          </EmptyState>
+        )}
 
-      {pending.length > 0 && (
-        <ul className="mb-3 space-y-3" aria-label="Capturing">
-          {pending.map((entry) => (
-            <li key={entry.id}>
-              <PendingCard entry={entry} />
-            </li>
-          ))}
-        </ul>
-      )}
+        {pending.length > 0 && (
+          <ul className="mb-3 space-y-3" aria-label="Capturing">
+            {pending.map((entry) => (
+              <li key={entry.id}>
+                <PendingCard entry={entry} />
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <ItemList items={all} mode={mode} />
+        <ItemList items={all} mode={mode} />
 
-      {items.hasNextPage && (
-        <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
-      )}
+        {items.hasNextPage && (
+          <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
+        )}
+      </div>
     </div>
   )
 }
