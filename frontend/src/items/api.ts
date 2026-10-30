@@ -278,6 +278,9 @@ export type Collection = {
   icon: string
   /** An uploaded square image, shown instead of the emoji. */
   image_url: string | null
+  /** The collection it sits in; null at the top. */
+  parent: string | null
+  /** Organized items directly in it, not in its subcollections. */
   item_count: number
   created_at: string
   updated_at: string
@@ -296,13 +299,15 @@ export function useCollections() {
 export function useCreateCollection() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; kind?: CollectionKind }) =>
+    mutationFn: (data: { name: string; kind?: CollectionKind; parent?: string | null }) =>
       api<Collection>('/collections/', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
   })
 }
 
-export type CollectionChanges = Partial<Pick<Collection, 'name' | 'kind' | 'color' | 'icon'>>
+export type CollectionChanges = Partial<
+  Pick<Collection, 'name' | 'kind' | 'color' | 'icon' | 'parent'>
+>
 
 export function useUpdateCollection() {
   const queryClient = useQueryClient()

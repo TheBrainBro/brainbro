@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { Collection, OrphanAction } from './api'
+import { useCollections, type Collection, type OrphanAction } from './api'
+import { childrenOf } from './collectionTree'
 
 const CHOICES: { value: OrphanAction; label: string; hint: string }[] = [
   { value: 'inbox', label: 'Move them to the inbox', hint: 'To sort them again.' },
@@ -8,7 +9,10 @@ const CHOICES: { value: OrphanAction; label: string; hint: string }[] = [
   { value: 'delete', label: 'Delete them', hint: "For good: it can't be undone." },
 ]
 
-/** Asks what happens to the items only in `collection` before deleting it. */
+/**
+ * Asks what happens to the items only in `collection` before deleting it,
+ * and says where the collections inside it go: up to its parent.
+ */
 export function DeleteCollectionDialog({
   collection,
   deleting,
@@ -21,6 +25,9 @@ export function DeleteCollectionDialog({
   onClose: () => void
 }) {
   const [choice, setChoice] = useState<OrphanAction>('inbox')
+  const all = useCollections().data ?? []
+  const inside = childrenOf(all, collection.id).length
+  const parent = all.find((candidate) => candidate.id === collection.parent)
   const confirmButton = useRef<HTMLButtonElement>(null)
   useEffect(() => confirmButton.current?.focus(), [])
 
@@ -77,6 +84,12 @@ export function DeleteCollectionDialog({
         <p className="mt-2 text-xs text-zinc-500">
           Items also in other collections stay there. Archived items stay archived.
         </p>
+        {inside > 0 && (
+          <p className="mt-2 text-xs text-zinc-500">
+            {inside === 1 ? 'The collection inside it moves' : `The ${inside} collections inside it move`}{' '}
+            {parent ? `to ${parent.name}` : 'to the top'}.
+          </p>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className="button-secondary" onClick={onClose}>
             Cancel

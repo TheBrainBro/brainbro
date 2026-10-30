@@ -85,6 +85,7 @@ describe('CollectionsPage', () => {
     )!
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       name: 'Health',
+      parent: null,
       kind: 'area',
       icon: '🏃',
       color: '#22c55e',
@@ -106,6 +107,7 @@ const work: Collection = {
   color: '',
   icon: '',
   image_url: null,
+  parent: null,
   item_count: 2,
   created_at: '',
   updated_at: '',
