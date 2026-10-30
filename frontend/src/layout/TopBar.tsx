@@ -1,4 +1,5 @@
 import {
+  FolderInput,
   Inbox,
   Keyboard,
   Library,
@@ -29,11 +30,13 @@ export function TopBar({
   onSearch,
   onShortcuts,
   onExport,
+  onImport,
   onTelegram,
 }: {
   onSearch: () => void
   onShortcuts: () => void
   onExport: () => void
+  onImport: () => void
   onTelegram: () => void
 }) {
   return (
@@ -63,7 +66,12 @@ export function TopBar({
             Search {combo('K')}
           </span>
         </button>
-        <AccountMenu onShortcuts={onShortcuts} onExport={onExport} onTelegram={onTelegram} />
+        <AccountMenu
+          onShortcuts={onShortcuts}
+          onExport={onExport}
+          onImport={onImport}
+          onTelegram={onTelegram}
+        />
       </div>
     </header>
   )
@@ -94,10 +102,12 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
 function AccountMenu({
   onShortcuts,
   onExport,
+  onImport,
   onTelegram,
 }: {
   onShortcuts: () => void
   onExport: () => void
+  onImport: () => void
   onTelegram: () => void
 }) {
   const { data: session } = useSession()
@@ -169,6 +179,18 @@ function AccountMenu({
           >
             <PackageOpen className="size-4" aria-hidden="true" />
             Export everything
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onImport()
+            }}
+          >
+            <FolderInput className="size-4" aria-hidden="true" />
+            Import from Obsidian
           </button>
           <button
             type="button"
