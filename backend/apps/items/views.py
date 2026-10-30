@@ -3,7 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -151,18 +151,26 @@ class ItemViewSet(
                 collection = uuid.UUID(collection)
             except ValueError:
                 return items.none()
-            items = items.filter(collections=collection)
-            if not searching:
-                # In the order it was sorted into, by hand.
-                place = CollectionItem.objects.filter(
-                    item=OuterRef("pk"), collection=collection
-                ).values("rank")[:1]
-                items = items.annotate(place=Subquery(place)).order_by(
-                    "-place", "-created_at"
-                )
-        elif item_status == Item.Status.INBOX and not searching:
+            return self._in_collection(items, collection, item_status, searching)
+        if item_status == Item.Status.INBOX and not searching:
             items = items.order_by("-inbox_rank", "-created_at")
+        elif item_status == Item.Status.ARCHIVED and not searching:
+            # Last archived first.
+            items = items.order_by("-updated_at")
         return items
+
+    def _in_collection(self, items, collection, item_status, searching):
+        items = items.filter(collections=collection)
+        if not item_status:
+            # What is in it now: items sent back or archived have left it.
+            items = items.filter(status=Item.Status.ORGANIZED)
+        if searching:
+            return items
+        # In the order it was sorted into, by hand.
+        place = CollectionItem.objects.filter(
+            item=OuterRef("pk"), collection=collection
+        ).values("rank")[:1]
+        return items.annotate(place=Subquery(place)).order_by("-place", "-created_at")
 
     def update(self, request, *args, **kwargs):
         """
@@ -324,6 +332,10 @@ class ItemViewSet(
             if new_status == Item.Status.INBOX:
                 # Back in the inbox, on top; already there, it stays put.
                 items.exclude(status=Item.Status.INBOX).update(inbox_rank=rank_now())
+            if new_status != Item.Status.ORGANIZED:
+                # Back to the inbox or archived, it leaves its collections
+                # (undo organizes it into them again).
+                CollectionItem.objects.filter(item__in=items).delete()
             items.update(status=new_status, updated_at=timezone.now())
 
         updated = self.get_queryset().filter(id__in=data["ids"])
@@ -501,7 +513,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Collection.objects.filter(owner=self.request.user).annotate(
-            item_count=Count("items")
+            item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
         )
 
     def perform_create(self, serializer):
