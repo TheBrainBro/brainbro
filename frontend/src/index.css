@@ -4,6 +4,13 @@
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Dark only on screens: paper is always light (see .print-root). */
+@custom-variant dark {
+  @media screen and (prefers-color-scheme: dark) {
+    @slot;
+  }
+}
+
 /* The accent: the logo's violet. Neutrals stay zinc. */
 @theme inline {
   --color-accent-50: var(--color-violet-50);
@@ -408,5 +415,58 @@ body {
   }
   .viewer-sheet {
     @apply max-h-full w-full overflow-auto rounded-2xl bg-white p-8 text-zinc-900 shadow-2xl dark:bg-zinc-900 dark:text-zinc-100;
+  }
+}
+
+/* A note printed as a document (notes/NotePrint): only it prints, on a light
+   page, with headings at document size and nothing cut or scrolled. */
+@layer components {
+  .print-root {
+    @apply hidden;
+  }
+  @media print {
+    :root:has(> body > .print-root) {
+      color-scheme: light;
+    }
+    body:has(> .print-root) {
+      @apply h-auto bg-white;
+      & > :not(.print-root) {
+        @apply hidden!;
+      }
+    }
+    .print-root {
+      @apply block;
+    }
+  }
+  .note-print {
+    @apply text-[11pt] text-zinc-900;
+
+    & > * + * {
+      @apply mt-3;
+    }
+    & h1 {
+      @apply text-2xl;
+    }
+    & h2 {
+      @apply text-xl;
+    }
+    & h3 {
+      @apply text-lg;
+    }
+    & :is(h1, h2, h3, h4, h5, h6) {
+      @apply break-after-avoid;
+    }
+    & pre {
+      @apply overflow-visible break-inside-avoid whitespace-pre-wrap;
+    }
+    & table {
+      @apply table overflow-visible;
+    }
+    & :is(tr, blockquote, .link-card, .markdown-img) {
+      @apply break-inside-avoid;
+    }
+    & .markdown-img {
+      @apply max-h-none;
+    }
   }
 }
