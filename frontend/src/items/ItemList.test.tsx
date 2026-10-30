@@ -226,18 +226,28 @@ function moveCalls() {
 describe('ItemList sorting', () => {
   const transfer = () => ({ effectAllowed: '', dropEffect: '', setData: () => {} })
 
-  it('drags an item between two others', async () => {
+  it('makes way while dragging, and drops the item where it is shown', async () => {
     renderList('cards', {})
     const first = card('First').closest('li')!
-    const third = card('Third').closest('li')!
     const dataTransfer = transfer()
     fireEvent.dragStart(first, { dataTransfer })
-    // jsdom has no pointer position for drags: it lands before Third.
-    fireEvent.dragOver(third, { dataTransfer })
-    fireEvent.drop(third, { dataTransfer })
+    // Over Third: the dragged item takes its place, the others move up.
+    fireEvent.dragOver(card('Third').closest('li')!, { dataTransfer })
+    const order = screen.getAllByRole('listitem').map((li) => li.textContent)
+    expect(order.map((text) => text?.match(/First|Second|Third/)?.[0])).toEqual([
+      'Second',
+      'Third',
+      'First',
+    ])
+    fireEvent.drop(card('First').closest('li')!, { dataTransfer })
     fireEvent.dragEnd(first, { dataTransfer })
 
-    await waitFor(() => expect(moveCalls()).toEqual([['/api/items/a/move/', { after: 'b' }]]))
+    await waitFor(() => expect(moveCalls()).toEqual([['/api/items/a/move/', { after: 'c' }]]))
+  })
+
+  it('shows a grab cursor only on hand-sorted lists', () => {
+    renderList('cards', {})
+    expect(card('First').closest('li')).toHaveClass('cursor-grab')
   })
 
   it('moves the focused item with Alt+arrows, within its collection', async () => {
@@ -256,6 +266,24 @@ describe('ItemList sorting', () => {
   it("isn't draggable outside a hand-sorted list", () => {
     renderList()
     expect(card('First').closest('li')).toHaveAttribute('draggable', 'false')
+  })
+})
+
+describe('ItemList archived', () => {
+  it('offers To inbox instead of Archive', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <FeedbackProvider>
+            <ItemList items={items} archived />
+          </FeedbackProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const actions = within(card('First'))
+    expect(actions.getByRole('button', { name: 'To inbox' })).toBeInTheDocument()
+    expect(actions.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
   })
 })
 
