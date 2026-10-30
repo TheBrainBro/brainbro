@@ -4,6 +4,7 @@ import {
   Keyboard,
   Library,
   LogOut,
+  Network,
   PackageOpen,
   Search,
   Send,
@@ -23,9 +24,10 @@ const sections: Section[] = [
   { to: '/', label: 'Inbox', icon: Inbox, end: true },
   { to: '/boards', label: 'Boards', icon: Waypoints },
   { to: '/collections', label: 'Collections', icon: Library },
+  { to: '/graph', label: 'Graph', icon: Network },
 ]
 
-/** Logo, the three sections as icons in the middle, search and the account menu. */
+/** Logo, the sections as icons in the middle, search and the account menu. */
 export function TopBar({
   onSearch,
   onShortcuts,
