@@ -1,8 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { squareImage } from '../lib/image'
 import {
+  collectionsKey,
   setCollectionImage,
   useCreateCollection,
   useUpdateCollection,
@@ -25,6 +27,7 @@ export function CollectionDialog({
   onSaved: (collection: Collection) => void
   onClose: () => void
 }) {
+  const queryClient = useQueryClient()
   const create = useCreateCollection()
   const update = useUpdateCollection()
   const [name, setName] = useState(collection?.name ?? '')
@@ -69,6 +72,8 @@ export function CollectionDialog({
         : await create.mutateAsync(fields)
       if (image || (image === null && collection?.image_url)) {
         saved = await setCollectionImage(saved.id, image)
+        // Its new face, everywhere it shows, without a reload.
+        await queryClient.invalidateQueries({ queryKey: collectionsKey })
       }
       onSaved(saved)
     } catch (caught) {
