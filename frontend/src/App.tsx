@@ -16,6 +16,11 @@ const NotePage = lazy(() =>
   import('./pages/NotePage').then((module) => ({ default: module.NotePage })),
 )
 
+// The force layout loads with the graph.
+const GraphPage = lazy(() =>
+  import('./pages/GraphPage').then((module) => ({ default: module.GraphPage })),
+)
+
 // React Flow loads with the first board opened.
 const BoardPage = lazy(() =>
   import('./pages/BoardPage').then((module) => ({ default: module.BoardPage })),
@@ -45,6 +50,14 @@ export function AppRoutes() {
             }
           />
           <Route path="collections" element={<CollectionsPage />} />
+          <Route
+            path="graph"
+            element={
+              <Suspense>
+                <GraphPage />
+              </Suspense>
+            }
+          />
           <Route path="collections/:id" element={<CollectionPage />} />
           <Route
             path="notes/:id"
