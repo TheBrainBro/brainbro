@@ -17,6 +17,10 @@ class CollectionSerializer(serializers.ModelSerializer):
     item_count = serializers.IntegerField(read_only=True, default=0)
     # Set through `POST /collections/<id>/image/`.
     image_url = serializers.SerializerMethodField()
+    # The collection it sits in; null at the top.
+    parent = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), allow_null=True, required=False
+    )
 
     class Meta:
         model = Collection
@@ -27,6 +31,7 @@ class CollectionSerializer(serializers.ModelSerializer):
             "color",
             "icon",
             "image_url",
+            "parent",
             "item_count",
             "created_at",
             "updated_at",
@@ -48,6 +53,24 @@ class CollectionSerializer(serializers.ModelSerializer):
         ):
             raise serializers.ValidationError("Use a hex color like #3b82f6.")
         return value.lower()
+
+    def validate_parent(self, value):
+        if value is None or self.instance is None:
+            return value
+        # Walk up from the new parent: meeting this one would make a loop.
+        parents = dict(
+            Collection.objects.filter(owner=self.instance.owner).values_list(
+                "id", "parent_id"
+            )
+        )
+        node = value.pk
+        while node is not None:
+            if node == self.instance.pk:
+                raise serializers.ValidationError(
+                    "A collection can't go inside itself or one of its own."
+                )
+            node = parents.get(node)
+        return value
 
     def validate_name(self, value):
         owner = self.context["request"].user

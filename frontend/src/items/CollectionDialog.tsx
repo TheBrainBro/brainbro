@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { squareImage } from '../lib/image'
 import {
   collectionsKey,
   setCollectionImage,
+  useCollections,
   useCreateCollection,
   useUpdateCollection,
   type Collection,
@@ -13,17 +14,20 @@ import {
 } from './api'
 import { CollectionAvatar } from './CollectionAvatar'
 import { COLLECTION_COLORS, COLLECTION_KINDS, firstGrapheme, SUGGESTED_EMOJI } from './collectionKinds'
+import { collectionPath, withDescendants } from './collectionTree'
 
 /**
- * Creates a collection, or edits `collection`: name, kind and look (an emoji
- * on a color, or an image).
+ * Creates a collection (inside `parent`, if given), or edits `collection`:
+ * name, where it sits, kind and look (an emoji on a color, or an image).
  */
 export function CollectionDialog({
   collection,
+  parent: initialParent = null,
   onSaved,
   onClose,
 }: {
   collection?: Collection
+  parent?: string | null
   onSaved: (collection: Collection) => void
   onClose: () => void
 }) {
@@ -31,6 +35,7 @@ export function CollectionDialog({
   const create = useCreateCollection()
   const update = useUpdateCollection()
   const [name, setName] = useState(collection?.name ?? '')
+  const [parent, setParent] = useState(collection ? collection.parent : initialParent)
   const [kind, setKind] = useState<CollectionKind>(collection?.kind ?? 'project')
   const [icon, setIcon] = useState(collection?.icon ?? '')
   const [color, setColor] = useState(collection?.color ?? '')
@@ -40,6 +45,19 @@ export function CollectionDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
   const fileInput = useRef<HTMLInputElement>(null)
+  const collections = useCollections()
+  // Anywhere but inside itself, labelled by where each one sits.
+  const places = useMemo(() => {
+    const all = collections.data ?? []
+    const own = collection ? withDescendants(all, collection.id) : new Set<string>()
+    return all
+      .filter((candidate) => !own.has(candidate.id))
+      .map((candidate) => {
+        const path = collectionPath(all, candidate.id)
+        return { id: candidate.id, label: path ? `${path} / ${candidate.name}` : candidate.name }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [collections.data, collection])
 
   // The local preview of a picked image, freed when replaced or closed.
   const objectUrl = useRef<string | null>(null)
@@ -65,7 +83,7 @@ export function CollectionDialog({
   async function save() {
     setSaving(true)
     setError(undefined)
-    const fields = { name: name.trim(), kind, icon, color }
+    const fields = { name: name.trim(), parent, kind, icon, color }
     try {
       let saved = collection
         ? await update.mutateAsync({ id: collection.id, ...fields })
@@ -124,6 +142,27 @@ export function CollectionDialog({
             />
           </div>
         </div>
+
+        {places.length > 0 && (
+          <div className="mt-4">
+            <label className="mb-1 block text-sm font-medium" htmlFor="collection-parent">
+              Inside
+            </label>
+            <select
+              id="collection-parent"
+              className="input"
+              value={parent ?? ''}
+              onChange={(event) => setParent(event.target.value || null)}
+            >
+              <option value="">Nothing, at the top</option>
+              {places.map((place) => (
+                <option key={place.id} value={place.id}>
+                  {place.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <fieldset className="mt-4">
           <legend className="mb-1 text-sm font-medium">Kind</legend>

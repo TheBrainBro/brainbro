@@ -404,3 +404,14 @@ def test_collection_images_are_exported(user, tmp_path):
     collections = {c["name"]: c for c in json.loads(read(archive, "collections.json"))}
     assert collections["Work"]["image"] == f"collections/{work.id}.webp"
     assert collections["Home"]["image"] is None
+
+
+def test_collections_say_where_they_sit(user, tmp_path):
+    work = Collection.objects.create(owner=user, name="Work")
+    Collection.objects.create(owner=user, name="Clients", parent=work)
+
+    archive, _ = export(user, tmp_path)
+
+    collections = {c["name"]: c for c in json.loads(read(archive, "collections.json"))}
+    assert collections["Clients"]["parent"] == str(work.id)
+    assert collections["Work"]["parent"] is None
