@@ -284,8 +284,9 @@ export function ItemList({
                   onOpen={note ? () => open(item) : undefined}
                   onView={() => open(item)}
                   actions={
+                    // Masonry columns are too narrow for the actions in words.
                     <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                      {actionsFor([item.id], note)}
+                      {actionsFor([item.id], note, mode === 'masonry')}
                     </div>
                   }
                 />

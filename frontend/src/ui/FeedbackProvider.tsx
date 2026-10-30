@@ -47,7 +47,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext value={feedback}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] z-50 mx-auto flex w-[min(28rem,calc(100%-2rem))] flex-col gap-2 md:bottom-4">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] z-50 mx-auto flex w-[min(28rem,calc(100%-2rem))] flex-col gap-2 md:right-4 md:bottom-4 md:left-auto md:mx-0 md:w-96">
         {toasts.map((toast) => (
           <ToastView key={toast.id} toast={toast} dismiss={feedback.dismissToast} />
         ))}
@@ -80,7 +80,7 @@ function ToastView({ toast, dismiss }: { toast: Shown; dismiss: (id: string) => 
     >
       <div className="flex items-center gap-2">
         {error && (
-          <CircleAlert className="size-4 shrink-0 text-red-400 dark:text-red-600" aria-hidden="true" />
+          <CircleAlert className="size-4 shrink-0 text-red-400" aria-hidden="true" />
         )}
         <span className="mr-auto">{toast.message}</span>
         {toast.actions?.map((action) => (
@@ -99,14 +99,14 @@ function ToastView({ toast, dismiss }: { toast: Shown; dismiss: (id: string) => 
         <button
           type="button"
           aria-label="Dismiss"
-          className="-mr-1 rounded-md p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white dark:text-zinc-500 dark:hover:bg-zinc-900/10 dark:hover:text-zinc-900"
+          className="-mr-1 rounded-md p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
           onClick={onDismiss}
         >
           <X className="size-3.5" aria-hidden="true" />
         </button>
       </div>
       {toast.details && toast.details.length > 0 && (
-        <ul className="mt-1.5 space-y-0.5 text-xs text-red-300 dark:text-red-700">
+        <ul className="mt-1.5 space-y-0.5 text-xs text-red-300">
           {toast.details.map((detail, index) => (
             <li key={index} className="truncate">
               {detail}
