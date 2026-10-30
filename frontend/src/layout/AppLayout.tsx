@@ -4,9 +4,11 @@ import { Link, Outlet, useLocation } from 'react-router'
 
 import { CaptureProvider } from '../capture/CaptureProvider'
 import { ExportDialog } from '../exports/ExportDialog'
+import { ImportDialog } from '../imports/ImportDialog'
 import { isEditable } from '../lib/dom'
 import { SearchPalette } from '../search/SearchPalette'
 import { ShareReceiver } from '../share/ShareReceiver'
+import { TelegramDialog } from '../telegram/TelegramDialog'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ShortcutsDialog } from '../ui/ShortcutsDialog'
 import { ViewerProvider } from '../viewer/ViewerProvider'
@@ -20,6 +22,8 @@ export function AppLayout() {
   const [shortcuts, setShortcuts] = useState(false)
   const [searching, setSearching] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [telegram, setTelegram] = useState(false)
 
   // `?` lists the shortcuts of the screen it's pressed on; Ctrl/Cmd+K
   // searches from anywhere, text fields included.
@@ -48,6 +52,8 @@ export function AppLayout() {
               onSearch={() => setSearching(true)}
               onShortcuts={() => setShortcuts(true)}
               onExport={() => setExporting(true)}
+              onImport={() => setImporting(true)}
+              onTelegram={() => setTelegram(true)}
             />
             <main className="min-h-0 min-w-0 flex-1 overflow-auto">
               <Outlet />
@@ -64,6 +70,8 @@ export function AppLayout() {
           </div>
           {searching && <SearchPalette onClose={() => setSearching(false)} />}
           {exporting && <ExportDialog onClose={() => setExporting(false)} />}
+          {importing && <ImportDialog onClose={() => setImporting(false)} />}
+          {telegram && <TelegramDialog onClose={() => setTelegram(false)} />}
           {shortcuts && (
             <ShortcutsDialog pathname={pathname} onClose={() => setShortcuts(false)} />
           )}

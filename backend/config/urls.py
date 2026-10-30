@@ -9,6 +9,9 @@ api_patterns = [
     path("", include("apps.items.urls")),
     path("", include("apps.boards.urls")),
     path("", include("apps.exports.urls")),
+    path("", include("apps.graph.urls")),
+    path("", include("apps.imports.urls")),
+    path("", include("apps.telegram.urls")),
 ]
 
 urlpatterns = [
