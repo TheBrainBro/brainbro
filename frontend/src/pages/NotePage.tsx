@@ -235,6 +235,7 @@ function NoteWorkspace({
         onChange={(body) => saver.edit(body)}
         onSave={() => saver.flush()}
         images={(latest ?? initial)?.images}
+        links={(latest ?? initial)?.links}
         uploadImage={uploadNoteImage}
         onUploadError={(message) => toast({ message, tone: 'error' })}
       />

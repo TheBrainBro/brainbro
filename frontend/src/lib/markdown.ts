@@ -10,6 +10,8 @@ import mark from 'markdown-it-mark'
 import sub from 'markdown-it-sub'
 import sup from 'markdown-it-sup'
 
+import { isEmbedSrc, linkCardHtml, linkEmbedHtml, type LinkPreview } from './linkPreviews'
+
 export { default as emojiByName } from 'markdown-it-emoji/lib/data/full.mjs'
 export { default as emoticonsByName } from 'markdown-it-emoji/lib/data/shortcuts.mjs'
 
@@ -99,22 +101,76 @@ md.renderer.rules.task_checkbox = (tokens, idx, _options, env) => {
   )
 }
 
+// A paragraph that is only a `[text](url "card")` or `"embed"` link shows as
+// a card or the site's player (see lib/linkPreviews).
+md.core.ruler.push('link_previews', (state) => {
+  const tokens = state.tokens
+  for (let i = 1; i < tokens.length - 1; i++) {
+    const inline = tokens[i]
+    if (inline.type !== 'inline' || tokens[i - 1].type !== 'paragraph_open') continue
+    const children = inline.children ?? []
+    const [open, close] = [children[0], children[children.length - 1]]
+    if (open?.type !== 'link_open' || close?.type !== 'link_close') continue
+    const label = children.slice(1, -1)
+    if (label.some((child) => child.type !== 'text')) continue
+    const view = open.attrGet('title')
+    const href = String(open.attrGet('href') ?? '')
+    if ((view !== 'card' && view !== 'embed') || !/^https?:\/\//i.test(href)) continue
+    const preview = new state.Token('link_preview', '', 0)
+    preview.meta = { href, view, label: label.map((child) => child.content).join('') }
+    inline.children = [preview]
+    tokens[i - 1].hidden = tokens[i + 1].hidden = true
+  }
+})
+
+md.renderer.rules.link_preview = (tokens, idx, _options, env) => {
+  const { href, view, label } = tokens[idx].meta as { href: string; view: string; label: string }
+  const { links, embeds } = (env as RenderEnv | undefined) ?? {}
+  const preview = links?.[href]
+  // Lists of notes show cards: a page of players would load every site.
+  return view === 'embed' && embeds
+    ? linkEmbedHtml(href, label, preview)
+    : linkCardHtml(href, label, preview)
+}
+
 type RenderEnv = {
   docId?: string
   tasks?: boolean
   /** The note's stored images, by `src`. */
   images?: Record<string, StoredImage> | null
+  /** The previews of its card and embed links, by URL. */
+  links?: Record<string, LinkPreview> | null
+  /** Embed links play in place; otherwise they show as cards. */
+  embeds?: boolean
 }
+
+// Players only from known sites, whatever the HTML says.
+DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+  if (data.tagName === 'iframe' && !isEmbedSrc((node as Element).getAttribute('src') ?? '')) {
+    node.parentNode?.removeChild(node)
+  }
+})
 
 /**
  * A note's Markdown as HTML. markdown-it escapes everything it doesn't
  * produce itself and refuses `javascript:` links; DOMPurify runs on top in
  * case a plugin ever lets something through.
  */
-export function renderNote(body: string, { docId, tasks = false, images }: RenderEnv = {}) {
+export function renderNote(
+  body: string,
+  { docId, tasks = false, images, links, embeds = false }: RenderEnv = {},
+) {
   // docId keeps footnote anchors apart when several notes share a page.
-  const html = md.render(body, { docId, tasks, images })
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] })
+  const html = md.render(body, { docId, tasks, images, links, embeds })
+  return DOMPurify.sanitize(html, {
+    ADD_ATTR: ['target'],
+    ...(embeds
+      ? {
+          ADD_TAGS: ['iframe'],
+          ADD_ATTR: ['target', 'allow', 'allowfullscreen', 'loading', 'referrerpolicy'],
+        }
+      : {}),
+  })
 }
 
 // A task line: optional quote markers, the list marker, then `[ ]`/`[x]`.

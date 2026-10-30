@@ -3,9 +3,17 @@ import { EditorState, StateEffect, StateField, type Extension, type Range } from
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
 
-import type { NoteImage, NoteImages } from '../items/api'
+import type { NoteImage, NoteImages, NoteLinks } from '../items/api'
 import { emojiByName, imageKey } from '../lib/markdown'
 import { dialectDecorations, GlyphWidget } from './dialect'
+import {
+  LinkPreviewWidget,
+  LinkSwitchWidget,
+  linkLineAt,
+  noteLinks,
+  previewOf,
+  type LinkLine,
+} from './linkWidgets'
 
 /*
  * Live preview: the note reads as rendered Markdown, and the Markdown shows
@@ -386,10 +394,33 @@ function build(state: EditorState, focused: boolean): DecorationSet {
   const quoteDepth = new Map<number, number>()
   // The marker plus the space after it (`# `, `> `, `- `).
   const withSpace = (to: number) => (state.sliceDoc(to, to + 1) === ' ' ? to + 1 : to)
+  // Lines that are only a link: cards and embeds, and the Link / Card / Embed switch.
+  const linkLines = new Map<number, LinkLine>()
+  for (let number = 1; number <= state.doc.lines; number++) {
+    const line = state.doc.line(number)
+    const link = linkLineAt(state, line)
+    if (!link) continue
+    linkLines.set(number, link)
+    if (link.view !== 'link' && !touches(line.from, line.to)) {
+      skipLines.add(number)
+      decorations.push(
+        Decoration.replace({
+          widget: new LinkPreviewWidget(link, previewOf(state, link.url)),
+          block: true,
+        }).range(line.from, line.to),
+      )
+    } else {
+      decorations.push(
+        Decoration.widget({ widget: new LinkSwitchWidget(link), side: 1 }).range(line.to),
+      )
+    }
+  }
 
   syntaxTree(state).iterate({
     enter: (ref) => {
       const { name, from, to } = ref
+      // Shown as a card or player: nothing else to decorate on that line.
+      if (name === 'Paragraph' && skipLines.has(state.doc.lineAt(from).number)) return false
       const node = ref.node
       const parent = node.parent?.name
       if (EXCLUDED.has(name)) excluded.push({ from, to })
@@ -631,6 +662,7 @@ const preview = StateField.define<{ focused: boolean; decorations: DecorationSet
       focused !== value.focused ||
       tr.state.field(noteImages, false) !== tr.startState.field(noteImages, false) ||
       tr.state.field(localImages, false) !== tr.startState.field(localImages, false) ||
+      tr.state.field(noteLinks, false) !== tr.startState.field(noteLinks, false) ||
       syntaxTree(tr.state) !== syntaxTree(tr.startState)
     return changed ? { focused, decorations: build(tr.state, focused) } : value
   },
@@ -653,10 +685,14 @@ function openLink(event: MouseEvent, view: EditorView) {
   return true
 }
 
-/** `images`: the note's stored images at the start; `setNoteImages` updates them. */
-export function livePreview(images: NoteImages = {}): Extension {
+/**
+ * `images` and `links`: the note's stored images and link previews at the
+ * start; `setNoteImages` and `setNoteLinks` update them.
+ */
+export function livePreview(images: NoteImages = {}, links: NoteLinks = {}): Extension {
   return [
     noteImages.init(() => images),
+    noteLinks.init(() => links),
     localImages,
     preview,
     EditorView.domEventHandlers({

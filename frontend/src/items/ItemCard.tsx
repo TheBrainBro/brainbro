@@ -434,6 +434,7 @@ export function ItemContent({
           id={item.id}
           fill={fill}
           images={item.images}
+          links={item.links}
           onChange={save.isPending ? undefined : (body) => save.mutate({ item, body })}
         >
           {item.body}
