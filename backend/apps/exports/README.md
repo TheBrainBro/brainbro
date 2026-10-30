@@ -110,10 +110,11 @@ The full record of every item, including the ones that are only a file:
 
 ## collections.json
 
-A list of `{id, name, kind, color, icon, image, created_at, items}`. `kind`
-is `project`, `area` or `resource`; `icon` is an emoji and `color` a hex
-color, both optional; `image` is the path of its image in this export, or
-null; `items` are item ids, as in `items.json`.
+A list of `{id, name, kind, color, icon, image, parent, created_at, items}`.
+`kind` is `project`, `area` or `resource`; `icon` is an emoji and `color` a
+hex color, both optional; `image` is the path of its image in this export, or
+null; `parent` is the id of the collection it sits in, or null at the top;
+`items` are item ids, as in `items.json`.
 
 ## Boards
 
