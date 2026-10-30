@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { useCollections, useCreateCollection } from './api'
 import { CollectionAvatar } from './CollectionAvatar'
+import { CollectionPlace } from './CollectionPlace'
 
 /**
  * Pick one or more collections. The input filters the list; Enter toggles
@@ -110,7 +111,10 @@ export function CollectionPicker({
                   onChange={() => toggle(collection.id)}
                 />
                 <CollectionAvatar collection={collection} size="sm" />
-                <span className="flex-1 truncate">{collection.name}</span>
+                <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                  <span className="truncate">{collection.name}</span>
+                  <CollectionPlace collections={all} id={collection.id} />
+                </span>
                 <span className="text-xs text-zinc-400">{collection.item_count}</span>
               </label>
             </li>
