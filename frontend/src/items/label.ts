@@ -9,12 +9,19 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   album: 'Album',
 }
 
+/** Markdown links and images read as their text: `[read](https://…)` is `read`. */
+export function plainLinks(markdown: string) {
+  return markdown.replace(/!?\[([^\]\n]*)\]\([^)\n]*\)/g, '$1')
+}
+
 /** A one-line name for an item, for lists and zoomed-out cards. */
 export function itemLabel(item: Item) {
   if (item.title) return item.title
   if (item.kind === 'link') return item.metadata.title || item.url
   if (item.kind === 'note') {
-    const line = item.body.split('\n').find((text) => text.trim())
+    const line = plainLinks(item.body)
+      .split('\n')
+      .find((text) => text.trim())
     return line?.replace(/^[#>*\-+\s]+|\[[ xX]\]\s*/g, '').trim() || 'Empty note'
   }
   if (item.kind === 'album') {
