@@ -113,16 +113,32 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | --- | --- |
 | `search_items` | Full-text search, archived items included |
 | `get_item` | One item in full: a note's Markdown and its version |
+| `get_items` | Several items in full in one call, saying which ids weren't found |
+| `list_inbox` | What is waiting in the inbox, in the order the app shows |
 | `list_collections` | Every collection, with its parent and item count |
 | `list_collection_items` | A collection's items, in the order you sorted them |
-| `capture` | A new note or link, in the inbox or straight into a collection |
-| `edit_note` | Replaces a note's title or body |
+| `create_collection` | A new collection (project, area or resource), optionally inside another |
+| `capture` | A new note or link, with a title, in the inbox or straight into a collection |
+| `edit_note` | Changes part of a note (replace, prepend, append), or rewrites it |
 | `organize` | Adds items to collections, out of the inbox |
 | `archive` | Takes items out of the way, without deleting them |
+| `list_boards` | Every board, with how many items are on it |
+| `get_board` | A board's items, sticky notes and groups, in reading order, without the layout |
+| `add_to_board` | Puts items on a board, where the app puts new cards |
 
 `edit_note` takes the version `get_item` returned: if you edited the note in
 the app since, the assistant's edit is refused and it has to read it again,
-so it never overwrites your changes.
+so it never overwrites your changes. Partial edits leave the rest of the note
+as it was: each `replace` must match exactly once, and if one doesn't,
+nothing is saved.
+
+`add_to_board` saves the board like the app does (its revision goes up), so a
+tab with the board open gets the usual conflict on its next save. Assistants
+can't move cards, connect them or edit the layout.
+
+The server's instructions (`apps/mcp/server.py`) and the tool descriptions
+are what every assistant reads in every conversation: they say when to use
+each tool, and failed calls say what to do next.
 
 ## How it works
 
