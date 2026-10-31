@@ -39,5 +39,6 @@ describe('triageMessage', () => {
     expect(triageMessage('archive', 1)).toBe('Archived 1 item')
     expect(triageMessage('inbox', 3)).toBe('Moved 3 items to the inbox')
     expect(triageMessage('organize', 2, 'Work, Home')).toBe('Organized 2 items into Work, Home')
+    expect(triageMessage('unorganize', 1, 'Work')).toBe('Took 1 item out of Work')
   })
 })

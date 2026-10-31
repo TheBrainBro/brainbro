@@ -37,6 +37,50 @@ def test_organize_requires_a_collection(api, notes):
     assert "collections" in response.json()
 
 
+def test_unorganize_takes_it_out_of_one_collection(api, user, notes):
+    work = Collection.objects.create(owner=user, name="Work")
+    reading = Collection.objects.create(owner=user, name="Reading")
+    notes[0].collections.add(work, reading)
+    Item.objects.filter(id=notes[0].id).update(status="organized")
+
+    response = triage(
+        api, ids=[str(notes[0].id)], action="unorganize", collections=[str(work.id)]
+    )
+    assert response.status_code == 200
+    assert response.json()[0]["status"] == "organized"
+    assert list(notes[0].collections.all()) == [reading]
+
+
+def test_unorganize_from_the_last_collection_goes_back_to_the_inbox_on_top(
+    api, user, notes
+):
+    work = Collection.objects.create(owner=user, name="Work")
+    notes[0].collections.add(work)
+    Item.objects.filter(id=notes[0].id).update(status="organized")
+
+    triage(api, ids=[str(notes[0].id)], action="unorganize", collections=[str(work.id)])
+
+    notes[0].refresh_from_db()
+    assert notes[0].status == "inbox"
+    assert not notes[0].collections.exists()
+    top = Item.objects.filter(status="inbox").order_by("-inbox_rank").first()
+    assert top == notes[0]
+
+
+def test_unorganize_requires_a_collection(api, notes):
+    response = triage(api, ids=[str(notes[0].id)], action="unorganize")
+    assert response.status_code == 400
+    assert "collections" in response.json()
+
+
+def test_unorganize_ignores_other_users_collections(api, other_user, notes):
+    theirs = Collection.objects.create(owner=other_user, name="Theirs")
+    response = triage(
+        api, ids=[str(notes[0].id)], action="unorganize", collections=[str(theirs.id)]
+    )
+    assert response.status_code == 400
+
+
 @pytest.mark.parametrize("action,status", [("archive", "archived"), ("inbox", "inbox")])
 def test_status_actions(api, notes, action, status):
     Item.objects.update(status="organized")
