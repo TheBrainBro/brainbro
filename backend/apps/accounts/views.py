@@ -1,11 +1,14 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
+from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import serializers, status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+
+from .models import Profile
 
 
 class UserSerializer(serializers.Serializer):
@@ -21,9 +24,12 @@ class LoginSerializer(serializers.Serializer):
 
 
 def signed_in(user):
+    profile = Profile.objects.filter(user=user).first()
     return {
         "authenticated": True,
         "user": UserSerializer(user).data,
+        # The first visit opens on the welcome tour, once per user.
+        "welcome_seen": bool(profile and profile.welcome_seen_at),
         # Lets the frontend refuse a file before uploading it.
         "limits": {"upload_max_size": settings.UPLOAD_MAX_SIZE},
     }
@@ -63,4 +69,14 @@ def login_view(request):
 @api_view(["POST"])
 def logout_view(request):
     logout(request)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+def welcome_view(request):
+    """Marks the welcome tour as seen, so no other device shows it again."""
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    if profile.welcome_seen_at is None:
+        profile.welcome_seen_at = timezone.now()
+        profile.save(update_fields=["welcome_seen_at", "updated_at"])
     return Response(status=status.HTTP_204_NO_CONTENT)
