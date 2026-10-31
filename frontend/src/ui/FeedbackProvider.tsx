@@ -47,7 +47,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext value={feedback}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] z-50 mx-auto flex w-[min(28rem,calc(100%-2rem))] flex-col gap-2 md:right-4 md:bottom-4 md:left-auto md:mx-0 md:w-96">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] z-[60] mx-auto flex w-[min(28rem,calc(100%-2rem))] flex-col gap-2 md:right-4 md:bottom-4 md:left-auto md:mx-0 md:w-96">
         {toasts.map((toast) => (
           <ToastView key={toast.id} toast={toast} dismiss={feedback.dismissToast} />
         ))}
@@ -128,8 +128,9 @@ function ConfirmDialog({
   const confirmButton = useRef<HTMLButtonElement>(null)
   useEffect(() => confirmButton.current?.focus(), [])
 
+  // Above everything, the full screen viewer included.
   return (
-    <>
+    <div className="fixed inset-0 z-[60]">
       <div className="backdrop" onMouseDown={() => onAnswer(false)} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center p-4 pt-[20vh]">
         <div
@@ -167,6 +168,6 @@ function ConfirmDialog({
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
