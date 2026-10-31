@@ -95,7 +95,7 @@ describe('ItemViewer', () => {
     expect(await screen.findByRole('dialog', { name: 'Our first trip' })).toBeInTheDocument()
   })
 
-  it('renames a file from its name in the bar', async () => {
+  it('renames a file by clicking its name in the bar', async () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
       url === '/api/items/b/' && init?.method === 'PATCH'
         ? new Response(
@@ -111,12 +111,11 @@ describe('ItemViewer', () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'View notes.txt' }))
     const viewer = await screen.findByRole('dialog', { name: 'notes.txt' })
-    fireEvent.click(within(viewer).getByRole('button', { name: 'Rename' }))
 
     const field = within(viewer).getByLabelText('Name')
     expect(field).toHaveValue('notes.txt')
     fireEvent.change(field, { target: { value: 'todo' } })
-    fireEvent.keyDown(field, { key: 'Enter' })
+    fireEvent.blur(field)
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -131,14 +130,83 @@ describe('ItemViewer', () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'View notes.txt' }))
     const viewer = await screen.findByRole('dialog', { name: 'notes.txt' })
-    fireEvent.click(within(viewer).getByRole('button', { name: 'Rename' }))
     const field = within(viewer).getByLabelText('Name')
+    field.focus()
     fireEvent.change(field, { target: { value: 'other' } })
     fireEvent.keyDown(field, { key: 'Escape' })
 
-    expect(within(viewer).queryByLabelText('Name')).not.toBeInTheDocument()
+    await waitFor(() => expect(field).toHaveValue('notes.txt'))
     expect(screen.getByRole('dialog', { name: 'notes.txt' })).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/items/b/', expect.anything())
+  })
+
+  it('archives the item shown and stays open on it, with undo', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url !== '/api/items/triage/') return new Response('{}')
+      const { action } = JSON.parse(String(init?.body))
+      const status = action === 'archive' ? 'archived' : 'inbox'
+      return new Response(JSON.stringify([{ ...items[0], status }]), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))
+    const viewer = await screen.findByRole('dialog', { name: 'beach.jpg' })
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Archive' }))
+
+    expect(await within(viewer).findByRole('button', { name: 'To inbox' })).toBeInTheDocument()
+    const toast = await screen.findByRole('status')
+    expect(toast).toHaveTextContent('Archived 1 item')
+    fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/items/triage/',
+        expect.objectContaining({ body: JSON.stringify({ ids: ['a'], action: 'inbox' }) }),
+      ),
+    )
+  })
+
+  it('organizes the item shown from its menu', async () => {
+    const work = {
+      id: 'work',
+      name: 'Work',
+      kind: 'project',
+      color: '',
+      icon: '',
+      image_url: null,
+      parent: null,
+      item_count: 0,
+      created_at: '',
+      updated_at: '',
+    }
+    fetchMock.mockImplementation(async (url: string) => {
+      const json = (body: unknown) =>
+        new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
+      if (url.startsWith('/api/collections/')) {
+        return json({ count: 1, next: null, previous: null, results: [work] })
+      }
+      if (url === '/api/items/triage/') {
+        return json([{ ...items[0], status: 'organized', collections: ['work'] }])
+      }
+      return new Response('{}')
+    })
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))
+    const viewer = await screen.findByRole('dialog', { name: 'beach.jpg' })
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Organize' }))
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    fireEvent.click(await within(menu).findByRole('menuitem', { name: /Work/ }))
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/items/triage/',
+        expect.objectContaining({
+          body: JSON.stringify({ ids: ['a'], action: 'organize', collections: ['work'] }),
+        }),
+      ),
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Organized 1 item into Work')
+    expect(screen.getByRole('dialog', { name: 'beach.jpg' })).toBeInTheDocument()
   })
 
   it('deletes the item shown, after asking, and closes', async () => {
