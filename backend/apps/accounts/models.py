@@ -30,8 +30,13 @@ class Invitation(TimestampedModel):
     """
     A link an admin sends so someone can join: whoever opens it picks a
     username and password. It works once and expires; revoking deletes it.
+    Used ones stay, as a record of who joined with which link.
     Only the hash of its token is stored, like `ApiToken`.
     """
+
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    EXPIRED = "expired"
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
@@ -55,6 +60,14 @@ class Invitation(TimestampedModel):
 
     def __str__(self):
         return self.note or f"Invitation {self.id}"
+
+    @property
+    def status(self):
+        if self.used_at is not None:
+            return self.ACCEPTED
+        if self.expires_at <= timezone.now():
+            return self.EXPIRED
+        return self.PENDING
 
     @classmethod
     def pending(cls):
