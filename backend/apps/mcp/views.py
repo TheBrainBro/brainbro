@@ -5,7 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
-from apps.accounts.authentication import ApiTokenAuthentication
+from apps.accounts.authentication import McpAuthentication
 
 from . import server
 
@@ -20,9 +20,9 @@ class McpView(APIView):
     no server-sent events, so GET (and DELETE) is 405.
     """
 
-    # A personal API token only: no session, so no CSRF, and a missing or
-    # wrong token is a 401 the client can act on.
-    authentication_classes = [ApiTokenAuthentication]
+    # A personal token or a connected app's: no session, so no CSRF, and a
+    # missing or wrong token is a 401 that leads the client to sign in.
+    authentication_classes = [McpAuthentication]
     renderer_classes = [JSONRenderer]
     http_method_names = ["post", "options"]
 

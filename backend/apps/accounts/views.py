@@ -87,10 +87,16 @@ def welcome_view(request):
 
 
 class ApiTokenSerializer(serializers.ModelSerializer):
+    # An app connected by signing in (OAuth), rather than a token made here.
+    connected_app = serializers.SerializerMethodField()
+
     class Meta:
         model = ApiToken
-        fields = ["id", "name", "prefix", "created_at", "last_used_at"]
+        fields = ["id", "name", "prefix", "connected_app", "created_at", "last_used_at"]
         read_only_fields = ["prefix", "created_at", "last_used_at"]
+
+    def get_connected_app(self, token):
+        return token.client_id is not None
 
 
 # Tokens are managed from the app only: a token can't list or make others.
