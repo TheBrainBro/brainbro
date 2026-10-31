@@ -1,4 +1,4 @@
-import { FolderInput, KeyRound, PackageOpen, Send, Settings, X, type LucideIcon } from 'lucide-react'
+import { Bot, FolderInput, PackageOpen, Send, Settings, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { ExportPanel } from '../exports/ExportPanel'
@@ -20,7 +20,7 @@ const groups: { label: string; pages: Page[] }[] = [
     label: 'Integrations',
     pages: [
       { id: 'telegram', label: 'Telegram', icon: Send, Panel: TelegramPanel },
-      { id: 'tokens', label: 'API tokens', icon: KeyRound, Panel: TokensPanel },
+      { id: 'assistants', label: 'AI assistants', icon: Bot, Panel: TokensPanel },
     ],
   },
 ]
