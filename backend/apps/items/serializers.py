@@ -1,8 +1,11 @@
+from pathlib import PurePath
+
 from django.db import models
 from django.urls import reverse
 from rest_framework import serializers
 
 from .models import Collection, Item, NoteImage
+from .uploads import clean_filename
 
 
 class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -146,6 +149,8 @@ class ItemSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     # Notes only: the preview of each card or embed link, by URL.
     links = serializers.SerializerMethodField()
+    # Files and images only: renames them, on cards and on download.
+    filename = serializers.CharField(write_only=True, required=False, max_length=255)
 
     class Meta:
         model = Item
@@ -165,6 +170,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "album_items",
             "images",
             "links",
+            "filename",
             "version",
             "created_at",
             "updated_at",
@@ -182,6 +188,26 @@ class ItemSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def validate_filename(self, value):
+        uploaded = (Item.Kind.IMAGE, Item.Kind.FILE)
+        if self.instance is None or self.instance.kind not in uploaded:
+            raise serializers.ValidationError("Only files and images have a name.")
+        name = clean_filename(value)
+        # Without an extension, it keeps the one it had.
+        extension = PurePath(self.instance.metadata.get("filename", "")).suffix
+        if extension and not PurePath(name).suffix:
+            name = f"{name}{extension}"
+        return name
+
+    def update(self, instance, validated_data):
+        name = validated_data.pop("filename", None)
+        if name is not None:
+            instance.metadata = {**instance.metadata, "filename": name}
+            # Files show their name as their title; images show their caption.
+            if instance.kind == Item.Kind.FILE:
+                validated_data["title"] = name
+        return super().update(instance, validated_data)
 
     def get_album_items(self, item):
         if item.kind != Item.Kind.ALBUM:
