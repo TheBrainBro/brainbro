@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
-import { isProcessing, itemKey, type Item } from '../items/api'
+import { isProcessing, itemKey, itemsKey, type Item } from '../items/api'
 import { api } from '../lib/api'
 
 /** The stored layout, schema version 1 (see docs/boards.md). */
@@ -156,7 +156,14 @@ export function useDeleteBoard() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api<void>(`/boards/${id}/`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: boardsKey, exact: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardsKey, exact: true })
+      // Its items with nowhere else to be went back to the inbox.
+      queryClient.invalidateQueries({
+        queryKey: itemsKey,
+        predicate: (query) => query.queryKey[1] !== 'detail',
+      })
+    },
   })
 }
 
