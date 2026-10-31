@@ -302,7 +302,10 @@ class ItemViewSet(
 
     @action(detail=False, methods=["post"])
     def triage(self, request):
-        """Organize, archive, send back to the inbox or delete several items."""
+        """
+        Organize, take out of collections, archive, send back to the inbox or
+        delete several items.
+        """
         payload = TriageSerializer(data=request.data, context={"request": request})
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
@@ -314,6 +317,20 @@ class ItemViewSet(
                 # Per-object signals still run, so preview images are removed.
                 _, deleted = items.delete()
                 return Response({"deleted": deleted.get("items.Item", 0)})
+            if data["action"] == Action.UNORGANIZE:
+                CollectionItem.objects.filter(
+                    item__in=items, collection__in=data["collections"]
+                ).delete()
+                # Out of its last collection, it goes back to the inbox, on top.
+                items.filter(
+                    status=Item.Status.ORGANIZED, collections__isnull=True
+                ).update(
+                    status=Item.Status.INBOX,
+                    inbox_rank=rank_now(),
+                    updated_at=timezone.now(),
+                )
+                updated = self.get_queryset().filter(id__in=data["ids"])
+                return Response(self.get_serializer(updated, many=True).data)
             if data["action"] == Action.ORGANIZE:
                 Through = Item.collections.through
                 Through.objects.bulk_create(

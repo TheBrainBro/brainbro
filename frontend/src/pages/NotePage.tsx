@@ -194,6 +194,21 @@ function NoteWorkspace({
                   },
                 )
               }
+              onRemove={(collection) =>
+                triage.mutate(
+                  { ids: [noteId], action: 'unorganize', collections: [collection.id] },
+                  {
+                    onSuccess: () =>
+                      toast({
+                        message: `Took the note out of ${collection.name}`,
+                        actions: undoAction([
+                          { ids: [noteId], action: 'organize', collections: [collection.id] },
+                        ]),
+                      }),
+                    onError: failed,
+                  },
+                )
+              }
               onMore={() => setOrganizing(true)}
               trigger={(props) => <Action icon={FolderInput} label="Organize" {...props} />}
             />

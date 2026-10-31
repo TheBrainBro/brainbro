@@ -294,3 +294,44 @@ def test_upload_into_a_collection_organizes_it(api, user, media):
     assert response.status_code == 201
     assert response.json()["status"] == "organized"
     assert list(collection.items.values_list("kind", flat=True)) == ["file"]
+
+
+def rename(api, item_id, name):
+    return api.patch(f"/api/items/{item_id}/", {"filename": name}, format="json")
+
+
+def test_renaming_a_file_changes_its_title_and_download_name(api):
+    data = capture(api, "Notification of Outcome (1).pdf", PDF).json()
+
+    response = rename(api, data["id"], "Residency decision.pdf")
+    assert response.status_code == 200
+    assert response.json()["title"] == "Residency decision.pdf"
+    assert response.json()["metadata"]["filename"] == "Residency decision.pdf"
+    download = api.get(data["file_url"])
+    assert download["Content-Disposition"] == (
+        'attachment; filename="Residency decision.pdf"'
+    )
+
+
+def test_renaming_keeps_the_extension_when_the_new_name_has_none(api):
+    data = capture(api, "scan.pdf", PDF).json()
+    assert rename(api, data["id"], "Contract").json()["title"] == "Contract.pdf"
+
+
+def test_renaming_an_image_keeps_its_caption_as_title(api):
+    data = capture(api, "IMG_0001.png", image_bytes()).json()
+    renamed = rename(api, data["id"], "beach/../trip").json()
+    assert renamed["metadata"]["filename"] == "trip.png"
+    assert renamed["title"] == ""
+
+
+def test_notes_and_links_cant_be_renamed(api, user):
+    note = Item.objects.create(owner=user, kind="note", body="x")
+    response = rename(api, note.id, "name.txt")
+    assert response.status_code == 400
+    assert "filename" in response.json()
+
+
+def test_a_blank_name_is_refused(api):
+    data = capture(api, "scan.pdf", PDF).json()
+    assert rename(api, data["id"], "  ").status_code == 400

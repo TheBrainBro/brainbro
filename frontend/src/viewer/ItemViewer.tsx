@@ -9,6 +9,8 @@ import {
   FileText,
   ImageMinus,
   Pencil,
+  PencilLine,
+  Trash2,
   Ungroup,
   X,
   ZoomIn,
@@ -20,6 +22,7 @@ import { Link } from 'react-router'
 
 import {
   itemsKey,
+  renameItem,
   updateNoteBody,
   useSetAlbumItems,
   useUngroupAlbum,
@@ -64,6 +67,7 @@ export default function ItemViewer({
   image,
   onIndex,
   onReplace,
+  onDelete,
   onClose,
 }: {
   items: Item[]
@@ -74,11 +78,15 @@ export default function ItemViewer({
   onIndex: (index: number) => void
   /** An item changed while shown (an album edited). */
   onReplace: (item: Item) => void
+  /** Deletes the item shown, after asking; the viewer closes once it's gone. */
+  onDelete?: (item: Item) => void
   onClose: () => void
 }) {
   const item = items[index]
   const dialog = useRef<HTMLDivElement>(null)
   // Which of an album's images is shown; back to the first on another item.
+  // Renaming the item shown: its name is a field until saved or left.
+  const [renaming, setRenaming] = useState<string | null>(null)
   const [place, setPlace] = useState(() => {
     const start = items[index]?.album_items?.findIndex((shown) => shown.id === image) ?? -1
     return start > 0 ? { id: items[index].id, at: start } : { id: '', at: 0 }
@@ -138,7 +146,17 @@ export default function ItemViewer({
     >
       <header className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-medium">{itemLabel(item)}</h2>
+          {renaming === item.id ? (
+            <NameEditor
+              item={item}
+              onDone={(renamed) => {
+                setRenaming(null)
+                if (renamed) onReplace(renamed)
+              }}
+            />
+          ) : (
+            <h2 className="truncate font-medium">{itemLabel(item)}</h2>
+          )}
           <p className="truncate text-xs text-zinc-400">
             {shown ? `Album · image ${at + 1} of ${images.length}` : describe(item)}
             {items.length > 1 && ` · ${index + 1} of ${items.length}`}
@@ -151,6 +169,12 @@ export default function ItemViewer({
             Edit
           </Link>
         )}
+        {(item.kind === 'file' || item.kind === 'image') && renaming !== item.id && (
+          <button type="button" className="viewer-button" onClick={() => setRenaming(item.id)}>
+            <PencilLine className="size-4" aria-hidden="true" />
+            Rename
+          </button>
+        )}
         {original && item.kind === 'link' && (
           <a href={original} target="_blank" rel="noopener noreferrer" className="viewer-button">
             <ExternalLink className="size-4" aria-hidden="true" />
@@ -162,6 +186,12 @@ export default function ItemViewer({
             <Download className="size-4" aria-hidden="true" />
             Download
           </a>
+        )}
+        {onDelete && (
+          <button type="button" className="viewer-button" onClick={() => onDelete(item)}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            Delete
+          </button>
         )}
         <button type="button" aria-label="Close" className="viewer-icon" onClick={onClose}>
           <X className="size-5" aria-hidden="true" />
@@ -244,6 +274,68 @@ function Content({ item }: { item: Item }) {
  * An album: one image at a time over a strip of all of them, where the
  * shown one can be moved or taken out, and the album ungrouped.
  */
+/**
+ * A file's or image's name, editable: Enter saves, Esc leaves it as it was.
+ */
+function NameEditor({ item, onDone }: { item: Item; onDone: (renamed?: Item) => void }) {
+  const queryClient = useQueryClient()
+  const [name, setName] = useState(item.metadata.filename ?? '')
+  const [error, setError] = useState('')
+  const busy = useRef(false)
+  // Esc: the blur that follows doesn't save.
+  const cancelled = useRef(false)
+
+  async function save() {
+    const next = name.trim()
+    if (busy.current || cancelled.current) return
+    if (!next || next === item.metadata.filename) return onDone()
+    busy.current = true
+    try {
+      const renamed = await renameItem(item.id, next)
+      queryClient.invalidateQueries({ queryKey: itemsKey })
+      onDone(renamed)
+    } catch (failure) {
+      setError((failure as Error).message)
+    } finally {
+      busy.current = false
+    }
+  }
+
+  return (
+    <>
+      <input
+        aria-label="Name"
+        autoFocus
+        className="w-full rounded-md border border-zinc-700 bg-zinc-900/60 px-2 py-0.5 font-medium text-zinc-100 outline-none focus:border-zinc-500"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        onFocus={(event) => {
+          // The name without its extension, ready to type over.
+          const dot = event.target.value.lastIndexOf('.')
+          event.target.setSelectionRange(0, dot > 0 ? dot : event.target.value.length)
+        }}
+        onBlur={save}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            save()
+          } else if (event.key === 'Escape') {
+            event.preventDefault()
+            event.stopPropagation()
+            cancelled.current = true
+            onDone()
+          }
+        }}
+      />
+      {error && (
+        <p role="alert" className="mt-0.5 text-xs text-red-400">
+          {error}
+        </p>
+      )}
+    </>
+  )
+}
+
 /**
  * What an image or album is about, written under it: the context that only
  * exists in your head when you capture it. Saved when the field is left.
