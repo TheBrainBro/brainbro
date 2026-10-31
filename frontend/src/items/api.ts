@@ -166,6 +166,11 @@ export function updateNoteBody(
   })
 }
 
+/** A file's or image's new name; without an extension it keeps the old one. */
+export function renameItem(id: string, filename: string) {
+  return api<Item>(`/items/${id}/`, { method: 'PATCH', body: JSON.stringify({ filename }) })
+}
+
 /** Puts a newer copy of an item into every cached list and its detail. */
 function patchCachedItem(queryClient: QueryClient, item: Item) {
   queryClient.setQueriesData({ queryKey: itemsKey }, (data: unknown) => {
