@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from apps.items.models import Item
+from apps.items.models import Item, rank_now
 from apps.items.serializers import ITEM_PREFETCH
 
 from .layout import LayoutError, item_ids, migrate_layout, prune_layout, validate_layout
@@ -30,6 +30,12 @@ class BoardViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    @transaction.atomic
+    def perform_destroy(self, board):
+        placed = list(board.items.values_list("id", flat=True))
+        board.delete()
+        back_to_inbox_if_unplaced(placed)
+
     def retrieve(self, request, *args, **kwargs):
         return self.detail_response(self.get_object())
 
@@ -52,7 +58,8 @@ class BoardViewSet(viewsets.ModelViewSet):
         Replaces the layout. `If-Match: "<revision>"` is required: if someone
         saved since, 412 with the current board. Nodes of items that don't
         exist (or aren't yours) are dropped; items placed here for the first
-        time leave the inbox.
+        time leave the inbox, and items taken off it with nowhere else to be
+        go back.
         """
         expected = request.headers.get("If-Match")
         if not expected:
@@ -88,6 +95,7 @@ class BoardViewSet(viewsets.ModelViewSet):
                 status=Item.Status.ORGANIZED, updated_at=timezone.now()
             )
             board.items.set(owned)
+            back_to_inbox_if_unplaced(before - owned)
             board.layout = layout
             board.revision += 1
             board.save(update_fields=["layout", "revision", "updated_at"])
@@ -100,6 +108,19 @@ class BoardViewSet(viewsets.ModelViewSet):
             },
             headers=etag(board),
         )
+
+
+def back_to_inbox_if_unplaced(item_ids):
+    """
+    Organized items left on no board and in no collection go back to the top
+    of the inbox: otherwise they'd show up nowhere.
+    """
+    Item.objects.filter(
+        id__in=item_ids,
+        status=Item.Status.ORGANIZED,
+        boards__isnull=True,
+        collections__isnull=True,
+    ).update(status=Item.Status.INBOX, inbox_rank=rank_now(), updated_at=timezone.now())
 
 
 def etag(board):
