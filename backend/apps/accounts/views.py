@@ -4,11 +4,15 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import serializers, status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import Profile
+from .models import ApiToken, Profile
 
 
 class UserSerializer(serializers.Serializer):
@@ -79,4 +83,45 @@ def welcome_view(request):
     if profile.welcome_seen_at is None:
         profile.welcome_seen_at = timezone.now()
         profile.save(update_fields=["welcome_seen_at", "updated_at"])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ApiTokenSerializer(serializers.ModelSerializer):
+    # An app connected by signing in (OAuth), rather than a token made here.
+    connected_app = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ApiToken
+        fields = ["id", "name", "prefix", "connected_app", "created_at", "last_used_at"]
+        read_only_fields = ["prefix", "created_at", "last_used_at"]
+
+    def get_connected_app(self, token):
+        return token.client_id is not None
+
+
+# Tokens are managed from the app only: a token can't list or make others.
+@api_view(["GET", "POST"])
+@authentication_classes([SessionAuthentication])
+def tokens_view(request):
+    """
+    `GET` lists the user's tokens. `POST {"name"}` makes one; the response
+    carries the token itself in `token`, the only time it is shown.
+    """
+    if request.method == "GET":
+        tokens = ApiToken.objects.filter(owner=request.user)
+        return Response(ApiTokenSerializer(tokens, many=True).data)
+    payload = ApiTokenSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+    token, key = ApiToken.issue(request.user, payload.validated_data["name"])
+    return Response(
+        {**ApiTokenSerializer(token).data, "token": key},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["DELETE"])
+@authentication_classes([SessionAuthentication])
+def token_view(request, pk):
+    """Revokes a token: whatever uses it stops working right away."""
+    ApiToken.objects.filter(owner=request.user, pk=pk).delete()
     return Response(status=status.HTTP_204_NO_CONTENT)

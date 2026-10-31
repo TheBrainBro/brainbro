@@ -110,6 +110,79 @@ def create_upload_item(owner, file, upload):
     return item
 
 
+def place_captured(item, collection=None):
+    """
+    Where something just captured goes: the inbox, or organized in
+    `collection`. Starts its preview, if it gets one.
+    """
+    if collection:
+        item.status = Item.Status.ORGANIZED
+        item.save(update_fields=["status"])
+        item.collections.add(collection)
+    if item.preview_status == Item.PreviewStatus.PENDING:
+        enqueue_preview(item)
+
+
+def capture_text(owner, text, kind=None, collection=None):
+    """A note or a link captured from `text`, as `infer_item_fields` decides."""
+    fields = infer_item_fields(text, kind)
+    if fields["kind"] == Item.Kind.LINK:
+        fields["preview_status"] = Item.PreviewStatus.PENDING
+    item = Item.objects.create(owner=owner, **fields)
+    if item.kind == Item.Kind.NOTE:
+        sync_images(item)
+    place_captured(item, collection)
+    return item
+
+
+@transaction.atomic
+def triage(items, action, collections=()):
+    """
+    Applies a `TriageSerializer.Action` to `items` (already the owner's).
+    Returns how many were deleted, for `delete`.
+    """
+    Action = TriageSerializer.Action
+    if action == Action.DELETE:
+        # Per-object signals still run, so preview images are removed.
+        _, deleted = items.delete()
+        return deleted.get("items.Item", 0)
+    if action == Action.UNORGANIZE:
+        CollectionItem.objects.filter(
+            item__in=items, collection__in=collections
+        ).delete()
+        # Out of its last collection, it goes back to the inbox, on top.
+        items.filter(status=Item.Status.ORGANIZED, collections__isnull=True).update(
+            status=Item.Status.INBOX,
+            inbox_rank=rank_now(),
+            updated_at=timezone.now(),
+        )
+        return 0
+    if action == Action.ORGANIZE:
+        Through = Item.collections.through
+        Through.objects.bulk_create(
+            [
+                Through(item_id=item_id, collection_id=collection.id)
+                for item_id in items.values_list("id", flat=True)
+                for collection in collections
+            ],
+            ignore_conflicts=True,
+        )
+    new_status = {
+        Action.ORGANIZE: Item.Status.ORGANIZED,
+        Action.ARCHIVE: Item.Status.ARCHIVED,
+        Action.INBOX: Item.Status.INBOX,
+    }[action]
+    if new_status == Item.Status.INBOX:
+        # Back in the inbox, on top; already there, it stays put.
+        items.exclude(status=Item.Status.INBOX).update(inbox_rank=rank_now())
+    if new_status != Item.Status.ORGANIZED:
+        # Back to the inbox or archived, it leaves its collections
+        # (undo organizes it into them again).
+        CollectionItem.objects.filter(item__in=items).delete()
+    items.update(status=new_status, updated_at=timezone.now())
+    return 0
+
+
 SEARCH_LIMIT = 20
 
 
@@ -208,21 +281,14 @@ class ItemViewSet(
         payload = CaptureSerializer(data=request.data, context={"request": request})
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
+        collection = data.get("collection")
         if "file" in data:
             item = create_upload_item(request.user, data["file"], data["upload"])
+            place_captured(item, collection)
         else:
-            fields = infer_item_fields(data["text"], data.get("kind"))
-            if fields["kind"] == Item.Kind.LINK:
-                fields["preview_status"] = Item.PreviewStatus.PENDING
-            item = Item.objects.create(owner=request.user, **fields)
-            if item.kind == Item.Kind.NOTE:
-                sync_images(item)
-        if collection := data.get("collection"):
-            item.status = Item.Status.ORGANIZED
-            item.save(update_fields=["status"])
-            item.collections.add(collection)
-        if item.preview_status == Item.PreviewStatus.PENDING:
-            enqueue_preview(item)
+            item = capture_text(
+                request.user, data["text"], data.get("kind"), collection
+            )
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"])
@@ -310,51 +376,9 @@ class ItemViewSet(
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
         items = Item.objects.filter(owner=request.user, id__in=data["ids"])
-        Action = TriageSerializer.Action
-
-        with transaction.atomic():
-            if data["action"] == Action.DELETE:
-                # Per-object signals still run, so preview images are removed.
-                _, deleted = items.delete()
-                return Response({"deleted": deleted.get("items.Item", 0)})
-            if data["action"] == Action.UNORGANIZE:
-                CollectionItem.objects.filter(
-                    item__in=items, collection__in=data["collections"]
-                ).delete()
-                # Out of its last collection, it goes back to the inbox, on top.
-                items.filter(
-                    status=Item.Status.ORGANIZED, collections__isnull=True
-                ).update(
-                    status=Item.Status.INBOX,
-                    inbox_rank=rank_now(),
-                    updated_at=timezone.now(),
-                )
-                updated = self.get_queryset().filter(id__in=data["ids"])
-                return Response(self.get_serializer(updated, many=True).data)
-            if data["action"] == Action.ORGANIZE:
-                Through = Item.collections.through
-                Through.objects.bulk_create(
-                    [
-                        Through(item_id=item_id, collection_id=collection.id)
-                        for item_id in items.values_list("id", flat=True)
-                        for collection in data["collections"]
-                    ],
-                    ignore_conflicts=True,
-                )
-            new_status = {
-                Action.ORGANIZE: Item.Status.ORGANIZED,
-                Action.ARCHIVE: Item.Status.ARCHIVED,
-                Action.INBOX: Item.Status.INBOX,
-            }[data["action"]]
-            if new_status == Item.Status.INBOX:
-                # Back in the inbox, on top; already there, it stays put.
-                items.exclude(status=Item.Status.INBOX).update(inbox_rank=rank_now())
-            if new_status != Item.Status.ORGANIZED:
-                # Back to the inbox or archived, it leaves its collections
-                # (undo organizes it into them again).
-                CollectionItem.objects.filter(item__in=items).delete()
-            items.update(status=new_status, updated_at=timezone.now())
-
+        deleted = triage(items, data["action"], data.get("collections", []))
+        if data["action"] == TriageSerializer.Action.DELETE:
+            return Response({"deleted": deleted})
         updated = self.get_queryset().filter(id__in=data["ids"])
         return Response(self.get_serializer(updated, many=True).data)
 
