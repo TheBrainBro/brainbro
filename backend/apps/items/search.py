@@ -34,8 +34,8 @@ TYPO_MIN_LENGTH = 4
 # How close a word has to be to count as a typo (pg_trgm's default is 0.6,
 # which misses common ones like "mardown").
 TYPO_THRESHOLD = "0.5"
-# Shorter words ("a", "to", "de") are in almost everything: they only count
-# towards a match that has every word.
+# Shorter words ("a", "to", "de") are in almost everything: they only make a
+# match when every word is there, and never add to the rank.
 PARTIAL_MIN_LENGTH = 3
 
 
@@ -84,7 +84,7 @@ def normalize(text):
 def find(items, text):
     """
     `items` matching `text`, annotated with `rank` (higher is better): the
-    number of words that match, plus a relevance score below 1.
+    number of longer words that match, plus a relevance score below 1.
     """
     query = normalize(text)
     every, some, matched = Q(), Q(pk__in=[]), Value(0.0)
@@ -97,7 +97,9 @@ def find(items, text):
         every &= match
         if len(term) >= PARTIAL_MIN_LENGTH:
             some |= match
-        matched += Case(When(match, then=1.0), default=0.0, output_field=FloatField())
+            matched += Case(
+                When(match, then=1.0), default=0.0, output_field=FloatField()
+            )
     items = items.filter(every | some)
     # Word prefixes, so a word being typed already ranks its matches.
     prefixes = " | ".join(f"{word}:*" for word in re.findall(r"\w+", query))

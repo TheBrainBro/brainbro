@@ -8,8 +8,8 @@ titles, note text, URLs, link previews (title, description, site, author) and fi
 
 - Items with every word of the query, in any order, come first. Then come items with only
   some of the words, so natural queries ("notes about the trip to Paris") still find
-  something. Words shorter than three letters ("a", "to", "de") only count when every word
-  matches: on their own they would bring up almost everything. Case and accents don't matter:
+  something. Words shorter than three letters ("a", "to", "de") only make a match when every
+  word is there, and don't count in the order: they are in almost everything. Case and accents don't matter:
   `cafe` finds "Café".
 - Words match inside longer ones too (`kube` finds "Kubernetes", `example.com/po` a URL), so
   results show up while a word is still being typed.
@@ -21,7 +21,7 @@ titles, note text, URLs, link previews (title, description, site, author) and fi
 
 ## Order
 
-Items matching more words of the query come first. Among those matching as many, title
+Items matching more words of the query (of three letters or more) come first. Among those matching as many, title
 matches come first, then matches on the URL and the link or file details, then the body.
 Typos rank below words matched as written. Ties go to the newest item. The palette shows the
 best 20 items, under up to five boards and five collections.
