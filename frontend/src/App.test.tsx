@@ -71,6 +71,16 @@ describe('auth routing', () => {
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
   })
 
+  it('opens the settings from the account menu', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: true, user })))
+    renderAt('/boards')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Account' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }))
+
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
+  })
+
   it('goes back to the login page after signing out', async () => {
     let signedIn = true
     vi.stubGlobal(
