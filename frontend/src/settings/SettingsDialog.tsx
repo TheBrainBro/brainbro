@@ -11,8 +11,8 @@ const groups: { label: string; pages: Page[] }[] = [
   {
     label: 'Data',
     pages: [
-      { id: 'import', label: 'Import from Obsidian', icon: FolderInput, Panel: ImportPanel },
-      { id: 'export', label: 'Export everything', icon: PackageOpen, Panel: ExportPanel },
+      { id: 'import', label: 'Import', icon: FolderInput, Panel: ImportPanel },
+      { id: 'export', label: 'Export', icon: PackageOpen, Panel: ExportPanel },
     ],
   },
   {
@@ -36,7 +36,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-title"
-          className="popover pointer-events-auto flex max-h-[80vh] w-full max-w-2xl flex-col"
+          className="popover pointer-events-auto flex h-[min(80vh,40rem)] w-full max-w-3xl flex-col"
           // Keys stop here: the page's own shortcuts don't see them.
           onKeyDown={(event) => {
             event.stopPropagation()
