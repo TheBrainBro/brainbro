@@ -9,6 +9,7 @@ import { BoardsPage } from './pages/BoardsPage'
 import { CapturePage } from './pages/CapturePage'
 import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
+import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { SharePage } from './pages/SharePage'
 
@@ -40,6 +41,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/join/:token" element={<JoinPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/oauth/authorize" element={<AuthorizePage />} />
         <Route element={<AppLayout />}>
