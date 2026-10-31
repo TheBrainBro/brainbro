@@ -101,37 +101,40 @@ export function CollectionsPage() {
   )
 
   return (
-    <div
-      className={`mx-auto ${view === 'grid' ? 'max-w-6xl' : 'max-w-3xl'} px-4 py-8 transition-[max-width]`}
-    >
-      <div className="mb-6 flex items-center gap-2">
+    <div className="px-4 py-8">
+      {/* The header keeps one width; only the collections below follow the view. */}
+      <div className="mx-auto mb-6 flex max-w-3xl items-center gap-2">
         <h1 className="mr-auto text-2xl font-semibold">Collections</h1>
         {some && <ViewModeSwitch mode={view} onChange={setView} modes={VIEWS} />}
         {some && newButton}
       </div>
 
-      {collections.isPending && (
-        <div role="status" aria-label="Loading collections" className="grid gap-2 sm:grid-cols-2">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="skeleton h-16 rounded-xl" />
+      <div
+        className={`mx-auto ${view === 'grid' ? 'max-w-6xl' : 'max-w-3xl'} transition-[max-width]`}
+      >
+        {collections.isPending && (
+          <div role="status" aria-label="Loading collections" className="grid gap-2 sm:grid-cols-2">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="skeleton h-16 rounded-xl" />
+            ))}
+          </div>
+        )}
+        {collections.isError && (
+          <ErrorState error={collections.error} onRetry={() => collections.refetch()} />
+        )}
+        {collections.isSuccess && collections.data.length === 0 && (
+          <EmptyState icon={Library} title="No collections yet" action={newButton}>
+            A collection gathers what belongs together: a project, an area of your life, a topic.
+            Create one here, or pick <strong>Organize</strong> on anything in the inbox.
+          </EmptyState>
+        )}
+        {some &&
+          (view === 'grid' ? (
+            <CollectionGrid collections={collections.data} parent={null} label="Collections" />
+          ) : (
+            <CollectionTree collections={collections.data} />
           ))}
-        </div>
-      )}
-      {collections.isError && (
-        <ErrorState error={collections.error} onRetry={() => collections.refetch()} />
-      )}
-      {collections.isSuccess && collections.data.length === 0 && (
-        <EmptyState icon={Library} title="No collections yet" action={newButton}>
-          A collection gathers what belongs together: a project, an area of your life, a topic.
-          Create one here, or pick <strong>Organize</strong> on anything in the inbox.
-        </EmptyState>
-      )}
-      {some &&
-        (view === 'grid' ? (
-          <CollectionGrid collections={collections.data} parent={null} label="Collections" />
-        ) : (
-          <CollectionTree collections={collections.data} />
-        ))}
+      </div>
 
       {creating && (
         <CollectionDialog
@@ -476,81 +479,84 @@ export function CollectionPage() {
   }, [destination, id, name])
 
   return (
-    <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 py-8 transition-[max-width]`}>
-      {ancestors.length === 0 ? (
-        <BackLink to="/collections" label="Collections" />
-      ) : (
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-sm">
+    <div className="px-4 py-8">
+      {/* The header keeps one width; only what is below follows the view mode. */}
+      <div className={`mx-auto ${MODE_WIDTH.cards}`}>
+        {ancestors.length === 0 ? (
           <BackLink to="/collections" label="Collections" />
-          {ancestors.map((ancestor) => (
-            <Fragment key={ancestor.id}>
-              <ChevronRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden="true" />
-              <Link
-                to={`/collections/${ancestor.id}`}
-                className="min-w-0 truncate rounded-md px-1.5 py-1 font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-              >
-                {ancestor.name}
-              </Link>
-            </Fragment>
-          ))}
-        </nav>
-      )}
-      <div className="mt-1 mb-4 flex items-center gap-2">
-        <h1
-          className="mr-auto min-w-0 flex-1 truncate text-2xl font-semibold"
-          aria-label={collection?.name}
-        >
-          {collection ? (
-            <span className="flex items-center gap-3">
-              <CollectionAvatar collection={collection} />
-              <NameField key={`${collection.id}:${collection.name}`} collection={collection} />
-            </span>
-          ) : missing ? (
-            'Collection'
-          ) : (
-            <span className="skeleton inline-block h-7 w-48 align-middle" aria-label="Loading" />
-          )}
-        </h1>
-        {collection && (
-          <>
-            <Link
-              to={`/collections/${id}/mindmap`}
-              aria-label="Mind map"
-              className="button-icon group/tip"
-            >
-              <Workflow className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">Mind map</span>
-            </Link>
-            <button
-              type="button"
-              aria-label="New collection inside"
-              className="button-icon group/tip"
-              onClick={() => setAdding(true)}
-            >
-              <FolderPlus className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">New collection inside</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Edit collection"
-              className="button-icon group/tip"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">Edit collection</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Delete collection"
-              className="button-icon group/tip"
-              onClick={() => setDeleting(true)}
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">Delete collection</span>
-            </button>
-          </>
+        ) : (
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-sm">
+            <BackLink to="/collections" label="Collections" />
+            {ancestors.map((ancestor) => (
+              <Fragment key={ancestor.id}>
+                <ChevronRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden="true" />
+                <Link
+                  to={`/collections/${ancestor.id}`}
+                  className="min-w-0 truncate rounded-md px-1.5 py-1 font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                >
+                  {ancestor.name}
+                </Link>
+              </Fragment>
+            ))}
+          </nav>
         )}
-        {!missing && <ViewModeSwitch mode={mode} onChange={setMode} />}
+        <div className="mt-1 mb-4 flex items-center gap-2">
+          <h1
+            className="mr-auto min-w-0 flex-1 truncate text-2xl font-semibold"
+            aria-label={collection?.name}
+          >
+            {collection ? (
+              <span className="flex items-center gap-3">
+                <CollectionAvatar collection={collection} />
+                <NameField key={`${collection.id}:${collection.name}`} collection={collection} />
+              </span>
+            ) : missing ? (
+              'Collection'
+            ) : (
+              <span className="skeleton inline-block h-7 w-48 align-middle" aria-label="Loading" />
+            )}
+          </h1>
+          {collection && (
+            <>
+              <Link
+                to={`/collections/${id}/mindmap`}
+                aria-label="Mind map"
+                className="button-icon group/tip"
+              >
+                <Workflow className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">Mind map</span>
+              </Link>
+              <button
+                type="button"
+                aria-label="New collection inside"
+                className="button-icon group/tip"
+                onClick={() => setAdding(true)}
+              >
+                <FolderPlus className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">New collection inside</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Edit collection"
+                className="button-icon group/tip"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">Edit collection</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Delete collection"
+                className="button-icon group/tip"
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">Delete collection</span>
+              </button>
+            </>
+          )}
+          {!missing && <ViewModeSwitch mode={mode} onChange={setMode} />}
+        </div>
       </div>
       {editing && collection && (
         <CollectionDialog
@@ -591,58 +597,60 @@ export function CollectionPage() {
           }
         />
       )}
-      {missing ? (
-        <EmptyState
-          icon={FolderOpen}
-          title="This collection no longer exists"
-          action={
-            <Link to="/collections" className="button-primary">
-              See all collections
-            </Link>
-          }
-        />
-      ) : (
-        <>
-          {collections.isSuccess && inside.length > 0 && (
-            <div className="mb-4">
-              <CollectionGrid
-                collections={collections.data}
-                parent={id}
-                label="Collections inside"
-              />
-            </div>
-          )}
-          {items.isPending && <ItemListSkeleton mode={mode} />}
-          {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-          {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
-            <EmptyState
-              icon={FolderOpen}
-              title="Nothing here yet"
-              action={
-                <Link to="/" className="button-outline">
-                  Go to the inbox
-                </Link>
-              }
-            >
-              Paste or drop anything here, or pick <strong>Organize</strong> on an inbox item, to
-              bring it into this collection.
-            </EmptyState>
-          )}
-          {pending.length > 0 && (
-            <ul className="mb-3 space-y-3" aria-label="Capturing">
-              {pending.map((entry) => (
-                <li key={entry.id}>
-                  <PendingCard entry={entry} />
-                </li>
-              ))}
-            </ul>
-          )}
-          <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
-          {items.hasNextPage && (
-            <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
-          )}
-        </>
-      )}
+      <div className={`mx-auto ${MODE_WIDTH[mode]} transition-[max-width]`}>
+        {missing ? (
+          <EmptyState
+            icon={FolderOpen}
+            title="This collection no longer exists"
+            action={
+              <Link to="/collections" className="button-primary">
+                See all collections
+              </Link>
+            }
+          />
+        ) : (
+          <>
+            {collections.isSuccess && inside.length > 0 && (
+              <div className="mb-4">
+                <CollectionGrid
+                  collections={collections.data}
+                  parent={id}
+                  label="Collections inside"
+                />
+              </div>
+            )}
+            {items.isPending && <ItemListSkeleton mode={mode} />}
+            {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
+            {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
+              <EmptyState
+                icon={FolderOpen}
+                title="Nothing here yet"
+                action={
+                  <Link to="/" className="button-outline">
+                    Go to the inbox
+                  </Link>
+                }
+              >
+                Paste or drop anything here, or pick <strong>Organize</strong> on an inbox item, to
+                bring it into this collection.
+              </EmptyState>
+            )}
+            {pending.length > 0 && (
+              <ul className="mb-3 space-y-3" aria-label="Capturing">
+                {pending.map((entry) => (
+                  <li key={entry.id}>
+                    <PendingCard entry={entry} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
+            {items.hasNextPage && (
+              <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
