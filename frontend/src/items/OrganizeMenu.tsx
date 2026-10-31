@@ -31,17 +31,19 @@ export type OrganizeTriggerProps = {
  * Organize in one click: hovering the trigger (or clicking it, on touch and
  * keyboard) lists the collections, and picking one organizes into it. Typing
  * filters the list or creates a collection; "Several collections…" opens the
- * full picker.
+ * full picker. With `onRemove`, picking a ticked collection takes it out.
  */
 export function OrganizeMenu({
   current = [],
   onPick,
+  onRemove,
   onMore,
   trigger,
 }: {
   /** Collections it is already in: shown ticked. */
   current?: string[]
   onPick: (collection: Collection) => void
+  onRemove?: (collection: Collection) => void
   onMore: () => void
   trigger: (props: OrganizeTriggerProps) => ReactNode
 }) {
@@ -97,6 +99,13 @@ export function OrganizeMenu({
               close()
               onPick(collection)
             }}
+            onRemove={
+              onRemove &&
+              ((collection) => {
+                close()
+                onRemove(collection)
+              })
+            }
             onMore={() => {
               close()
               onMore()
@@ -118,6 +127,7 @@ function Menu({
   focusFilter,
   hover,
   onPick,
+  onRemove,
   onMore,
   onClose,
 }: {
@@ -126,6 +136,7 @@ function Menu({
   focusFilter: boolean
   hover: Record<'onPointerEnter' | 'onPointerLeave', (event: ReactPointerEvent) => void>
   onPick: (collection: Collection) => void
+  onRemove?: (collection: Collection) => void
   onMore: () => void
   onClose: () => void
 }) {
@@ -169,6 +180,12 @@ function Menu({
   const visible = needle ? all.filter((c) => c.name.toLowerCase().includes(needle)) : all
   const exact = all.find((c) => c.name.toLowerCase() === needle)
 
+  /** Into it, or out of it when it's already in it (and that's allowed). */
+  function toggle(collection: Collection) {
+    if (!current.includes(collection.id)) onPick(collection)
+    else if (onRemove) onRemove(collection)
+  }
+
   function createAndPick() {
     create.mutate({ name: query.trim() }, { onSuccess: onPick })
   }
@@ -205,8 +222,8 @@ function Menu({
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return
           event.preventDefault()
-          if (exact) onPick(exact)
-          else if (visible.length === 1) onPick(visible[0])
+          const match = exact ?? (visible.length === 1 ? visible[0] : undefined)
+          if (match) toggle(match)
           else if (needle) createAndPick()
         }}
       />
@@ -224,15 +241,20 @@ function Menu({
               type="button"
               role="menuitem"
               className="menu-item py-1.5"
-              disabled={inIt}
-              onClick={() => onPick(collection)}
+              disabled={inIt && !onRemove}
+              onClick={() => toggle(collection)}
             >
               <CollectionAvatar collection={collection} size="sm" />
               <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
                 <span className="truncate">{collection.name}</span>
                 <CollectionPlace collections={all} id={collection.id} />
               </span>
-              {inIt && <Check className="size-4 text-accent-500" aria-label="Already in it" />}
+              {inIt && (
+                <Check
+                  className="size-4 text-accent-500"
+                  aria-label={onRemove ? 'In it: click to take it out' : 'Already in it'}
+                />
+              )}
             </button>
           )
         })}

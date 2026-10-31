@@ -247,7 +247,7 @@ export function useRefreshPreview() {
   })
 }
 
-export type TriageAction = 'organize' | 'archive' | 'inbox' | 'delete'
+export type TriageAction = 'organize' | 'unorganize' | 'archive' | 'inbox' | 'delete'
 
 export type TriagePayload = { ids: string[]; action: TriageAction; collections?: string[] }
 
