@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { timeAgo } from '../lib/time'
 import { CopyField } from '../ui/CopyField'
-import { useCreateInvitation, useInvitations, useRevokeInvitation } from './api'
+import { type Invitation, useCreateInvitation, useInvitations, useRevokeInvitation } from './api'
 
 /**
  * Admins invite people with a link: whoever opens it makes their own
@@ -17,7 +17,7 @@ export function InvitationsPanel() {
         anyone else's things.
       </p>
       <NewInvitationForm />
-      <Pending />
+      <Invitations />
     </div>
   )
 }
@@ -64,30 +64,68 @@ function NewInvitationForm() {
   )
 }
 
-function Pending() {
+function Invitations() {
   const { data: invitations } = useInvitations()
   const revoke = useRevokeInvitation()
-  const [confirming, setConfirming] = useState<string | null>(null)
   if (!invitations?.length) return null
+  const pending = invitations.filter((invitation) => invitation.status === 'pending')
+  const done = invitations.filter((invitation) => invitation.status !== 'pending')
 
   return (
-    <section aria-labelledby="invitations-title" className="space-y-2">
-      <h4 id="invitations-title" className="text-sm font-medium">
-        Waiting to be used
-      </h4>
-      <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-        {invitations.map((invitation) => {
-          const name = invitation.note || 'Invitation'
-          return (
-            <li key={invitation.id} className="flex items-center gap-3 p-3">
-              <div className="mr-auto min-w-0 text-sm">
-                <div className="truncate font-medium">{name}</div>
-                <div className="text-xs text-zinc-500">
-                  created {timeAgo(invitation.created_at)} · expires{' '}
-                  {new Date(invitation.expires_at).toLocaleDateString()}
-                </div>
+    <>
+      {pending.length > 0 && (
+        <section aria-labelledby="invitations-pending" className="space-y-2">
+          <h4 id="invitations-pending" className="text-sm font-medium">
+            Waiting to be used
+          </h4>
+          <InvitationList invitations={pending} revoke={revoke} />
+        </section>
+      )}
+      {done.length > 0 && (
+        <section aria-labelledby="invitations-done" className="space-y-2">
+          <h4 id="invitations-done" className="text-sm font-medium text-zinc-500">
+            Accepted or expired
+          </h4>
+          <InvitationList invitations={done} revoke={revoke} />
+        </section>
+      )}
+      {revoke.isError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {revoke.error.message}
+        </p>
+      )}
+    </>
+  )
+}
+
+function InvitationList({
+  invitations,
+  revoke,
+}: {
+  invitations: Invitation[]
+  revoke: ReturnType<typeof useRevokeInvitation>
+}) {
+  const [confirming, setConfirming] = useState<string | null>(null)
+
+  return (
+    <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+      {invitations.map((invitation) => {
+        const name = invitation.note || 'Invitation'
+        // Pending links are revoked; expired ones are only taken off the list.
+        const action = { pending: 'Revoke', expired: 'Remove', accepted: null }[invitation.status]
+        return (
+          <li
+            key={invitation.id}
+            className={`flex items-center gap-3 p-3 ${invitation.status === 'pending' ? '' : 'text-zinc-500'}`}
+          >
+            <div className="mr-auto min-w-0 text-sm">
+              <div className={`truncate ${invitation.status === 'pending' ? 'font-medium' : ''}`}>
+                {name}
               </div>
-              {confirming === invitation.id ? (
+              <div className="text-xs text-zinc-500">{describe(invitation)}</div>
+            </div>
+            {action &&
+              (confirming === invitation.id ? (
                 <>
                   <button type="button" className="button-ghost" onClick={() => setConfirming(null)}>
                     Keep
@@ -100,23 +138,30 @@ function Pending() {
                       revoke.mutate(invitation.id, { onSuccess: () => setConfirming(null) })
                     }
                   >
-                    Revoke {name}
+                    {action} {name}
                   </button>
                 </>
               ) : (
                 <button type="button" className="button-ghost" onClick={() => setConfirming(invitation.id)}>
-                  Revoke
+                  {action}
                 </button>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      {revoke.isError && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {revoke.error.message}
-        </p>
-      )}
-    </section>
+              ))}
+          </li>
+        )
+      })}
+    </ul>
   )
+}
+
+function describe(invitation: Invitation) {
+  switch (invitation.status) {
+    case 'pending':
+      return `created ${timeAgo(invitation.created_at)} · expires ${timeAgo(invitation.expires_at)}`
+    case 'accepted': {
+      const by = invitation.used_by ? ` by ${invitation.used_by}` : ''
+      return `accepted${by} ${timeAgo(invitation.used_at ?? invitation.expires_at)}`
+    }
+    case 'expired':
+      return `expired ${timeAgo(invitation.expires_at)}`
+  }
 }
