@@ -149,6 +149,21 @@ describe('CollectionPage', () => {
     expect(JSON.parse(String((init as RequestInit).body))).toMatchObject({ name: 'Job' })
   })
 
+  it('renames a collection by clicking its name', async () => {
+    collections = [work]
+    renderCollection()
+    const name = await screen.findByLabelText('Collection name')
+    expect(name).toHaveValue('Work')
+    fireEvent.change(name, { target: { value: 'Job' } })
+    fireEvent.keyDown(name, { key: 'Enter' })
+    fireEvent.blur(name)
+
+    const patch = () => fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    await waitFor(() => expect(patch()).toBeDefined())
+    const [, init] = patch()!
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({ name: 'Job' })
+  })
+
   it('deletes a collection, archiving the items only in it', async () => {
     collections = [work]
     renderCollection()
@@ -212,8 +227,9 @@ describe('CollectionPage', () => {
 
     fireEvent.change(inside, { target: { value: 'home' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true))
-    const [, init] = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')!
+    const patch = () => fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    await waitFor(() => expect(patch()).toBeDefined())
+    const [, init] = patch()!
     expect(JSON.parse(String((init as RequestInit).body))).toMatchObject({ parent: 'home' })
   })
 
