@@ -1,19 +1,21 @@
 """
-Hand-sorted lists: the inbox, and each collection. Each place in them is a
+Hand-sorted lists: the inbox, each collection, and the collections inside
+each collection (or at the top); boards use `place` too. Each place in them is a
 rank, highest first (see `models.rank_now`); moving an item gives it a rank
 between its new neighbours, so nothing else has to change. When two ranks get
 too close to split, the list is spaced out again first.
 """
 
 from django.db import transaction
+from django.utils import timezone
 
-from .models import CollectionItem, Item, rank_now
+from .models import Collection, CollectionItem, Item, rank_now
 
 # Closer than this, a midpoint loses precision: space the list out first.
 MIN_GAP = 1e-6
 
 
-def _place(rows, moving, after, set_rank):
+def place(rows, moving, after, set_rank):
     """
     `rows`: (key, rank) of the list, highest first, without `moving`. Puts
     `moving` right after `after` (or on top when None) through `set_rank`.
@@ -58,7 +60,7 @@ def move_in_inbox(item, after):
     def set_rank(item_id, rank):
         Item.objects.filter(id=item_id).update(inbox_rank=rank)
 
-    return _place(rows, item.id, after, set_rank)
+    return place(rows, item.id, after, set_rank)
 
 
 @transaction.atomic
@@ -78,4 +80,31 @@ def move_in_collection(item, collection, after):
             rank=rank
         )
 
-    return _place(rows, item.id, after, set_rank)
+    return place(rows, item.id, after, set_rank)
+
+
+@transaction.atomic
+def move_collection(collection, parent, after):
+    """
+    Puts `collection` inside `parent` (None: at the top), right after `after`
+    (a collection id there) or on top. Checking that `parent` isn't inside
+    `collection` is up to the caller.
+    """
+    rows = list(
+        Collection.objects.select_for_update()
+        .filter(owner=collection.owner, parent=parent)
+        .exclude(id=collection.id)
+        .order_by("-rank", "name")
+        .values_list("id", "rank")
+    )
+
+    def set_rank(collection_id, rank):
+        Collection.objects.filter(id=collection_id).update(rank=rank)
+
+    if not place(rows, collection.id, after, set_rank):
+        return False
+    if collection.parent_id != (parent.id if parent else None):
+        Collection.objects.filter(id=collection.id).update(
+            parent=parent, updated_at=timezone.now()
+        )
+    return True

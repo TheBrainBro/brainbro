@@ -18,6 +18,15 @@ def collection_image_path(collection, filename):
     return f"collections/{collection.id}/{uuid.uuid4().hex}.webp"
 
 
+def rank_now():
+    """
+    Where something new goes in a hand-sorted list: lists sort by rank, highest
+    first, so now is on top. Moving an item gives it a rank between its new
+    neighbours (see `ordering`).
+    """
+    return timezone.now().timestamp()
+
+
 class Collection(OwnedModel):
     """
     A named group of items, following PARA: a project (a goal with an end),
@@ -47,14 +56,17 @@ class Collection(OwnedModel):
         on_delete=models.SET_NULL,
         related_name="children",
     )
+    # Its place among the collections next to it; see `rank_now`.
+    rank = models.FloatField(default=rank_now)
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["-rank", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["owner", "name"], name="unique_collection_name_per_owner"
             ),
         ]
+        indexes = [models.Index(fields=["owner", "-rank"])]
 
     def __str__(self):
         return self.name
@@ -64,15 +76,6 @@ class Collection(OwnedModel):
 def delete_collection_image(sender, instance, **kwargs):
     if instance.image:
         instance.image.delete(save=False)
-
-
-def rank_now():
-    """
-    Where something new goes in a hand-sorted list: lists sort by rank, highest
-    first, so now is on top. Moving an item gives it a rank between its new
-    neighbours (see `ordering`).
-    """
-    return timezone.now().timestamp()
 
 
 def preview_image_path(item, filename):

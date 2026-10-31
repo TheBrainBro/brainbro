@@ -4,7 +4,7 @@ from django.db import models
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Collection, Item, NoteImage
+from .models import Collection, Item, NoteImage, rank_now
 from .uploads import clean_filename
 
 
@@ -13,6 +13,23 @@ class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
 
     def get_queryset(self):
         return super().get_queryset().filter(owner=self.context["request"].user)
+
+
+def check_parent(collection, parent):
+    """Raises if `parent` (None: the top) is `collection` or inside it."""
+    if parent is None:
+        return
+    # Walk up from the new parent: meeting this one would make a loop.
+    parents = dict(
+        Collection.objects.filter(owner=collection.owner).values_list("id", "parent_id")
+    )
+    node = parent.pk
+    while node is not None:
+        if node == collection.pk:
+            raise serializers.ValidationError(
+                "A collection can't go inside itself or one of its own."
+            )
+        node = parents.get(node)
 
 
 class CollectionSerializer(serializers.ModelSerializer):
@@ -58,22 +75,15 @@ class CollectionSerializer(serializers.ModelSerializer):
         return value.lower()
 
     def validate_parent(self, value):
-        if value is None or self.instance is None:
-            return value
-        # Walk up from the new parent: meeting this one would make a loop.
-        parents = dict(
-            Collection.objects.filter(owner=self.instance.owner).values_list(
-                "id", "parent_id"
-            )
-        )
-        node = value.pk
-        while node is not None:
-            if node == self.instance.pk:
-                raise serializers.ValidationError(
-                    "A collection can't go inside itself or one of its own."
-                )
-            node = parents.get(node)
+        if self.instance is not None:
+            check_parent(self.instance, value)
         return value
+
+    def update(self, instance, validated_data):
+        # Into another collection: on top there, like a new one.
+        if "parent" in validated_data and validated_data["parent"] != instance.parent:
+            validated_data["rank"] = rank_now()
+        return super().update(instance, validated_data)
 
     def validate_name(self, value):
         owner = self.context["request"].user
