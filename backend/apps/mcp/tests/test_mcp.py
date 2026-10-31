@@ -172,7 +172,11 @@ def test_it_needs_a_token():
         content_type="application/json",
     )
     assert response.status_code == 401
-    assert response["WWW-Authenticate"] == "Bearer"
+    # Where "Sign in to Brain" starts (see apps.accounts.oauth).
+    assert response["WWW-Authenticate"] == (
+        'Bearer resource_metadata="http://testserver/.well-known/'
+        'oauth-protected-resource/api/mcp", scope="brain"'
+    )
 
 
 def test_the_session_is_not_enough(user):
