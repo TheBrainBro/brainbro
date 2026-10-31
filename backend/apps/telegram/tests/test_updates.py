@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.items.models import Item
 from apps.telegram.models import TelegramLink
@@ -48,6 +49,26 @@ def test_expired_or_missing_codes_dont_link(user, fake_bot):
 
     assert TelegramLink.objects.get().chat_id is None
     assert all("open Brain" in m["text"] for m in fake_bot.sent("sendMessage"))
+
+
+def test_each_user_links_their_own_chat(user, other_user, fake_bot):
+    for owner, chat_id in [(user, 42), (other_user, 43)]:
+        client = APIClient()
+        client.force_authenticate(owner)
+        url = client.post("/api/telegram/connect/").json()["url"]
+        code = url.rsplit("start=", 1)[1]
+        chat = {"id": chat_id, "type": "private"}
+        handle_update(
+            {"update_id": 1, "message": {"chat": chat, "text": f"/start {code}"}}
+        )
+        handle_update(
+            {"update_id": 2, "message": {"chat": chat, "text": f"from {chat_id}"}}
+        )
+
+    assert Item.objects.get(owner=user).body == "from 42"
+    assert Item.objects.get(owner=other_user).body == "from 43"
+    links = TelegramLink.objects.order_by("chat_id")
+    assert [link.owner for link in links] == [user, other_user]
 
 
 def test_strangers_and_groups_are_ignored(user, fake_bot):

@@ -4,13 +4,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SettingsDialog } from './SettingsDialog'
 
-function renderDialog(onClose = () => {}) {
+function renderDialog(onClose = () => {}, { staff = false } = {}) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      new Response(JSON.stringify({ results: [] }), {
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    vi.fn(async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url === '/api/auth/session/'
+            ? { authenticated: true, user: { id: 1, username: 'carlos', is_staff: staff } }
+            : { results: [] },
+        ),
+        { headers: { 'Content-Type': 'application/json' } },
+      ),
     ),
   )
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -46,5 +51,17 @@ describe('SettingsDialog', () => {
     fireEvent.keyDown(screen.getByRole('dialog', { name: 'Settings' }), { key: 'Escape' })
 
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows invitations to admins only', async () => {
+    renderDialog(() => {}, { staff: true })
+    fireEvent.click(await screen.findByRole('button', { name: 'Invitations' }))
+    expect(screen.getByRole('heading', { name: 'Invitations' })).toBeInTheDocument()
+  })
+
+  it('hides invitations from everyone else', async () => {
+    renderDialog()
+    await screen.findByRole('button', { name: 'Import' })
+    expect(screen.queryByRole('button', { name: 'Invitations' })).not.toBeInTheDocument()
   })
 })

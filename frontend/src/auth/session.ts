@@ -17,7 +17,7 @@ export type Session = {
   welcome_seen?: boolean
 }
 
-const sessionKey = ['session']
+export const sessionKey = ['session']
 
 export function useSession() {
   return useQuery({
