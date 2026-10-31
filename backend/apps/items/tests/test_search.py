@@ -79,6 +79,14 @@ def test_short_words_alone_dont_make_a_partial_match(api, user):
     assert ids(search(api, "ir a la")) == [str(note.id)]
 
 
+def test_short_words_dont_add_to_the_rank(api, user):
+    # "to" and "on" are in it, but they're in almost everything.
+    noise = Item.objects.create(owner=user, kind="note", body="to do on the lake trip")
+    trip = Item.objects.create(owner=user, kind="note", body="paris trip notes")
+    query = "notes on the trip to paris"
+    assert ids(search(api, query)) == [str(trip.id), str(noise.id)]
+
+
 def test_typos_count_in_partial_matches(api, user):
     note = Item.objects.create(owner=user, kind="note", body="kubernetes setup")
     assert ids(search(api, "kubernets cluster")) == [str(note.id)]
