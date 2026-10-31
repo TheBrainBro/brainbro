@@ -359,7 +359,7 @@ export function ItemList({
             key={label}
             type="button"
             aria-label={label}
-            className="button-icon group size-7"
+            className="button-icon group/tip size-7"
             onClick={action}
             {...props}
           >
@@ -397,7 +397,7 @@ export function ItemList({
           <button
             type="button"
             aria-label="Clear selection (Esc)"
-            className="button-icon group size-7"
+            className="button-icon group/tip size-7"
             onClick={() => setSelected(new Set())}
           >
             <X className="size-4" aria-hidden="true" />

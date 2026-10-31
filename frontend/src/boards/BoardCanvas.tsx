@@ -919,7 +919,7 @@ function ToolButton({
       aria-label={label}
       aria-pressed={pressed}
       disabled={disabled}
-      className={`button-icon group ${
+      className={`button-icon group/tip ${
         pressed ? 'bg-accent-100 text-accent-700 hover:bg-accent-100 dark:bg-accent-500/20 dark:text-accent-300' : ''
       }`}
       onClick={onClick}

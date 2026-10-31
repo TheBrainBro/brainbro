@@ -46,7 +46,7 @@ export const FrameNode = memo(function FrameNode({ id, data, selected }: NodePro
               <button
                 type="button"
                 aria-label="Ungroup"
-                className="button-icon group size-7"
+                className="button-icon group/tip size-7"
                 onClick={() => ungroupFrame(id)}
               >
                 <Ungroup className="size-4" aria-hidden="true" />

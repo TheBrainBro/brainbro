@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Export } from './api'
-import { ExportDialog } from './ExportDialog'
+import { ExportPanel } from './ExportPanel'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -35,21 +35,21 @@ function mockApi(latest: Export | null, started?: Export) {
   return fetchMock
 }
 
-function renderDialog(onClose = () => {}) {
+function renderPanel() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <ExportDialog onClose={onClose} />
+      <ExportPanel />
     </QueryClientProvider>,
   )
 }
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('ExportDialog', () => {
+describe('ExportPanel', () => {
   it('starts an export and says it is being prepared', async () => {
     const fetchMock = mockApi(null, exportOf({}))
-    renderDialog()
+    renderPanel()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Create export' }))
 
@@ -61,7 +61,7 @@ describe('ExportDialog', () => {
     mockApi(
       exportOf({ status: 'ready', size: 3 * 1024 * 1024, download_url: '/api/exports/e1/download/' }),
     )
-    renderDialog()
+    renderPanel()
 
     const link = await screen.findByRole('link', { name: 'Download' })
     expect(link).toHaveAttribute('href', '/api/exports/e1/download/')
@@ -72,19 +72,9 @@ describe('ExportDialog', () => {
 
   it('says when the last export failed', async () => {
     mockApi(exportOf({ status: 'failed' }))
-    renderDialog()
+    renderPanel()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The last export failed')
     expect(screen.getByRole('button', { name: 'Create export' })).toBeInTheDocument()
-  })
-
-  it('closes on Escape', async () => {
-    mockApi(null)
-    const onClose = vi.fn()
-    renderDialog(onClose)
-
-    fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' })
-
-    expect(onClose).toHaveBeenCalled()
   })
 })
