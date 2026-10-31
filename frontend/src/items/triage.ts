@@ -23,6 +23,8 @@ export function triageMessage(action: TriageAction, n: number, into?: string) {
       return `Moved ${count(n)} to the inbox`
     case 'organize':
       return into ? `Organized ${count(n)} into ${into}` : `Organized ${count(n)}`
+    case 'unorganize':
+      return into ? `Took ${count(n)} out of ${into}` : `Took ${count(n)} out of the collection`
     case 'delete':
       return `Deleted ${count(n)}`
   }
