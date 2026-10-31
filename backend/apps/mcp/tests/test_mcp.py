@@ -227,6 +227,8 @@ def test_get_item_returns_the_whole_note(call, user):
     details = structured(call("get_item", id=str(item.id)))
 
     assert details["body"] == "x" * 1000
+    # ISO 8601, as DjangoJSONEncoder writes it (milliseconds, UTC as Z).
+    assert details["created_at"] == item.created_at.isoformat()[:23] + "Z"
     assert details["version"] == item.version
 
 
