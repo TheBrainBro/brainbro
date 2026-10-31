@@ -95,6 +95,25 @@ describe('ItemViewer', () => {
     expect(await screen.findByRole('dialog', { name: 'Our first trip' })).toBeInTheDocument()
   })
 
+  it('deletes the item shown, after asking, and closes', async () => {
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))
+    const viewer = await screen.findByRole('dialog', { name: 'beach.jpg' })
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Delete' }))
+
+    const confirm = await screen.findByRole('alertdialog', { name: 'Delete this item?' })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/items/triage/',
+        expect.objectContaining({ body: JSON.stringify({ ids: ['a'], action: 'delete' }) }),
+      ),
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByRole('status')).toHaveTextContent('Deleted 1 item')
+  })
+
   it('opens an image full size and steps through the list', async () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))
