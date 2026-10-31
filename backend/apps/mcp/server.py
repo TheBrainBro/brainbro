@@ -10,6 +10,7 @@ import json
 import logging
 
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 
 from .tools import TOOLS, ToolError
 
@@ -92,8 +93,8 @@ def call_tool(user, params):
         result = tool.run(user, arguments)
     except ToolError as failure:
         return {"content": [{"type": "text", "text": str(failure)}], "isError": True}
-    # Ids and dates as strings, the same in both copies.
-    text = json.dumps(result, default=str)
+    # Ids and ISO dates as strings, the same in both copies.
+    text = json.dumps(result, cls=DjangoJSONEncoder)
     return {
         # Older clients only read the text; newer ones the structured copy.
         "content": [{"type": "text", "text": text}],
