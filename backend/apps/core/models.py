@@ -18,10 +18,8 @@ class TimestampedModel(models.Model):
 
 class OwnedModel(TimestampedModel):
     """
-    Base for every user content model.
-
-    There is a single user for now, but every row belongs to someone from day
-    one so the app can become multi-user without a painful data migration.
+    Base for every user content model: every row belongs to one user, and
+    only they can reach it (see `apps.core.tests.test_isolation`).
     """
 
     owner = models.ForeignKey(

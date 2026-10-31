@@ -44,7 +44,7 @@ The required ones:
 | `APP_HOSTNAMES` | The tunnel's public hostname, e.g. `brain.yourdomain.com` |
 | `SECRET_KEY` | `openssl rand -base64 48` |
 | `POSTGRES_PASSWORD` | `openssl rand -base64 32` |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Your user. Only created if it does not exist. |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Your user, the admin. Only created if it does not exist. To add other people, create an invitation link in Settings → Invitations. |
 
 From a terminal on the server instead:
 

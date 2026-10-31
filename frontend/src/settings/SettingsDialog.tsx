@@ -1,8 +1,19 @@
-import { Bot, FolderInput, PackageOpen, Send, Settings, X, type LucideIcon } from 'lucide-react'
+import {
+  Bot,
+  FolderInput,
+  PackageOpen,
+  Send,
+  Settings,
+  UserPlus,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
+import { useSession } from '../auth/session'
 import { ExportPanel } from '../exports/ExportPanel'
 import { ImportPanel } from '../imports/ImportPanel'
+import { InvitationsPanel } from '../invitations/InvitationsPanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
@@ -25,12 +36,20 @@ const groups: { label: string; pages: Page[] }[] = [
   },
 ]
 
+// Admins only: inviting people to the server.
+const adminGroup = {
+  label: 'Server',
+  pages: [{ id: 'invitations', label: 'Invitations', icon: UserPlus, Panel: InvitationsPanel }],
+}
+
 /** Import, export and integrations: a list of pages on the side, the open one next to it. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])
+  const { data: session } = useSession()
+  const shown = session?.user?.is_staff ? [...groups, adminGroup] : groups
   const [openId, setOpenId] = useState(groups[0].pages[0].id)
-  const page = groups.flatMap((group) => group.pages).find((page) => page.id === openId)!
+  const page = shown.flatMap((group) => group.pages).find((page) => page.id === openId)!
 
   return (
     <>
@@ -68,7 +87,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               aria-label="Settings"
               className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 p-2 sm:w-52 sm:flex-col sm:border-r sm:border-b-0 dark:border-zinc-800"
             >
-              {groups.map((group) => (
+              {shown.map((group) => (
                 <div key={group.label} className="flex gap-1 sm:flex-col">
                   <div className="hidden px-3 pt-2 pb-1 text-xs font-medium text-zinc-500 sm:block">
                     {group.label}
