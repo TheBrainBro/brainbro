@@ -84,6 +84,24 @@ describe('BoardsPage sorting', () => {
     await waitFor(() => expect(moveCalls()).toEqual([['/api/boards/a/move/', { after: 'c' }]]))
   })
 
+  it("doesn't take a board still gliding into place for one dragged over", async () => {
+    renderPage()
+    await screen.findByRole('link', { name: /Alpha/ })
+    const list = screen.getByRole('list', { name: 'Boards' })
+    const card = (title: string) =>
+      within(list).getByRole('link', { name: new RegExp(title) }).closest('li')!
+    const gliding = card('Beta')
+    gliding.getAnimations = () => [{ playState: 'running' } as Animation]
+    const dataTransfer = transfer()
+    fireEvent.dragStart(card('Alpha'), { dataTransfer })
+    fireEvent.dragOver(gliding, { dataTransfer })
+    expect(
+      within(list)
+        .getAllByRole('link')
+        .map((link) => link.textContent?.match(/Alpha|Beta|Gamma/)?.[0]),
+    ).toEqual(['Alpha', 'Beta', 'Gamma'])
+  })
+
   it('moves the focused board with Alt+arrows', async () => {
     renderPage()
     await screen.findByRole('link', { name: /Alpha/ })
