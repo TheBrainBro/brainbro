@@ -87,7 +87,7 @@ export type ItemFilters = {
   status?: ItemStatus
   collection?: string
   kind?: ItemKind
-  /** Search text: every word must match (typos allowed); sorted by relevance. */
+  /** Search text: items with every word first, then with some (typos allowed). */
   q?: string
 }
 
