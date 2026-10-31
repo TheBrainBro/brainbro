@@ -5,6 +5,9 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const backend = 'http://localhost:8000'
+// Keeps the browser's Host (localhost:5173), so the URLs Django builds from
+// it, like the OAuth ones AI assistants follow, point back at Vite.
+const sameHost = { target: backend, changeOrigin: false }
 
 // The build's public files are under /static/ (see `base`).
 const icon = (name: string) => `/static/icons/${name}`
@@ -93,7 +96,9 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     proxy: {
-      '/api': backend,
+      '/api': sameHost,
+      // OAuth discovery for AI assistants (MCP).
+      '/.well-known': sameHost,
       '/admin': backend,
       '/static/admin': backend,
       '/static/unfold': backend,

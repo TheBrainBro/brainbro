@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './layout/AppLayout'
+import { AuthorizePage } from './pages/AuthorizePage'
 import { BoardsPage } from './pages/BoardsPage'
 import { CapturePage } from './pages/CapturePage'
 import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
@@ -40,6 +41,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
+        <Route path="/oauth/authorize" element={<AuthorizePage />} />
         <Route element={<AppLayout />}>
           <Route index element={<InboxPage />} />
           <Route path="archive" element={<InboxPage archived />} />
