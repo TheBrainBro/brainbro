@@ -9,8 +9,6 @@ import {
   FileText,
   ImageMinus,
   Pencil,
-  PencilLine,
-  Trash2,
   Ungroup,
   X,
   ZoomIn,
@@ -67,7 +65,7 @@ export default function ItemViewer({
   image,
   onIndex,
   onReplace,
-  onDelete,
+  controls,
   onClose,
 }: {
   items: Item[]
@@ -78,15 +76,13 @@ export default function ItemViewer({
   onIndex: (index: number) => void
   /** An item changed while shown (an album edited). */
   onReplace: (item: Item) => void
-  /** Deletes the item shown, after asking; the viewer closes once it's gone. */
-  onDelete?: (item: Item) => void
+  /** Triage buttons for the item shown (organize, archive, delete). */
+  controls?: (item: Item) => ReactNode
   onClose: () => void
 }) {
   const item = items[index]
   const dialog = useRef<HTMLDivElement>(null)
   // Which of an album's images is shown; back to the first on another item.
-  // Renaming the item shown: its name is a field until saved or left.
-  const [renaming, setRenaming] = useState<string | null>(null)
   const [place, setPlace] = useState(() => {
     const start = items[index]?.album_items?.findIndex((shown) => shown.id === image) ?? -1
     return start > 0 ? { id: items[index].id, at: start } : { id: '', at: 0 }
@@ -146,14 +142,8 @@ export default function ItemViewer({
     >
       <header className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          {renaming === item.id ? (
-            <NameEditor
-              item={item}
-              onDone={(renamed) => {
-                setRenaming(null)
-                if (renamed) onReplace(renamed)
-              }}
-            />
+          {item.kind === 'file' || item.kind === 'image' ? (
+            <NameField key={item.id} item={item} onSaved={onReplace} />
           ) : (
             <h2 className="truncate font-medium">{itemLabel(item)}</h2>
           )}
@@ -169,12 +159,6 @@ export default function ItemViewer({
             Edit
           </Link>
         )}
-        {(item.kind === 'file' || item.kind === 'image') && renaming !== item.id && (
-          <button type="button" className="viewer-button" onClick={() => setRenaming(item.id)}>
-            <PencilLine className="size-4" aria-hidden="true" />
-            Rename
-          </button>
-        )}
         {original && item.kind === 'link' && (
           <a href={original} target="_blank" rel="noopener noreferrer" className="viewer-button">
             <ExternalLink className="size-4" aria-hidden="true" />
@@ -187,12 +171,7 @@ export default function ItemViewer({
             Download
           </a>
         )}
-        {onDelete && (
-          <button type="button" className="viewer-button" onClick={() => onDelete(item)}>
-            <Trash2 className="size-4" aria-hidden="true" />
-            Delete
-          </button>
-        )}
+        {controls?.(item)}
         <button type="button" aria-label="Close" className="viewer-icon" onClick={onClose}>
           <X className="size-5" aria-hidden="true" />
         </button>
@@ -271,33 +250,31 @@ function Content({ item }: { item: Item }) {
 }
 
 /**
- * An album: one image at a time over a strip of all of them, where the
- * shown one can be moved or taken out, and the album ungrouped.
+ * A file's or image's name, as a field: click it to rename. Enter or leaving
+ * it saves; Esc puts it back as it was. Without an extension, it keeps its own.
  */
-/**
- * A file's or image's name, editable: Enter saves, Esc leaves it as it was.
- */
-function NameEditor({ item, onDone }: { item: Item; onDone: (renamed?: Item) => void }) {
+function NameField({ item, onSaved }: { item: Item; onSaved: (item: Item) => void }) {
   const queryClient = useQueryClient()
-  const [name, setName] = useState(item.metadata.filename ?? '')
+  const saved = item.metadata.filename ?? ''
+  const [name, setName] = useState(saved)
   const [error, setError] = useState('')
-  const busy = useRef(false)
   // Esc: the blur that follows doesn't save.
   const cancelled = useRef(false)
 
   async function save() {
     const next = name.trim()
-    if (busy.current || cancelled.current) return
-    if (!next || next === item.metadata.filename) return onDone()
-    busy.current = true
+    if (cancelled.current || !next || next === saved) {
+      cancelled.current = false
+      setName(saved)
+      return
+    }
     try {
       const renamed = await renameItem(item.id, next)
+      setError('')
+      onSaved(renamed)
       queryClient.invalidateQueries({ queryKey: itemsKey })
-      onDone(renamed)
     } catch (failure) {
       setError((failure as Error).message)
-    } finally {
-      busy.current = false
     }
   }
 
@@ -305,8 +282,7 @@ function NameEditor({ item, onDone }: { item: Item; onDone: (renamed?: Item) => 
     <>
       <input
         aria-label="Name"
-        autoFocus
-        className="w-full rounded-md border border-zinc-700 bg-zinc-900/60 px-2 py-0.5 font-medium text-zinc-100 outline-none focus:border-zinc-500"
+        className="-mx-2 w-full truncate rounded-md bg-transparent px-2 py-0.5 font-medium text-zinc-100 transition outline-none hover:bg-white/10 focus:bg-white/10"
         value={name}
         onChange={(event) => setName(event.target.value)}
         onFocus={(event) => {
@@ -316,19 +292,13 @@ function NameEditor({ item, onDone }: { item: Item; onDone: (renamed?: Item) => 
         }}
         onBlur={save}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault()
-            save()
-          } else if (event.key === 'Escape') {
-            event.preventDefault()
-            event.stopPropagation()
-            cancelled.current = true
-            onDone()
-          }
+          if (event.key === 'Enter') event.currentTarget.blur()
+          // The viewer blurs it on Esc.
+          else if (event.key === 'Escape') cancelled.current = true
         }}
       />
       {error && (
-        <p role="alert" className="mt-0.5 text-xs text-red-400">
+        <p role="alert" className="text-xs text-red-400">
           {error}
         </p>
       )}
@@ -399,6 +369,10 @@ function CaptionEditor({ item, onSaved }: { item: Item; onSaved: (item: Item) =>
   )
 }
 
+/**
+ * An album: one image at a time over a strip of all of them, where the
+ * shown one can be moved or taken out, and the album ungrouped.
+ */
 function AlbumView({
   album,
   at,
