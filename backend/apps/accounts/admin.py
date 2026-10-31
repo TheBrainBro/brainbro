@@ -1,7 +1,7 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 
-from .models import ApiToken, OAuthClient, Profile
+from .models import ApiToken, Invitation, OAuthClient, Profile
 
 
 @admin.register(Profile)
@@ -15,6 +15,18 @@ class ApiTokenAdmin(ModelAdmin):
     list_display = ["__str__", "owner", "client", "created_at", "last_used_at"]
     readonly_fields = ["prefix", "client", "expires_at", "last_used_at"]
     exclude = ["key_hash", "refresh_hash"]
+
+
+@admin.register(Invitation)
+class InvitationAdmin(ModelAdmin):
+    # Made from the app's settings, where the link is shown once. Deleting
+    # one revokes it.
+    list_display = ["__str__", "created_by", "expires_at", "used_at", "used_by"]
+    readonly_fields = ["created_by", "expires_at", "used_at", "used_by"]
+    exclude = ["token_hash"]
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(OAuthClient)
