@@ -314,7 +314,7 @@ export function CollectionPage() {
             <button
               type="button"
               aria-label="New collection inside"
-              className="button-icon group"
+              className="button-icon group/tip"
               onClick={() => setAdding(true)}
             >
               <FolderPlus className="size-4" aria-hidden="true" />
@@ -323,7 +323,7 @@ export function CollectionPage() {
             <button
               type="button"
               aria-label="Edit collection"
-              className="button-icon group"
+              className="button-icon group/tip"
               onClick={() => setEditing(true)}
             >
               <Pencil className="size-4" aria-hidden="true" />
@@ -332,7 +332,7 @@ export function CollectionPage() {
             <button
               type="button"
               aria-label="Delete collection"
-              className="button-icon group"
+              className="button-icon group/tip"
               onClick={() => setDeleting(true)}
             >
               <Trash2 className="size-4" aria-hidden="true" />

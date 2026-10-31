@@ -56,7 +56,7 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
               </NavLink>
             </nav>
             <ViewModeSwitch mode={mode} onChange={setMode} />
-            <Link to="/notes/new" aria-label="New note" className="button-outline group relative px-3 py-1.5">
+            <Link to="/notes/new" aria-label="New note" className="button-outline group/tip relative px-3 py-1.5">
               <SquarePen className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">New note</span>
               <span className="tooltip top-full mt-2">New note (N)</span>

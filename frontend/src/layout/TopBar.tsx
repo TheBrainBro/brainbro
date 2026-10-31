@@ -62,7 +62,7 @@ export function TopBar({
       </nav>
 
       <div className="flex items-center gap-1 justify-self-end sm:gap-2">
-        <button type="button" aria-label="Search" className="button-icon group" onClick={onSearch}>
+        <button type="button" aria-label="Search" className="button-icon group/tip" onClick={onSearch}>
           <Search className="size-5" strokeWidth={1.75} aria-hidden="true" />
           <span role="tooltip" className="tooltip top-full mt-2">
             Search {combo('K')}
@@ -86,7 +86,7 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
       end={end}
       aria-label={label}
       className={({ isActive }) =>
-        `group relative flex h-9 w-12 items-center justify-center rounded-lg transition ${
+        `group/tip relative flex h-9 w-12 items-center justify-center rounded-lg transition ${
           isActive
             ? 'bg-white text-accent-600 shadow-sm dark:bg-zinc-800 dark:text-accent-300'
             : 'text-zinc-500 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100'

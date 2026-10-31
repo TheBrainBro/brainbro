@@ -120,7 +120,7 @@ export const FloatingEdge = memo(function FloatingEdge({
                   type="button"
                   aria-label={label}
                   aria-pressed={data.arrow === arrow}
-                  className={`button-icon group size-7 ${data.arrow === arrow ? PRESSED : ''}`}
+                  className={`button-icon group/tip size-7 ${data.arrow === arrow ? PRESSED : ''}`}
                   onClick={() => updateEdge(id, { arrow })}
                 >
                   <Icon className="size-4" aria-hidden="true" />
@@ -131,7 +131,7 @@ export const FloatingEdge = memo(function FloatingEdge({
                 type="button"
                 aria-label="Dashed"
                 aria-pressed={data.stroke === 'dashed'}
-                className={`button-icon group size-7 ${data.stroke === 'dashed' ? PRESSED : ''}`}
+                className={`button-icon group/tip size-7 ${data.stroke === 'dashed' ? PRESSED : ''}`}
                 onClick={() =>
                   updateEdge(id, { stroke: data.stroke === 'dashed' ? 'solid' : 'dashed' })
                 }
@@ -144,7 +144,7 @@ export const FloatingEdge = memo(function FloatingEdge({
               <button
                 type="button"
                 aria-label="Label"
-                className="button-icon group size-7"
+                className="button-icon group/tip size-7"
                 onClick={() => setEditing(true)}
               >
                 <Type className="size-4" aria-hidden="true" />

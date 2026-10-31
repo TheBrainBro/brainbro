@@ -370,7 +370,7 @@ function Action({
   ...props
 }: { icon: LucideIcon; label: string; onClick: () => void } & Partial<OrganizeTriggerProps>) {
   return (
-    <button type="button" aria-label={label} className="button-ghost group relative" {...props}>
+    <button type="button" aria-label={label} className="button-ghost group/tip relative" {...props}>
       <Icon className="size-3.5" aria-hidden="true" />
       <span className="hidden sm:inline">{label}</span>
       <span className="tooltip top-full mt-2 sm:hidden">{label}</span>

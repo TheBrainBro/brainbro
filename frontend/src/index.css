@@ -113,9 +113,11 @@ body {
     @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800;
   }
 
-  /* A label shown on hover or keyboard focus of its parent (which needs `group relative`). */
+  /* A label shown on hover or keyboard focus of its parent, which needs `group/tip relative`:
+     a named group, so a hoverable card around it doesn't show every tooltip at once.
+     Dark in both themes. */
   .tooltip {
-    @apply pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-md transition-opacity delay-0 group-hover:opacity-100 group-hover:delay-300 group-focus-visible:opacity-100 dark:bg-zinc-100 dark:text-zinc-900;
+    @apply pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-md transition-opacity delay-0 group-hover/tip:opacity-100 group-hover/tip:delay-300 group-focus-visible/tip:opacity-100 dark:border dark:border-zinc-700 dark:bg-zinc-800 dark:shadow-black/40;
   }
 
   /* A placeholder block while content loads. */
