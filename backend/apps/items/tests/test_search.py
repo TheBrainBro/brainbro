@@ -56,10 +56,32 @@ def test_ignores_accents_and_case(api, user):
     assert ids(search(api, "Café")) == [str(note.id)]
 
 
-def test_every_word_has_to_match(api, user):
+def test_items_with_every_word_come_before_partial_matches(api, user):
+    alone = Item.objects.create(owner=user, kind="note", title="Paris alone")
     both = Item.objects.create(owner=user, kind="note", body="paris and rome")
-    Item.objects.create(owner=user, kind="note", body="paris alone")
-    assert ids(search(api, "rome paris")) == [str(both.id)]
+    Item.objects.create(owner=user, kind="note", body="madrid")
+    # The title match doesn't lift a partial match above a full one.
+    assert ids(search(api, "rome paris")) == [str(both.id), str(alone.id)]
+
+
+def test_partial_matches_rank_by_how_many_words_match(api, user):
+    one = Item.objects.create(owner=user, kind="note", body="trip notes")
+    two = Item.objects.create(owner=user, kind="note", body="trip to paris")
+    query = "notes about the trip to paris in spring"
+    assert ids(search(api, query)) == [str(two.id), str(one.id)]
+
+
+def test_short_words_alone_dont_make_a_partial_match(api, user):
+    Item.objects.create(owner=user, kind="note", body="to do in la casa")
+    assert search(api, "trip to paris in spring") == []
+    # They still match when every word is there.
+    note = Item.objects.create(owner=user, kind="note", body="ir a la playa")
+    assert ids(search(api, "ir a la")) == [str(note.id)]
+
+
+def test_typos_count_in_partial_matches(api, user):
+    note = Item.objects.create(owner=user, kind="note", body="kubernetes setup")
+    assert ids(search(api, "kubernets cluster")) == [str(note.id)]
 
 
 def test_title_matches_rank_above_body_matches(api, user):
