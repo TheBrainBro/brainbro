@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { VaultImport } from './api'
-import { ImportDialog } from './ImportDialog'
+import { ImportPanel } from './ImportPanel'
 import { summary } from './summary'
 
 function jsonResponse(body: unknown, status = 200) {
@@ -57,7 +57,7 @@ class FakeXHR {
   }
 }
 
-function renderDialog(latest: VaultImport | null) {
+function renderPanel(latest: VaultImport | null) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => jsonResponse({ results: latest ? [latest] : [] })),
@@ -69,16 +69,16 @@ function renderDialog(latest: VaultImport | null) {
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <ImportDialog onClose={() => {}} />
+      <ImportPanel />
     </QueryClientProvider>,
   )
 }
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('ImportDialog', () => {
+describe('ImportPanel', () => {
   it('uploads the chosen zip and says it is importing', async () => {
-    renderDialog(null)
+    renderPanel(null)
 
     await screen.findByRole('button', { name: 'Choose vault zip' })
     const zip = new File(['zip'], 'Vault.zip', { type: 'application/zip' })
@@ -98,7 +98,7 @@ describe('ImportDialog', () => {
   })
 
   it('shows what the last import created, or why it failed', async () => {
-    renderDialog(
+    renderPanel(
       importOf({
         status: 'ready',
         counts: { notes: 3, collections: 1, skipped: 0 },
@@ -110,13 +110,13 @@ describe('ImportDialog', () => {
   })
 
   it('shows the error of a failed import', async () => {
-    renderDialog(importOf({ status: 'failed', error: "This isn't a zip file." }))
+    renderPanel(importOf({ status: 'failed', error: "This isn't a zip file." }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent("This isn't a zip file.")
   })
 
   it('shows why an upload was refused', async () => {
-    renderDialog(null)
+    renderPanel(null)
 
     await screen.findByRole('button', { name: 'Choose vault zip' })
     const zip = new File(['zip'], 'Vault.zip')
