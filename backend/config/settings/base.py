@@ -185,6 +185,8 @@ CSRF_COOKIE_SAMESITE = "Lax"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        # Personal API tokens (MCP, scripts): see apps.accounts.authentication.
+        "apps.accounts.authentication.ApiTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
