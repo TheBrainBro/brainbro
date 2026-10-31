@@ -2,19 +2,24 @@ import { LayoutDashboard, LayoutGrid, List, Rows3, type LucideIcon } from 'lucid
 
 import type { ViewMode } from './viewMode'
 
-const MODES: { mode: ViewMode; label: string; icon: LucideIcon }[] = [
+export type ModeOption<M extends string> = { mode: M; label: string; icon: LucideIcon }
+
+const MODES: ModeOption<ViewMode>[] = [
   { mode: 'cards', label: 'Cards', icon: Rows3 },
   { mode: 'grid', label: 'Grid', icon: LayoutGrid },
   { mode: 'masonry', label: 'Masonry', icon: LayoutDashboard },
   { mode: 'list', label: 'List', icon: List },
 ]
 
-export function ViewModeSwitch({
+/** Picks how a page lays out its list: the item modes, or the `modes` given. */
+export function ViewModeSwitch<M extends string = ViewMode>({
   mode,
   onChange,
+  modes = MODES as ModeOption<string>[] as ModeOption<M>[],
 }: {
-  mode: ViewMode
-  onChange: (mode: ViewMode) => void
+  mode: M
+  onChange: (mode: M) => void
+  modes?: ModeOption<M>[]
 }) {
   return (
     <div
@@ -22,7 +27,7 @@ export function ViewModeSwitch({
       aria-label="View"
       className="flex items-center rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-900"
     >
-      {MODES.map(({ mode: value, label, icon: Icon }) => (
+      {modes.map(({ mode: value, label, icon: Icon }) => (
         <button
           key={value}
           type="button"
