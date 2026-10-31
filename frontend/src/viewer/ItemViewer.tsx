@@ -9,6 +9,7 @@ import {
   FileText,
   ImageMinus,
   Pencil,
+  Trash2,
   Ungroup,
   X,
   ZoomIn,
@@ -64,6 +65,7 @@ export default function ItemViewer({
   image,
   onIndex,
   onReplace,
+  onDelete,
   onClose,
 }: {
   items: Item[]
@@ -74,6 +76,8 @@ export default function ItemViewer({
   onIndex: (index: number) => void
   /** An item changed while shown (an album edited). */
   onReplace: (item: Item) => void
+  /** Deletes the item shown, after asking; the viewer closes once it's gone. */
+  onDelete?: (item: Item) => void
   onClose: () => void
 }) {
   const item = items[index]
@@ -162,6 +166,12 @@ export default function ItemViewer({
             <Download className="size-4" aria-hidden="true" />
             Download
           </a>
+        )}
+        {onDelete && (
+          <button type="button" className="viewer-button" onClick={() => onDelete(item)}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            Delete
+          </button>
         )}
         <button type="button" aria-label="Close" className="viewer-icon" onClick={onClose}>
           <X className="size-5" aria-hidden="true" />
