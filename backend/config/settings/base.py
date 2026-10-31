@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "apps.graph.apps.GraphConfig",
     "apps.imports.apps.ImportsConfig",
     "apps.telegram.apps.TelegramConfig",
+    "apps.mcp.apps.McpConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
