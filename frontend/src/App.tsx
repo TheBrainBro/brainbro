@@ -4,10 +4,12 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './layout/AppLayout'
+import { AuthorizePage } from './pages/AuthorizePage'
 import { BoardsPage } from './pages/BoardsPage'
 import { CapturePage } from './pages/CapturePage'
 import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
+import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { SharePage } from './pages/SharePage'
 
@@ -19,6 +21,11 @@ const NotePage = lazy(() =>
 // The force layout loads with the graph.
 const GraphPage = lazy(() =>
   import('./pages/GraphPage').then((module) => ({ default: module.GraphPage })),
+)
+
+// The mind map brings React Flow too.
+const MindMapPage = lazy(() =>
+  import('./pages/MindMapPage').then((module) => ({ default: module.MindMapPage })),
 )
 
 // React Flow loads with the first board opened.
@@ -34,7 +41,9 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/join/:token" element={<JoinPage />} />
       <Route element={<RequireAuth />}>
+        <Route path="/oauth/authorize" element={<AuthorizePage />} />
         <Route element={<AppLayout />}>
           <Route index element={<InboxPage />} />
           <Route path="archive" element={<InboxPage archived />} />
@@ -59,6 +68,14 @@ export function AppRoutes() {
             }
           />
           <Route path="collections/:id" element={<CollectionPage />} />
+          <Route
+            path="collections/:id/mindmap"
+            element={
+              <Suspense>
+                <MindMapPage />
+              </Suspense>
+            }
+          />
           <Route
             path="notes/:id"
             element={

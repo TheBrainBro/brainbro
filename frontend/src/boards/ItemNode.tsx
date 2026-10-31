@@ -104,7 +104,7 @@ function ToolButton({
   onClick: () => void
 }) {
   return (
-    <button type="button" aria-label={label} className="button-icon group size-7" onClick={onClick}>
+    <button type="button" aria-label={label} className="button-icon group/tip size-7" onClick={onClick}>
       <Icon className="size-4" aria-hidden="true" />
       <span className="tooltip bottom-full mb-1">{label}</span>
     </button>

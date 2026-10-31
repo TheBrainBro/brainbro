@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "apps.graph.apps.GraphConfig",
     "apps.imports.apps.ImportsConfig",
     "apps.telegram.apps.TelegramConfig",
+    "apps.mcp.apps.McpConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -185,6 +186,8 @@ CSRF_COOKIE_SAMESITE = "Lax"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        # Personal API tokens (MCP, scripts): see apps.accounts.authentication.
+        "apps.accounts.authentication.ApiTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",

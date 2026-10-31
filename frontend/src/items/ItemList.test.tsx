@@ -78,13 +78,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderList(mode?: ViewMode, sortable?: { collection?: string }) {
+function renderList(mode?: ViewMode, sortable?: { collection?: string }, list = items) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <FeedbackProvider>
-          <ItemList items={items} mode={mode} sortable={sortable} />
+          <ItemList items={list} mode={mode} sortable={sortable} />
         </FeedbackProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -177,6 +177,24 @@ describe('ItemList triage', () => {
     )
     expect(await screen.findByRole('status')).toHaveTextContent('Organized 1 item into Work')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('takes an item out of a ticked collection, with undo', async () => {
+    renderList(undefined, undefined, [{ ...items[0], status: 'organized', collections: ['work'] }])
+    fireEvent.click(within(card('First')).getByRole('button', { name: 'Organize' }))
+
+    const menu = await screen.findByRole('menu', { name: 'Organize into' })
+    fireEvent.click(await within(menu).findByRole('menuitem', { name: /Work/ }))
+    await waitFor(() =>
+      expect(triageCalls()).toEqual([{ ids: ['a'], action: 'unorganize', collections: ['work'] }]),
+    )
+    const toast = await screen.findByRole('status')
+    expect(toast).toHaveTextContent('Took 1 item out of Work')
+
+    fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+    await waitFor(() =>
+      expect(triageCalls()[1]).toEqual({ ids: ['a'], action: 'organize', collections: ['work'] }),
+    )
   })
 
   it('creates a collection from the menu and organizes into it', async () => {

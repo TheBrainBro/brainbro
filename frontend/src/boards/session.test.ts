@@ -89,7 +89,7 @@ describe('BoardSession', () => {
     expect(session.travel('redo', viewport)?.nodes[0].position).toEqual({ x: 100, y: 0 })
   })
 
-  it('tells when a save placed new items', async () => {
+  it('tells when a save placed items or took them off', async () => {
     const { onSaved, session, nodes } = setUp()
     session.place()
     const placed = [...nodes, { ...nodes[0], id: 'b', data: { itemId: 'j' } }] as BoardNode[]
@@ -100,7 +100,11 @@ describe('BoardSession', () => {
     session.commit(scene(nodes), viewport)
     await vi.advanceTimersByTimeAsync(1000)
     expect(onSaved).toHaveBeenCalledTimes(2)
-    expect(onSaved.mock.calls[1][1]).toBe(false)
+    expect(onSaved.mock.calls[1][1]).toBe(true)
+    session.commit(scene([{ ...nodes[0], position: { x: 100, y: 0 } }]), viewport)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(onSaved).toHaveBeenCalledTimes(3)
+    expect(onSaved.mock.calls[2][1]).toBe(false)
   })
 
   it('undoing and redoing quickly saves once, or not at all if back where it was', async () => {

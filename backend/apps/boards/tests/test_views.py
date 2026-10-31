@@ -2,7 +2,7 @@ import pytest
 
 from apps.boards.layout import empty_layout
 from apps.boards.models import Board
-from apps.items.models import Item
+from apps.items.models import Collection, Item
 
 
 @pytest.fixture
@@ -127,13 +127,31 @@ def test_placing_an_inbox_item_organizes_it(api, board, user, note):
     assert (note.status, archived.status) == ("organized", "archived")
 
 
-def test_removing_an_item_does_not_send_it_back_to_the_inbox(api, board, note):
+def test_an_item_taken_off_with_nowhere_else_to_be_goes_back_to_the_inbox(
+    api, board, note
+):
     save(api, board, {**empty_layout(), "nodes": [node(note)]})
     board.refresh_from_db()
     save(api, board, empty_layout())
     note.refresh_from_db()
-    assert note.status == "organized"
+    assert note.status == "inbox"
     assert board.items.count() == 0
+
+
+def test_an_item_taken_off_but_still_placed_elsewhere_stays_organized(
+    api, user, board, note
+):
+    other = Board.objects.create(owner=user, title="Other")
+    collected = Item.objects.create(owner=user, kind="note", body="Kept")
+    collection = Collection.objects.create(owner=user, name="Trip")
+    collected.collections.add(collection)
+    save(api, board, {**empty_layout(), "nodes": [node(note), node(collected, "b")]})
+    save(api, other, {**empty_layout(), "nodes": [node(note)]})
+    board.refresh_from_db()
+    save(api, board, empty_layout())
+    note.refresh_from_db()
+    collected.refresh_from_db()
+    assert (note.status, collected.status) == ("organized", "organized")
 
 
 def test_item_already_on_the_board_back_in_the_inbox_stays_there(api, board, note):
@@ -167,3 +185,16 @@ def test_deleting_a_board_keeps_its_items(api, board, note):
     save(api, board, {**empty_layout(), "nodes": [node(note)]})
     assert api.delete(f"/api/boards/{board.id}/").status_code == 204
     assert Item.objects.filter(id=note.id).exists()
+
+
+def test_deleting_a_board_sends_items_with_nowhere_else_to_be_to_the_inbox(
+    api, user, board, note
+):
+    other = Board.objects.create(owner=user, title="Other")
+    elsewhere = Item.objects.create(owner=user, kind="note", body="Also there")
+    save(api, board, {**empty_layout(), "nodes": [node(note), node(elsewhere, "b")]})
+    save(api, other, {**empty_layout(), "nodes": [node(elsewhere)]})
+    api.delete(f"/api/boards/{board.id}/")
+    note.refresh_from_db()
+    elsewhere.refresh_from_db()
+    assert (note.status, elsewhere.status) == ("inbox", "organized")

@@ -90,7 +90,7 @@ def _image_size(file, pillow_format):
         file.seek(0)
 
 
-def _clean_filename(name):
+def clean_filename(name):
     name = (name or "").replace("\\", "/").rsplit("/", 1)[-1]
     name = "".join(c for c in name if c.isprintable()).strip()
     return name[:MAX_FILENAME_LENGTH] or "file"
@@ -102,7 +102,7 @@ def inspect_upload(file):
         raise UploadTooLarge
     mime = detect_mime(file)
     metadata = {
-        "filename": _clean_filename(file.name),
+        "filename": clean_filename(file.name),
         "mime": mime,
         "size": file.size,
     }
