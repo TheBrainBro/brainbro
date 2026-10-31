@@ -17,6 +17,14 @@ const LIST: ShortcutGroup = {
   ],
 }
 
+/** Hand-sorted collections or boards. */
+function sorting(what: string): ShortcutGroup {
+  return {
+    title: 'Sorting',
+    shortcuts: [{ keys: [ALT, '↑', '↓'], label: `Move the focused ${what} (or drag it)` }],
+  }
+}
+
 const VIEWER: ShortcutGroup = {
   title: 'Viewer',
   shortcuts: [
@@ -49,9 +57,12 @@ export function shortcutsFor(pathname: string): ShortcutGroup[] {
       everywhere,
     ]
   }
-  if (pathname.startsWith('/collections/') || pathname === '/archive') {
-    return [LIST, VIEWER, everywhere]
+  if (pathname === '/collections') return [sorting('collection'), everywhere]
+  if (pathname === '/boards') return [sorting('board'), everywhere]
+  if (pathname.startsWith('/collections/')) {
+    return [LIST, sorting('collection'), VIEWER, everywhere]
   }
+  if (pathname === '/archive') return [LIST, VIEWER, everywhere]
   if (pathname.startsWith('/notes/')) {
     return [
       {

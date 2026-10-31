@@ -75,11 +75,12 @@ Archived items keep their node. The first time an inbox item is placed on a boar
 
 | Method | Path | |
 | --- | --- | --- |
-| `GET` | `/api/boards/` | Your boards, most recently changed first, with `item_count` (no layout). |
+| `GET` | `/api/boards/` | Your boards, in the order you sorted them (new ones on top), with `item_count` (no layout). |
 | `POST` | `/api/boards/` | `{"title": "…"}`. Starts with an empty layout, revision 1. |
 | `GET` | `/api/boards/<id>/` | The board with its `layout` and the `items` its nodes point at. `ETag: "<revision>"`. |
 | `PATCH` | `/api/boards/<id>/` | Rename. Doesn't change the revision. |
 | `PUT` | `/api/boards/<id>/layout/` | Replace the layout. Needs `If-Match: "<revision>"`. |
+| `POST` | `/api/boards/<id>/move/` | `{"after": "<board id>" \| null}`: puts it right after that board, or on top. |
 | `DELETE` | `/api/boards/<id>/` | Delete the board. Its items stay. |
 
 Saving the layout returns the new `revision` and the layout as stored (with nodes of missing

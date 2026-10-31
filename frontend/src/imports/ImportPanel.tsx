@@ -107,7 +107,7 @@ function ObsidianImport() {
           />
           <button
             type="button"
-            className={latest?.status === 'ready' ? 'button-secondary' : 'button-primary'}
+            className="button-primary"
             onClick={() => input.current?.click()}
           >
             {latest?.status === 'ready' ? 'Import another vault' : 'Choose vault zip'}

@@ -1,7 +1,7 @@
 from django.db import models
 
 from apps.core.models import OwnedModel
-from apps.items.models import Item
+from apps.items.models import Item, rank_now
 
 from .layout import empty_layout
 
@@ -21,11 +21,13 @@ class Board(OwnedModel):
     # can't silently overwrite another's layout.
     revision = models.PositiveIntegerField(default=1)
     items = models.ManyToManyField(Item, related_name="boards", blank=True)
+    # Its place in the list of boards; see `rank_now`.
+    rank = models.FloatField(default=rank_now)
 
     class Meta:
-        ordering = ["-updated_at"]
+        ordering = ["-rank", "-updated_at"]
         indexes = [
-            models.Index(fields=["owner", "-updated_at"]),
+            models.Index(fields=["owner", "-rank"]),
         ]
 
     def __str__(self):

@@ -2,7 +2,6 @@ import { Archive, FolderInput, Images, Inbox, Pencil, Trash2, X, type LucideIcon
 import {
   useEffect,
   useEffectEvent,
-  useLayoutEffect,
   useRef,
   useState,
   type DragEvent,
@@ -11,6 +10,7 @@ import { useNavigate } from 'react-router'
 
 import { isEditable } from '../lib/dom'
 import { useFeedback } from '../ui/feedback'
+import { isMoving, useFlip } from '../ui/flip'
 import { useViewer } from '../viewer/context'
 import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
@@ -39,8 +39,6 @@ const LAYOUT: Record<ViewMode, string> = {
 
 /** The order shown while dragging, for the list it was taken from. */
 type Preview = { base: Item[]; ids: string[] }
-
-const MOVE_MS = 180
 
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
@@ -84,35 +82,9 @@ export function ItemList({
       ? preview.ids.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item))
       : items
   const list = useRef<HTMLUListElement>(null)
-  const layout = useRef<{ key: string; rects: Map<string, { x: number; y: number }> }>(null)
 
-  // Items that change place glide there (FLIP): measured after each render,
-  // relative to the list so scrolling isn't movement.
-  useLayoutEffect(() => {
-    const origin = list.current?.getBoundingClientRect()
-    if (!origin) return
-    const key = shown.map((item) => item.id).join()
-    const rects = new Map<string, { x: number; y: number }>()
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    for (const item of shown) {
-      const element = cards.current.get(item.id)
-      if (!element) continue
-      const rect = element.getBoundingClientRect()
-      const at = { x: rect.left - origin.left, y: rect.top - origin.top }
-      rects.set(item.id, at)
-      const before = layout.current?.rects.get(item.id)
-      if (!before || layout.current?.key === key || reduced) continue
-      const dx = before.x - at.x
-      const dy = before.y - at.y
-      if (dx || dy) {
-        element.animate?.(
-          [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-          { duration: MOVE_MS, easing: 'ease-out' },
-        )
-      }
-    }
-    layout.current = { key, rects }
-  })
+  // Items that change place glide there.
+  useFlip(shown.map((item) => item.id), cards, list)
 
   // Forget selections of items that left this list (triaged elsewhere).
   const visibleSelection = items.filter((item) => selected.has(item.id)).map((item) => item.id)
@@ -215,7 +187,8 @@ export function ItemList({
    * over items of another size.
    */
   function dragOver(event: DragEvent, item: Item) {
-    if (!dragging || item.id === dragging) return
+    // Still gliding into place: passing under the pointer isn't a drag over it.
+    if (!dragging || item.id === dragging || isMoving(event.currentTarget)) return
     const ids = preview?.base === items ? preview.ids : items.map((each) => each.id)
     const from = ids.indexOf(dragging)
     const to = ids.indexOf(item.id)
@@ -226,7 +199,7 @@ export function ItemList({
     }
     const next = ids.filter((id) => id !== dragging)
     next.splice(to, 0, dragging)
-    setPreview({ base: items, ids: next })
+    if (next.join() !== ids.join()) setPreview({ base: items, ids: next })
   }
 
   function dropped() {
