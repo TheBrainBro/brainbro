@@ -95,6 +95,52 @@ describe('ItemViewer', () => {
     expect(await screen.findByRole('dialog', { name: 'Our first trip' })).toBeInTheDocument()
   })
 
+  it('renames a file from its name in the bar', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === '/api/items/b/' && init?.method === 'PATCH'
+        ? new Response(
+            JSON.stringify({
+              ...items[1],
+              title: 'todo.txt',
+              metadata: { ...items[1].metadata, filename: 'todo.txt' },
+            }),
+            { headers: { 'Content-Type': 'application/json' } },
+          )
+        : new Response('hello'),
+    )
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'View notes.txt' }))
+    const viewer = await screen.findByRole('dialog', { name: 'notes.txt' })
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Rename' }))
+
+    const field = within(viewer).getByLabelText('Name')
+    expect(field).toHaveValue('notes.txt')
+    fireEvent.change(field, { target: { value: 'todo' } })
+    fireEvent.keyDown(field, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/items/b/',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ filename: 'todo' }) }),
+      ),
+    )
+    expect(await screen.findByRole('dialog', { name: 'todo.txt' })).toBeInTheDocument()
+  })
+
+  it('leaves the name as it was on Esc', async () => {
+    renderList()
+    fireEvent.click(screen.getByRole('button', { name: 'View notes.txt' }))
+    const viewer = await screen.findByRole('dialog', { name: 'notes.txt' })
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Rename' }))
+    const field = within(viewer).getByLabelText('Name')
+    fireEvent.change(field, { target: { value: 'other' } })
+    fireEvent.keyDown(field, { key: 'Escape' })
+
+    expect(within(viewer).queryByLabelText('Name')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'notes.txt' })).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/items/b/', expect.anything())
+  })
+
   it('deletes the item shown, after asking, and closes', async () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'View beach.jpg' }))
