@@ -22,7 +22,9 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {
   collections = []
   collectionItems = []
+  localStorage.clear()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith('/move/')) return new Response(null, { status: 204 })
     if (url.startsWith('/api/collections/work/') && init?.method === 'PATCH') {
       collections = [{ ...collections[0], ...JSON.parse(String(init.body)) }]
       return jsonResponse(collections[0])
@@ -289,5 +291,123 @@ describe('Collections tree', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Clients' }))
     expect(await screen.findByRole('button', { name: /Call Acme/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close Work' })).toHaveAttribute('aria-expanded', 'true')
+  })
+})
+
+function moveCalls() {
+  return fetchMock.mock.calls
+    .filter(([url]) => String(url).endsWith('/move/'))
+    .map(([url, init]) => [url, JSON.parse(String((init as RequestInit).body))])
+}
+
+const transfer = () => ({ effectAllowed: '', dropEffect: '', setData: () => {} })
+
+/** A tree row: what is dragged, and dropped on. */
+function row(name: string) {
+  return screen.getByRole('link', { name: new RegExp(name) }).parentElement!
+}
+
+/** jsdom has no DragEvent: without one, drags carry no pointer position. */
+class DragEventWithPosition extends MouseEvent {}
+
+/** Rows 40px tall from the top of the page: `y` picks the edge or the middle. */
+function dragOnto(target: HTMLElement, y: number, dataTransfer: ReturnType<typeof transfer>) {
+  target.getBoundingClientRect = () => ({ top: 0, height: 40 }) as DOMRect
+  fireEvent.dragOver(target, { dataTransfer, clientY: y })
+  fireEvent.drop(target, { dataTransfer, clientY: y })
+}
+
+describe('Sorting the tree', () => {
+  beforeEach(() => {
+    vi.stubGlobal('DragEvent', DragEventWithPosition)
+  })
+
+  it('drops a collection inside another', async () => {
+    collections = [work, home]
+    renderPage()
+    await screen.findByRole('list', { name: 'Collections' })
+    const dataTransfer = transfer()
+    fireEvent.dragStart(row('Home'), { dataTransfer })
+    dragOnto(row('Work'), 20, dataTransfer)
+    await waitFor(() =>
+      expect(moveCalls()).toEqual([
+        ['/api/collections/home/move/', { parent: 'work', after: null }],
+      ]),
+    )
+  })
+
+  it('drops a collection before or after another', async () => {
+    collections = [work, home]
+    renderPage()
+    await screen.findByRole('list', { name: 'Collections' })
+    let dataTransfer = transfer()
+    fireEvent.dragStart(row('Home'), { dataTransfer })
+    dragOnto(row('Work'), 2, dataTransfer)
+    dataTransfer = transfer()
+    fireEvent.dragStart(row('Work'), { dataTransfer })
+    dragOnto(row('Home'), 38, dataTransfer)
+    await waitFor(() =>
+      expect(moveCalls()).toEqual([
+        ['/api/collections/home/move/', { parent: null, after: null }],
+        ['/api/collections/work/move/', { parent: null, after: 'home' }],
+      ]),
+    )
+  })
+
+  it("won't drop a collection inside one of its own", async () => {
+    collections = [work, clients]
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Work' }))
+    const dataTransfer = transfer()
+    fireEvent.dragStart(row('Work'), { dataTransfer })
+    dragOnto(row('Clients'), 20, dataTransfer)
+    expect(row('Clients')).not.toHaveClass('ring-2')
+    expect(moveCalls()).toEqual([])
+  })
+
+  it('moves the focused collection with Alt+arrows', async () => {
+    collections = [work, home]
+    renderPage()
+    const link = await screen.findByRole('link', { name: /Work/ })
+    // Already first: nowhere to go.
+    fireEvent.keyDown(link, { key: 'ArrowUp', altKey: true })
+    fireEvent.keyDown(link, { key: 'ArrowDown', altKey: true })
+    await waitFor(() =>
+      expect(moveCalls()).toEqual([
+        ['/api/collections/work/move/', { parent: null, after: 'home' }],
+      ]),
+    )
+  })
+})
+
+describe('Collections grid', () => {
+  it('shows the top collections as cards, and remembers the choice', async () => {
+    collections = [work, clients, home]
+    renderPage()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Grid' }))
+    const grid = screen.getByRole('list', { name: 'Collections' })
+    expect(within(grid).getByRole('link', { name: /Work/ })).toHaveTextContent(
+      'Project · 2 items · 1 collection',
+    )
+    expect(within(grid).queryByRole('link', { name: /Clients/ })).toBeNull()
+    expect(localStorage.getItem('brain:collections-view')).toBe('grid')
+  })
+
+  it('sorts the cards by dragging', async () => {
+    localStorage.setItem('brain:collections-view', 'grid')
+    collections = [work, home]
+    renderPage()
+    const grid = await screen.findByRole('list', { name: 'Collections' })
+    const card = (name: string) =>
+      within(grid).getByRole('link', { name: new RegExp(name) }).closest('li')!
+    const dataTransfer = transfer()
+    fireEvent.dragStart(card('Home'), { dataTransfer })
+    fireEvent.dragOver(card('Work'), { dataTransfer })
+    fireEvent.drop(card('Work'), { dataTransfer })
+    await waitFor(() =>
+      expect(moveCalls()).toEqual([
+        ['/api/collections/home/move/', { parent: null, after: null }],
+      ]),
+    )
   })
 })

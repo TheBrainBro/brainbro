@@ -2,9 +2,10 @@ import { Plus, Waypoints } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
-import { useBoards, useCreateBoard } from '../boards/api'
+import { useBoards, useCreateBoard, useMoveBoard } from '../boards/api'
 import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
+import { useSortable } from '../ui/sortable'
 import { EmptyState, ErrorState } from '../ui/states'
 
 export function BoardsPage() {
@@ -14,6 +15,13 @@ export function BoardsPage() {
   const { toast } = useFeedback()
   const [title, setTitle] = useState('')
   const input = useRef<HTMLInputElement>(null)
+  const move = useMoveBoard()
+  const sorted = useSortable(boards.data ?? [], (id, after) =>
+    move.mutate(
+      { id, after },
+      { onError: (error) => toast({ message: error.message, tone: 'error' }) },
+    ),
+  )
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -69,11 +77,17 @@ export function BoardsPage() {
           connections between them.
         </EmptyState>
       )}
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {boards.data?.map((board) => (
-          <li key={board.id}>
+      <ul
+        aria-label="Boards"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        {...sorted.listProps}
+      >
+        {sorted.shown.map((board) => (
+          <li key={board.id} {...sorted.itemProps(board)}>
             <Link
               to={`/boards/${board.id}`}
+              // The card moves, not the link.
+              draggable={false}
               className="surface group flex h-28 flex-col justify-between px-4 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
             >
               <span className="flex items-start gap-2">

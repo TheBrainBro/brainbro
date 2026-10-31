@@ -189,12 +189,13 @@ class NoArguments(serializers.Serializer):
 
 
 def list_collections(user, data):
+    # In the order they were sorted by hand, as the app shows.
     collections = (
         Collection.objects.filter(owner=user)
         .annotate(
             item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
         )
-        .order_by("name")
+        .order_by("-rank", "name")
     )
     return {
         "collections": [

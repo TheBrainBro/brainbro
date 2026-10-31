@@ -9,10 +9,11 @@ function titles(pathname: string) {
 describe('shortcutsFor', () => {
   it('lists the shortcuts of each screen, and ? everywhere', () => {
     expect(titles('/')).toEqual(['Inbox', 'Lists', 'Viewer', 'Everywhere'])
-    expect(titles('/collections/c1')).toEqual(['Lists', 'Viewer', 'Everywhere'])
+    expect(titles('/collections')).toEqual(['Sorting', 'Everywhere'])
+    expect(titles('/collections/c1')).toEqual(['Lists', 'Sorting', 'Viewer', 'Everywhere'])
     expect(titles('/notes/n1')).toEqual(['Note', 'Everywhere'])
     expect(titles('/boards/b1')).toEqual(['Tools', 'Board', 'Viewer', 'Everywhere'])
-    expect(titles('/boards')).toEqual(['Everywhere'])
+    expect(titles('/boards')).toEqual(['Sorting', 'Everywhere'])
   })
 
   it('names the modifier key for this system', () => {

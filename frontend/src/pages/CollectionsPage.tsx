@@ -2,21 +2,28 @@ import {
   ChevronRight,
   FolderOpen,
   FolderPlus,
+  LayoutGrid,
   Library,
+  ListTree,
   Pencil,
   Plus,
   Trash2,
   Workflow,
 } from 'lucide-react'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
 import { CollectionAvatar } from '../items/CollectionAvatar'
 import { CollectionDialog } from '../items/CollectionDialog'
-import { collectionKind } from '../items/collectionKinds'
-import { ancestorsOf, childrenOf } from '../items/collectionTree'
+import { CollectionGrid } from '../items/CollectionGrid'
+import {
+  ancestorsOf,
+  childrenOf,
+  collectionSummary,
+  withDescendants,
+} from '../items/collectionTree'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
 import { ItemThumb } from '../items/ItemThumb'
@@ -27,13 +34,14 @@ import {
   useCollections,
   useDeleteCollection,
   useItems,
+  useMoveCollection,
   useUpdateCollection,
   type Collection,
   type Item,
   type OrphanAction,
 } from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
-import { ViewModeSwitch } from '../items/ViewModeSwitch'
+import { ViewModeSwitch, type ModeOption } from '../items/ViewModeSwitch'
 import { BackLink } from '../ui/BackLink'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
@@ -42,10 +50,44 @@ import { useViewer } from '../viewer/context'
 /** How many of a collection's items the tree shows before pointing to its page. */
 const TREE_ITEMS = 20
 
+/** How long a dragged collection hovers over a closed one before it opens. */
+const OPEN_ON_HOVER_MS = 600
+
+type CollectionsView = 'tree' | 'grid'
+
+const VIEWS: ModeOption<CollectionsView>[] = [
+  { mode: 'tree', label: 'Tree', icon: ListTree },
+  { mode: 'grid', label: 'Grid', icon: LayoutGrid },
+]
+
+const VIEW_KEY = 'brain:collections-view'
+
+/** Tree or grid, remembered on this device. */
+function useCollectionsView() {
+  const [view, setView] = useState<CollectionsView>(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'tree'
+    } catch {
+      return 'tree'
+    }
+  })
+  function choose(next: CollectionsView) {
+    setView(next)
+    try {
+      localStorage.setItem(VIEW_KEY, next)
+    } catch {
+      // Blocked storage: it holds for this visit only.
+    }
+  }
+  return [view, choose] as const
+}
+
 export function CollectionsPage() {
   const collections = useCollections()
   const { toast } = useFeedback()
   const [creating, setCreating] = useState(false)
+  const [view, setView] = useCollectionsView()
+  const some = collections.isSuccess && collections.data.length > 0
 
   const newButton = (
     <button
@@ -59,40 +101,40 @@ export function CollectionsPage() {
   )
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-6 flex items-center gap-2">
+    <div className="px-4 py-8">
+      {/* The header keeps one width; only the collections below follow the view. */}
+      <div className="mx-auto mb-6 flex max-w-3xl items-center gap-2">
         <h1 className="mr-auto text-2xl font-semibold">Collections</h1>
-        {collections.isSuccess && collections.data.length > 0 && newButton}
+        {some && <ViewModeSwitch mode={view} onChange={setView} modes={VIEWS} />}
+        {some && newButton}
       </div>
 
-      {collections.isPending && (
-        <div role="status" aria-label="Loading collections" className="grid gap-2 sm:grid-cols-2">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="skeleton h-16 rounded-xl" />
+      <div
+        className={`mx-auto ${view === 'grid' ? 'max-w-6xl' : 'max-w-3xl'} transition-[max-width]`}
+      >
+        {collections.isPending && (
+          <div role="status" aria-label="Loading collections" className="grid gap-2 sm:grid-cols-2">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="skeleton h-16 rounded-xl" />
+            ))}
+          </div>
+        )}
+        {collections.isError && (
+          <ErrorState error={collections.error} onRetry={() => collections.refetch()} />
+        )}
+        {collections.isSuccess && collections.data.length === 0 && (
+          <EmptyState icon={Library} title="No collections yet" action={newButton}>
+            A collection gathers what belongs together: a project, an area of your life, a topic.
+            Create one here, or pick <strong>Organize</strong> on anything in the inbox.
+          </EmptyState>
+        )}
+        {some &&
+          (view === 'grid' ? (
+            <CollectionGrid collections={collections.data} parent={null} label="Collections" />
+          ) : (
+            <CollectionTree collections={collections.data} />
           ))}
-        </div>
-      )}
-      {collections.isError && (
-        <ErrorState error={collections.error} onRetry={() => collections.refetch()} />
-      )}
-      {collections.isSuccess && collections.data.length === 0 && (
-        <EmptyState icon={Library} title="No collections yet" action={newButton}>
-          A collection gathers what belongs together: a project, an area of your life, a topic.
-          Create one here, or pick <strong>Organize</strong> on anything in the inbox.
-        </EmptyState>
-      )}
-      {collections.isSuccess && collections.data.length > 0 && (
-        <ul aria-label="Collections" className="surface p-1.5">
-          {childrenOf(collections.data, null).map((collection) => (
-            <CollectionNode
-              key={collection.id}
-              collection={collection}
-              collections={collections.data}
-              depth={0}
-            />
-          ))}
-        </ul>
-      )}
+      </div>
 
       {creating && (
         <CollectionDialog
@@ -107,19 +149,135 @@ export function CollectionsPage() {
   )
 }
 
-/** "Project · 3 items · 2 collections": what a collection is and holds. */
-function summary(collection: Collection, inside: number) {
-  const parts = [
-    collectionKind(collection.kind).label,
-    `${collection.item_count} ${collection.item_count === 1 ? 'item' : 'items'}`,
-  ]
-  if (inside) parts.push(`${inside} ${inside === 1 ? 'collection' : 'collections'}`)
-  return parts.join(' · ')
-}
-
 /** Indents a tree row by its depth. */
 function indent(depth: number) {
   return { paddingLeft: `${depth * 1.25 + 0.25}rem` }
+}
+
+/** Where a dragged collection would land, next to a row or inside it. */
+type DropZone = 'before' | 'after' | 'inside'
+
+type TreeDrag = ReturnType<typeof useTreeDrag>
+
+/**
+ * Sorting the tree: a collection dragged onto the top or bottom edge of a row
+ * goes before or after it, onto its middle inside it. Alt+↑/↓ moves the
+ * focused one among the collections next to it.
+ */
+function useTreeDrag(collections: Collection[]) {
+  const move = useMoveCollection()
+  const { toast } = useFeedback()
+  const [dragging, setDragging] = useState<string | null>(null)
+  const [target, setTarget] = useState<{ id: string; zone: DropZone } | null>(null)
+
+  /** Puts `id` inside `parent`, right after `after` (null: first), unless it's there. */
+  function place(id: string, parent: string | null, after: string | null) {
+    const siblings = childrenOf(collections, parent)
+    const index = siblings.findIndex((collection) => collection.id === id)
+    if (index >= 0 && (siblings[index - 1]?.id ?? null) === after) return
+    move.mutate(
+      { id, parent, after },
+      { onError: (error) => toast({ message: error.message, tone: 'error' }) },
+    )
+  }
+
+  function end() {
+    setDragging(null)
+    setTarget(null)
+  }
+
+  return {
+    dragging,
+    target,
+    start(event: DragEvent, id: string) {
+      setDragging(id)
+      event.dataTransfer.effectAllowed = 'move'
+    },
+    over(event: DragEvent, collection: Collection, open: boolean) {
+      // Only our own drags; files from outside are captures.
+      if (!dragging) return
+      event.stopPropagation()
+      // Not into itself, or anywhere among its own.
+      if (withDescendants(collections, dragging).has(collection.id)) {
+        setTarget(null)
+        return
+      }
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+      const rect = event.currentTarget.getBoundingClientRect()
+      const y = (event.clientY - rect.top) / rect.height
+      let zone: DropZone = y < 0.25 ? 'before' : y > 0.75 ? 'after' : 'inside'
+      // Right below an open one is the top of what's inside it.
+      if (zone === 'after' && open) zone = 'inside'
+      if (target?.id !== collection.id || target.zone !== zone) {
+        setTarget({ id: collection.id, zone })
+      }
+    },
+    /** Over something that isn't a row: nowhere to drop. */
+    leave() {
+      if (target) setTarget(null)
+    },
+    drop() {
+      const row = target && collections.find((collection) => collection.id === target.id)
+      if (dragging && target && row) {
+        if (target.zone === 'inside') {
+          place(dragging, row.id, null)
+        } else {
+          const parent = row.parent ?? null
+          const siblings = childrenOf(collections, parent).filter(
+            (collection) => collection.id !== dragging,
+          )
+          const before = siblings[siblings.indexOf(row) - 1]?.id ?? null
+          place(dragging, parent, target.zone === 'after' ? row.id : before)
+        }
+      }
+      end()
+    },
+    end,
+    keyDown(event: KeyboardEvent, collection: Collection) {
+      if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+      event.preventDefault()
+      const parent = collection.parent ?? null
+      const siblings = childrenOf(collections, parent)
+      const index = siblings.indexOf(collection)
+      if (event.key === 'ArrowUp' && index > 0) {
+        place(collection.id, parent, siblings[index - 2]?.id ?? null)
+      } else if (event.key === 'ArrowDown' && index < siblings.length - 1) {
+        place(collection.id, parent, siblings[index + 1].id)
+      } else {
+        return
+      }
+      // Moving the row in the page drops its focus: give it back.
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>(`[data-collection="${collection.id}"]`)?.focus(),
+      )
+    },
+  }
+}
+
+/** The collections as a tree, sorted by dragging. */
+function CollectionTree({ collections }: { collections: Collection[] }) {
+  const drag = useTreeDrag(collections)
+  return (
+    <ul
+      aria-label="Collections"
+      className="surface p-1.5"
+      onDragOver={drag.leave}
+      onDrop={(event) => {
+        if (drag.dragging) event.preventDefault()
+      }}
+    >
+      {childrenOf(collections, null).map((collection) => (
+        <CollectionNode
+          key={collection.id}
+          collection={collection}
+          collections={collections}
+          depth={0}
+          drag={drag}
+        />
+      ))}
+    </ul>
+  )
 }
 
 /**
@@ -130,21 +288,54 @@ function CollectionNode({
   collection,
   collections,
   depth,
+  drag,
 }: {
   collection: Collection
   collections: Collection[]
   depth: number
+  drag: TreeDrag
 }) {
   const [open, setOpen] = useState(false)
   const inside = childrenOf(collections, collection.id)
   const opens = inside.length > 0 || collection.item_count > 0
+  const zone = drag.target?.id === collection.id ? drag.target.zone : null
+
+  // Held over a closed one: it opens, to drop among what's inside.
+  useEffect(() => {
+    if (zone !== 'inside' || open || !opens) return
+    const timer = setTimeout(() => setOpen(true), OPEN_ON_HOVER_MS)
+    return () => clearTimeout(timer)
+  }, [zone, open, opens])
 
   return (
     <li>
       <div
-        className="flex items-center gap-1 rounded-lg pr-2 transition hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+        className={`relative flex items-center gap-1 rounded-lg pr-2 transition ${
+          zone === 'inside'
+            ? 'bg-accent-50 ring-2 ring-accent-500 ring-inset dark:bg-accent-500/10'
+            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
+        } ${drag.dragging === collection.id ? 'opacity-40' : ''}`}
         style={indent(depth)}
+        draggable
+        onDragStart={(event) => drag.start(event, collection.id)}
+        onDragOver={(event) => drag.over(event, collection, open && opens)}
+        onDrop={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          drag.drop()
+        }}
+        onDragEnd={drag.end}
       >
+        {(zone === 'before' || zone === 'after') && (
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute right-2 h-0.5 rounded-full bg-accent-500 ${
+              zone === 'before' ? '-top-px' : '-bottom-px'
+            }`}
+            // From the name on, at this row's depth.
+            style={{ left: `${depth * 1.25 + 2.25}rem` }}
+          />
+        )}
         {opens ? (
           <button
             type="button"
@@ -163,13 +354,17 @@ function CollectionNode({
         )}
         <Link
           to={`/collections/${collection.id}`}
+          // The row moves, not the link.
+          draggable={false}
+          data-collection={collection.id}
           className="flex min-w-0 flex-1 items-center gap-3 py-1.5"
+          onKeyDown={(event) => drag.keyDown(event, collection)}
         >
           <CollectionAvatar collection={collection} />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{collection.name}</span>
             <span className="block truncate text-xs text-zinc-500">
-              {summary(collection, inside.length)}
+              {collectionSummary(collections, collection)}
             </span>
           </span>
         </Link>
@@ -182,6 +377,7 @@ function CollectionNode({
               collection={child}
               collections={collections}
               depth={depth + 1}
+              drag={drag}
             />
           ))}
           {collection.item_count > 0 && <TreeItems collection={collection} depth={depth + 1} />}
@@ -283,81 +479,84 @@ export function CollectionPage() {
   }, [destination, id, name])
 
   return (
-    <div className={`mx-auto ${MODE_WIDTH[mode]} px-4 py-8 transition-[max-width]`}>
-      {ancestors.length === 0 ? (
-        <BackLink to="/collections" label="Collections" />
-      ) : (
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-sm">
+    <div className="px-4 py-8">
+      {/* The header keeps one width; only what is below follows the view mode. */}
+      <div className={`mx-auto ${MODE_WIDTH.cards}`}>
+        {ancestors.length === 0 ? (
           <BackLink to="/collections" label="Collections" />
-          {ancestors.map((ancestor) => (
-            <Fragment key={ancestor.id}>
-              <ChevronRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden="true" />
-              <Link
-                to={`/collections/${ancestor.id}`}
-                className="min-w-0 truncate rounded-md px-1.5 py-1 font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-              >
-                {ancestor.name}
-              </Link>
-            </Fragment>
-          ))}
-        </nav>
-      )}
-      <div className="mt-1 mb-4 flex items-center gap-2">
-        <h1
-          className="mr-auto min-w-0 flex-1 truncate text-2xl font-semibold"
-          aria-label={collection?.name}
-        >
-          {collection ? (
-            <span className="flex items-center gap-3">
-              <CollectionAvatar collection={collection} />
-              <NameField key={`${collection.id}:${collection.name}`} collection={collection} />
-            </span>
-          ) : missing ? (
-            'Collection'
-          ) : (
-            <span className="skeleton inline-block h-7 w-48 align-middle" aria-label="Loading" />
-          )}
-        </h1>
-        {collection && (
-          <>
-            <Link
-              to={`/collections/${id}/mindmap`}
-              aria-label="Mind map"
-              className="button-icon group/tip"
-            >
-              <Workflow className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">Mind map</span>
-            </Link>
-            <button
-              type="button"
-              aria-label="New collection inside"
-              className="button-icon group/tip"
-              onClick={() => setAdding(true)}
-            >
-              <FolderPlus className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">New collection inside</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Edit collection"
-              className="button-icon group/tip"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">Edit collection</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Delete collection"
-              className="button-icon group/tip"
-              onClick={() => setDeleting(true)}
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-              <span className="tooltip top-full mt-1.5">Delete collection</span>
-            </button>
-          </>
+        ) : (
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-sm">
+            <BackLink to="/collections" label="Collections" />
+            {ancestors.map((ancestor) => (
+              <Fragment key={ancestor.id}>
+                <ChevronRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden="true" />
+                <Link
+                  to={`/collections/${ancestor.id}`}
+                  className="min-w-0 truncate rounded-md px-1.5 py-1 font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                >
+                  {ancestor.name}
+                </Link>
+              </Fragment>
+            ))}
+          </nav>
         )}
-        {!missing && <ViewModeSwitch mode={mode} onChange={setMode} />}
+        <div className="mt-1 mb-4 flex items-center gap-2">
+          <h1
+            className="mr-auto min-w-0 flex-1 truncate text-2xl font-semibold"
+            aria-label={collection?.name}
+          >
+            {collection ? (
+              <span className="flex items-center gap-3">
+                <CollectionAvatar collection={collection} />
+                <NameField key={`${collection.id}:${collection.name}`} collection={collection} />
+              </span>
+            ) : missing ? (
+              'Collection'
+            ) : (
+              <span className="skeleton inline-block h-7 w-48 align-middle" aria-label="Loading" />
+            )}
+          </h1>
+          {collection && (
+            <>
+              <Link
+                to={`/collections/${id}/mindmap`}
+                aria-label="Mind map"
+                className="button-icon group/tip"
+              >
+                <Workflow className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">Mind map</span>
+              </Link>
+              <button
+                type="button"
+                aria-label="New collection inside"
+                className="button-icon group/tip"
+                onClick={() => setAdding(true)}
+              >
+                <FolderPlus className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">New collection inside</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Edit collection"
+                className="button-icon group/tip"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">Edit collection</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Delete collection"
+                className="button-icon group/tip"
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                <span className="tooltip top-full mt-1.5">Delete collection</span>
+              </button>
+            </>
+          )}
+          {!missing && <ViewModeSwitch mode={mode} onChange={setMode} />}
+        </div>
       </div>
       {editing && collection && (
         <CollectionDialog
@@ -398,69 +597,60 @@ export function CollectionPage() {
           }
         />
       )}
-      {missing ? (
-        <EmptyState
-          icon={FolderOpen}
-          title="This collection no longer exists"
-          action={
-            <Link to="/collections" className="button-primary">
-              See all collections
-            </Link>
-          }
-        />
-      ) : (
-        <>
-          {inside.length > 0 && (
-            <ul aria-label="Collections inside" className="mb-4 grid gap-2 sm:grid-cols-2">
-              {inside.map((child) => (
-                <li key={child.id}>
-                  <Link
-                    to={`/collections/${child.id}`}
-                    className="surface flex items-center gap-3 px-3 py-2.5 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
-                  >
-                    <CollectionAvatar collection={child} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{child.name}</span>
-                      <span className="block truncate text-xs text-zinc-500">
-                        {summary(child, childrenOf(collections.data ?? [], child.id).length)}
-                      </span>
-                    </span>
+      <div className={`mx-auto ${MODE_WIDTH[mode]} transition-[max-width]`}>
+        {missing ? (
+          <EmptyState
+            icon={FolderOpen}
+            title="This collection no longer exists"
+            action={
+              <Link to="/collections" className="button-primary">
+                See all collections
+              </Link>
+            }
+          />
+        ) : (
+          <>
+            {collections.isSuccess && inside.length > 0 && (
+              <div className="mb-4">
+                <CollectionGrid
+                  collections={collections.data}
+                  parent={id}
+                  label="Collections inside"
+                />
+              </div>
+            )}
+            {items.isPending && <ItemListSkeleton mode={mode} />}
+            {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
+            {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
+              <EmptyState
+                icon={FolderOpen}
+                title="Nothing here yet"
+                action={
+                  <Link to="/" className="button-outline">
+                    Go to the inbox
                   </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          {items.isPending && <ItemListSkeleton mode={mode} />}
-          {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-          {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
-            <EmptyState
-              icon={FolderOpen}
-              title="Nothing here yet"
-              action={
-                <Link to="/" className="button-outline">
-                  Go to the inbox
-                </Link>
-              }
-            >
-              Paste or drop anything here, or pick <strong>Organize</strong> on an inbox item, to
-              bring it into this collection.
-            </EmptyState>
-          )}
-          {pending.length > 0 && (
-            <ul className="mb-3 space-y-3" aria-label="Capturing">
-              {pending.map((entry) => (
-                <li key={entry.id}>
-                  <PendingCard entry={entry} />
-                </li>
-              ))}
-            </ul>
-          )}
-          <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
-          {items.hasNextPage && (
-            <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
-          )}
-        </>
-      )}
+                }
+              >
+                Paste or drop anything here, or pick <strong>Organize</strong> on an inbox item, to
+                bring it into this collection.
+              </EmptyState>
+            )}
+            {pending.length > 0 && (
+              <ul className="mb-3 space-y-3" aria-label="Capturing">
+                {pending.map((entry) => (
+                  <li key={entry.id}>
+                    <PendingCard entry={entry} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
+            {items.hasNextPage && (
+              <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

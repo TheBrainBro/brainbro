@@ -40,3 +40,15 @@ def test_ranks_keep_the_newest_first_order(transactional_db, user):
     assert [link.item.body for link in in_work] == ["second", "first"]
     second = Item.objects.get(body="second")
     assert second.inbox_rank == second.created_at.timestamp()
+
+
+def test_collection_ranks_keep_the_order_by_name(transactional_db, user):
+    old = migrate_to(("items", "0011_unplaced_back_to_inbox"))
+    Collection = old.get_model("items", "Collection")
+    for name in ("Work", "Home", "Books"):
+        Collection.objects.create(owner_id=user.id, name=name)
+
+    new = migrate_to(("items", "0012_collection_rank"))
+    Collection = new.get_model("items", "Collection")
+    names = list(Collection.objects.order_by("-rank").values_list("name", flat=True))
+    assert names == ["Books", "Home", "Work"]

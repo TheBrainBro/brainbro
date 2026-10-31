@@ -33,7 +33,7 @@ export function TelegramPanel() {
           )}
           <button
             type="button"
-            className="button-secondary"
+            className="button-primary"
             disabled={disconnect.isPending}
             onClick={() => {
               connect.reset()

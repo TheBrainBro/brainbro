@@ -10,6 +10,7 @@ import {
 
 import { api } from '../lib/api'
 import type { LinkPreview } from '../lib/linkPreviews'
+import { moveCollection } from './collectionTree'
 
 export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'album'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
@@ -330,6 +331,24 @@ export function useUpdateCollection() {
     mutationFn: ({ id, ...changes }: CollectionChanges & { id: string }) =>
       api<Collection>(`/collections/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+/** Puts a collection inside `parent` (null: at the top), right after `after` there (null: first). */
+export function useMoveCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, parent, after }: { id: string; parent: string | null; after: string | null }) =>
+      api<void>(`/collections/${id}/move/`, {
+        method: 'POST',
+        body: JSON.stringify({ parent, after }),
+      }),
+    onMutate: ({ id, parent, after }) =>
+      queryClient.setQueryData(
+        collectionsKey,
+        (data: Collection[] | undefined) => data && moveCollection(data, id, parent, after),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
   })
 }
 
