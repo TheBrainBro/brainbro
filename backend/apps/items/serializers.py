@@ -244,6 +244,7 @@ class TriageSerializer(serializers.Serializer):
 
     class Action(models.TextChoices):
         ORGANIZE = "organize"  # add to collections, out of the inbox
+        UNORGANIZE = "unorganize"  # take out of collections
         ARCHIVE = "archive"
         INBOX = "inbox"  # back to the inbox
         DELETE = "delete"
@@ -257,7 +258,8 @@ class TriageSerializer(serializers.Serializer):
     )
 
     def validate(self, data):
-        if data["action"] == self.Action.ORGANIZE and not data.get("collections"):
+        needs_collections = (self.Action.ORGANIZE, self.Action.UNORGANIZE)
+        if data["action"] in needs_collections and not data.get("collections"):
             raise serializers.ValidationError(
                 {"collections": "Pick at least one collection."}
             )

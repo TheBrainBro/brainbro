@@ -169,6 +169,23 @@ export function ItemList({
     )
   }
 
+  /** Unticked in the organize menu; undo puts it back in. */
+  function takeOutOf(ids: string[], collection: Collection) {
+    triage.mutate(
+      { ids, action: 'unorganize', collections: [collection.id] },
+      {
+        onSuccess: () => {
+          setSelected(new Set())
+          toast({
+            message: triageMessage('unorganize', ids.length, collection.name),
+            actions: undoAction([{ ids, action: 'organize', collections: [collection.id] }]),
+          })
+        },
+        onError: failed,
+      },
+    )
+  }
+
   /** Notes open in the editor; anything else in the viewer, stepping through this list. */
   function open(item: Item | undefined) {
     if (!item) return
@@ -361,6 +378,7 @@ export function ItemList({
           key={label}
           current={current}
           onPick={(collection) => organizeInto(ids, collection)}
+          onRemove={(collection) => takeOutOf(ids, collection)}
           onMore={action}
           trigger={button}
         />
