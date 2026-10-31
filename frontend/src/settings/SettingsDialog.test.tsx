@@ -27,15 +27,15 @@ describe('SettingsDialog', () => {
   it('opens on the import page and switches between pages', async () => {
     renderDialog()
 
-    expect(screen.getByRole('heading', { name: 'Import from Obsidian' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Import from Obsidian' })).toHaveAttribute(
+    expect(screen.getByRole('heading', { name: 'Import' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import' })).toHaveAttribute(
       'aria-current',
       'page',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Export everything' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
 
-    expect(screen.getByRole('heading', { name: 'Export everything' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Export' })).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Create export' })).toBeInTheDocument()
   })
 
