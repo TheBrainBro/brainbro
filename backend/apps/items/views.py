@@ -17,7 +17,7 @@ from .collection_images import make_collection_image
 from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
 from .note_images import MAX_PASTED_SIZE, sync_note_images
 from .note_links import sync_note_links
-from .ordering import move_in_collection, move_in_inbox
+from .ordering import move_collection, move_in_collection, move_in_inbox
 from .search import find
 from .serializers import (
     ITEM_PREFETCH,
@@ -27,6 +27,7 @@ from .serializers import (
     NoteImageSerializer,
     OwnedPrimaryKeyRelatedField,
     TriageSerializer,
+    check_parent,
 )
 from .tasks import (
     fetch_link_preview,
@@ -79,6 +80,14 @@ class MoveSerializer(serializers.Serializer):
     collection = OwnedPrimaryKeyRelatedField(
         queryset=Collection.objects.all(), required=False, allow_null=True
     )
+
+
+class CollectionMoveSerializer(serializers.Serializer):
+    # Where it goes: inside this collection, or at the top when null.
+    parent = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), allow_null=True
+    )
+    after = serializers.UUIDField(allow_null=True, required=False, default=None)
 
 
 def enqueue_preview(item):
@@ -553,8 +562,13 @@ class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
 
     def get_queryset(self):
-        return Collection.objects.filter(owner=self.request.user).annotate(
-            item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
+        # Ordered here: Meta.ordering doesn't apply to an aggregate.
+        return (
+            Collection.objects.filter(owner=self.request.user)
+            .annotate(
+                item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
+            )
+            .order_by("-rank", "name")
         )
 
     def perform_create(self, serializer):
@@ -598,6 +612,26 @@ class CollectionViewSet(viewsets.ModelViewSet):
                 parent=collection.parent, updated_at=timezone.now()
             )
             collection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def move(self, request, pk=None):
+        """
+        Puts the collection inside `parent` (null: at the top), right after
+        `after` (a collection there, or null for the top of it).
+        """
+        collection = self.get_object()
+        payload = CollectionMoveSerializer(
+            data=request.data, context={"request": request}
+        )
+        payload.is_valid(raise_exception=True)
+        parent = payload.validated_data["parent"]
+        try:
+            check_parent(collection, parent)
+        except serializers.ValidationError as error:
+            raise serializers.ValidationError({"parent": error.detail}) from error
+        if not move_collection(collection, parent, payload.validated_data["after"]):
+            raise serializers.ValidationError({"after": "Not in the same collection."})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get", "post", "delete"])

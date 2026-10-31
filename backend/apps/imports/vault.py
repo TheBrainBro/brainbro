@@ -31,7 +31,7 @@ from apps.boards.canvas import from_canvas
 from apps.boards.layout import LayoutError, item_ids, validate_layout
 from apps.boards.models import Board
 from apps.items.capture import normalize_url
-from apps.items.models import Collection, CollectionItem, Item, NoteImage
+from apps.items.models import Collection, CollectionItem, Item, NoteImage, rank_now
 from apps.items.note_images import (
     IMAGE_DESTINATION,
     MAX_IMAGES,
@@ -157,6 +157,8 @@ class _Importer:
         # Vault paths of the images stored as some note's own.
         self.attached = set()
         self.after_commit = []
+        # One rank for all it makes: on top, and tied, so collections sort by name.
+        self.rank = rank_now()
 
     def run(self):
         notes, canvases = self._read_texts()
@@ -214,7 +216,7 @@ class _Importer:
             name = f"{base[:115]} {n}"
         self.taken_names.add(name)
         collection = Collection.objects.create(
-            owner=self.owner, name=name, parent=parent
+            owner=self.owner, name=name, parent=parent, rank=self.rank
         )
         self.collections[folder] = collection
         self.counts["collections"] += 1
@@ -378,7 +380,7 @@ class _Importer:
             self.counts["skipped"] += 1
             return
         board = Board.objects.create(
-            owner=self.owner, title=_stem(path)[:200], layout=layout
+            owner=self.owner, title=_stem(path)[:200], layout=layout, rank=self.rank
         )
         placed = item_ids(layout)
         board.items.set(placed)

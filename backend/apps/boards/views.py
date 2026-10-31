@@ -1,17 +1,22 @@
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from apps.items.models import Item, rank_now
+from apps.items.ordering import place
 from apps.items.serializers import ITEM_PREFETCH
 
 from .layout import LayoutError, item_ids, migrate_layout, prune_layout, validate_layout
 from .models import Board
 from .serializers import BoardDetailSerializer, BoardSerializer
+
+
+class MoveSerializer(serializers.Serializer):
+    after = serializers.UUIDField(allow_null=True, required=False, default=None)
 
 
 class BoardViewSet(viewsets.ModelViewSet):
@@ -23,8 +28,11 @@ class BoardViewSet(viewsets.ModelViewSet):
     serializer_class = BoardSerializer
 
     def get_queryset(self):
-        return Board.objects.filter(owner=self.request.user).annotate(
-            item_count=Count("items")
+        # Ordered here: Meta.ordering doesn't apply to an aggregate.
+        return (
+            Board.objects.filter(owner=self.request.user)
+            .annotate(item_count=Count("items"))
+            .order_by("-rank", "-updated_at")
         )
 
     def perform_create(self, serializer):
@@ -108,6 +116,34 @@ class BoardViewSet(viewsets.ModelViewSet):
             },
             headers=etag(board),
         )
+
+    @action(detail=True, methods=["post"])
+    def move(self, request, pk=None):
+        """Puts the board right after `after` (a board id, or null for the top)."""
+        board = self.get_object()
+        payload = MoveSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        if not move_board(board, payload.validated_data["after"]):
+            raise serializers.ValidationError({"after": "Not one of your boards."})
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@transaction.atomic
+def move_board(board, after):
+    """Puts `board` right after `after` (a board id) or on top (see `place`)."""
+    rows = list(
+        Board.objects.select_for_update()
+        .filter(owner=board.owner)
+        .exclude(id=board.id)
+        .order_by("-rank", "-updated_at")
+        .values_list("id", "rank")
+    )
+
+    def set_rank(board_id, rank):
+        # Not `updated_at`: a board's place isn't an edit of it.
+        Board.objects.filter(id=board_id).update(rank=rank)
+
+    return place(rows, board.id, after, set_rank)
 
 
 def back_to_inbox_if_unplaced(item_ids):
