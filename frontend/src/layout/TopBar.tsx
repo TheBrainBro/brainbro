@@ -146,6 +146,18 @@ function AccountMenu({
             <div className="truncate text-sm font-medium">{username}</div>
           </div>
           <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onSettings()
+            }}
+          >
+            <Settings className="size-4" aria-hidden="true" />
+            Settings
+          </button>
           {/* Phones have no keyboard to speak of. */}
           <button
             type="button"
@@ -159,18 +171,6 @@ function AccountMenu({
             <Keyboard className="size-4" aria-hidden="true" />
             <span className="mr-auto">Keyboard shortcuts</span>
             <kbd className="kbd">?</kbd>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="menu-item"
-            onClick={() => {
-              setOpen(false)
-              onSettings()
-            }}
-          >
-            <Settings className="size-4" aria-hidden="true" />
-            Settings
           </button>
           <button
             type="button"
