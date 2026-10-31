@@ -1,4 +1,13 @@
-import { ChevronRight, FolderOpen, FolderPlus, Library, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  ChevronRight,
+  FolderOpen,
+  FolderPlus,
+  Library,
+  Pencil,
+  Plus,
+  Trash2,
+  Workflow,
+} from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
@@ -311,6 +320,14 @@ export function CollectionPage() {
         </h1>
         {collection && (
           <>
+            <Link
+              to={`/collections/${id}/mindmap`}
+              aria-label="Mind map"
+              className="button-icon group/tip"
+            >
+              <Workflow className="size-4" aria-hidden="true" />
+              <span className="tooltip top-full mt-1.5">Mind map</span>
+            </Link>
             <button
               type="button"
               aria-label="New collection inside"
