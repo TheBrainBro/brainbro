@@ -1,13 +1,11 @@
 import {
-  FolderInput,
   Inbox,
   Keyboard,
   Library,
   LogOut,
   Network,
-  PackageOpen,
   Search,
-  Send,
+  Settings,
   Waypoints,
   type LucideIcon,
 } from 'lucide-react'
@@ -31,15 +29,11 @@ const sections: Section[] = [
 export function TopBar({
   onSearch,
   onShortcuts,
-  onExport,
-  onImport,
-  onTelegram,
+  onSettings,
 }: {
   onSearch: () => void
   onShortcuts: () => void
-  onExport: () => void
-  onImport: () => void
-  onTelegram: () => void
+  onSettings: () => void
 }) {
   return (
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
@@ -62,7 +56,7 @@ export function TopBar({
       </nav>
 
       <div className="flex items-center gap-1 justify-self-end sm:gap-2">
-        <button type="button" aria-label="Search" className="button-icon group" onClick={onSearch}>
+        <button type="button" aria-label="Search" className="button-icon group/tip" onClick={onSearch}>
           <Search className="size-5" strokeWidth={1.75} aria-hidden="true" />
           <span role="tooltip" className="tooltip top-full mt-2">
             Search {combo('K')}
@@ -70,9 +64,7 @@ export function TopBar({
         </button>
         <AccountMenu
           onShortcuts={onShortcuts}
-          onExport={onExport}
-          onImport={onImport}
-          onTelegram={onTelegram}
+          onSettings={onSettings}
         />
       </div>
     </header>
@@ -86,7 +78,7 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
       end={end}
       aria-label={label}
       className={({ isActive }) =>
-        `group relative flex h-9 w-12 items-center justify-center rounded-lg transition ${
+        `group/tip relative flex h-9 w-12 items-center justify-center rounded-lg transition ${
           isActive
             ? 'bg-white text-accent-600 shadow-sm dark:bg-zinc-800 dark:text-accent-300'
             : 'text-zinc-500 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100'
@@ -103,14 +95,10 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
 
 function AccountMenu({
   onShortcuts,
-  onExport,
-  onImport,
-  onTelegram,
+  onSettings,
 }: {
   onShortcuts: () => void
-  onExport: () => void
-  onImport: () => void
-  onTelegram: () => void
+  onSettings: () => void
 }) {
   const { data: session } = useSession()
   const logout = useLogout()
@@ -176,35 +164,11 @@ function AccountMenu({
             className="menu-item"
             onClick={() => {
               setOpen(false)
-              onExport()
+              onSettings()
             }}
           >
-            <PackageOpen className="size-4" aria-hidden="true" />
-            Export everything
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="menu-item"
-            onClick={() => {
-              setOpen(false)
-              onImport()
-            }}
-          >
-            <FolderInput className="size-4" aria-hidden="true" />
-            Import from Obsidian
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="menu-item"
-            onClick={() => {
-              setOpen(false)
-              onTelegram()
-            }}
-          >
-            <Send className="size-4" aria-hidden="true" />
-            Telegram
+            <Settings className="size-4" aria-hidden="true" />
+            Settings
           </button>
           <button
             type="button"

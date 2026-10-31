@@ -29,7 +29,7 @@ export function ViewModeSwitch({
           role="radio"
           aria-checked={mode === value}
           aria-label={label}
-          className="group relative flex size-8 items-center justify-center rounded-md text-zinc-500 transition hover:text-zinc-900 aria-checked:bg-white aria-checked:text-accent-600 aria-checked:shadow-xs dark:hover:text-zinc-100 dark:aria-checked:bg-zinc-800 dark:aria-checked:text-accent-300"
+          className="group/tip relative flex size-8 items-center justify-center rounded-md text-zinc-500 transition hover:text-zinc-900 aria-checked:bg-white aria-checked:text-accent-600 aria-checked:shadow-xs dark:hover:text-zinc-100 dark:aria-checked:bg-zinc-800 dark:aria-checked:text-accent-300"
           onClick={() => onChange(value)}
         >
           <Icon className="size-4" aria-hidden="true" />
