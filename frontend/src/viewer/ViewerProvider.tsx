@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
 
 import type { Item } from '../items/api'
 import { ViewerContext, type Viewer, type ViewerOptions } from './context'
+import { ViewerTriage } from './ViewerTriage'
 
 // Loaded the first time something is opened.
 const ItemViewer = lazy(() => import('./ItemViewer'))
@@ -16,6 +17,15 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  function replace(item: Item) {
+    setOpen((current) =>
+      current && {
+        ...current,
+        items: current.items.map((other) => (other.id === item.id ? item : other)),
+      },
+    )
+  }
+
   return (
     <ViewerContext value={viewer}>
       {children}
@@ -27,12 +37,10 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
             actions={open.options.actions}
             image={open.options.image}
             onIndex={(index) => setOpen({ ...open, index })}
-            onReplace={(item) =>
-              setOpen({
-                ...open,
-                items: open.items.map((other) => (other.id === item.id ? item : other)),
-              })
-            }
+            onReplace={replace}
+            controls={(item) => (
+              <ViewerTriage item={item} onChanged={replace} onDeleted={() => setOpen(null)} />
+            )}
             onClose={() => setOpen(null)}
           />
         </Suspense>

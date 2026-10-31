@@ -7,7 +7,7 @@ import { PendingCard } from '../capture/PendingCard'
 import { CaptureBox } from '../items/CaptureBox'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
-import { useItems } from '../items/api'
+import { useHasItems, useItems } from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
 import { LoadMore } from '../items/LoadMore'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
@@ -27,6 +27,14 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
   const pending = archived ? [] : captures
   const navigate = useNavigate()
   const [mode, setMode] = useViewMode('inbox')
+  const empty = !archived && items.isSuccess && all.length === 0 && pending.length === 0
+  // Nothing captured yet, or everything sorted: the empty inbox says which.
+  const hasItems = useHasItems(empty)
+  const paste = (
+    <>
+      <kbd className="kbd">{MOD}</kbd> <kbd className="kbd">V</kbd>
+    </>
+  )
 
   // `n` starts a note in the editor; it reaches the inbox once it has text.
   useEffect(() => {
@@ -56,7 +64,7 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
               </NavLink>
             </nav>
             <ViewModeSwitch mode={mode} onChange={setMode} />
-            <Link to="/notes/new" aria-label="New note" className="button-outline group relative px-3 py-1.5">
+            <Link to="/notes/new" aria-label="New note" className="button-outline group/tip relative px-3 py-1.5">
               <SquarePen className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">New note</span>
               <span className="tooltip top-full mt-2">New note (N)</span>
@@ -74,10 +82,16 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
             Archive what you want to keep out of the way: it waits here, and search still finds it.
           </EmptyState>
         )}
-        {!archived && items.isSuccess && all.length === 0 && pending.length === 0 && (
+        {empty && hasItems.isSuccess && (
           <EmptyState icon={Inbox} title="Inbox zero">
-            Everything is sorted. Type above, paste with <kbd className="kbd">{MOD}</kbd>{' '}
-            <kbd className="kbd">V</kbd> or drop files anywhere: it all lands here, to sort later.
+            {hasItems.data ? (
+              <>
+                Everything is sorted. Type above, paste with {paste} or drop files anywhere: it all
+                lands here, to sort later.
+              </>
+            ) : (
+              <>Add your first item: type above, paste with {paste} or drop files anywhere.</>
+            )}
           </EmptyState>
         )}
 

@@ -157,7 +157,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
               aria-controls="search-results"
               aria-activedescendant={options.length ? `search-option-${current}` : undefined}
               placeholder="Search notes, links, files, boards…"
-              className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none! placeholder:text-zinc-400 [&::-webkit-search-cancel-button]:hidden"
+              className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400 [&::-webkit-search-cancel-button]:hidden"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value)

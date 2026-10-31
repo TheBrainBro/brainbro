@@ -112,6 +112,16 @@ export function useItems(filters: ItemFilters) {
   })
 }
 
+/** Whether there is anything at all, in any state: tells a new inbox from a sorted one. */
+export function useHasItems(enabled: boolean) {
+  return useQuery({
+    queryKey: [...itemsKey, 'any'],
+    queryFn: () => api<Page<Item>>('/items/?limit=1'),
+    select: (page) => page.count > 0,
+    enabled,
+  })
+}
+
 /** A search match; an album's image shows up as its album, saying which image. */
 export type SearchResult = { item: Item; album_image: string | null }
 
@@ -164,6 +174,11 @@ export function updateNoteBody(
     headers: { 'If-Match': `"${version}"` },
     keepalive,
   })
+}
+
+/** A file's or image's new name; without an extension it keeps the old one. */
+export function renameItem(id: string, filename: string) {
+  return api<Item>(`/items/${id}/`, { method: 'PATCH', body: JSON.stringify({ filename }) })
 }
 
 /** Puts a newer copy of an item into every cached list and its detail. */
@@ -247,7 +262,7 @@ export function useRefreshPreview() {
   })
 }
 
-export type TriageAction = 'organize' | 'archive' | 'inbox' | 'delete'
+export type TriageAction = 'organize' | 'unorganize' | 'archive' | 'inbox' | 'delete'
 
 export type TriagePayload = { ids: string[]; action: TriageAction; collections?: string[] }
 

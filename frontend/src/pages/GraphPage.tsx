@@ -1,46 +1,24 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Network } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
 
-import type { EdgeType, GraphNode } from '../graph/api'
+import type { EdgeType } from '../graph/api'
 import { useGraph } from '../graph/api'
 import { GraphCanvas } from '../graph/GraphCanvas'
 import { COLLECTION_COLOR, EDGE_TYPES, KIND_COLORS, visibleGraph } from '../graph/model'
-import { api } from '../lib/api'
-import { type Item, itemKey } from '../items/api'
+import { useOpenNode } from '../graph/open'
 import { KIND_LABEL } from '../items/label'
-import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState, Loading } from '../ui/states'
-import { useViewer } from '../viewer/context'
 
 /** Items and collections as a graph, tied by collections, boards and note links. */
 export function GraphPage() {
   const graph = useGraph()
-  const navigate = useNavigate()
-  const viewer = useViewer()
-  const queryClient = useQueryClient()
-  const { toast } = useFeedback()
+  const open = useOpenNode()
   const [types, setTypes] = useState(() => new Set<EdgeType>(EDGE_TYPES.map((e) => e.type)))
   const [unconnected, setUnconnected] = useState(false)
   const visible = useMemo(
     () => (graph.data ? visibleGraph(graph.data, types, unconnected) : null),
     [graph.data, types, unconnected],
   )
-
-  async function open(node: GraphNode) {
-    if (node.type === 'collection') return navigate(`/collections/${node.id}`)
-    if (node.kind === 'note') return navigate(`/notes/${node.id}`)
-    try {
-      const item = await queryClient.fetchQuery({
-        queryKey: itemKey(node.id),
-        queryFn: () => api<Item>(`/items/${node.id}/`),
-      })
-      viewer.open([item], 0)
-    } catch (error) {
-      toast({ message: (error as Error).message, tone: 'error' })
-    }
-  }
 
   function toggle(type: EdgeType) {
     setTypes((current) => {

@@ -13,9 +13,11 @@ export type Session = {
   authenticated: boolean
   user: User | null
   limits?: { upload_max_size: number }
+  /** Whether this user already closed the welcome tour, on any device. */
+  welcome_seen?: boolean
 }
 
-const sessionKey = ['session']
+export const sessionKey = ['session']
 
 export function useSession() {
   return useQuery({
@@ -51,5 +53,17 @@ export function useLogout() {
       queryClient.setQueryData<Session>(sessionKey, { authenticated: false, user: null })
       queryClient.invalidateQueries({ queryKey: sessionKey })
     },
+  })
+}
+
+/** Remembers on the server that the welcome tour was seen, for every device. */
+export function useMarkWelcomeSeen() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<void>('/auth/welcome/', { method: 'POST' }),
+    onMutate: () =>
+      queryClient.setQueryData<Session>(sessionKey, (session) =>
+        session ? { ...session, welcome_seen: true } : session,
+      ),
   })
 }

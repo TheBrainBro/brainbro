@@ -191,10 +191,21 @@ describe('InboxPage', () => {
     )
   })
 
-  it('shows an empty state', async () => {
+  it('asks for the first item when nothing was ever captured', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(page([]))))
     renderInbox()
     expect(await screen.findByText(/Inbox zero/)).toBeInTheDocument()
+    expect(screen.getByText(/Add your first item/)).toBeInTheDocument()
+  })
+
+  it('says everything is sorted when the items are elsewhere', async () => {
+    const sorted = makeItem({ status: 'organized' })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => jsonResponse(page(url.includes('status=inbox') ? [] : [sorted]))),
+    )
+    renderInbox()
+    expect(await screen.findByText(/Everything is sorted/)).toBeInTheDocument()
   })
 
   it('lays items out as chosen, and remembers it', async () => {

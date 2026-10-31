@@ -1,4 +1,13 @@
-import { ChevronRight, FolderOpen, FolderPlus, Library, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  ChevronRight,
+  FolderOpen,
+  FolderPlus,
+  Library,
+  Pencil,
+  Plus,
+  Trash2,
+  Workflow,
+} from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
@@ -18,6 +27,7 @@ import {
   useCollections,
   useDeleteCollection,
   useItems,
+  useUpdateCollection,
   type Collection,
   type Item,
   type OrphanAction,
@@ -293,11 +303,14 @@ export function CollectionPage() {
         </nav>
       )}
       <div className="mt-1 mb-4 flex items-center gap-2">
-        <h1 className="mr-auto min-w-0 truncate text-2xl font-semibold">
+        <h1
+          className="mr-auto min-w-0 flex-1 truncate text-2xl font-semibold"
+          aria-label={collection?.name}
+        >
           {collection ? (
             <span className="flex items-center gap-3">
               <CollectionAvatar collection={collection} />
-              <span className="truncate">{collection.name}</span>
+              <NameField key={`${collection.id}:${collection.name}`} collection={collection} />
             </span>
           ) : missing ? (
             'Collection'
@@ -307,10 +320,18 @@ export function CollectionPage() {
         </h1>
         {collection && (
           <>
+            <Link
+              to={`/collections/${id}/mindmap`}
+              aria-label="Mind map"
+              className="button-icon group/tip"
+            >
+              <Workflow className="size-4" aria-hidden="true" />
+              <span className="tooltip top-full mt-1.5">Mind map</span>
+            </Link>
             <button
               type="button"
               aria-label="New collection inside"
-              className="button-icon group"
+              className="button-icon group/tip"
               onClick={() => setAdding(true)}
             >
               <FolderPlus className="size-4" aria-hidden="true" />
@@ -319,7 +340,7 @@ export function CollectionPage() {
             <button
               type="button"
               aria-label="Edit collection"
-              className="button-icon group"
+              className="button-icon group/tip"
               onClick={() => setEditing(true)}
             >
               <Pencil className="size-4" aria-hidden="true" />
@@ -328,7 +349,7 @@ export function CollectionPage() {
             <button
               type="button"
               aria-label="Delete collection"
-              className="button-icon group"
+              className="button-icon group/tip"
               onClick={() => setDeleting(true)}
             >
               <Trash2 className="size-4" aria-hidden="true" />
@@ -441,5 +462,42 @@ export function CollectionPage() {
         </>
       )}
     </div>
+  )
+}
+
+/** The collection's name, as a field: click it to rename, Esc to leave it. */
+function NameField({ collection }: { collection: Collection }) {
+  const update = useUpdateCollection()
+  const [name, setName] = useState(collection.name)
+
+  function save() {
+    const next = name.trim()
+    if (!next) setName(collection.name)
+    else if (next !== collection.name) update.mutate({ id: collection.id, name: next })
+  }
+
+  return (
+    <span className="flex min-w-0 flex-1 flex-col">
+      <input
+        aria-label="Collection name"
+        className="-ml-2 w-full min-w-0 truncate rounded-md bg-transparent px-2 py-0.5 transition hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        onBlur={save}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') {
+            setName(collection.name)
+            // Blurring now would save the old name as it was: nothing to do.
+            requestAnimationFrame(() => (event.target as HTMLInputElement).blur())
+          }
+        }}
+      />
+      {update.isError && (
+        <span role="alert" className="text-xs font-normal text-red-600 dark:text-red-400">
+          {update.error.message}
+        </span>
+      )}
+    </span>
   )
 }

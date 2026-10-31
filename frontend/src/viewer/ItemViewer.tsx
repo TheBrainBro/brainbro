@@ -20,6 +20,7 @@ import { Link } from 'react-router'
 
 import {
   itemsKey,
+  renameItem,
   updateNoteBody,
   useSetAlbumItems,
   useUngroupAlbum,
@@ -64,6 +65,7 @@ export default function ItemViewer({
   image,
   onIndex,
   onReplace,
+  controls,
   onClose,
 }: {
   items: Item[]
@@ -74,6 +76,8 @@ export default function ItemViewer({
   onIndex: (index: number) => void
   /** An item changed while shown (an album edited). */
   onReplace: (item: Item) => void
+  /** Triage buttons for the item shown (organize, archive, delete). */
+  controls?: (item: Item) => ReactNode
   onClose: () => void
 }) {
   const item = items[index]
@@ -138,7 +142,11 @@ export default function ItemViewer({
     >
       <header className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-medium">{itemLabel(item)}</h2>
+          {item.kind === 'file' || item.kind === 'image' ? (
+            <NameField key={item.id} item={item} onSaved={onReplace} />
+          ) : (
+            <h2 className="truncate font-medium">{itemLabel(item)}</h2>
+          )}
           <p className="truncate text-xs text-zinc-400">
             {shown ? `Album · image ${at + 1} of ${images.length}` : describe(item)}
             {items.length > 1 && ` · ${index + 1} of ${items.length}`}
@@ -163,6 +171,7 @@ export default function ItemViewer({
             Download
           </a>
         )}
+        {controls?.(item)}
         <button type="button" aria-label="Close" className="viewer-icon" onClick={onClose}>
           <X className="size-5" aria-hidden="true" />
         </button>
@@ -241,9 +250,62 @@ function Content({ item }: { item: Item }) {
 }
 
 /**
- * An album: one image at a time over a strip of all of them, where the
- * shown one can be moved or taken out, and the album ungrouped.
+ * A file's or image's name, as a field: click it to rename. Enter or leaving
+ * it saves; Esc puts it back as it was. Without an extension, it keeps its own.
  */
+function NameField({ item, onSaved }: { item: Item; onSaved: (item: Item) => void }) {
+  const queryClient = useQueryClient()
+  const saved = item.metadata.filename ?? ''
+  const [name, setName] = useState(saved)
+  const [error, setError] = useState('')
+  // Esc: the blur that follows doesn't save.
+  const cancelled = useRef(false)
+
+  async function save() {
+    const next = name.trim()
+    if (cancelled.current || !next || next === saved) {
+      cancelled.current = false
+      setName(saved)
+      return
+    }
+    try {
+      const renamed = await renameItem(item.id, next)
+      setError('')
+      onSaved(renamed)
+      queryClient.invalidateQueries({ queryKey: itemsKey })
+    } catch (failure) {
+      setError((failure as Error).message)
+    }
+  }
+
+  return (
+    <>
+      <input
+        aria-label="Name"
+        className="-mx-2 w-full truncate rounded-md bg-transparent px-2 py-0.5 font-medium text-zinc-100 transition outline-none hover:bg-white/10 focus:bg-white/10"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        onFocus={(event) => {
+          // The name without its extension, ready to type over.
+          const dot = event.target.value.lastIndexOf('.')
+          event.target.setSelectionRange(0, dot > 0 ? dot : event.target.value.length)
+        }}
+        onBlur={save}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
+          // The viewer blurs it on Esc.
+          else if (event.key === 'Escape') cancelled.current = true
+        }}
+      />
+      {error && (
+        <p role="alert" className="text-xs text-red-400">
+          {error}
+        </p>
+      )}
+    </>
+  )
+}
+
 /**
  * What an image or album is about, written under it: the context that only
  * exists in your head when you capture it. Saved when the field is left.
@@ -307,6 +369,10 @@ function CaptionEditor({ item, onSaved }: { item: Item; onSaved: (item: Item) =>
   )
 }
 
+/**
+ * An album: one image at a time over a strip of all of them, where the
+ * shown one can be moved or taken out, and the album ungrouped.
+ */
 function AlbumView({
   album,
   at,

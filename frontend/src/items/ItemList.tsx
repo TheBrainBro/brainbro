@@ -169,6 +169,23 @@ export function ItemList({
     )
   }
 
+  /** Unticked in the organize menu; undo puts it back in. */
+  function takeOutOf(ids: string[], collection: Collection) {
+    triage.mutate(
+      { ids, action: 'unorganize', collections: [collection.id] },
+      {
+        onSuccess: () => {
+          setSelected(new Set())
+          toast({
+            message: triageMessage('unorganize', ids.length, collection.name),
+            actions: undoAction([{ ids, action: 'organize', collections: [collection.id] }]),
+          })
+        },
+        onError: failed,
+      },
+    )
+  }
+
   /** Notes open in the editor; anything else in the viewer, stepping through this list. */
   function open(item: Item | undefined) {
     if (!item) return
@@ -342,7 +359,7 @@ export function ItemList({
             key={label}
             type="button"
             aria-label={label}
-            className="button-icon group size-7"
+            className="button-icon group/tip size-7"
             onClick={action}
             {...props}
           >
@@ -361,6 +378,7 @@ export function ItemList({
           key={label}
           current={current}
           onPick={(collection) => organizeInto(ids, collection)}
+          onRemove={(collection) => takeOutOf(ids, collection)}
           onMore={action}
           trigger={button}
         />
@@ -379,7 +397,7 @@ export function ItemList({
           <button
             type="button"
             aria-label="Clear selection (Esc)"
-            className="button-icon group size-7"
+            className="button-icon group/tip size-7"
             onClick={() => setSelected(new Set())}
           >
             <X className="size-4" aria-hidden="true" />

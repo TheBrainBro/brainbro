@@ -186,15 +186,16 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
         save: (layout, revision, options) => saveLayout(board.id, layout, revision, options),
         onSaveState: setSaveState,
         drafts: layoutDrafts,
-        onSaved: (saved, placed) => {
+        onSaved: (saved, itemsChanged) => {
           // Coming back to the board starts from what was saved, not what was loaded.
           queryClient.setQueryData<Board>(
             boardKey(board.id),
             (cached) => cached && { ...cached, revision: saved.revision, layout: saved.layout },
           )
           queryClient.invalidateQueries({ queryKey: boardsKey, exact: true })
-          // Placing an inbox item organizes it: lists showing it are out of date.
-          if (placed) {
+          // Placing an inbox item organizes it, taking one off with nowhere else
+          // to be sends it back: lists showing it are out of date.
+          if (itemsChanged) {
             queryClient.invalidateQueries({
               queryKey: itemsKey,
               predicate: (query) => query.queryKey[1] !== 'detail',
@@ -919,7 +920,7 @@ function ToolButton({
       aria-label={label}
       aria-pressed={pressed}
       disabled={disabled}
-      className={`button-icon group ${
+      className={`button-icon group/tip ${
         pressed ? 'bg-accent-100 text-accent-700 hover:bg-accent-100 dark:bg-accent-500/20 dark:text-accent-300' : ''
       }`}
       onClick={onClick}
