@@ -136,10 +136,24 @@ def token_view(request, pk):
 
 
 class InvitationSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(read_only=True)
+    # Null once accepted if that account was deleted since.
+    used_by = serializers.CharField(
+        source="used_by.username", read_only=True, default=None
+    )
+
     class Meta:
         model = Invitation
-        fields = ["id", "note", "created_at", "expires_at"]
-        read_only_fields = ["created_at", "expires_at"]
+        fields = [
+            "id",
+            "note",
+            "created_at",
+            "expires_at",
+            "status",
+            "used_at",
+            "used_by",
+        ]
+        read_only_fields = ["created_at", "expires_at", "used_at"]
 
 
 def join_url(request, token):
@@ -152,12 +166,13 @@ def join_url(request, token):
 @permission_classes([IsAdminUser])
 def invitations_view(request):
     """
-    `GET` lists the invitations nobody has used yet and that haven't
-    expired. `POST {"note"}` makes one; the response carries its link in
-    `url`, the only time it is shown.
+    `GET` lists every invitation with its `status`: pending, accepted (by
+    `used_by`, at `used_at`) or expired. `POST {"note"}` makes one; the
+    response carries its link in `url`, the only time it is shown.
     """
     if request.method == "GET":
-        return Response(InvitationSerializer(Invitation.pending(), many=True).data)
+        invitations = Invitation.objects.select_related("used_by")
+        return Response(InvitationSerializer(invitations, many=True).data)
     payload = InvitationSerializer(data=request.data)
     payload.is_valid(raise_exception=True)
     invitation, token = Invitation.issue(
@@ -173,8 +188,11 @@ def invitations_view(request):
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAdminUser])
 def invitation_view(request, pk):
-    """Revokes an invitation: its link stops working right away."""
-    Invitation.pending().filter(pk=pk).delete()
+    """
+    Revokes a pending invitation, so its link stops working right away, or
+    removes an expired one from the list. Accepted ones stay.
+    """
+    Invitation.objects.filter(pk=pk, used_at__isnull=True).delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
