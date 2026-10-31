@@ -112,6 +112,16 @@ export function useItems(filters: ItemFilters) {
   })
 }
 
+/** Whether there is anything at all, in any state: tells a new inbox from a sorted one. */
+export function useHasItems(enabled: boolean) {
+  return useQuery({
+    queryKey: [...itemsKey, 'any'],
+    queryFn: () => api<Page<Item>>('/items/?limit=1'),
+    select: (page) => page.count > 0,
+    enabled,
+  })
+}
+
 /** A search match; an album's image shows up as its album, saying which image. */
 export type SearchResult = { item: Item; album_image: string | null }
 

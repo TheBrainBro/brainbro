@@ -2,8 +2,10 @@ import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 
+import { useMarkWelcomeSeen, useSession } from '../auth/session'
 import { CaptureProvider } from '../capture/CaptureProvider'
 import { isEditable } from '../lib/dom'
+import { WelcomeDialog } from '../onboarding/WelcomeDialog'
 import { SearchPalette } from '../search/SearchPalette'
 import { SettingsDialog } from '../settings/SettingsDialog'
 import { ShareReceiver } from '../share/ShareReceiver'
@@ -20,6 +22,10 @@ export function AppLayout() {
   const [shortcuts, setShortcuts] = useState(false)
   const [searching, setSearching] = useState(false)
   const [settings, setSettings] = useState(false)
+  // The first visit opens on a short tour; the account menu brings it back.
+  const { data: session } = useSession()
+  const markWelcomeSeen = useMarkWelcomeSeen()
+  const [welcome, setWelcome] = useState(() => session?.welcome_seen === false)
 
   // `?` lists the shortcuts of the screen it's pressed on; Ctrl/Cmd+K
   // searches from anywhere, text fields included.
@@ -47,6 +53,7 @@ export function AppLayout() {
             <TopBar
               onSearch={() => setSearching(true)}
               onShortcuts={() => setShortcuts(true)}
+              onWelcome={() => setWelcome(true)}
               onSettings={() => setSettings(true)}
             />
             <main className="min-h-0 min-w-0 flex-1 overflow-auto">
@@ -64,6 +71,14 @@ export function AppLayout() {
           </div>
           {searching && <SearchPalette onClose={() => setSearching(false)} />}
           {settings && <SettingsDialog onClose={() => setSettings(false)} />}
+          {welcome && (
+            <WelcomeDialog
+              onClose={() => {
+                if (!session?.welcome_seen) markWelcomeSeen.mutate()
+                setWelcome(false)
+              }}
+            />
+          )}
           {shortcuts && (
             <ShortcutsDialog pathname={pathname} onClose={() => setShortcuts(false)} />
           )}
