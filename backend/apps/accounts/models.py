@@ -3,6 +3,7 @@ import secrets
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from apps.core.models import OwnedModel, TimestampedModel
 
@@ -23,6 +24,58 @@ class Profile(TimestampedModel):
 
     def __str__(self):
         return f"Profile of {self.user}"
+
+
+class Invitation(TimestampedModel):
+    """
+    A link an admin sends so someone can join: whoever opens it picks a
+    username and password. It works once and expires; revoking deletes it.
+    Only the hash of its token is stored, like `ApiToken`.
+    """
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    # Who it's for, so the admin can tell links apart. Never shown to them.
+    note = models.CharField(max_length=100, blank=True)
+    token_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    # Set when someone joins with it; it can't be used again.
+    used_at = models.DateTimeField(null=True, blank=True)
+    used_by = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.note or f"Invitation {self.id}"
+
+    @classmethod
+    def pending(cls):
+        return cls.objects.filter(used_at__isnull=True, expires_at__gt=timezone.now())
+
+    @classmethod
+    def issue(cls, created_by, note, lifetime):
+        """A new invitation and its token, which is never stored."""
+        token = secrets.token_urlsafe(32)
+        invitation = cls.objects.create(
+            created_by=created_by,
+            note=note,
+            token_hash=ApiToken.hash(token),
+            expires_at=timezone.now() + lifetime,
+        )
+        return invitation, token
+
+    @classmethod
+    def find(cls, token):
+        """The pending invitation with this token, if any."""
+        return cls.pending().filter(token_hash=ApiToken.hash(token)).first()
 
 
 class OAuthClient(TimestampedModel):
