@@ -13,8 +13,11 @@ function itemIds(layout: Layout) {
 export type BoardSessionOptions = {
   save: (layout: Layout, revision: number, options: { keepalive: boolean }) => Promise<SavedLayout>
   onSaveState: (state: LayoutSaverState) => void
-  /** `placed`: items were put on the board since the last save. */
-  onSaved: (saved: SavedLayout, placed: boolean) => void
+  /**
+   * `itemsChanged`: items were put on the board or taken off it since the last
+   * save, which changes where they show (the inbox, collections).
+   */
+  onSaved: (saved: SavedLayout, itemsChanged: boolean) => void
   drafts: DraftStore<LayoutDraft>
 }
 
@@ -39,10 +42,12 @@ export class BoardSession {
       onChange: options.onSaveState,
       drafts: options.drafts,
       onSaved: (saved) => {
+        const kept = new Set(itemIds(saved.layout))
+        const takenOff = itemIds(this.base).some((id) => !kept.has(id))
         this.base = saved.layout
         const placed = this.placed
         this.placed = false
-        options.onSaved(saved, placed)
+        options.onSaved(saved, placed || takenOff)
       },
     })
     const draft = this.saver.restoreDraft()
