@@ -21,6 +21,11 @@ const GraphPage = lazy(() =>
   import('./pages/GraphPage').then((module) => ({ default: module.GraphPage })),
 )
 
+// The mind map brings React Flow too.
+const MindMapPage = lazy(() =>
+  import('./pages/MindMapPage').then((module) => ({ default: module.MindMapPage })),
+)
+
 // React Flow loads with the first board opened.
 const BoardPage = lazy(() =>
   import('./pages/BoardPage').then((module) => ({ default: module.BoardPage })),
@@ -59,6 +64,14 @@ export function AppRoutes() {
             }
           />
           <Route path="collections/:id" element={<CollectionPage />} />
+          <Route
+            path="collections/:id/mindmap"
+            element={
+              <Suspense>
+                <MindMapPage />
+              </Suspense>
+            }
+          />
           <Route
             path="notes/:id"
             element={
