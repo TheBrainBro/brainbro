@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ApiToken } from './api'
@@ -16,6 +16,7 @@ const existing: ApiToken = {
   id: 't1',
   name: 'Script',
   prefix: 'brain_ab12',
+  connected_app: false,
   created_at: '2026-01-01T00:00:00Z',
   last_used_at: null,
 }
@@ -45,6 +46,22 @@ function renderPanel(tokens: ApiToken[]) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('TokensPanel', () => {
+  it('gives the MCP URL and the Claude Code command to sign in with', () => {
+    renderPanel([])
+
+    expect(screen.getByRole('textbox', { name: 'MCP server URL' })).toHaveValue(
+      `${window.location.origin}/api/mcp`,
+    )
+    expect(screen.getByRole('textbox', { name: 'Claude Code command' })).toHaveValue(
+      `claude mcp add --transport http brain ${window.location.origin}/api/mcp`,
+    )
+  })
+
+  it('warns that a local address is no use to apps on the internet', () => {
+    renderPanel([])
+    expect(screen.getByText(/only works on this computer/)).toBeInTheDocument()
+  })
+
   it('creates a token and shows it once, with the Claude Code command', async () => {
     renderPanel([])
 
@@ -57,8 +74,8 @@ describe('TokensPanel', () => {
       'Copy “Claude Code” now: it won\'t be shown again.',
     )
     expect(screen.getByRole('textbox', { name: 'Token' })).toHaveValue('brain_cd34secret')
-    expect(screen.getByRole('textbox', { name: 'Claude Code command' })).toHaveValue(
-      `claude mcp add --transport http brain ${window.location.origin}/api/mcp/ --header "Authorization: Bearer brain_cd34secret"`,
+    expect(screen.getByRole('textbox', { name: 'Claude Code command with token' })).toHaveValue(
+      `claude mcp add --transport http brain ${window.location.origin}/api/mcp --header "Authorization: Bearer brain_cd34secret"`,
     )
   })
 
@@ -75,6 +92,25 @@ describe('TokensPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }))
     fireEvent.click(screen.getByRole('button', { name: 'Revoke Script' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/tokens/t1/',
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    )
+  })
+
+  it('shows connected apps and disconnects them', async () => {
+    const fetchMock = renderPanel([{ ...existing, name: 'ChatGPT', connected_app: true }])
+
+    const list = await screen.findByRole('region', { name: 'Connected apps and tokens' })
+    const row = within(list).getByText('ChatGPT').closest('li')!
+    expect(row).toHaveTextContent(/Connected app · allowed .* · never used/)
+    expect(row).not.toHaveTextContent('brain_ab12')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect ChatGPT' }))
 
     await vi.waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
