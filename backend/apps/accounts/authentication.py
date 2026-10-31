@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework import authentication, exceptions
 
+from .discovery import SCOPE, resource_metadata_url
 from .models import ApiToken
 
 # `last_used_at` is only written again after this long, not on every request.
@@ -13,9 +14,13 @@ class ApiTokenAuthentication(authentication.BaseAuthentication):
     """
     `Authorization: Bearer <token>` acts as the token's owner. No CSRF: the
     browser never sends the header on its own.
+
+    Apps connected by signing in (`ApiToken.client`) only get the MCP
+    endpoint, which uses `McpAuthentication`; personal tokens get it all.
     """
 
     keyword = "Bearer"
+    connected_apps = False
 
     def authenticate(self, request):
         header = authentication.get_authorization_header(request).split()
@@ -32,12 +37,30 @@ class ApiTokenAuthentication(authentication.BaseAuthentication):
             .filter(key_hash=ApiToken.hash(key))
             .first()
         )
-        if token is None or not token.owner.is_active:
-            raise exceptions.AuthenticationFailed("Invalid token.")
         now = timezone.now()
+        if (
+            token is None
+            or not token.owner.is_active
+            or (token.client_id and not self.connected_apps)
+            or (token.expires_at and token.expires_at < now)
+        ):
+            raise exceptions.AuthenticationFailed("Invalid token.")
         if not token.last_used_at or now - token.last_used_at > LAST_USED_PRECISION:
             ApiToken.objects.filter(pk=token.pk).update(last_used_at=now)
         return token.owner, token
 
     def authenticate_header(self, request):
         return self.keyword
+
+
+class McpAuthentication(ApiTokenAuthentication):
+    """
+    Personal tokens and connected apps. A 401 points at the metadata that
+    leads to "Sign in to Brain" (see `oauth`), as MCP clients expect.
+    """
+
+    connected_apps = True
+
+    def authenticate_header(self, request):
+        url = resource_metadata_url(request)
+        return f'{self.keyword} resource_metadata="{url}", scope="{SCOPE}"'

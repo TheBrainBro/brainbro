@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path, re_path
 
+from apps.accounts import discovery
 from apps.core import views as core_views
 
 api_patterns = [
@@ -24,6 +25,17 @@ urlpatterns = [
         name="pwa-file",
     ),
     path("share", core_views.share, name="share"),
+    # OAuth discovery for MCP clients (apps.accounts.oauth).
+    re_path(
+        r"^\.well-known/oauth-protected-resource(?:/api/mcp/?)?$",
+        discovery.protected_resource,
+        name="oauth-protected-resource",
+    ),
+    path(
+        ".well-known/oauth-authorization-server",
+        discovery.authorization_server,
+        name="oauth-authorization-server",
+    ),
     # Everything else is a frontend route. Excludes api/, admin/ and static/ so
     # typos there return a real 404 instead of the SPA shell.
     re_path(

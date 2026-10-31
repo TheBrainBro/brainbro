@@ -1,7 +1,7 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 
-from .models import ApiToken, Profile
+from .models import ApiToken, OAuthClient, Profile
 
 
 @admin.register(Profile)
@@ -12,6 +12,14 @@ class ProfileAdmin(ModelAdmin):
 
 @admin.register(ApiToken)
 class ApiTokenAdmin(ModelAdmin):
-    list_display = ["__str__", "owner", "created_at", "last_used_at"]
-    readonly_fields = ["prefix", "last_used_at"]
-    exclude = ["key_hash"]
+    list_display = ["__str__", "owner", "client", "created_at", "last_used_at"]
+    readonly_fields = ["prefix", "client", "expires_at", "last_used_at"]
+    exclude = ["key_hash", "refresh_hash"]
+
+
+@admin.register(OAuthClient)
+class OAuthClientAdmin(ModelAdmin):
+    # Apps register themselves; deleting one disconnects it everywhere.
+    list_display = ["name", "created_at"]
+    readonly_fields = ["redirect_uris"]
+    exclude = ["secret_hash"]
