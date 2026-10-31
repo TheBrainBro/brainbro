@@ -6,8 +6,11 @@ titles, note text, URLs, link previews (title, description, site, author) and fi
 
 ## Matching
 
-- Every word of the query has to appear somewhere in the item, in any order. Case and accents
-  don't matter: `cafe` finds "Café".
+- Items with every word of the query, in any order, come first. Then come items with only
+  some of the words, so natural queries ("notes about the trip to Paris") still find
+  something. Words shorter than three letters ("a", "to", "de") only count when every word
+  matches: on their own they would bring up almost everything. Case and accents don't matter:
+  `cafe` finds "Café".
 - Words match inside longer ones too (`kube` finds "Kubernetes", `example.com/po` a URL), so
   results show up while a word is still being typed.
 - **Typos**: a word of four letters or more that appears nowhere as written is taken for a typo
@@ -18,7 +21,8 @@ titles, note text, URLs, link previews (title, description, site, author) and fi
 
 ## Order
 
-Title matches come first, then matches on the URL and the link or file details, then the body.
+Items matching more words of the query come first. Among those matching as many, title
+matches come first, then matches on the URL and the link or file details, then the body.
 Typos rank below words matched as written. Ties go to the newest item. The palette shows the
 best 20 items, under up to five boards and five collections.
 
@@ -37,10 +41,12 @@ Each item has two columns that Postgres generates and keeps up to date on every 
 
 - `search_text`: the title, URL, preview and file details and body, lowercased and without
   accents, with a trigram index (`pg_trgm`). Matching runs on it: a substring match per word,
-  or trigram word similarity (threshold 0.5) for a typo.
+  or trigram word similarity (threshold 0.5) for a typo. An item matches with every word, or
+  with any word of three letters or more.
 - `search_vector`: the same text as a weighted `tsvector` (title A, details B, body C) with the
   `simple` configuration, so Spanish and English words are both kept as written. Ranking uses
-  it: `ts_rank` on word prefixes, plus a small share of the trigram similarity.
+  it: `ts_rank` on word prefixes, plus a small share of the trigram similarity. The `rank`
+  of a result is the number of words it matches plus that relevance, squeezed below 1.
 
 Accents are removed by `brain_unaccent()`, an immutable wrapper around `unaccent()` created by
 the migration, since generated columns only accept immutable functions. Default querysets
