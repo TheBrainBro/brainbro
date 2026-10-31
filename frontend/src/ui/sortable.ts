@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 
-const MOVE_MS = 180
+import { isMoving, useFlip } from './flip'
 
 /** Keys that move the focused entry one place back or forward, with Alt. */
 const BACK = ['ArrowUp', 'ArrowLeft']
@@ -26,36 +26,12 @@ export function useSortable<T extends { id: string }>(
       : entries
   const elements = useRef(new Map<string, HTMLElement>())
   const list = useRef<HTMLElement | null>(null)
-  const layout = useRef<{ key: string; rects: Map<string, { x: number; y: number }> }>(null)
-  // Moved with the keyboard: focus follows it to its new place.
   const refocus = useRef<string | null>(null)
 
-  // Entries that change place glide there (FLIP), as in the item lists.
-  useLayoutEffect(() => {
-    const origin = list.current?.getBoundingClientRect()
-    if (!origin) return
-    const key = shown.map((entry) => entry.id).join()
-    const rects = new Map<string, { x: number; y: number }>()
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    for (const entry of shown) {
-      const element = elements.current.get(entry.id)
-      if (!element) continue
-      const rect = element.getBoundingClientRect()
-      const at = { x: rect.left - origin.left, y: rect.top - origin.top }
-      rects.set(entry.id, at)
-      const before = layout.current?.rects.get(entry.id)
-      if (!before || layout.current?.key === key || reduced) continue
-      const dx = before.x - at.x
-      const dy = before.y - at.y
-      if (dx || dy) {
-        element.animate?.(
-          [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-          { duration: MOVE_MS, easing: 'ease-out' },
-        )
-      }
-    }
-    layout.current = { key, rects }
+  useFlip(shown.map((entry) => entry.id), elements, list)
 
+  // Moved with the keyboard: focus follows it to its new place.
+  useLayoutEffect(() => {
     const moved = refocus.current && elements.current.get(refocus.current)
     if (moved && !moved.contains(document.activeElement)) {
       refocus.current = null
@@ -70,13 +46,18 @@ export function useSortable<T extends { id: string }>(
     onMove(id, after)
   }
 
-  function dragOver(entry: T) {
-    if (!dragging || entry.id === dragging) return
+  /**
+   * The dragged entry takes `entry`'s place. Not while `entry` is still
+   * gliding: passing under the pointer on its way isn't being dragged over,
+   * and taking that for a move made entries swap back and forth for ever.
+   */
+  function dragOver(event: DragEvent, entry: T) {
+    if (!dragging || entry.id === dragging || isMoving(event.currentTarget)) return
     const ids = preview?.base === entries ? preview.ids : entries.map((each) => each.id)
     const to = ids.indexOf(entry.id)
     const next = ids.filter((id) => id !== dragging)
     next.splice(to, 0, dragging)
-    setPreview({ base: entries, ids: next })
+    if (next.join() !== ids.join()) setPreview({ base: entries, ids: next })
   }
 
   function keyDown(event: KeyboardEvent, entry: T) {
@@ -125,7 +106,7 @@ export function useSortable<T extends { id: string }>(
         setDragging(entry.id)
         event.dataTransfer.effectAllowed = 'move'
       },
-      onDragOver: () => dragOver(entry),
+      onDragOver: (event: DragEvent) => dragOver(event, entry),
       onDragEnd: () => {
         // Let go outside the list: everything goes back.
         if (dragging) setPreview(null)
