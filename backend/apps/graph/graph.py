@@ -6,7 +6,8 @@ what ties them are the edges.
 - `parent`: a collection sits inside another.
 - `board`: a line drawn between two items on a board (its label kept).
 - `link`: a note links another by its title, as Obsidian does (`[[Title]]`,
-  `[[Title|text]]`, `[[Title#heading]]`; embeds `![[…]]` aren't links).
+  `[[Title|text]]`, `[[Title#heading]]`; embeds `![[…]]` aren't links). An
+  untitled note's title is the one worked out from its body.
 
 Images in an album are not nodes of their own: the album stands for them.
 """
@@ -17,12 +18,11 @@ from collections import defaultdict
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.items.models import Collection, CollectionItem, Item
+from apps.items.titles import note_title
 
 WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#\n]+)(?:#[^\]|\n]*)?(?:\|[^\]\n]*)?\]\]"
 )
-MARKDOWN_LINK = re.compile(r"!?\[([^\]\n]*)\]\([^)\n]*\)")
-LINE_PREFIX = re.compile(r"^[#>*\-+\s]+|\[[ xX]\]\s*")
 MAX_LABEL = 120
 
 
@@ -112,6 +112,10 @@ def _note_links(items, edges):
     for note in notes:
         if note.title:
             by_title.setdefault(note.title.casefold(), note.id)
+    # Untitled notes answer to the title the app shows, unless a saved one has it.
+    for note in notes:
+        if not note.title and (title := note_title(note.body, fallback="")):
+            by_title.setdefault(title.casefold(), note.id)
     for note in notes:
         for match in WIKILINK.finditer(note.body):
             # `Folder/Title.md` and `Title` both mean the note titled Title.
@@ -132,10 +136,7 @@ def item_label(item, album_size=0):
     if item.kind == Item.Kind.LINK:
         return (item.metadata.get("title") or item.url)[:MAX_LABEL]
     if item.kind == Item.Kind.NOTE:
-        for line in MARKDOWN_LINK.sub(r"\1", item.body).splitlines():
-            if line.strip():
-                return LINE_PREFIX.sub("", line).strip()[:MAX_LABEL] or "Empty note"
-        return "Empty note"
+        return note_title(item.body, fallback="Empty note")
     if item.kind == Item.Kind.ALBUM:
         return f"{album_size} images"
     fallback = "Image" if item.kind == Item.Kind.IMAGE else "File"
