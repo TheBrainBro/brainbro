@@ -31,9 +31,12 @@ the player asks for a range (`apps.items.ranges`).
 
 The waveform is drawn in the browser (`items/waveform.ts`): the file is fetched once per page,
 when its player comes near the screen, and decoded at a low sample rate into 64 bars. Files
-over 20 MB play without one. Decoding also gives the real length, which browsers don't write
-in a WebM recording; without it a player can't seek, so `AudioPlayer` also sends the hidden
-audio to the end once to find it out, and back, before playing or seeking.
+over 20 MB play without one. Decoding also gives the real length.
+
+Browsers record WebM without its length (Chrome writes a Duration of 0), and without it a
+player can't show it or seek. `items/webm.ts` writes it in: voice notes get it when they are
+recorded, and recordings saved without it play from a copy that has it, made from the bytes
+fetched for the waveform (unless Play came first).
 
 Audio and voice messages that Telegram saved as files before this became audio items in
 migration `0015_audio_items`. Recordings in a WebM or MP4 container stay files.
