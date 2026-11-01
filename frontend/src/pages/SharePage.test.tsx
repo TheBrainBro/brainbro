@@ -22,6 +22,7 @@ function renderAt(path: string) {
       if (url === '/api/auth/session/') {
         return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
       }
+      if (url === '/api/items/note-titles/') return jsonResponse([])
       if (url === '/api/items/capture/') {
         captured.push(JSON.parse(String(init?.body)))
         return jsonResponse({ id: 'i1', kind: 'link', url: 'https://example.com' }, 201)

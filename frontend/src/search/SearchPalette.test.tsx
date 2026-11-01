@@ -59,6 +59,7 @@ beforeEach(() => {
     if (url.startsWith('/api/auth/session/')) {
       return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
     }
+    if (url.startsWith('/api/items/note-titles/')) return jsonResponse([])
     if (url.startsWith('/api/items/search/')) {
       const q = new URLSearchParams(url.split('?')[1]).get('q')
       return jsonResponse(

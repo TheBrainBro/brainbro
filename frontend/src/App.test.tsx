@@ -25,6 +25,10 @@ function renderAt(path: string) {
 
 const user = { id: 1, username: 'carlos', email: '', is_staff: true }
 
+// Signed in, with no notes to link to.
+const signedIn = async (url: string) =>
+  jsonResponse(url.includes('/items/note-titles/') ? [] : { authenticated: true, user })
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -37,7 +41,7 @@ describe('auth routing', () => {
   })
 
   it('shows the app to authenticated users', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: true, user })))
+    vi.stubGlobal('fetch', vi.fn(signedIn))
     renderAt('/boards')
     expect(await screen.findByRole('heading', { name: 'Boards' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Account' }))
@@ -54,7 +58,7 @@ describe('auth routing', () => {
   })
 
   it('opens the keyboard shortcuts with ? or from the account menu, not while typing', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: true, user })))
+    vi.stubGlobal('fetch', vi.fn(signedIn))
     renderAt('/boards')
     const input = await screen.findByRole('textbox', { name: 'New board' })
 
@@ -72,7 +76,7 @@ describe('auth routing', () => {
   })
 
   it('opens the settings from the account menu', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ authenticated: true, user })))
+    vi.stubGlobal('fetch', vi.fn(signedIn))
     renderAt('/boards')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Account' }))
@@ -86,6 +90,7 @@ describe('auth routing', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
+        if (url.includes('/items/note-titles/')) return jsonResponse([])
         if (url.endsWith('/auth/logout/')) {
           signedIn = false
           return new Response(null, { status: 204 })
@@ -103,6 +108,7 @@ describe('auth routing', () => {
     document.cookie = 'csrftoken=abc123'
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith('/auth/login/')) return jsonResponse({ authenticated: true, user })
+      if (url.includes('/items/note-titles/')) return jsonResponse([])
       if (url.includes('/items/')) return jsonResponse({ count: 0, next: null, previous: null, results: [] })
       return jsonResponse({ authenticated: false, user: null })
     })
