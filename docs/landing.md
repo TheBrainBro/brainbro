@@ -18,7 +18,7 @@ not modules, so it works from `file://` too).
 - `js/scenes.js`: the three scenes, the animated tiles, and the glow on each
   section's title when it comes into view.
 - `js/connect.js`: the tabs, the visitor's Brain address (filled into the
-  prompt, the MCP URL and the Claude Code command, and remembered in the
+  prompts, the MCP URL and the Claude Code command, and remembered in the
   browser), and the copy buttons.
 
 ## Scenes

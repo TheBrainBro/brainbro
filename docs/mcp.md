@@ -31,6 +31,8 @@ is up to OpenAI.
 
 ### Grok
 
+Ask Grok in a chat to add Brain as a connector, with the URL: it sets it up
+and asks you to sign in to Brain. Or by hand:
 [grok.com/connectors](https://grok.com/connectors) → *New Connector* →
 *Custom*, paste the URL and sign in to Brain when asked. On Grok Business and
 Enterprise, an admin adds the connector first.
