@@ -236,3 +236,26 @@ describe('InboxPage', () => {
     localStorage.clear()
   })
 })
+
+describe('InboxPage origin filter', () => {
+  it('marks what assistants did and filters by who made it', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/items/apps/') return jsonResponse({ apps: ['Claude'] })
+      const claude = makeItem({ body: 'From Claude', created_by: 'Claude', created_via: 'mcp' })
+      const mine = makeItem({ body: 'Mine' })
+      return jsonResponse(page(url.includes('app=Claude') ? [claude] : [claude, mine]))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderInbox()
+
+    await screen.findByText('Mine')
+    expect(screen.getAllByText(/^Added by Claude/)).toHaveLength(2)
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Made by' }), {
+      target: { value: 'app:Claude' },
+    })
+
+    expect(await screen.findByText('From Claude')).toBeInTheDocument()
+    expect(screen.queryByText('Mine')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('app=Claude'), expect.anything())
+  })
+})
