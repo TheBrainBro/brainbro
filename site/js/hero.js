@@ -12,6 +12,7 @@
     precision mediump float;
     uniform vec2 size;
     uniform float time;
+    uniform float unit;
 
     float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -30,7 +31,7 @@
     }
 
     void main() {
-      vec2 uv = gl_FragCoord.xy / size.y;
+      vec2 uv = gl_FragCoord.xy / unit;
       float t = time * 0.025;
       vec2 p = uv * 1.4;
       // Warping noise with noise gives the swirls of poured paint.
@@ -66,7 +67,9 @@
       gl_FragColor = vec4(color, 1.0);
     }`;
 
-  function marble(canvas, offset = 40) {
+  // `scale` is how many CSS pixels the pattern spans vertically; by default
+  // the canvas height.
+  function marble(canvas, { offset = 40, scale = null } = {}) {
     const gl = canvas.getContext('webgl', { antialias: false, alpha: false });
     if (!gl) return null; // The CSS gradient behind stays.
 
@@ -90,6 +93,7 @@
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const size = gl.getUniformLocation(program, 'size');
     const time = gl.getUniformLocation(program, 'time');
+    const unit = gl.getUniformLocation(program, 'unit');
 
     // Half resolution: the marble is soft, and it saves a lot of work.
     function resize() {
@@ -104,6 +108,7 @@
     return (seconds) => {
       gl.uniform2f(size, canvas.width, canvas.height);
       gl.uniform1f(time, seconds + offset);
+      gl.uniform1f(unit, scale ? scale * 0.5 : canvas.height);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
   }
@@ -271,5 +276,5 @@
 
   animate(hero, [marble(hero.querySelector('.marble')), brain(hero.querySelector('.brain-3d'))].filter(Boolean));
   const footer = document.querySelector('footer');
-  animate(footer, [marble(footer.querySelector('.marble'), 170)].filter(Boolean));
+  animate(footer, [marble(footer.querySelector('.marble'), { offset: 170, scale: 860 })].filter(Boolean));
 })();

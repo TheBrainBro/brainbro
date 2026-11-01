@@ -279,56 +279,134 @@
 
   // --- Feature tiles ------------------------------------------------------
 
-  // Tiles whose parts show one after another: `[data-step]` elements get
-  // `on`, in document order (or the order given).
-  function stepThrough(art, { order, gap = 450, after, pause = 3000 }) {
-    const steps = order ?? [...art.querySelectorAll('[data-step]')];
-    loop(art, {
-      reset() {
-        steps.forEach((step) => step.classList.remove('on'));
-        after?.reset?.();
-      },
-      async script(run) {
-        for (const step of steps) {
-          await run.wait(gap);
-          step.classList.add('on');
+  // Boards: a frame and cards dropped in, a connection drawn between two
+  // cards, then a pencil circling the sticky note and ticking it.
+  const board = document.querySelector('.art-board');
+  const ink = board.querySelector('.b-ink');
+  const connect = board.querySelector('.b-connect');
+  const strokes = [...board.querySelectorAll('.b-pen')];
+  const pencil = board.querySelector('.b-pencil');
+  const boardParts = [...board.querySelectorAll('[data-step]')];
+
+  // Draws `path` over `duration` ms, with the pencil on its tip if `pen`.
+  function draw(run, path, duration, pen) {
+    const length = path.getTotalLength();
+    path.style.strokeDasharray = `${length}`;
+    if (run.instant) {
+      path.style.strokeDashoffset = '0';
+      return run.wait(0);
+    }
+    const box = ink.getBoundingClientRect();
+    const canvas = ink.parentElement.getBoundingClientRect();
+    const { width, height } = ink.viewBox.baseVal;
+    const started = performance.now();
+    return new Promise((resolve) => {
+      function frame(now) {
+        const t = Math.min((now - started) / duration, 1);
+        path.style.strokeDashoffset = `${length * (1 - t)}`;
+        if (pen) {
+          const point = path.getPointAtLength(length * t);
+          const x = box.left - canvas.left + (point.x / width) * box.width;
+          const y = box.top - canvas.top + (point.y / height) * box.height;
+          pencil.style.transform = `translate(${x}px, ${y - 20}px)`;
         }
-        await after?.script?.(run);
-      },
-      pause,
-    });
+        if (t < 1) requestAnimationFrame(frame);
+        else resolve();
+      }
+      requestAnimationFrame(frame);
+    }).then(() => run.wait(0));
   }
 
-  // Boards: a frame, cards dropped in, an arrow and a pen circling a sticky.
-  stepThrough(document.querySelector('.art-board'), { gap: 550 });
-
-  // Graph: notes join one by one, a new link forms, and links carry sparks.
-  const graph = document.querySelector('.art-graph');
-  const dots = [...graph.querySelectorAll('.g-dots circle')];
-  const lines = [...graph.querySelectorAll('.g-lines path')];
-  const label = graph.querySelector('.g-label');
-  lines.forEach((line) => (line.dataset.dot = '3.5'));
-  stepThrough(graph, {
-    // Each line, then the dot at its far end; the last two lines link dots
-    // already there.
-    order: [dots[0], lines[0], dots[1], lines[1], dots[2], lines[2], dots[3], lines[3], dots[4], lines[4], dots[5], lines[5], dots[6], lines[6]],
-    gap: 260,
-    after: {
-      reset() {
-        label.classList.remove('on');
-        lines[7].classList.remove('on');
-      },
-      async script(run) {
-        await run.wait(700);
-        lines[7].classList.add('on');
-        label.classList.add('on');
-        for (const line of [lines[7], lines[0], lines[3], lines[1]]) {
-          await run.wait(250);
-          await run.send(line, { duration: 600 });
-        }
-      },
+  loop(board, {
+    reset() {
+      boardParts.forEach((part) => part.classList.remove('on'));
+      for (const path of [connect, ...strokes]) {
+        path.style.strokeDasharray = '10000';
+        path.style.strokeDashoffset = '10000';
+      }
+      connect.classList.remove('on');
+      pencil.classList.remove('on');
     },
+    async script(run) {
+      for (const part of boardParts) {
+        await run.wait(500);
+        part.classList.add('on');
+      }
+      await run.wait(500);
+      connect.classList.add('on');
+      await draw(run, connect, 700);
+      await run.wait(500);
+      pencil.classList.add('on');
+      for (const stroke of strokes) {
+        await draw(run, stroke, stroke === strokes[0] ? 1300 : 450, true);
+        await run.wait(200);
+      }
+      await run.wait(400);
+      pencil.classList.remove('on');
+    },
+    pause: 2800,
   });
+
+  // Graph: all there at once, as in the app, drifting a little like a live
+  // layout, with sparks running along the links.
+  const graph = document.querySelector('.art-graph');
+  const graphLines = graph.querySelector('.g-lines');
+  const graphDots = graph.querySelector('.g-dots');
+  const NODES = [
+    [120, 72, 9], [60, 40, 6], [190, 46, 6], [84, 118, 6], [168, 112, 6], [30, 86, 4], [214, 98, 4], [140, 24, 4],
+  ];
+  const EDGES = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 5], [2, 6], [3, 4], [4, 6], [0, 7], [2, 7]];
+  const SVG = 'http://www.w3.org/2000/svg';
+  const dots = NODES.map(([cx, cy, r], index) => {
+    const dot = document.createElementNS(SVG, 'circle');
+    dot.setAttribute('r', r);
+    if (index === 0) dot.setAttribute('class', 'hub');
+    graphDots.append(dot);
+    return { dot, cx, cy, phase: index * 1.7 };
+  });
+  const edges = EDGES.map(([a, b]) => {
+    const path = document.createElementNS(SVG, 'path');
+    path.dataset.dot = '3';
+    graphLines.append(path);
+    return { path, a, b };
+  });
+
+  function layout(seconds) {
+    const at = dots.map(({ dot, cx, cy, phase }) => {
+      const x = cx + Math.sin(seconds * 0.8 + phase) * 3;
+      const y = cy + Math.cos(seconds * 0.6 + phase * 1.3) * 3;
+      dot.setAttribute('cx', x);
+      dot.setAttribute('cy', y);
+      return [x, y];
+    });
+    for (const { path, a, b } of edges) path.setAttribute('d', `M${at[a][0]} ${at[a][1]} L${at[b][0]} ${at[b][1]}`);
+  }
+
+  layout(0);
+  if (!reduceMotion) {
+    let drifting = false;
+    let sparks = null;
+    const started = performance.now();
+    const frame = (now) => {
+      layout((now - started) / 1000);
+      if (drifting) requestAnimationFrame(frame);
+    };
+    onScreen(
+      graph,
+      () => {
+        drifting = true;
+        requestAnimationFrame(frame);
+        sparks = setInterval(() => {
+          const { path } = edges[Math.floor(Math.random() * edges.length)];
+          travel(path, { reverse: Math.random() < 0.5, duration: 900 });
+        }, 700);
+      },
+      () => {
+        drifting = false;
+        clearInterval(sparks);
+      },
+    );
+  }
 
   // Markdown: typed on the left, rendered on the right as each line ends;
   // then a box ticked in the preview changes the source too.
@@ -442,106 +520,6 @@
   // The search shortcut as the visitor's keyboard has it.
   const mac = /Mac|iPhone|iPad/.test(navigator.userAgentData?.platform ?? navigator.platform);
   document.querySelectorAll('[data-shortcut]').forEach((el) => (el.textContent = mac ? '⌘K' : 'Ctrl+K'));
-
-  // --- Use cases ----------------------------------------------------------
-
-  const USES = [
-    {
-      name: 'Plan a trip',
-      steps: [
-        ['inbox', 'Drop', 'For weeks, every link, photo and voice note about Lisbon goes to the inbox, unsorted.'],
-        ['bot', 'Sort', '“Put everything about Lisbon in a collection.” Your assistant does it.'],
-        ['board', 'Plan', 'Lay out the days on a board. Claude drafts the itinerary as a note.'],
-        ['globe', 'Share', 'Publish the itinerary for your friends. On the road, ask any assistant what’s next.'],
-      ],
-    },
-    {
-      name: 'Research a topic',
-      steps: [
-        ['link', 'Collect', 'Articles, papers and videos about home solar, saved the moment you find them.'],
-        ['note', 'Connect', 'Link notes to each other with [[wikilinks]]. The graph shows what ties together.'],
-        ['search', 'Find', 'Search by meaning finds the piece about winter output, whatever words you use.'],
-        ['bot', 'Summarize', 'Ask Claude to sum up what you saved. It writes the summary back as a note.'],
-      ],
-    },
-    {
-      name: 'Renovate a home',
-      steps: [
-        ['image', 'Drop', 'Photos of the kitchen, quotes as PDFs, a voice note after talking to the builder.'],
-        ['folder', 'Sort', 'A Kitchen collection inside Projects, with quotes and ideas nested in it.'],
-        ['board', 'Plan', 'A board with the layout, the tiles you like and the budget note side by side.'],
-        ['history', 'Track', 'When the budget note changes, its history shows what changed and who changed it.'],
-      ],
-    },
-    {
-      name: 'Write and publish',
-      steps: [
-        ['phone', 'Capture', 'Ideas as they come, from the share sheet on your phone or a message on Telegram.'],
-        ['note', 'Draft', 'Write in Markdown. An assistant suggests edits, and you can undo any of them.'],
-        ['folder', 'Organize', 'A collection per series, in the order you want to publish.'],
-        ['globe', 'Publish', 'Make a note public. Readers get a clean page at its own address.'],
-      ],
-    },
-  ];
-  const uses = document.querySelector('.uses');
-  const useTabs = uses.querySelector('.use-tabs');
-  const steps = uses.querySelector('.steps');
-  let useIndex = 0;
-  let stepIndex = -1;
-  let useTimer = null;
-  let rotate = true;
-
-  useTabs.innerHTML = USES.map(
-    (use, index) => `<button role="tab" type="button" aria-selected="${index === 0}" data-use="${index}">${use.name}</button>`,
-  ).join('');
-  const useButtons = [...useTabs.children];
-
-  function showUse(index) {
-    useIndex = index;
-    stepIndex = -1;
-    useButtons.forEach((button, i) => button.setAttribute('aria-selected', String(i === index)));
-    steps.innerHTML = USES[index].steps
-      .map(([name, title, text]) => `<li><span class="step-icon">${icon(name)}</span><b>${title}</b><p>${text}</p></li>`)
-      .join('');
-    replay(steps, 'swap');
-    if (reduceMotion) steps.querySelectorAll('li').forEach((li) => li.classList.add('done'));
-  }
-
-  // Lights the steps one by one; after the last, the next use case, until
-  // the visitor picks one.
-  function advance() {
-    stepIndex++;
-    if (stepIndex >= USES[useIndex].steps.length) {
-      if (!rotate) return;
-      showUse((useIndex + 1) % USES.length);
-      stepIndex = 0;
-    }
-    [...steps.children].forEach((li, i) => {
-      li.classList.toggle('now', i === stepIndex);
-      li.classList.toggle('done', i < stepIndex);
-    });
-    useTimer = setTimeout(advance, 2200);
-  }
-
-  useButtons.forEach((button) =>
-    button.addEventListener('click', () => {
-      rotate = false;
-      clearTimeout(useTimer);
-      showUse(Number(button.dataset.use));
-      if (!reduceMotion) useTimer = setTimeout(advance, 300);
-    }),
-  );
-  showUse(0);
-  if (!reduceMotion) {
-    onScreen(
-      uses,
-      () => {
-        clearTimeout(useTimer);
-        useTimer = setTimeout(advance, 400);
-      },
-      () => clearTimeout(useTimer),
-    );
-  }
 
   // --- Sections reached -----------------------------------------------------
 
