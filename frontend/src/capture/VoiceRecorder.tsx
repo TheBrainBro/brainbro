@@ -1,19 +1,15 @@
 import { Mic, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { formatTime } from '../items/waveform'
+
 // What the browser records in, best first: WebM (Chrome, Firefox), MP4 (Safari).
 const TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
 const EXTENSIONS: Record<string, string> = { webm: 'webm', mp4: 'm4a', ogg: 'ogg' }
 
 /** Browsers only give the microphone to secure pages (HTTPS or localhost). */
-export function canRecord() {
+function canRecord() {
   return typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
-}
-
-/** 75 -> "1:15". */
-export function formatDuration(seconds: number) {
-  const whole = Math.floor(seconds)
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
 }
 
 function recordingFile(chunks: Blob[], type: string) {
@@ -58,10 +54,7 @@ export function VoiceRecorder({
 
   useEffect(() => {
     if (!recording) return
-    const timer = window.setInterval(
-      () => setElapsed((Date.now() - recording.started) / 1000),
-      250,
-    )
+    const timer = window.setInterval(() => setElapsed((Date.now() - recording.started) / 1000), 250)
     return () => window.clearInterval(timer)
   }, [recording])
 
@@ -103,7 +96,7 @@ export function VoiceRecorder({
       <div role="group" aria-label="Recording" className="flex items-center gap-2">
         <span className="size-2.5 animate-pulse rounded-full bg-red-500" aria-hidden="true" />
         <span className="text-sm tabular-nums" aria-live="off">
-          {formatDuration(elapsed)}
+          {formatTime(elapsed)}
         </span>
         <button
           type="button"

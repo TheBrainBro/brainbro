@@ -336,7 +336,7 @@ function AudioPreview({
           {name}
         </p>
       )}
-      <AudioPlayer src={item.file_url} className="mt-2 h-10" />
+      <AudioPlayer src={item.file_url} size={size} className="mt-2" />
       <Caption text={item.body} />
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
         {size !== undefined && (
