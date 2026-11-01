@@ -22,7 +22,7 @@ const actionButton =
  * saved then. Loaded on first use, with CodeMirror.
  */
 export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: () => void }) {
-  const { saver, state, latest } = useNoteSaver(item)
+  const { saver, state, latest, outdated } = useNoteSaver(item)
   const { toast } = useFeedback()
 
   return (
@@ -47,6 +47,16 @@ export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: (
           </button>
           <button type="button" className={actionButton} onClick={() => saver.resolve('mine')}>
             Keep mine
+          </button>
+        </div>
+      )}
+      {outdated && (
+        <div role="status" className="mb-2 flex flex-wrap items-center gap-1 text-xs text-zinc-500">
+          <span className="mr-auto">
+            {outdated.by ? `${outdated.by} edited this note.` : 'Changed in another tab.'}
+          </span>
+          <button type="button" className={actionButton} onClick={outdated.load}>
+            Load latest
           </button>
         </div>
       )}

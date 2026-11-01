@@ -91,6 +91,15 @@ export class BoardSession {
     this.placed = true
   }
 
+  /** Saved elsewhere: their board if it was taken, to show (see `LayoutSaver.changedElsewhere`). */
+  changedElsewhere(theirs: Board) {
+    const taken = this.saver.changedElsewhere(theirs)
+    if (!taken) return undefined
+    this.base = taken.layout
+    this.history.reset(taken.layout)
+    return taken
+  }
+
   /** Ends a conflict; with `theirs`, their board, whose layout the canvas should show. */
   resolve(side: 'mine' | 'theirs') {
     const theirs = this.saver.resolve(side)

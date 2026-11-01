@@ -156,6 +156,28 @@ export class LayoutSaver {
     return undefined
   }
 
+  /**
+   * The board was saved elsewhere (another device, an assistant). With
+   * nothing pending here it is taken and returned, for the canvas to show;
+   * with something pending it is a conflict for the owner to resolve. Older
+   * or same revisions, and a save in flight (it finds out itself), are left
+   * alone.
+   */
+  changedElsewhere(theirs: Board): Board | undefined {
+    if (theirs.revision <= this.revision) return undefined
+    if (this.status === 'conflict' || this.status === 'saving') return undefined
+    if (this.status !== 'saved') {
+      this.autosave.conflict(theirs)
+      return undefined
+    }
+    this.revision = theirs.revision
+    this.stored = theirs.layout
+    this.current = theirs.layout
+    this.options.drafts.remove(this.board.id)
+    this.autosave.reset()
+    return theirs
+  }
+
   /** Mounted (again): failed saves retry. */
   attach() {
     this.autosave.attach()
