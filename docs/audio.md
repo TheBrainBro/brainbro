@@ -1,7 +1,9 @@
 # Audio
 
 Recordings are items of their own (`kind: "audio"`), with a player in their card, in the
-viewer and on boards. Their name is their title, like files, and they can be renamed and
+viewer and on boards: play and pause, the recording's waveform filling up as it plays (click
+or drag on it to go there, arrows skip 5 seconds), the time and the speed (1×, 1.5×, 2×).
+Starting one recording pauses any other. Their name is their title, like files, and they can be renamed and
 captioned in the viewer.
 
 ## Where they come from
@@ -27,8 +29,11 @@ The stored type is the one browsers play (`audio/x-wav` is kept as `audio/wav`, 
 recording as `audio/webm`). Files are served as downloads like every upload, in parts when
 the player asks for a range (`apps.items.ranges`).
 
-Browsers don't write the length of a WebM recording, so the player sends it to the end once
-to find it out, and back to the start (`AudioPlayer`).
+The waveform is drawn in the browser (`items/waveform.ts`): the file is fetched once per page,
+when its player comes near the screen, and decoded at a low sample rate into 64 bars. Files
+over 20 MB play without one. Decoding also gives the real length, which browsers don't write
+in a WebM recording; without it a player can't seek, so `AudioPlayer` also sends the hidden
+audio to the end once to find it out, and back, before playing or seeking.
 
 Audio and voice messages that Telegram saved as files before this became audio items in
 migration `0015_audio_items`. Recordings in a WebM or MP4 container stay files.
