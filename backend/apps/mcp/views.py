@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.authentication import McpAuthentication
 from apps.events.changes import collect
+from apps.items.origin import Source, acting, app_name
 
 from . import server
 
@@ -45,14 +46,10 @@ class McpView(APIView):
         if "id" not in message or "method" not in message:
             # A notification, or a response to us: nothing to answer.
             return HttpResponse(status=202)
-        # Open tabs name the assistant on what it changed.
-        with collect(by=assistant_name(request.auth)):
+        # Open tabs name the assistant on what it changed, and so do items.
+        name = app_name(request.auth)
+        with collect(by=name), acting(Source.MCP, by=name):
             return JsonResponse(server.handle(request.user, message))
-
-
-def assistant_name(token):
-    """The connected app's name, or the personal token's."""
-    return token.client.name if token.client_id else token.name
 
 
 def rpc_error(code, text):

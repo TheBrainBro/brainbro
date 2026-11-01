@@ -11,7 +11,7 @@ from pgvector.django import VectorField
 
 from apps.core.models import OwnedModel
 
-from . import embedder, search
+from . import embedder, origin, search
 
 
 def collection_image_path(collection, filename):
@@ -169,6 +169,20 @@ class Item(OwnedModel):
     )
     # MD5 of `search_text` when its chunks were made; see `embeddings`.
     embedded_hash = models.CharField(max_length=32, blank=True, editable=False)
+    # Who made it and through what (see `origin`): the app's name, empty for
+    # the user. Items from before this was recorded are the user's, from an
+    # unknown source.
+    created_by = models.CharField(max_length=200, blank=True)
+    created_via = models.CharField(
+        max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
+    )
+    # The same for the last edit of its content (title, body, name); null
+    # until it is edited. Triage and previews don't count.
+    edited_by = models.CharField(max_length=200, blank=True)
+    edited_via = models.CharField(
+        max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
+    )
+    edited_at = models.DateTimeField(null=True, blank=True)
 
     objects = ItemManager()
 
@@ -186,6 +200,21 @@ class Item(OwnedModel):
 
     def __str__(self):
         return self.title or self.url or self.body[:60] or str(self.id)
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.created_via:
+            made = origin.current()
+            self.created_by, self.created_via = made.by, made.via
+        super().save(*args, **kwargs)
+
+    # What `mark_edited` sets, for `save(update_fields=...)`.
+    EDIT_FIELDS = ("edited_by", "edited_via", "edited_at")
+
+    def mark_edited(self, by=None):
+        """Its content was just edited, by `by` (an `Origin`) or who is acting now."""
+        made = by or origin.current()
+        self.edited_by, self.edited_via = made.by, made.via
+        self.edited_at = timezone.now()
 
     @property
     def version(self):

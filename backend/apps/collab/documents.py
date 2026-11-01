@@ -20,6 +20,7 @@ from pycrdt import Doc
 from apps.events.changes import made_by
 from apps.items.models import Item
 from apps.items.notes import sync_images
+from apps.items.origin import Origin, Source
 
 from . import relay
 from .models import NoteDocument
@@ -96,7 +97,9 @@ def save_document(note_id, state):
     body = str(text_of(doc))
     if body != item.body:
         item.body = body
-        item.save(update_fields=["body", "updated_at"])
+        # Only the user's own sessions edit a note live, in the web app.
+        item.mark_edited(Origin(via=Source.WEB))
+        item.save(update_fields=["body", *Item.EDIT_FIELDS, "updated_at"])
         sync_images(item)
     missing = doc.get_update(state_vector(state))
     return None if missing == EMPTY_UPDATE else missing
