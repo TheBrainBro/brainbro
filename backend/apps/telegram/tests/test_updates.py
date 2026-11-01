@@ -151,3 +151,12 @@ def test_the_webhook_is_registered_with_its_secret(fake_bot):
     assert params["url"] == "https://brain.example.com/api/telegram/webhook/"
     assert params["allowed_updates"] == ["message"]
     assert len(params["secret_token"]) == 64
+
+
+def test_what_comes_from_telegram_says_so(user, fake_bot):
+    linked(user)
+
+    process_update(update(5, text="An idea"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_via) == ("", "telegram")
