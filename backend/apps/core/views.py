@@ -1,8 +1,14 @@
+import re
+
 from django.conf import settings
 from django.db import connection
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
+
+from apps.public.pages import head_tags, with_head_tags
+
+PUBLIC_PAGE = re.compile(r"p/(?P<slug>[a-z0-9-]+)/?")
 
 # Build files that must live at the root: the service worker's scope can't be
 # wider than its own path, and the build's assets are under /static/.
@@ -39,7 +45,12 @@ def spa(request, path=""):
             status=503,
             content_type="text/plain",
         )
-    return HttpResponse(index.read_text(), content_type="text/html")
+    html = index.read_text()
+    # A published note's page says what it is to sites that read its link.
+    if match := PUBLIC_PAGE.fullmatch(path):
+        if tags := head_tags(request, match["slug"]):
+            html = with_head_tags(html, tags)
+    return HttpResponse(html, content_type="text/html")
 
 
 @require_GET

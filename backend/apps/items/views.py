@@ -13,11 +13,13 @@ from rest_framework.response import Response
 
 from apps.collab.documents import body_written
 from apps.events.changes import items_changed
+from apps.public.pages import default_image, default_title, excerpt, page_preview
 from apps.public.publishing import (
     MAX_SLUG,
     SlugTaken,
     is_valid_slug,
     publish,
+    save_page,
     unpublish,
 )
 
@@ -39,6 +41,7 @@ from .serializers import (
     OwnedPrimaryKeyRelatedField,
     TriageSerializer,
     check_parent,
+    note_image_url,
 )
 from .tasks import (
     fetch_link_preview,
@@ -92,9 +95,16 @@ class MoveSerializer(serializers.Serializer):
     )
 
 
-class PublicationSerializer(serializers.Serializer):
-    # Without it, the note keeps its slug, or gets one made from its title.
+class PageSerializer(serializers.Serializer):
+    """A published note's page settings; empty ones take their default."""
+
     slug = serializers.CharField(max_length=MAX_SLUG, required=False)
+    title = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    description = serializers.CharField(
+        max_length=300, required=False, allow_blank=True
+    )
+    # The `src` of one of the note's images, or "none".
+    image = serializers.CharField(max_length=2048, required=False, allow_blank=True)
 
     def validate_slug(self, value):
         if not is_valid_slug(value):
@@ -102,6 +112,28 @@ class PublicationSerializer(serializers.Serializer):
                 "Use lowercase letters, numbers and hyphens."
             )
         return value
+
+
+def page_settings(note):
+    """What the page settings show: the saved values, defaults and the preview."""
+    preview = page_preview(note)
+    default = default_image(note)
+    return {
+        "slug": note.public_slug,
+        "title": note.public_title,
+        "description": note.public_description,
+        "image": note.public_image,
+        "defaults": {
+            "title": default_title(note),
+            "description": excerpt(note.body),
+            "image": default.src if default else None,
+        },
+        "preview": {
+            "title": preview.title,
+            "description": preview.description,
+            "image_url": note_image_url(preview.image) if preview.image else None,
+        },
+    }
 
 
 class CollectionMoveSerializer(serializers.Serializer):
@@ -481,26 +513,42 @@ class ItemViewSet(
     @action(detail=True, methods=["put", "delete"])
     def publication(self, request, pk=None):
         """
-        PUT `{"slug"?}` publishes the note at `/p/<slug>`, or changes its
-        slug; DELETE takes it down. Both return the note.
+        PUT makes the note public at `/p/<slug>` (the slug it had, or one made
+        from its title); DELETE makes it private again. Both return the note.
         """
+        note = self._note()
+        if request.method == "DELETE":
+            unpublish(note)
+        else:
+            publish(note)
+        return Response(self.get_serializer(note).data)
+
+    @action(detail=True, methods=["get", "patch"])
+    def page(self, request, pk=None):
+        """
+        The settings of the note's public page: `slug`, and how it shows in
+        search results and shared links (`title`, `description`, `image`).
+        PATCH changes some of them; empty ones go back to their default.
+        """
+        note = self._note()
+        if request.method == "PATCH":
+            payload = PageSerializer(data=request.data)
+            payload.is_valid(raise_exception=True)
+            try:
+                save_page(note, payload.validated_data)
+            except SlugTaken:
+                raise serializers.ValidationError(
+                    {"slug": "Another note already has this address."}
+                ) from None
+        return Response(page_settings(note))
+
+    def _note(self):
         note = self.get_object()
         if note.kind != Item.Kind.NOTE:
             raise serializers.ValidationError(
                 {"detail": "Only notes can be published."}
             )
-        if request.method == "DELETE":
-            unpublish(note)
-        else:
-            payload = PublicationSerializer(data=request.data)
-            payload.is_valid(raise_exception=True)
-            try:
-                publish(note, payload.validated_data.get("slug"))
-            except SlugTaken:
-                raise serializers.ValidationError(
-                    {"slug": "Another note already has this address."}
-                ) from None
-        return Response(self.get_serializer(note).data)
+        return note
 
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):

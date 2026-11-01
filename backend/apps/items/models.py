@@ -189,6 +189,19 @@ class Item(OwnedModel):
     # again brings back the same address.
     public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
+    # How the page shows in search results and shared links (OpenGraph). Empty
+    # means the default: the note's title, the start of its text, its first
+    # image. `public_image` is the `src` of one of its images, or "none".
+    # Defaults in the database too, for rows written without these columns.
+    public_title = models.CharField(
+        max_length=200, blank=True, default="", db_default=""
+    )
+    public_description = models.CharField(
+        max_length=300, blank=True, default="", db_default=""
+    )
+    public_image = models.CharField(
+        max_length=2048, blank=True, default="", db_default=""
+    )
 
     objects = ItemManager()
 
