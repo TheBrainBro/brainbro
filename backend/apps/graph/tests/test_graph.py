@@ -94,7 +94,7 @@ def test_albums_stand_for_their_images_and_labels(api, user):
     Item.objects.create(owner=user, kind="image", album=album)
     Item.objects.create(owner=user, kind="image", album=album)
     note = Item.objects.create(
-        owner=user, kind="note", body="\n# [Read](https://x.y) this\nmore"
+        owner=user, kind="note", body="\nIntro\n# [Read](https://x.y) this\nmore"
     )
     file = Item.objects.create(owner=user, kind="file", metadata={"filename": "a.pdf"})
 
