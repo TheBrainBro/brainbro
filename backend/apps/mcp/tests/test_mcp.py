@@ -238,6 +238,15 @@ def test_search_finds_the_owner_s_items_only(call, user, other_user):
     assert [item["excerpt"] for item in found] == ["Ideas about gardening"]
 
 
+def test_untitled_notes_are_named_after_their_body(call, user):
+    Item.objects.create(owner=user, kind="note", body="Intro\n# Garden plan\nbeds")
+    Item.objects.create(owner=user, kind="note", title="Seeds", body="# Garden")
+
+    found = structured(call("search_items", query="garden"))["items"]
+
+    assert sorted(item["title"] for item in found) == ["Garden plan", "Seeds"]
+
+
 def test_wrong_arguments_come_back_as_a_tool_error(call):
     assert "query" in failure(call("search_items"))
 
