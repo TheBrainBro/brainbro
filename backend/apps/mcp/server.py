@@ -46,6 +46,8 @@ are canvases where items are laid out in space.
   note, and pass the version from get_item so you never overwrite the user.
 - Items say who made and last edited them (created_by, edited_by): "user",
   or an assistant's name. Take extra care changing what the user wrote.
+- Every edit to a note is kept in its history (list_revisions), and the
+  user can bring back what was there before.
 - Leave what you capture in the inbox. Organize, archive, add to boards or
   create collections only when the user asks for it.
 - Read in batches: get_items for several items, list_inbox and

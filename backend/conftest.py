@@ -1,5 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from rest_framework.test import APIClient
 
 
@@ -40,3 +42,21 @@ def relayed(monkeypatch):
         lambda note_id, kind, payload: messages.append((str(note_id), kind, payload)),
     )
     return messages
+
+
+@pytest.fixture
+def migrate_to(transactional_db):
+    """
+    Takes the database to a migration and returns its models. Afterwards it
+    goes back to the latest: tests that run later need every app's tables.
+    """
+
+    def migrate(target):
+        executor = MigrationExecutor(connection)
+        executor.migrate([target])
+        executor.loader.build_graph()
+        return executor.loader.project_state([target]).apps
+
+    yield migrate
+    executor = MigrationExecutor(connection)
+    executor.migrate(executor.loader.graph.leaf_nodes())

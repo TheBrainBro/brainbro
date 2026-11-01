@@ -5,6 +5,7 @@ import {
   FileDown,
   FileQuestion,
   FolderInput,
+  History,
   Inbox,
   RotateCw,
   Trash2,
@@ -13,6 +14,7 @@ import {
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
+import { NoteHistoryDialog } from '../history/HistoryPanel'
 import { CollectionPicker } from '../items/CollectionPicker'
 import { OrganizeMenu, type OrganizeTriggerProps } from '../items/OrganizeMenu'
 import { uploadNoteImage, useItem, useTriage, type Item } from '../items/api'
@@ -133,8 +135,10 @@ function NoteWorkspace({
   const goBack = useGoBack()
   const [organizing, setOrganizing] = useState(false)
   const [printing, setPrinting] = useState(false)
+  const [history, setHistory] = useState(false)
 
-  const status = latest?.status ?? initial?.status
+  const current = latest ?? initial
+  const status = current?.status
   const body = () => (live ? live.text.toString() : (newNote?.saver.body ?? ''))
 
   // The browser's own print would print the editor: ⌘P prints the note instead.
@@ -242,6 +246,7 @@ function NoteWorkspace({
             ) : (
               <Action icon={Archive} label="Archive" onClick={archive} />
             )}
+            <Action icon={History} label="History" onClick={() => setHistory(true)} />
             <Action icon={FileDown} label="Export PDF" onClick={() => setPrinting(true)} />
             <Action icon={Trash2} label="Delete" onClick={remove} />
           </>
@@ -264,6 +269,14 @@ function NoteWorkspace({
               },
             )
           }
+        />
+      )}
+      {history && current && (
+        <NoteHistoryDialog
+          note={current}
+          // Restored: the editor shows it live, like an assistant's edit.
+          onRestored={() => setHistory(false)}
+          onClose={() => setHistory(false)}
         />
       )}
       {printing && (

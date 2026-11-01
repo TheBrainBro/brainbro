@@ -86,6 +86,20 @@ function setUp() {
       items = [item, ...items]
       return jsonResponse(item, 201)
     }
+    if (url.startsWith('/api/revisions/?item=')) {
+      const at = new Date().toISOString()
+      const revision = { item: 'n1', board: null, title: '', by: 'Claude', via: 'mcp' }
+      return jsonResponse({
+        count: 1,
+        next: null,
+        results: [
+          { ...revision, id: 'r1', restored_from: null, restored_from_at: null, created_at: at, updated_at: at },
+        ],
+      })
+    }
+    if (url === '/api/revisions/r1/') {
+      return jsonResponse({ id: 'r1', item: 'n1', title: '', body: items[0].body, by: 'Claude', via: 'mcp' })
+    }
     const detail = url.match(/^\/api\/items\/([^/]+)\/$/)
     if (detail) {
       const item = items.find((candidate) => candidate.id === detail[1])
@@ -228,6 +242,21 @@ describe('NotePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Archive' }))
     await waitFor(() => expect(triages).toEqual([{ ids: ['n1'], action: 'archive' }]))
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
+  })
+
+  it('opens the history from its header', async () => {
+    items = [makeItem({ id: 'n1', body: 'start' })]
+    renderAt('/notes/n1')
+    await editor()
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Note history' })
+    const list = await within(dialog).findByRole('list', { name: 'Revisions' })
+    expect(list).toHaveTextContent('Claude')
+    expect(list).toHaveTextContent('Current version')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('deletes the note', async () => {

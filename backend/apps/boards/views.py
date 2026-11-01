@@ -49,16 +49,7 @@ class BoardViewSet(viewsets.ModelViewSet):
         return self.detail_response(self.get_object())
 
     def detail_response(self, board, response_status=status.HTTP_200_OK):
-        items = board.items.filter(owner=self.request.user).prefetch_related(
-            *ITEM_PREFETCH
-        )
-        layout = prune_layout(
-            migrate_layout(board.layout), {str(item.id) for item in items}
-        )
-        data = BoardDetailSerializer(
-            board,
-            context={**self.get_serializer_context(), "layout": layout, "items": items},
-        ).data
+        data = board_detail(board, self.get_serializer_context())
         return Response(data, status=response_status, headers=etag(board))
 
     @action(detail=True, methods=["put"])
@@ -90,29 +81,12 @@ class BoardViewSet(viewsets.ModelViewSet):
             )
             if expected.strip().strip('"') != str(board.revision):
                 return self.detail_response(board, status.HTTP_412_PRECONDITION_FAILED)
-            owned = {
-                str(item_id)
-                for item_id in Item.objects.filter(
-                    owner=request.user, id__in=item_ids(layout)
-                ).values_list("id", flat=True)
-            }
-            layout = prune_layout(layout, owned)
-            before = {
-                str(item_id) for item_id in board.items.values_list("id", flat=True)
-            }
-            Item.objects.filter(id__in=owned - before, status=Item.Status.INBOX).update(
-                status=Item.Status.ORGANIZED, updated_at=timezone.now()
-            )
-            board.items.set(owned)
-            back_to_inbox_if_unplaced(before - owned)
-            board.layout = layout
-            board.revision += 1
-            board.save(update_fields=["layout", "revision", "updated_at"])
+            save_layout(board, layout)
 
         return Response(
             {
                 "revision": board.revision,
-                "layout": layout,
+                "layout": board.layout,
                 "updated_at": board.updated_at,
             },
             headers=etag(board),
@@ -127,6 +101,42 @@ class BoardViewSet(viewsets.ModelViewSet):
         if not move_board(board, payload.validated_data["after"]):
             raise serializers.ValidationError({"after": "Not one of your boards."})
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def board_detail(board, context):
+    """The board, its layout and its items, as `retrieve` returns them."""
+    items = board.items.filter(owner_id=board.owner_id).prefetch_related(*ITEM_PREFETCH)
+    layout = prune_layout(
+        migrate_layout(board.layout), {str(item.id) for item in items}
+    )
+    return BoardDetailSerializer(
+        board, context={**context, "layout": layout, "items": items}
+    ).data
+
+
+def save_layout(board, layout, fields=()):
+    """
+    Saves a valid layout (current schema) to a board locked for update, with
+    `fields` also changed. Nodes of items that don't exist (or aren't the
+    owner's) are dropped; items placed for the first time leave the inbox,
+    and items taken off it with nowhere else to be go back.
+    """
+    owned = {
+        str(item_id)
+        for item_id in Item.objects.filter(
+            owner_id=board.owner_id, id__in=item_ids(layout)
+        ).values_list("id", flat=True)
+    }
+    layout = prune_layout(layout, owned)
+    before = {str(item_id) for item_id in board.items.values_list("id", flat=True)}
+    Item.objects.filter(id__in=owned - before, status=Item.Status.INBOX).update(
+        status=Item.Status.ORGANIZED, updated_at=timezone.now()
+    )
+    board.items.set(owned)
+    back_to_inbox_if_unplaced(before - owned)
+    board.layout = layout
+    board.revision += 1
+    board.save(update_fields=["layout", "revision", *fields, "updated_at"])
 
 
 @transaction.atomic
