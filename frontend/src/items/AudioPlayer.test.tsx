@@ -112,23 +112,36 @@ describe('AudioPlayer', () => {
     expect(audio.currentTime).toBe(0)
   })
 
-  it("finds out a browser recording's length before playing or seeking", async () => {
-    decodeAudioData.mockRejectedValue(new Error('Unsupported'))
-    const { audio, play, set } = await renderPlayer({ autoPlay: true })
-    expect(screen.getByText('0:00')).toBeInTheDocument()
+  it('plays a browser recording from a copy with its length written in', async () => {
+    const recording = [
+      [0x1a, 0x45, 0xdf, 0xa3, 0x80],
+      [0x18, 0x53, 0x80, 0x67, 0xff],
+      [0x15, 0x49, 0xa9, 0x66, 0x80],
+    ].flat()
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(new Uint8Array(recording), { headers: { 'Content-Type': 'audio/webm' } }),
+    )
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:fixed') }))
+    const { audio, play } = await renderPlayer({ autoPlay: true })
 
-    set('duration', Infinity)
-    fireEvent.loadedMetadata(audio)
-    expect(audio.currentTime).toBe(Number.MAX_SAFE_INTEGER)
-    // Not known yet: it keeps waiting.
-    fireEvent.durationChange(audio)
-    expect(play).not.toHaveBeenCalled()
-
-    set('duration', 7)
-    fireEvent.durationChange(audio)
-    expect(audio.currentTime).toBe(0)
+    expect(audio).toHaveAttribute('src', 'blob:fixed')
     expect(play).toHaveBeenCalledOnce()
-    expect(screen.getByText('0:00 / 0:07')).toBeInTheDocument()
+  })
+
+  it('plays files that already have their length as they are, right away', async () => {
+    const { audio, play } = await renderPlayer()
+    expect(audio.getAttribute('src')).toMatch(/^\/file\//)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    expect(play).toHaveBeenCalledOnce()
+  })
+
+  it('plays what it was given if Play comes before the waveform', async () => {
+    decodeAudioData.mockReturnValue(new Promise(() => {}))
+    const { audio, play } = await renderPlayer()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    expect(play).toHaveBeenCalledOnce()
+    expect(audio.getAttribute('src')).toMatch(/^\/file\//)
   })
 
   it('changes the speed', async () => {
