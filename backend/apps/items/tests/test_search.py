@@ -87,6 +87,15 @@ def test_short_words_dont_add_to_the_rank(api, user):
     assert ids(search(api, query)) == [str(trip.id), str(noise.id)]
 
 
+def test_items_matching_only_through_typos_come_last(api, user):
+    # "kubernets" and "clustr" appear nowhere, so they stand in for similar
+    # words, but those guesses alone rank below one word matched as written.
+    guess = Item.objects.create(owner=user, kind="note", title="Kubernetes cluster")
+    exact = Item.objects.create(owner=user, kind="note", body="meeting notes")
+    query = "kubernets clustr meeting"
+    assert ids(search(api, query)) == [str(exact.id), str(guess.id)]
+
+
 def test_typos_count_in_partial_matches(api, user):
     note = Item.objects.create(owner=user, kind="note", body="kubernetes setup")
     assert ids(search(api, "kubernets cluster")) == [str(note.id)]
