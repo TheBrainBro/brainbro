@@ -94,6 +94,12 @@ def collect(tab="", by=""):
         changes.send()
 
 
+def made_by():
+    """The assistant making the changes being collected, if one is."""
+    changes = _collecting.get()
+    return changes.by if changes is not None else ""
+
+
 def changed(owner_id, items=(), boards=None):
     """`owner_id`'s items (ids) or boards ({id: revision}) changed, or their lists."""
     changes = _collecting.get()

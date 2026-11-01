@@ -1,13 +1,11 @@
 import {
   Archive,
   Check,
-  CircleAlert,
   CloudOff,
   FileDown,
   FileQuestion,
   FolderInput,
   Inbox,
-  RefreshCw,
   RotateCw,
   Trash2,
   type LucideIcon,
@@ -22,8 +20,10 @@ import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import { NotePrint } from '../notes/NotePrint'
-import { NEW_NOTE, type SaverState } from '../notes/saver'
-import { useNoteSaver } from '../notes/useNoteSaver'
+import { Peers } from '../notes/Peers'
+import { forgetLiveNote, useLiveNote, type LiveNote, type LiveStatus } from '../notes/live'
+import { NEW_NOTE, type NoteSaver, type SaverState } from '../notes/saver'
+import { useNewNoteSaver } from '../notes/useNewNoteSaver'
 import { BackLink } from '../ui/BackLink'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
@@ -31,7 +31,7 @@ import { EmptyState, ErrorState } from '../ui/states'
 /**
  * `/notes/:id`, or `/notes/new` for a note that doesn't exist until it has
  * text. When a new note is saved the URL catches up with its id and the same
- * editor stays; opening any other note starts afresh.
+ * page stays, going live; opening any other note starts afresh.
  */
 export function NotePage() {
   const { id = NEW_NOTE } = useParams()
@@ -42,26 +42,28 @@ export function NotePage() {
     <NoteSession
       key={session.key}
       id={id}
+      isNew={session.key === NEW_NOTE}
       onCreated={(created) => setSession((current) => ({ ...current, created }))}
     />
   )
 }
 
-function NoteSession({ id, onCreated }: { id: string; onCreated: (id: string) => void }) {
-  const isNew = id === NEW_NOTE
-  // A note created in this session is already in the cache: no loading step.
+function NoteSession({
+  id,
+  isNew,
+  onCreated,
+}: {
+  id: string
+  isNew: boolean
+  onCreated: (id: string) => void
+}) {
   const item = useItem(isNew ? undefined : id)
 
-  if (isNew) return <NoteWorkspace initial={null} onCreated={onCreated} />
+  if (isNew) return <NewNote onCreated={onCreated} />
   if (item.isPending) {
     return (
       <Frame>
-        <div role="status" aria-label="Loading note" className="space-y-3 pt-4">
-          <div className="skeleton h-7 w-2/3" />
-          <div className="skeleton h-4 w-full" />
-          <div className="skeleton h-4 w-5/6" />
-          <div className="skeleton h-4 w-3/5" />
-        </div>
+        <EditorSkeleton />
       </Frame>
     )
   }
@@ -98,23 +100,33 @@ function NoteSession({ id, onCreated }: { id: string; onCreated: (id: string) =>
       </Frame>
     )
   }
-  return <NoteWorkspace initial={item.data} onCreated={onCreated} />
+  return <NoteWorkspace initial={item.data} />
 }
 
-function NoteWorkspace({
-  initial,
-  onCreated,
-}: {
-  initial: Item | null
-  onCreated: (id: string) => void
-}) {
+/** A note that doesn't exist yet: created on its first text, then live. */
+function NewNote({ onCreated }: { onCreated: (id: string) => void }) {
   const navigate = useNavigate()
-  const { saver, state, latest, outdated } = useNoteSaver(initial, {
+  const { saver, state } = useNewNoteSaver({
     onCreated: (item) => {
       onCreated(item.id)
       navigate(`/notes/${item.id}`, { replace: true })
     },
   })
+  return <NoteWorkspace initial={null} newNote={{ saver, state }} />
+}
+
+function NoteWorkspace({
+  initial,
+  newNote,
+}: {
+  initial: Item | null
+  /** For a new note: its saver, until it is live. */
+  newNote?: { saver: NoteSaver<Item>; state: SaverState }
+}) {
+  const noteId = initial?.id ?? newNote?.saver.noteId ?? null
+  const latest = useItem(noteId ?? undefined).data
+  const note = useLiveNote(noteId)
+  const live = note.ready ? note.live : null
   const triage = useTriage()
   const { toast, confirm } = useFeedback()
   const undoAction = useUndoAction()
@@ -122,19 +134,20 @@ function NoteWorkspace({
   const [organizing, setOrganizing] = useState(false)
   const [printing, setPrinting] = useState(false)
 
-  const noteId = saver.noteId
   const status = latest?.status ?? initial?.status
+  const body = () => (live ? live.text.toString() : (newNote?.saver.body ?? ''))
 
   // The browser's own print would print the editor: ⌘P prints the note instead.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'p' || !(event.metaKey || event.ctrlKey) || event.altKey) return
       event.preventDefault()
-      if (saver.body.trim()) setPrinting(true)
+      const text = live ? live.text.toString() : (newNote?.saver.body ?? '')
+      if (text.trim()) setPrinting(true)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [saver])
+  }, [live, newNote?.saver])
 
   function failed(error: Error) {
     toast({ message: error.message, tone: 'error' })
@@ -142,8 +155,6 @@ function NoteWorkspace({
 
   async function archive() {
     if (!noteId) return
-    // Triage doesn't touch the text, so a save still in flight is fine.
-    saver.flush()
     const action = status === 'archived' ? 'inbox' : 'archive'
     const before = latest ?? initial
     const undo = before ? undoTriage(action, [before]) : null
@@ -168,19 +179,32 @@ function NoteWorkspace({
       danger: true,
     })
     if (!confirmed) return
-    saver.discard()
     try {
       await triage.mutateAsync({ ids: [noteId], action: 'delete' })
     } catch (error) {
       return failed(error as Error)
     }
+    forgetLiveNote(noteId)
     toast({ message: 'Deleted the note' })
     goBack()
   }
 
   return (
     <Frame
-      status={<SaveIndicator state={state} isNew={!noteId} onRetry={() => saver.retryNow()} />}
+      status={
+        newNote && !live ? (
+          <SaveIndicator
+            state={newNote.state}
+            isNew={!noteId}
+            onRetry={() => newNote.saver.retryNow()}
+          />
+        ) : (
+          <span className="flex items-center gap-3">
+            <Peers peers={note.peers} />
+            <LiveIndicator status={note.status} />
+          </span>
+        )
+      }
       actions={
         noteId && (
           <>
@@ -244,58 +268,96 @@ function NoteWorkspace({
       )}
       {printing && (
         <NotePrint
-          body={saver.body}
+          body={body()}
           images={(latest ?? initial)?.images}
           links={(latest ?? initial)?.links}
           onDone={() => setPrinting(false)}
         />
       )}
-      {state.status === 'conflict' && (
-        <div
-          role="alert"
-          className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950"
-        >
-          <CircleAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-          <span className="mr-auto">
-            This note changed in another tab or device. Your text is kept here until you choose.
-          </span>
-          <button type="button" className="button-ghost" onClick={() => saver.resolve('theirs')}>
-            Load latest
-          </button>
-          <button type="button" className="button-ghost" onClick={() => saver.resolve('mine')}>
-            Keep mine
-          </button>
-        </div>
+      {live ? (
+        <LiveNoteEditor
+          live={live}
+          handover={newNote?.saver.body}
+          item={latest ?? initial}
+          onUploadError={(message) => toast({ message, tone: 'error' })}
+        />
+      ) : newNote ? (
+        <NoteEditor
+          initial={newNote.saver.body}
+          autoFocus
+          onChange={(text) => newNote.saver.edit(text)}
+          onSave={() => newNote.saver.flush()}
+          uploadImage={uploadNoteImage}
+          onUploadError={(message) => toast({ message, tone: 'error' })}
+        />
+      ) : (
+        <EditorSkeleton />
       )}
-      {outdated && (
-        <div
-          role="status"
-          className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
-        >
-          <RefreshCw className="size-4 shrink-0 text-zinc-500" aria-hidden="true" />
-          <span className="mr-auto">
-            {outdated.by
-              ? `${outdated.by} edited this note.`
-              : 'This note changed in another tab or device.'}
-          </span>
-          <button type="button" className="button-ghost" onClick={outdated.load}>
-            Load latest
-          </button>
-        </div>
-      )}
-      <NoteEditor
-        key={saver.generation}
-        initial={saver.body}
-        autoFocus
-        onChange={(body) => saver.edit(body)}
-        onSave={() => saver.flush()}
-        images={(latest ?? initial)?.images}
-        links={(latest ?? initial)?.links}
-        uploadImage={uploadNoteImage}
-        onUploadError={(message) => toast({ message, tone: 'error' })}
-      />
     </Frame>
   )
+}
+
+/**
+ * The note's editor once it is live. `handover`: what was typed into a new
+ * note while it was being created, which goes into the live text first.
+ */
+function LiveNoteEditor({
+  live,
+  handover,
+  item,
+  onUploadError,
+}: {
+  live: LiveNote
+  handover?: string
+  item: Item | null | undefined
+  onUploadError: (message: string) => void
+}) {
+  // Once, before the editor reads the text; doing it again changes nothing.
+  useState(() => handover !== undefined && live.setText(handover))
+  return (
+    <NoteEditor
+      live={live}
+      autoFocus
+      images={item?.images}
+      links={item?.links}
+      uploadImage={uploadNoteImage}
+      onUploadError={onUploadError}
+    />
+  )
+}
+
+function EditorSkeleton() {
+  return (
+    <div role="status" aria-label="Loading note" className="space-y-3 pt-4">
+      <div className="skeleton h-7 w-2/3" />
+      <div className="skeleton h-4 w-full" />
+      <div className="skeleton h-4 w-5/6" />
+      <div className="skeleton h-4 w-3/5" />
+    </div>
+  )
+}
+
+function LiveIndicator({ status }: { status: LiveStatus }) {
+  switch (status) {
+    case 'live':
+      return (
+        <span className="flex items-center gap-1 text-zinc-500">
+          <Check className="size-3.5" aria-hidden="true" />
+          Saved
+        </span>
+      )
+    case 'connecting':
+      return <span className="text-zinc-500">Connecting…</span>
+    case 'offline':
+      return (
+        <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+          <CloudOff className="size-3.5" aria-hidden="true" />
+          Offline, kept on this device
+        </span>
+      )
+    case 'closed':
+      return <span className="text-red-600 dark:text-red-400">Can't edit this note</span>
+  }
 }
 
 function SaveIndicator({
@@ -336,7 +398,8 @@ function SaveIndicator({
         </span>
       )
     case 'conflict':
-      return <span className="text-amber-700 dark:text-amber-400">Not saved, see above</span>
+      // Only saves of existing text conflict, and new notes have none.
+      return null
   }
 }
 

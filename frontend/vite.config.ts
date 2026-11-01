@@ -96,7 +96,8 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     proxy: {
-      '/api': sameHost,
+      // ws: live note editing (/api/live/notes/…).
+      '/api': { ...sameHost, ws: true },
       // OAuth discovery for AI assistants (MCP).
       '/.well-known': sameHost,
       '/admin': backend,

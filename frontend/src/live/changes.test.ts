@@ -5,7 +5,7 @@ import { boardKey, boardsKey } from '../boards/api'
 import { collectionsKey, itemKey, itemsKey } from '../items/api'
 import { TAB_ID } from '../lib/api'
 import { FakeEventSource } from '../test/eventSource'
-import { editorOf, followChanges } from './changes'
+import { followChanges } from './changes'
 
 let queryClient: QueryClient
 let source: FakeEventSource
@@ -60,13 +60,6 @@ describe('followChanges', () => {
     source.send({ items: ['n1'], tab: TAB_ID })
     await vi.advanceTimersByTimeAsync(300)
     expect(stale()).toEqual([])
-  })
-
-  it('remembers which assistant changed an item', () => {
-    source.send({ items: ['n1'], by: 'Claude' })
-    expect(editorOf('n1')).toBe('Claude')
-    source.send({ items: ['n1'] })
-    expect(editorOf('n1')).toBeUndefined()
   })
 
   it('refetches everything after reconnecting, for what it missed', async () => {
