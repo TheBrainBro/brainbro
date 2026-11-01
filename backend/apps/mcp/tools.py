@@ -20,6 +20,7 @@ from apps.items.models import Collection, CollectionItem, Item
 from apps.items.notes import sync_images
 from apps.items.search import find
 from apps.items.serializers import TriageSerializer
+from apps.items.titles import note_title
 from apps.items.views import capture_text, triage
 
 # How much of a body lists show; `get_item` has all of it.
@@ -90,12 +91,21 @@ def describe(errors):
     return " ".join(parts)
 
 
+def item_title(item):
+    if item.title:
+        return item.title
+    if item.kind == Item.Kind.NOTE:
+        # Named after its body, as the app shows it.
+        return note_title(item.body, fallback="")
+    return item.metadata.get("title", "")
+
+
 def item_summary(item):
     summary = {
         "id": item.id,
         "kind": item.kind,
         "status": item.status,
-        "title": item.title or item.metadata.get("title", ""),
+        "title": item_title(item),
         "collections": [
             {"id": collection.id, "name": collection.name}
             for collection in item.collections.all()

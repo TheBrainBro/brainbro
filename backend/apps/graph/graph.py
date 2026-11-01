@@ -17,12 +17,11 @@ from collections import defaultdict
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.items.models import Collection, CollectionItem, Item
+from apps.items.titles import note_title
 
 WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#\n]+)(?:#[^\]|\n]*)?(?:\|[^\]\n]*)?\]\]"
 )
-MARKDOWN_LINK = re.compile(r"!?\[([^\]\n]*)\]\([^)\n]*\)")
-LINE_PREFIX = re.compile(r"^[#>*\-+\s]+|\[[ xX]\]\s*")
 MAX_LABEL = 120
 
 
@@ -132,10 +131,7 @@ def item_label(item, album_size=0):
     if item.kind == Item.Kind.LINK:
         return (item.metadata.get("title") or item.url)[:MAX_LABEL]
     if item.kind == Item.Kind.NOTE:
-        for line in MARKDOWN_LINK.sub(r"\1", item.body).splitlines():
-            if line.strip():
-                return LINE_PREFIX.sub("", line).strip()[:MAX_LABEL] or "Empty note"
-        return "Empty note"
+        return note_title(item.body, fallback="Empty note")
     if item.kind == Item.Kind.ALBUM:
         return f"{album_size} images"
     fallback = "Image" if item.kind == Item.Kind.IMAGE else "File"
