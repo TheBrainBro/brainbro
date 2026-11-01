@@ -13,6 +13,13 @@ from rest_framework.response import Response
 
 from apps.collab.documents import body_written
 from apps.events.changes import items_changed
+from apps.public.publishing import (
+    MAX_SLUG,
+    SlugTaken,
+    is_valid_slug,
+    publish,
+    unpublish,
+)
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
@@ -83,6 +90,18 @@ class MoveSerializer(serializers.Serializer):
     collection = OwnedPrimaryKeyRelatedField(
         queryset=Collection.objects.all(), required=False, allow_null=True
     )
+
+
+class PublicationSerializer(serializers.Serializer):
+    # Without it, the note keeps its slug, or gets one made from its title.
+    slug = serializers.CharField(max_length=MAX_SLUG, required=False)
+
+    def validate_slug(self, value):
+        if not is_valid_slug(value):
+            raise serializers.ValidationError(
+                "Use lowercase letters, numbers and hyphens."
+            )
+        return value
 
 
 class CollectionMoveSerializer(serializers.Serializer):
@@ -458,6 +477,30 @@ class ItemViewSet(
         if not placed:
             raise serializers.ValidationError({"after": "Not in the same list."})
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["put", "delete"])
+    def publication(self, request, pk=None):
+        """
+        PUT `{"slug"?}` publishes the note at `/p/<slug>`, or changes its
+        slug; DELETE takes it down. Both return the note.
+        """
+        note = self.get_object()
+        if note.kind != Item.Kind.NOTE:
+            raise serializers.ValidationError(
+                {"detail": "Only notes can be published."}
+            )
+        if request.method == "DELETE":
+            unpublish(note)
+        else:
+            payload = PublicationSerializer(data=request.data)
+            payload.is_valid(raise_exception=True)
+            try:
+                publish(note, payload.validated_data.get("slug"))
+            except SlugTaken:
+                raise serializers.ValidationError(
+                    {"slug": "Another note already has this address."}
+                ) from None
+        return Response(self.get_serializer(note).data)
 
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):
