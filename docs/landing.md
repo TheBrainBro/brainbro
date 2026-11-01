@@ -15,7 +15,8 @@ not modules, so it works from `file://` too).
 - `js/hero.js`: the liquid marble behind the hero and the footer (a WebGL
   shader, with a CSS gradient when WebGL is missing) and the brain of linked
   dots in front (canvas 2D), which leans toward the pointer.
-- `js/scenes.js`: the three scenes, the animated tiles, and the glow on the Connect and Install titles when they come into view.
+- `js/scenes.js`: the three scenes, the animated tiles, and the glow on each
+  section's title when it comes into view.
 - `js/connect.js`: the tabs, the visitor's Brain address (filled into the
   prompt, the MCP URL and the Claude Code command, and remembered in the
   browser), and the copy buttons.
