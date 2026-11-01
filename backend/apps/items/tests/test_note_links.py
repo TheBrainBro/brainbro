@@ -4,7 +4,7 @@ import pytest
 from celery.exceptions import Retry
 from PIL import Image
 
-from apps.items import tasks, views
+from apps.items import tasks
 from apps.items.models import Item, NoteLink
 from apps.items.note_links import previewed_links
 from apps.items.previews import Preview
@@ -21,7 +21,7 @@ def media(settings, tmp_path):
 @pytest.fixture
 def enqueued(monkeypatch):
     calls = []
-    monkeypatch.setattr(views.fetch_note_links, "delay", calls.append)
+    monkeypatch.setattr(tasks.fetch_note_links, "delay", calls.append)
     return calls
 
 

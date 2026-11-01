@@ -29,3 +29,14 @@ def published(monkeypatch):
         lambda owner_id, message: messages.append((owner_id, message)),
     )
     return messages
+
+
+@pytest.fixture(autouse=True)
+def relayed(monkeypatch):
+    """What tests send to open notes, as (note id, kind, payload); not to Redis."""
+    messages = []
+    monkeypatch.setattr(
+        "apps.collab.relay.publish",
+        lambda note_id, kind, payload: messages.append((str(note_id), kind, payload)),
+    )
+    return messages
