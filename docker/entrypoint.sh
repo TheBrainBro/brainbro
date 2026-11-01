@@ -1,6 +1,6 @@
 #!/bin/sh
 # Entrypoint shared by every service built from the app image.
-#   api     - gunicorn web server
+#   api     - uvicorn web server (ASGI: open tabs keep a stream of changes)
 #   worker  - celery worker with the beat scheduler embedded (single instance)
 #   migrate - one-shot: back up the database if migrations are pending, then
 #             apply them and make sure the admin user exists
@@ -9,12 +9,14 @@ set -e
 
 case "$1" in
   api)
-    exec gunicorn config.wsgi:application \
-      --bind 0.0.0.0:8000 \
-      --workers "${GUNICORN_WORKERS:-3}" \
-      --timeout 60 \
-      --no-control-socket \
-      --access-logfile -
+    # Streams stay open: on stop, they are cut after a few seconds so the
+    # container doesn't wait for Docker to kill it.
+    exec uvicorn config.asgi:application \
+      --host 0.0.0.0 \
+      --port 8000 \
+      --workers "${WEB_WORKERS:-3}" \
+      --lifespan off \
+      --timeout-graceful-shutdown 5
     ;;
   worker)
     exec celery -A config worker --beat \

@@ -39,7 +39,7 @@ which serves the zips, and `worker`, which writes them. It lives outside
 ## Choices
 
 - **Not streamed in the request.** An export copies every upload and can be
-  gigabytes; built in the background it doesn't hold a gunicorn worker, and a
+  gigabytes; built in the background it doesn't hold a web worker, and a
   dropped download can be retried without rebuilding.
 - **Folders by kind**, not by collection or status: collections are
   many-to-many, so folders would duplicate files. Status and collections go in

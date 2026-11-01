@@ -44,6 +44,7 @@ LOCAL_APPS = [
     "apps.imports.apps.ImportsConfig",
     "apps.telegram.apps.TelegramConfig",
     "apps.mcp.apps.McpConfig",
+    "apps.events.apps.EventsConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -55,6 +56,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.events.middleware.ChangesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -78,6 +80,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 # Database
 
@@ -200,9 +203,13 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
 }
 
+# Redis: the Celery broker, and how open tabs hear about changes (apps.events).
+
+REDIS_URL = get_env_variable("REDIS_URL", "redis://localhost:6389/0")
+
 # Celery
 
-CELERY_BROKER_URL = get_env_variable("REDIS_URL", "redis://localhost:6389/0")
+CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TIME_LIMIT = 10 * 60
