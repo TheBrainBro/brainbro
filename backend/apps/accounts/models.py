@@ -14,6 +14,12 @@ TOKEN_PREFIX = "brain_"
 class Profile(TimestampedModel):
     """What the app remembers about a user across devices."""
 
+    class Theme(models.TextChoices):
+        LIGHT = "light"
+        DARK = "dark"
+        # Follows the device's own setting.
+        SYSTEM = "system"
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -21,6 +27,7 @@ class Profile(TimestampedModel):
     )
     # Set the first time the welcome tour is closed, on any device.
     welcome_seen_at = models.DateTimeField(null=True, blank=True)
+    theme = models.CharField(max_length=10, choices=Theme, default=Theme.SYSTEM)
 
     def __str__(self):
         return f"Profile of {self.user}"

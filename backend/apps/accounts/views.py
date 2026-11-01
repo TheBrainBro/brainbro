@@ -42,6 +42,7 @@ def signed_in(user):
         "user": UserSerializer(user).data,
         # The first visit opens on the welcome tour, once per user.
         "welcome_seen": bool(profile and profile.welcome_seen_at),
+        "theme": profile.theme if profile else Profile.Theme.SYSTEM,
         # Lets the frontend refuse a file before uploading it.
         "limits": {"upload_max_size": settings.UPLOAD_MAX_SIZE},
     }
@@ -91,6 +92,21 @@ def welcome_view(request):
     if profile.welcome_seen_at is None:
         profile.welcome_seen_at = timezone.now()
         profile.save(update_fields=["welcome_seen_at", "updated_at"])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ThemeSerializer(serializers.Serializer):
+    theme = serializers.ChoiceField(choices=Profile.Theme.choices)
+
+
+@api_view(["PUT"])
+def theme_view(request):
+    """`PUT {"theme"}`: light, dark or system, the same on every device."""
+    payload = ThemeSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    profile.theme = payload.validated_data["theme"]
+    profile.save(update_fields=["theme", "updated_at"])
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
