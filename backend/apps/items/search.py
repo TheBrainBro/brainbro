@@ -6,9 +6,11 @@ Every item keeps two generated columns, refreshed by Postgres on every save:
 a trigram index) to find matches, and `search_vector` (the same words,
 weighted: title, then link and file details, then the body) to rank them.
 
-Each word of the query must appear somewhere. A word that appears nowhere as
-written is taken for a typo and matches similar words instead (only for
-longer words). Matches on the title rank first; typos rank below exact words.
+Items with every word of the query come first, then items with only some of
+them, ranked by how many. A word that appears nowhere as written is taken for
+a typo and matches similar words instead (only for longer words). Then
+matches on the title rank first; typos rank below exact words. Items that
+only match through typos, without every word, come last.
 """
 
 import re
@@ -20,7 +22,7 @@ from django.contrib.postgres.search import (
     TrigramWordSimilarity,
 )
 from django.db import connection
-from django.db.models import F, Func, Q, TextField, Value
+from django.db.models import Case, F, FloatField, Func, Q, TextField, Value, When
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Coalesce, Concat, Lower
 
@@ -33,6 +35,9 @@ TYPO_MIN_LENGTH = 4
 # How close a word has to be to count as a typo (pg_trgm's default is 0.6,
 # which misses common ones like "mardown").
 TYPO_THRESHOLD = "0.5"
+# Shorter words ("a", "to", "de") are in almost everything: they only make a
+# match when every word is there, and never add to the rank.
+PARTIAL_MIN_LENGTH = 3
 
 
 class Unaccent(Func):
@@ -78,19 +83,48 @@ def normalize(text):
 
 
 def find(items, text):
-    """`items` matching `text`, annotated with `rank` (higher is better)."""
+    """
+    `items` matching `text`, annotated with `rank` (higher is better): the
+    number of longer words that match, plus a relevance score below 1. Items
+    that only match through typos rank below 0.
+    """
     query = normalize(text)
+    every, some, matched = Q(), Q(pk__in=[]), Value(0.0)
+    exact, typos, longer = Q(pk__in=[]), False, 0
     for term in query.split():
         match = Q(search_text__contains=term)
         # Similar words only stand in for one that isn't there: "paris"
         # shouldn't bring up "parts" when there are notes about Paris.
-        if len(term) >= TYPO_MIN_LENGTH and not items.filter(match).exists():
+        typo = len(term) >= TYPO_MIN_LENGTH and not items.filter(match).exists()
+        if typo:
             match = Q(search_text__trigram_word_similar=term)
-        items = items.filter(match)
+            typos = True
+        every &= match
+        if len(term) >= PARTIAL_MIN_LENGTH:
+            some |= match
+            longer += 1
+            matched += Case(
+                When(match, then=1.0), default=0.0, output_field=FloatField()
+            )
+            if not typo:
+                exact |= match
+    items = items.filter(every | some)
+    # A similar word alone is a weak guess ("paris" for "para"): below every
+    # item that has a word as written.
+    penalty = Value(0.0)
+    if typos:
+        penalty = Case(
+            When(~every & ~exact, then=Value(longer + 1.0)),
+            default=0.0,
+            output_field=FloatField(),
+        )
     # Word prefixes, so a word being typed already ranks its matches.
     prefixes = " | ".join(f"{word}:*" for word in re.findall(r"\w+", query))
-    rank = TrigramWordSimilarity(Value(query), "search_text") * 0.1
+    relevance = TrigramWordSimilarity(Value(query), "search_text") * 0.1
     if prefixes:
         tsquery = SearchQuery(prefixes, config=CONFIG, search_type="raw")
-        rank += SearchRank(F("search_vector"), tsquery)
-    return items.annotate(rank=rank)
+        relevance += SearchRank(F("search_vector"), tsquery)
+    # Squeezed below 1, so one more matching word always ranks higher.
+    return items.annotate(relevance=relevance).annotate(
+        rank=matched + F("relevance") / (F("relevance") + 1.0) - penalty
+    )
