@@ -3,12 +3,14 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { useBoards, useCreateBoard, useMoveBoard } from '../boards/api'
+import { useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
 import { useSortable } from '../ui/sortable'
 import { EmptyState, ErrorState } from '../ui/states'
 
 export function BoardsPage() {
+  const t = useT()
   const boards = useBoards()
   const create = useCreateBoard()
   const navigate = useNavigate()
@@ -25,7 +27,7 @@ export function BoardsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-3 text-2xl font-semibold">Boards</h1>
+      <h1 className="mb-3 text-2xl font-semibold">{t('boards.title')}</h1>
       <form
         className="mb-6 flex gap-2"
         onSubmit={(event) => {
@@ -40,8 +42,8 @@ export function BoardsPage() {
         <input
           ref={input}
           className="input"
-          aria-label="New board"
-          placeholder="New board"
+          aria-label={t('boards.new')}
+          placeholder={t('boards.new')}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
@@ -51,12 +53,12 @@ export function BoardsPage() {
           disabled={!title.trim() || create.isPending}
         >
           <Plus className="size-4" aria-hidden="true" />
-          Create
+          {t('boards.create')}
         </button>
       </form>
 
       {boards.isPending && (
-        <div role="status" aria-label="Loading boards" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div role="status" aria-label={t('boards.loading')} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="skeleton h-28 rounded-xl" />
           ))}
@@ -66,19 +68,18 @@ export function BoardsPage() {
       {boards.isSuccess && boards.data.length === 0 && (
         <EmptyState
           icon={Waypoints}
-          title="No boards yet"
+          title={t('boards.none')}
           action={
             <button type="button" className="button-primary" onClick={() => input.current?.focus()}>
-              Name your first board
+              {t('boards.nameFirst')}
             </button>
           }
         >
-          A board is an infinite canvas: lay out notes, links and images, group them and draw the
-          connections between them.
+          {t('boards.noneHint')}
         </EmptyState>
       )}
       <ul
-        aria-label="Boards"
+        aria-label={t('boards.title')}
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         {...sorted.listProps}
       >
@@ -98,8 +99,8 @@ export function BoardsPage() {
                 <span className="line-clamp-2 font-medium">{board.title}</span>
               </span>
               <span className="text-xs text-zinc-500">
-                {board.item_count} {board.item_count === 1 ? 'item' : 'items'} · edited{' '}
-                {timeAgo(board.updated_at)}
+                {t('counts.items', { count: board.item_count })} ·{' '}
+                {t('boards.edited', { when: timeAgo(board.updated_at) })}
               </span>
             </Link>
           </li>

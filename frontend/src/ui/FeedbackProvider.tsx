@@ -1,6 +1,7 @@
 import { CircleAlert, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { FeedbackContext, type ConfirmRequest, type Feedback, type Toast } from './feedback'
 
 const TOAST_MS = 5000
@@ -58,6 +59,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastView({ toast, dismiss }: { toast: Shown; dismiss: (id: string) => void }) {
+  const t = useT()
   const [hovered, setHovered] = useState(false)
   const duration = toast.duration === undefined ? TOAST_MS : toast.duration
   const error = toast.tone === 'error'
@@ -98,7 +100,7 @@ function ToastView({ toast, dismiss }: { toast: Shown; dismiss: (id: string) => 
         ))}
         <button
           type="button"
-          aria-label="Dismiss"
+          aria-label={t('ui.dismiss')}
           className="-mr-1 rounded-md p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
           onClick={onDismiss}
         >
@@ -125,6 +127,7 @@ function ConfirmDialog({
   request: ConfirmRequest
   onAnswer: (confirmed: boolean) => void
 }) {
+  const t = useT()
   const confirmButton = useRef<HTMLButtonElement>(null)
   useEffect(() => confirmButton.current?.focus(), [])
 
@@ -155,7 +158,7 @@ function ConfirmDialog({
           )}
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" className="button-secondary" onClick={() => onAnswer(false)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               ref={confirmButton}

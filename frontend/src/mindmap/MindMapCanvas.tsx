@@ -15,6 +15,7 @@ import { useMemo } from 'react'
 import { EDGE_COLOR } from '../boards/FloatingEdge'
 import type { EdgeType, GraphNode } from '../graph/api'
 import { nodeColor } from '../graph/model'
+import { useT } from '../i18n/i18n'
 import { useTheme } from '../theme/theme'
 import { type Branch, layout, type Side } from './model'
 
@@ -40,6 +41,7 @@ function lineColor(via: EdgeType | null) {
 
 /** One node: its name opens it, and the button on its outer side folds what hangs from it. */
 function BranchCard({ data }: NodeProps<BranchNode>) {
+  const t = useT()
   const { branch, side, open, onToggle, onOpen } = data
   const { node } = branch
   const root = side === null
@@ -48,7 +50,7 @@ function BranchCard({ data }: NodeProps<BranchNode>) {
     <button
       type="button"
       aria-expanded={open}
-      aria-label={`${open ? 'Fold' : 'Unfold'} ${node.label}`}
+      aria-label={t(open ? 'mindMap.fold' : 'mindMap.unfold', { name: node.label })}
       className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 px-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
       onClick={() => onToggle(node.id)}
     >

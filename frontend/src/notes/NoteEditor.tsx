@@ -8,6 +8,7 @@ import { tags } from '@lezer/highlight'
 import { useEffect, useEffectEvent, useRef } from 'react'
 import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next'
 
+import { t } from '../i18n/i18n'
 import type { NoteImages, NoteLinks } from '../items/api'
 import { imageUploads } from './imageUploads'
 import { setNoteLinks } from './linkWidgets'
@@ -133,8 +134,8 @@ export function NoteEditor({
             : [],
           theme,
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ 'aria-label': 'Note', spellcheck: 'true' }),
-          placeholder('Write in Markdown…'),
+          EditorView.contentAttributes.of({ 'aria-label': t('editor.label'), spellcheck: 'true' }),
+          placeholder(t('editor.placeholder')),
           keymap.of([
             { key: 'Mod-s', preventDefault: true, run: () => (save(), true) },
             ...markdownKeymap,

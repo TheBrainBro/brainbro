@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import type { Collection } from './api'
 import { collectionKind } from './collectionKinds'
 
@@ -70,8 +71,8 @@ export function collectionSummary(collections: Collection[], collection: Collect
   const inside = childrenOf(collections, collection.id).length
   const parts = [
     collectionKind(collection.kind).label,
-    `${collection.item_count} ${collection.item_count === 1 ? 'item' : 'items'}`,
+    t('counts.items', { count: collection.item_count }),
   ]
-  if (inside) parts.push(`${inside} ${inside === 1 ? 'collection' : 'collections'}`)
+  if (inside) parts.push(t('counts.collections', { count: inside }))
   return parts.join(' · ')
 }

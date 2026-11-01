@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { t, useT, type MessageKey } from '../i18n/i18n'
 import { useCollections, type Collection, type OrphanAction } from './api'
 import { childrenOf } from './collectionTree'
 
-const CHOICES: { value: OrphanAction; label: string; hint: string }[] = [
-  { value: 'inbox', label: 'Move them to the inbox', hint: 'To sort them again.' },
-  { value: 'archive', label: 'Archive them', hint: 'Kept, out of the way.' },
-  { value: 'delete', label: 'Delete them', hint: "For good: it can't be undone." },
+const CHOICES: { value: OrphanAction; label: MessageKey; hint: MessageKey }[] = [
+  { value: 'inbox', label: 'deleteCollection.toInbox', hint: 'deleteCollection.toInboxHint' },
+  { value: 'archive', label: 'deleteCollection.archive', hint: 'deleteCollection.archiveHint' },
+  { value: 'delete', label: 'deleteCollection.delete', hint: 'deleteCollection.deleteHint' },
 ]
 
 /**
@@ -24,6 +25,7 @@ export function DeleteCollectionDialog({
   onDelete: (items: OrphanAction) => void
   onClose: () => void
 }) {
+  useT()
   const [choice, setChoice] = useState<OrphanAction>('inbox')
   const all = useCollections().data ?? []
   const inside = childrenOf(all, collection.id).length
@@ -51,11 +53,11 @@ export function DeleteCollectionDialog({
         }}
       >
         <h2 id="delete-collection-title" className="font-semibold">
-          Delete “{collection.name}”?
+          {t('deleteCollection.title', { name: collection.name })}
         </h2>
         <fieldset className="mt-3">
           <legend className="text-sm text-zinc-500 dark:text-zinc-400">
-            Items that are only in this collection:
+            {t('deleteCollection.onlyHere')}
           </legend>
           <div className="mt-2 space-y-1">
             {CHOICES.map(({ value, label, hint }) => (
@@ -73,29 +75,30 @@ export function DeleteCollectionDialog({
                 />
                 <span>
                   <span className={value === 'delete' ? 'text-red-600 dark:text-red-400' : undefined}>
-                    {label}
+                    {t(label)}
                   </span>
-                  <span className="block text-xs text-zinc-500">{hint}</span>
+                  <span className="block text-xs text-zinc-500">{t(hint)}</span>
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
         <p className="mt-2 text-xs text-zinc-500">
-          Items also in other collections stay there. Archived items stay archived.
+          {t('deleteCollection.elsewhere')}
         </p>
         {inside > 0 && (
           <p className="mt-2 text-xs text-zinc-500">
-            {inside === 1 ? 'The collection inside it moves' : `The ${inside} collections inside it move`}{' '}
-            {parent ? `to ${parent.name}` : 'to the top'}.
+            {parent
+              ? t('deleteCollection.insideTo', { count: inside, parent: parent.name })
+              : t('deleteCollection.insideToTop', { count: inside })}
           </p>
         )}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className="button-secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button ref={confirmButton} type="submit" className="button-danger" disabled={deleting}>
-            Delete collection
+            {t('deleteCollection.confirm')}
           </button>
         </div>
       </form>

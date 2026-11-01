@@ -1,10 +1,12 @@
 import { CircleAlert, RotateCw, X } from 'lucide-react'
 
+import { useT } from '../i18n/i18n'
 import { formatBytes } from '../lib/format'
 import { useCapturePipeline, type PendingCapture } from './context'
 
 /** An input on its way in, or one that failed, before it is a server item. */
 export function PendingCard({ entry }: { entry: PendingCapture }) {
+  const t = useT()
   const { retry, dismiss } = useCapturePipeline()
   const file = entry.input?.kind === 'file' ? entry.input.file : null
   const failed = entry.state === 'error'
@@ -12,7 +14,7 @@ export function PendingCard({ entry }: { entry: PendingCapture }) {
   return (
     <article
       aria-busy={!failed}
-      aria-label={failed ? `Failed: ${entry.label}` : `Capturing ${entry.label}`}
+      aria-label={t(failed ? 'pending.failed' : 'pending.capturing', { name: entry.label })}
       className={`flex gap-4 rounded-xl border bg-white p-4 shadow-xs dark:bg-zinc-900 ${
         failed
           ? 'border-red-300 dark:border-red-900'
@@ -32,18 +34,18 @@ export function PendingCard({ entry }: { entry: PendingCapture }) {
             {entry.retryable && (
               <button type="button" className="button-ghost" onClick={() => retry(entry.id)}>
                 <RotateCw className="size-3.5" aria-hidden="true" />
-                Retry
+                {t('pending.retry')}
               </button>
             )}
             <button type="button" className="button-ghost" onClick={() => dismiss(entry.id)}>
               <X className="size-3.5" aria-hidden="true" />
-              Dismiss
+              {t('pending.dismiss')}
             </button>
           </div>
         ) : file ? (
           <div
             role="progressbar"
-            aria-label={`Uploading ${entry.label}`}
+            aria-label={t('pending.uploading', { name: entry.label })}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(entry.progress * 100)}

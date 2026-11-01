@@ -4,6 +4,7 @@ import { Link, NavLink, useNavigate } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
+import { rich, useT } from '../i18n/i18n'
 import { CaptureBox } from '../items/CaptureBox'
 import { ItemList } from '../items/ItemList'
 import { ItemListSkeleton } from '../items/ItemListSkeleton'
@@ -21,6 +22,7 @@ const TAB =
 
 /** The inbox, or with `archived` what was archived, to bring back or delete. */
 export function InboxPage({ archived = false }: { archived?: boolean }) {
+  const t = useT()
   const [origin, setOrigin] = useState<OriginFilters>({})
   const filtered = Boolean(origin.origin || origin.app)
   const items = useItems({ status: archived ? 'archived' : 'inbox', ...origin })
@@ -58,21 +60,21 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
       <div className="sticky top-0 z-10 -mx-4 bg-zinc-50/90 px-4 pt-8 pb-4 backdrop-blur dark:bg-zinc-950/90">
         <div className={`mx-auto ${MODE_WIDTH.cards}`}>
           <div className="mb-3 flex items-center gap-2">
-            <h1 className="sr-only">{archived ? 'Archive' : 'Inbox'}</h1>
-            <nav aria-label="Inbox or archive" className="mr-auto flex items-baseline gap-3">
+            <h1 className="sr-only">{archived ? t('inbox.archive') : t('inbox.inbox')}</h1>
+            <nav aria-label={t('inbox.tabs')} className="mr-auto flex items-baseline gap-3">
               <NavLink to="/" end className={TAB}>
-                Inbox
+                {t('inbox.inbox')}
               </NavLink>
               <NavLink to="/archive" className={TAB}>
-                Archive
+                {t('inbox.archive')}
               </NavLink>
             </nav>
             <OriginFilter value={origin} onChange={setOrigin} />
             <ViewModeSwitch mode={mode} onChange={setMode} />
-            <Link to="/notes/new" aria-label="New note" className="button-outline group/tip relative px-3 py-1.5">
+            <Link to="/notes/new" aria-label={t('inbox.newNote')} className="button-outline group/tip relative px-3 py-1.5">
               <SquarePen className="size-4" aria-hidden="true" />
-              <span className="hidden sm:inline">New note</span>
-              <span className="tooltip top-full mt-2">New note (N)</span>
+              <span className="hidden sm:inline">{t('inbox.newNote')}</span>
+              <span className="tooltip top-full mt-2">{t('inbox.newNoteKey')}</span>
             </Link>
           </div>
           <CaptureBox />
@@ -83,30 +85,23 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
         {items.isPending && <ItemListSkeleton mode={mode} />}
         {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
         {filtered && nothing && (
-          <EmptyState icon={Bot} title="Nothing here">
-            No {archived ? 'archived items' : 'items in the inbox'} match who made them.
+          <EmptyState icon={Bot} title={t('inbox.nothingHere')}>
+            {archived ? t('inbox.noArchivedMatch') : t('inbox.noInboxMatch')}
           </EmptyState>
         )}
         {archived && !filtered && nothing && (
-          <EmptyState icon={Archive} title="Nothing archived">
-            Archive what you want to keep out of the way: it waits here, and search still finds it.
+          <EmptyState icon={Archive} title={t('inbox.nothingArchived')}>
+            {t('inbox.archiveHint')}
           </EmptyState>
         )}
         {empty && hasItems.isSuccess && (
-          <EmptyState icon={Inbox} title="Inbox zero">
-            {hasItems.data ? (
-              <>
-                Everything is sorted. Type above, paste with {paste} or drop files anywhere: it all
-                lands here, to sort later.
-              </>
-            ) : (
-              <>Add your first item: type above, paste with {paste} or drop files anywhere.</>
-            )}
+          <EmptyState icon={Inbox} title={t('inbox.zero')}>
+            {rich(hasItems.data ? 'inbox.sorted' : 'inbox.first', { paste })}
           </EmptyState>
         )}
 
         {pending.length > 0 && (
-          <ul className="mb-3 space-y-3" aria-label="Capturing">
+          <ul className="mb-3 space-y-3" aria-label={t('inbox.capturing')}>
             {pending.map((entry) => (
               <li key={entry.id}>
                 <PendingCard entry={entry} />

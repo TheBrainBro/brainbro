@@ -10,6 +10,7 @@ import mark from 'markdown-it-mark'
 import sub from 'markdown-it-sub'
 import sup from 'markdown-it-sup'
 
+import { t } from '../i18n/i18n'
 import {
   resolveWikilink,
   wikilinkLabel,
@@ -77,7 +78,7 @@ md.renderer.rules.wikilink = (tokens, idx, _options, env) => {
   }
   if (!notes) return `<span class="wikilink">${label}</span>`
   if (!id) {
-    return `<span class="wikilink wikilink-unresolved" title="No note with this title">${label}</span>`
+    return `<span class="wikilink wikilink-unresolved" title="${t('markdown.noNoteWithTitle')}">${label}</span>`
   }
   const note = md.utils.escapeHtml(id)
   return `<a class="wikilink" href="/notes/${note}" data-note="${note}">${label}</a>`
@@ -107,7 +108,7 @@ md.renderer.rules.image = (tokens, idx, _options, env) => {
     return `<img class="markdown-img" src="${md.utils.escapeHtml(stored.url)}" alt="${alt}" loading="lazy">`
   }
   const status = stored ? ` data-status="${md.utils.escapeHtml(stored.status)}"` : ''
-  const title = stored?.status === 'failed' ? ' title="Couldn\'t load this image"' : ''
+  const title = stored?.status === 'failed' ? ` title="${t('markdown.imageFailed')}"` : ''
   return `<span class="markdown-image"${status}${title}>${alt || 'image'}</span>`
 }
 
@@ -135,7 +136,7 @@ md.core.ruler.after('inline', 'task_lists', (state) => {
 md.renderer.rules.task_checkbox = (tokens, idx, _options, env) => {
   const tasks = (env as RenderEnv | undefined)?.tasks
   const { checked, line } = tokens[idx].meta as { checked: boolean; line: number }
-  const label = checked ? 'Done' : 'To do'
+  const label = checked ? t('markdown.taskDone') : t('markdown.taskToDo')
   return (
     `<input type="checkbox" data-task-line="${line}" aria-label="${label}"` +
     `${checked ? ' checked' : ''}${tasks ? '' : ' disabled'}>`

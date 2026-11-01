@@ -16,6 +16,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { NoteHistoryDialog } from '../history/HistoryPanel'
+import { useT } from '../i18n/i18n'
 import { CollectionPicker } from '../items/CollectionPicker'
 import { OrganizeMenu, type OrganizeTriggerProps } from '../items/OrganizeMenu'
 import { uploadNoteImage, useItem, useTriage, type Item } from '../items/api'
@@ -63,6 +64,7 @@ function NoteSession({
   isNew: boolean
   onCreated: (id: string) => void
 }) {
+  const t = useT()
   const item = useItem(isNew ? undefined : id)
 
   if (isNew) return <NewNote onCreated={onCreated} />
@@ -77,19 +79,19 @@ function NoteSession({
     const missing = item.error instanceof ApiError && item.error.status === 404
     const inbox = (
       <Link to="/" className={missing ? 'button-primary' : 'button-secondary'}>
-        Go to the inbox
+        {t('note.toInbox')}
       </Link>
     )
     return (
       <Frame>
         {missing ? (
-          <EmptyState icon={FileQuestion} title="This note no longer exists" action={inbox}>
-            It was deleted, maybe from another device.
+          <EmptyState icon={FileQuestion} title={t('note.gone')} action={inbox}>
+            {t('note.goneHint')}
           </EmptyState>
         ) : (
           <ErrorState
             error={item.error}
-            title="Couldn't open this note"
+            title={t('note.couldNotOpen')}
             onRetry={() => item.refetch()}
             action={inbox}
           />
@@ -100,8 +102,8 @@ function NoteSession({
   if (item.data.kind !== 'note') {
     return (
       <Frame>
-        <EmptyState icon={FileQuestion} title="Only notes open here">
-          Links, images and files open in the viewer, from the inbox or a collection.
+        <EmptyState icon={FileQuestion} title={t('note.onlyNotes')}>
+          {t('note.onlyNotesHint')}
         </EmptyState>
       </Frame>
     )
@@ -129,6 +131,7 @@ function NoteWorkspace({
   /** For a new note: its saver, until it is live. */
   newNote?: { saver: NoteSaver<Item>; state: SaverState }
 }) {
+  const t = useT()
   const noteId = initial?.id ?? newNote?.saver.noteId ?? null
   const latest = useItem(noteId ?? undefined).data
   const note = useLiveNote(noteId)
@@ -173,7 +176,7 @@ function NoteWorkspace({
       return failed(error as Error)
     }
     toast({
-      message: action === 'archive' ? 'Archived the note' : 'Moved the note to the inbox',
+      message: action === 'archive' ? t('note.archived') : t('note.movedToInbox'),
       actions: undoAction(undo),
     })
     if (action === 'archive') goBack()
@@ -182,9 +185,9 @@ function NoteWorkspace({
   async function remove() {
     if (!noteId) return
     const confirmed = await confirm({
-      title: 'Delete this note?',
-      message: "It can't be undone.",
-      confirm: 'Delete',
+      title: t('note.deleteTitle'),
+      message: t('itemList.cantUndo'),
+      confirm: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -194,7 +197,7 @@ function NoteWorkspace({
       return failed(error as Error)
     }
     forgetLiveNote(noteId)
-    toast({ message: 'Deleted the note' })
+    toast({ message: t('note.deleted') })
     goBack()
   }
 
@@ -223,7 +226,8 @@ function NoteWorkspace({
                 triage.mutate(
                   { ids: [noteId], action: 'organize', collections: [collection.id] },
                   {
-                    onSuccess: () => toast({ message: `Organized the note into ${collection.name}` }),
+                    onSuccess: () =>
+                      toast({ message: t('note.organizedInto', { name: collection.name }) }),
                     onError: failed,
                   },
                 )
@@ -234,7 +238,7 @@ function NoteWorkspace({
                   {
                     onSuccess: () =>
                       toast({
-                        message: `Took the note out of ${collection.name}`,
+                        message: t('note.tookOut', { name: collection.name }),
                         actions: undoAction([
                           { ids: [noteId], action: 'organize', collections: [collection.id] },
                         ]),
@@ -244,15 +248,15 @@ function NoteWorkspace({
                 )
               }
               onMore={() => setOrganizing(true)}
-              trigger={(props) => <Action icon={FolderInput} label="Organize" {...props} />}
+              trigger={(props) => <Action icon={FolderInput} label={t('note.organize')} {...props} />}
             />
             {current && (
               <VisibilityMenu note={current} onSettings={() => setPageSettings(true)} />
             )}
             <Dropdown
-              label="More actions"
+              label={t('note.more')}
               trigger={(props) => (
-                <button type="button" aria-label="More actions" className="button-ghost" {...props}>
+                <button type="button" aria-label={t('note.more')} className="button-ghost" {...props}>
                   <Ellipsis className="size-4" aria-hidden="true" />
                 </button>
               )}
@@ -278,12 +282,12 @@ function NoteWorkspace({
                 return (
                   <>
                     {status === 'archived'
-                      ? item(Inbox, 'Move to inbox', archive)
-                      : item(Archive, 'Archive', archive)}
-                    {item(History, 'History', () => setHistory(true))}
-                    {item(FileDown, 'Export PDF', () => setPrinting(true))}
+                      ? item(Inbox, t('note.moveToInbox'), archive)
+                      : item(Archive, t('note.archive'), archive)}
+                    {item(History, t('note.history'), () => setHistory(true))}
+                    {item(FileDown, t('note.exportPdf'), () => setPrinting(true))}
                     <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
-                    {item(Trash2, 'Delete', remove, true)}
+                    {item(Trash2, t('common.delete'), remove, true)}
                   </>
                 )
               }}
@@ -302,7 +306,7 @@ function NoteWorkspace({
               {
                 onSuccess: () => {
                   setOrganizing(false)
-                  toast({ message: `Organized the note into ${names}` })
+                  toast({ message: t('note.organizedInto', { name: names }) })
                 },
                 onError: failed,
               },
@@ -382,8 +386,9 @@ function LiveNoteEditor({
 }
 
 function EditorSkeleton() {
+  const t = useT()
   return (
-    <div role="status" aria-label="Loading note" className="space-y-3 pt-4">
+    <div role="status" aria-label={t('note.loading')} className="space-y-3 pt-4">
       <div className="skeleton h-7 w-2/3" />
       <div className="skeleton h-4 w-full" />
       <div className="skeleton h-4 w-5/6" />
@@ -393,25 +398,26 @@ function EditorSkeleton() {
 }
 
 function LiveIndicator({ status }: { status: LiveStatus }) {
+  const t = useT()
   switch (status) {
     case 'live':
       return (
         <span className="flex items-center gap-1 text-zinc-500">
           <Check className="size-3.5" aria-hidden="true" />
-          Saved
+          {t('note.saved')}
         </span>
       )
     case 'connecting':
-      return <span className="text-zinc-500">Connecting…</span>
+      return <span className="text-zinc-500">{t('note.connecting')}</span>
     case 'offline':
       return (
         <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
           <CloudOff className="size-3.5" aria-hidden="true" />
-          Offline, kept on this device
+          {t('note.offline')}
         </span>
       )
     case 'closed':
-      return <span className="text-red-600 dark:text-red-400">Can't edit this note</span>
+      return <span className="text-red-600 dark:text-red-400">{t('note.closed')}</span>
   }
 }
 
@@ -424,31 +430,32 @@ function SaveIndicator({
   isNew: boolean
   onRetry: () => void
 }) {
+  const t = useT()
   switch (state.status) {
     case 'saved':
       return isNew ? null : (
         <span className="flex items-center gap-1 text-zinc-500">
           <Check className="size-3.5" aria-hidden="true" />
-          Saved
+          {t('note.saved')}
         </span>
       )
     case 'unsaved':
     case 'saving':
-      return <span className="text-zinc-500">Saving…</span>
+      return <span className="text-zinc-500">{t('note.saving')}</span>
     case 'offline':
       return (
         <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
           <CloudOff className="size-3.5" aria-hidden="true" />
-          Offline, kept on this device
+          {t('note.offline')}
         </span>
       )
     case 'error':
       return (
         <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-          Couldn't save{state.error ? `: ${state.error}` : ''}
+          {state.error ? t('note.saveFailedWhy', { error: state.error }) : t('note.saveFailed')}
           <button type="button" className="button-ghost" onClick={onRetry}>
             <RotateCw className="size-3.5" aria-hidden="true" />
-            Retry
+            {t('note.retry')}
           </button>
         </span>
       )
@@ -475,6 +482,7 @@ function Frame({
   actions?: ReactNode
   children?: ReactNode
 }) {
+  const t = useT()
   const goBack = useGoBack()
 
   return (
@@ -482,7 +490,7 @@ function Frame({
       <div className="sticky top-0 z-10 flex min-h-14 items-center gap-3 bg-zinc-50/90 py-3 text-sm backdrop-blur dark:bg-zinc-950/90">
         <BackLink
           to="/"
-          label="Back"
+          label={t('note.back')}
           onClick={(event) => {
             event.preventDefault()
             goBack()

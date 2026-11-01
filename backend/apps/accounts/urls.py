@@ -8,6 +8,7 @@ urlpatterns = [
     path("logout/", views.logout_view, name="auth-logout"),
     path("welcome/", views.welcome_view, name="auth-welcome"),
     path("theme/", views.theme_view, name="auth-theme"),
+    path("language/", views.language_view, name="auth-language"),
     path("profile/", views.profile_view, name="auth-profile"),
     path("profile/avatar/", views.avatar_view, name="auth-profile-avatar"),
     path("tokens/", views.tokens_view, name="auth-tokens"),

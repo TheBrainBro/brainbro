@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
+import type { LanguageChoice } from '../i18n/i18n'
 import type { Theme } from '../theme/theme'
 
 export type User = {
@@ -18,6 +19,8 @@ export type Session = {
   welcome_seen?: boolean
   /** The theme chosen, the same on every device. */
   theme?: Theme
+  /** The language chosen, the same on every device; `system` follows the browser. */
+  language?: LanguageChoice
   profile?: Profile
 }
 

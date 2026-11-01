@@ -2,13 +2,17 @@ import { FileQuestion, Globe } from 'lucide-react'
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
+import { currentLanguage, rich, t, useT } from '../i18n/i18n'
 import { ApiError } from '../lib/api'
 import { renderNote } from '../lib/markdown'
 import { noteTitleIndex } from '../notes/wikilinks'
 import { usePublicNote, usePublicNotes, type PublicNote } from '../public/api'
 import { EmptyState, ErrorState, Loading } from '../ui/states'
 
-const day = new Intl.DateTimeFormat('en', { dateStyle: 'long' })
+/** A day, as in "June 3, 2026", in the language shown. */
+function day(iso: string) {
+  return new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'long' }).format(new Date(iso))
+}
 
 /** The page's name in the browser tab, while it is open. */
 function useTitle(title: string | undefined) {
@@ -24,18 +28,19 @@ function useTitle(title: string | undefined) {
 
 /** `/p`: every published note, the last published first. Open to anyone. */
 export function PublicIndexPage() {
+  useT()
   const notes = usePublicNotes()
-  useTitle('Notes')
+  useTitle(t('public.notes'))
 
   return (
     <Frame>
-      <h1 className="mb-6 text-2xl font-semibold">Notes</h1>
+      <h1 className="mb-6 text-2xl font-semibold">{t('public.notes')}</h1>
       {notes.isPending ? (
         <Loading />
       ) : notes.isError ? (
         <ErrorState error={notes.error} onRetry={() => notes.refetch()} />
       ) : notes.data.results.length === 0 ? (
-        <EmptyState icon={Globe} title="Nothing published yet" />
+        <EmptyState icon={Globe} title={t('public.none')} />
       ) : (
         <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
           {notes.data.results.map((note) => (
@@ -46,7 +51,7 @@ export function PublicIndexPage() {
               >
                 <span className="font-medium">{note.title}</span>
                 <time dateTime={note.published_at} className="shrink-0 text-sm text-zinc-500">
-                  {day.format(new Date(note.published_at))}
+                  {day(note.published_at)}
                 </time>
               </Link>
             </li>
@@ -59,6 +64,7 @@ export function PublicIndexPage() {
 
 /** `/p/<slug>`: a published note, read-only and open to anyone. */
 export function PublicNotePage() {
+  useT()
   const { slug = '' } = useParams()
   const note = usePublicNote(slug)
   useTitle(note.data?.title)
@@ -75,8 +81,8 @@ export function PublicNotePage() {
     return (
       <Frame>
         {missing ? (
-          <EmptyState icon={FileQuestion} title="This page doesn't exist">
-            It may have been taken down, or its address changed.
+          <EmptyState icon={FileQuestion} title={t('public.missing')}>
+            {t('public.missingHint')}
           </EmptyState>
         ) : (
           <ErrorState error={note.error} onRetry={() => note.refetch()} />
@@ -92,6 +98,7 @@ export function PublicNotePage() {
 }
 
 function PublicArticle({ note }: { note: PublicNote }) {
+  useT()
   const navigate = useNavigate()
   const html = useMemo(
     () =>
@@ -112,16 +119,19 @@ function PublicArticle({ note }: { note: PublicNote }) {
       <p className="mb-6 text-sm text-zinc-500">
         {note.author && (
           <>
-            {'By '}
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">{note.author}</span>
+            {rich('public.by', {
+              author: (
+                <span className="font-medium text-zinc-700 dark:text-zinc-300">{note.author}</span>
+              ),
+            })}
             {' · '}
           </>
         )}
-        <time dateTime={note.published_at}>{day.format(new Date(note.published_at))}</time>
+        <time dateTime={note.published_at}>{day(note.published_at)}</time>
         {edited && (
           <>
-            {' · Updated '}
-            <time dateTime={edited}>{day.format(new Date(edited))}</time>
+            {' · '}
+            {rich('public.updated', { date: <time dateTime={edited}>{day(edited)}</time> })}
           </>
         )}
       </p>

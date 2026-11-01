@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import { ApiError } from './api'
 
 /** What a save indicator shows. `unsaved` is the debounce, before a save starts. */
@@ -146,7 +147,7 @@ export class Autosave<Theirs> {
         const offline = isOffline(error)
         this.set({
           status: offline ? 'offline' : 'error',
-          error: offline ? undefined : error instanceof Error ? error.message : 'Save failed',
+          error: offline ? undefined : error instanceof Error ? error.message : t('errors.saveFailed'),
         })
         if (!this.left) {
           this.retryTimer = setTimeout(() => this.flush(), this.retryDelay)

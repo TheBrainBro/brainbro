@@ -1,6 +1,7 @@
 import { Mic, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { t, useT } from '../i18n/i18n'
 import { formatTime } from '../items/waveform'
 import { withDuration } from '../items/webm'
 
@@ -19,7 +20,7 @@ async function recordingFile(chunks: Blob[], type: string, seconds: number) {
   const extension = EXTENSIONS[base.split('/')[1]] ?? 'webm'
   const data = new Uint8Array(await new Blob(chunks).arrayBuffer())
   const fixed = withDuration(data, seconds)
-  return new File([fixed ?? data], `Voice note.${extension}`, { type: base })
+  return new File([fixed ?? data], `${t('recorder.fileName')}.${extension}`, { type: base })
 }
 
 type Recording = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; started: number }
@@ -46,12 +47,13 @@ function release(active: Recording | null, keep?: (file: File) => void) {
 export function VoiceRecorder({
   onRecorded,
   className = 'button-outline',
-  label = 'Record',
+  label,
 }: {
   onRecorded: (file: File) => void
   className?: string
   label?: string
 }) {
+  useT()
   const [recording, setRecording] = useState<Recording | null>(null)
   const [starting, setStarting] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -84,7 +86,7 @@ export function VoiceRecorder({
       setRecording(active)
     } catch (failure) {
       const refused = failure instanceof DOMException && failure.name === 'NotAllowedError'
-      setError(refused ? 'Microphone access was refused.' : "Couldn't start recording.")
+      setError(refused ? t('recorder.refused') : t('recorder.failed'))
     } finally {
       setStarting(false)
     }
@@ -99,7 +101,7 @@ export function VoiceRecorder({
   if (!canRecord()) return null
   if (recording) {
     return (
-      <div role="group" aria-label="Recording" className="flex items-center gap-2">
+      <div role="group" aria-label={t('recorder.recording')} className="flex items-center gap-2">
         <span className="size-2.5 animate-pulse rounded-full bg-red-500" aria-hidden="true" />
         <span className="text-sm tabular-nums" aria-live="off">
           {formatTime(elapsed)}
@@ -110,7 +112,7 @@ export function VoiceRecorder({
           onClick={() => finish(true)}
         >
           <Square className="size-3.5 fill-current" aria-hidden="true" />
-          Stop
+          {t('recorder.stop')}
         </button>
         <button
           type="button"
@@ -118,7 +120,7 @@ export function VoiceRecorder({
           onClick={() => finish(false)}
         >
           <X className="size-4" aria-hidden="true" />
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     )
@@ -129,11 +131,11 @@ export function VoiceRecorder({
         type="button"
         className={className}
         disabled={starting}
-        title="Record a voice note"
+        title={t('recorder.recordVoiceNote')}
         onClick={start}
       >
         <Mic className="size-4" aria-hidden="true" />
-        {label}
+        {label ?? t('recorder.record')}
       </button>
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

@@ -1,17 +1,45 @@
 import { BookMarked, FolderKanban, Layers, type LucideIcon } from 'lucide-react'
 
+import { t } from '../i18n/i18n'
 import type { CollectionKind } from './api'
 
-/** The PARA kinds, as the app shows them. */
+/** The PARA kinds, as the app shows them, in the language shown. */
 export const COLLECTION_KINDS: {
   value: CollectionKind
   label: string
   hint: string
   icon: LucideIcon
 }[] = [
-  { value: 'project', label: 'Project', hint: 'A goal with an end', icon: FolderKanban },
-  { value: 'area', label: 'Area', hint: 'An ongoing responsibility', icon: Layers },
-  { value: 'resource', label: 'Resource', hint: 'A topic of interest', icon: BookMarked },
+  {
+    value: 'project',
+    get label() {
+      return t('collectionKinds.project')
+    },
+    get hint() {
+      return t('collectionKinds.projectHint')
+    },
+    icon: FolderKanban,
+  },
+  {
+    value: 'area',
+    get label() {
+      return t('collectionKinds.area')
+    },
+    get hint() {
+      return t('collectionKinds.areaHint')
+    },
+    icon: Layers,
+  },
+  {
+    value: 'resource',
+    get label() {
+      return t('collectionKinds.resource')
+    },
+    get hint() {
+      return t('collectionKinds.resourceHint')
+    },
+    icon: BookMarked,
+  },
 ]
 
 export function collectionKind(value: CollectionKind) {
