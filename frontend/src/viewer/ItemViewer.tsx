@@ -265,7 +265,14 @@ function Content({ item }: { item: Item }) {
     )
   }
   if (item.kind === 'audio' || mime.startsWith('audio/')) {
-    return <AudioPlayer src={item.file_url} autoPlay className="max-w-xl" />
+    return (
+      <AudioPlayer
+        src={item.file_url}
+        size={item.metadata.size}
+        autoPlay
+        className="w-full max-w-xl rounded-2xl bg-zinc-900/80 p-4"
+      />
+    )
   }
   if (TEXT_TYPES.test(mime) && (item.metadata.size ?? 0) <= TEXT_LIMIT) {
     return <TextView item={item} />

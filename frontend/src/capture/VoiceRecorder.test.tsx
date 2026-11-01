@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDuration, VoiceRecorder } from './VoiceRecorder'
+import { VoiceRecorder } from './VoiceRecorder'
 
 class FakeRecorder {
   static supported = ['audio/webm;codecs=opus']
@@ -97,10 +97,5 @@ describe('VoiceRecorder', () => {
     Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
     render(<VoiceRecorder onRecorded={vi.fn()} />)
     expect(screen.queryByRole('button', { name: 'Record' })).not.toBeInTheDocument()
-  })
-
-  it('formats how long it has been recording', () => {
-    expect(formatDuration(0)).toBe('0:00')
-    expect(formatDuration(75.6)).toBe('1:15')
   })
 })
