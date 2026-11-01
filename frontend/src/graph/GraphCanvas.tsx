@@ -11,7 +11,7 @@ import {
 } from 'd3-force'
 import { useEffect, useRef } from 'react'
 
-import { useMediaQuery } from '../lib/dom'
+import { useDark } from '../theme/theme'
 import type { EdgeType, GraphEdge, GraphNode } from './api'
 import { neighbours, nodeColor, nodeRadius, type Visible } from './model'
 
@@ -62,7 +62,7 @@ export function GraphCanvas({
 }) {
   const container = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
-  const dark = useMediaQuery('(prefers-color-scheme: dark)')
+  const dark = useDark()
   const state = useRef({
     nodes: [] as SimNode[],
     links: [] as SimLink[],

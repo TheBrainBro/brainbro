@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
+import type { Theme } from '../theme/theme'
 
 export type User = {
   id: number
@@ -15,6 +16,8 @@ export type Session = {
   limits?: { upload_max_size: number }
   /** Whether this user already closed the welcome tour, on any device. */
   welcome_seen?: boolean
+  /** The theme chosen, the same on every device. */
+  theme?: Theme
 }
 
 export const sessionKey = ['session']

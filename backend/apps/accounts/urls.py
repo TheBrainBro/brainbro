@@ -7,6 +7,7 @@ urlpatterns = [
     path("login/", views.login_view, name="auth-login"),
     path("logout/", views.logout_view, name="auth-logout"),
     path("welcome/", views.welcome_view, name="auth-welcome"),
+    path("theme/", views.theme_view, name="auth-theme"),
     path("tokens/", views.tokens_view, name="auth-tokens"),
     path("tokens/<uuid:pk>/", views.token_view, name="auth-token"),
     path("invitations/", views.invitations_view, name="auth-invitations"),

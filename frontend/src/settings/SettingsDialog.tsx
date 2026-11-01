@@ -2,6 +2,7 @@ import {
   Bot,
   FolderInput,
   PackageOpen,
+  Palette,
   Send,
   Settings,
   UserPlus,
@@ -15,6 +16,7 @@ import { ExportPanel } from '../exports/ExportPanel'
 import { ImportPanel } from '../imports/ImportPanel'
 import { InvitationsPanel } from '../invitations/InvitationsPanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
+import { AppearancePanel } from '../theme/AppearancePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
 type Page = { id: string; label: string; icon: LucideIcon; Panel: ComponentType }
@@ -34,6 +36,10 @@ const groups: { label: string; pages: Page[] }[] = [
       { id: 'assistants', label: 'AI assistants', icon: Bot, Panel: TokensPanel },
     ],
   },
+  {
+    label: 'App',
+    pages: [{ id: 'appearance', label: 'Appearance', icon: Palette, Panel: AppearancePanel }],
+  },
 ]
 
 // Admins only: inviting people to the server.
@@ -42,7 +48,7 @@ const adminGroup = {
   pages: [{ id: 'invitations', label: 'Invitations', icon: UserPlus, Panel: InvitationsPanel }],
 }
 
-/** Import, export and integrations: a list of pages on the side, the open one next to it. */
+/** Import, export, integrations and appearance: a list of pages on the side, the open one next to it. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])

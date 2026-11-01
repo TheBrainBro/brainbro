@@ -7,7 +7,7 @@ from .models import ApiToken, Invitation, OAuthClient, Profile
 @admin.register(Profile)
 class ProfileAdmin(ModelAdmin):
     # Clearing welcome_seen_at shows the welcome tour again.
-    list_display = ["__str__", "welcome_seen_at"]
+    list_display = ["__str__", "welcome_seen_at", "theme"]
 
 
 @admin.register(ApiToken)
