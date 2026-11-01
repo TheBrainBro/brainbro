@@ -112,7 +112,13 @@ def item_summary(item):
         ],
         "created_at": item.created_at,
         "updated_at": item.updated_at,
+        # Who made it and through what: "user", or the app's name.
+        "created_by": item.created_by or "user",
+        "created_via": item.created_via or "unknown",
     }
+    if item.edited_at:
+        summary["edited_by"] = item.edited_by or "user"
+        summary["edited_at"] = item.edited_at
     if item.url:
         summary["url"] = item.url
     if item.body:
@@ -457,8 +463,12 @@ def edit_note(user, data):
     if any(name in data for name in PARTIAL_EDITS):
         data["body"] = edit_body(item.body, data)
     fields = [name for name in ("title", "body") if name in data]
-    for name in fields:
-        setattr(item, name, data[name])
+    if any(data[name] != getattr(item, name) for name in fields):
+        item.mark_edited()
+        fields += Item.EDIT_FIELDS
+    for name in ("title", "body"):
+        if name in data:
+            setattr(item, name, data[name])
     item.save(update_fields=[*fields, "updated_at"])
     if "body" in data:
         sync_images(item)

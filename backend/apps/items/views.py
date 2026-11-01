@@ -186,6 +186,21 @@ def triage(items, action, collections=()):
     return 0
 
 
+def by_origin(items, origin=None, app=None):
+    """
+    `origin`: "mine" (only the user made and edited them) or "assistants" (an
+    app made or last edited them); `app`: that app did.
+    """
+    by_app = ~Q(created_by="") | ~Q(edited_by="")
+    if origin == "mine":
+        items = items.exclude(by_app)
+    elif origin == "assistants":
+        items = items.filter(by_app)
+    if app:
+        items = items.filter(Q(created_by=app) | Q(edited_by=app))
+    return items
+
+
 SEARCH_LIMIT = 20
 
 
@@ -201,7 +216,8 @@ class ItemViewSet(
     infers the type; everything else is reading and triage.
 
     Filters: `?status=inbox|organized|archived`, `?kind=note,link`,
-    `?collection=<id>`, `?q=<text>` (sorted by relevance).
+    `?collection=<id>`, `?q=<text>` (sorted by relevance), and who made or
+    last edited it: `?origin=mine|assistants` or `?app=<name>`.
     """
 
     serializer_class = ItemSerializer
@@ -219,6 +235,7 @@ class ItemViewSet(
             items = items.filter(status=item_status)
         if kinds := params.get("kind"):
             items = items.filter(kind__in=kinds.split(","))
+        items = by_origin(items, params.get("origin"), params.get("app"))
         searching = self.action == "list" and params.get("q", "").strip()
         if searching:
             items = find(items, searching).order_by("-rank", "-created_at")
@@ -297,6 +314,14 @@ class ItemViewSet(
                 request.user, data["text"], data.get("kind"), collection
             )
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def apps(self, request):
+        """The names of the apps that made or edited items, to filter by."""
+        mine = Item.objects.filter(owner=request.user)
+        names = set(mine.values_list("created_by", flat=True).distinct())
+        names |= set(mine.values_list("edited_by", flat=True).distinct())
+        return Response({"apps": sorted(filter(None, names), key=str.lower)})
 
     @action(detail=False, methods=["get"])
     def search(self, request):
