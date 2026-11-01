@@ -15,6 +15,7 @@ from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
 from apps.collab.documents import body_written
+from apps.history.models import Revision
 from apps.items.capture import normalize_url
 from apps.items.models import Collection, CollectionItem, Item
 from apps.items.notes import sync_images
@@ -477,6 +478,63 @@ def edit_note(user, data):
     return item_details(owned_items(user).get(id=item.id))
 
 
+# History
+
+
+class RevisionsArguments(PageArguments):
+    id = serializers.UUIDField()
+    limit = serializers.IntegerField(min_value=1, max_value=MAX_LIMIT, default=20)
+
+
+def revision_summary(revision):
+    summary = {
+        "id": revision.id,
+        "title": revision.title,
+        # Who saved it and through what: "user", or the app's name.
+        "by": revision.by or "user",
+        "via": revision.via or "unknown",
+        "started_at": revision.created_at,
+        "saved_at": revision.updated_at,
+    }
+    if revision.restored_from_id:
+        summary["restored_from"] = revision.restored_from_id
+    return summary
+
+
+def list_revisions(user, data):
+    note = owned_items(user).filter(id=data["id"]).first()
+    if note is None:
+        raise no_item([data["id"]])
+    if note.kind != Item.Kind.NOTE:
+        raise ToolError(f"Only notes have revisions, and this item is a {note.kind}.")
+    revisions = Revision.objects.filter(item=note).order_by("-created_at")
+    start, end = data["offset"], data["offset"] + data["limit"]
+    return {
+        "total": revisions.count(),
+        "revisions": [revision_summary(revision) for revision in revisions[start:end]],
+    }
+
+
+class RevisionArguments(serializers.Serializer):
+    revision_id = serializers.UUIDField()
+
+
+def get_revision(user, data):
+    revision = Revision.objects.filter(
+        owner=user, id=data["revision_id"], item__isnull=False
+    ).first()
+    if revision is None:
+        raise ToolError(
+            f"No revision with id {data['revision_id']}. list_revisions gives "
+            "the ids of a note's revisions."
+        )
+    return {
+        **revision_summary(revision),
+        "note_id": revision.item_id,
+        "body": revision.body,
+    }
+
+
 # Organize and archive
 
 
@@ -819,6 +877,41 @@ TOOLS = {
             },
             required=["id"],
             run_with=edit_note,
+        ),
+        Tool(
+            name="list_revisions",
+            title="List a note's revisions",
+            description=(
+                "The history of a note, newest first: each revision says who "
+                'saved it ("user", or an assistant\'s name), through what, '
+                "and when. Saves by the same author a few minutes apart are "
+                "one revision; restored_from marks the user bringing back an "
+                "older one. The first is what the note holds now. Use it when "
+                "the user asks what changed in a note, or who changed it; "
+                "get_revision has a revision's whole text. Only the user "
+                "restores revisions, in the app. Page with limit and offset."
+            ),
+            arguments=RevisionsArguments,
+            schema={"id": UUID, "limit": LIMIT, "offset": OFFSET},
+            required=["id"],
+            run_with=list_revisions,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="get_revision",
+            title="Get a revision",
+            description=(
+                "One revision of a note in full: its title and Markdown body "
+                "as they were then. Compare it with get_item to see what "
+                "changed since."
+            ),
+            arguments=RevisionArguments,
+            schema={"revision_id": UUID},
+            required=["revision_id"],
+            run_with=get_revision,
+            read_only=True,
+            idempotent=True,
         ),
         Tool(
             name="organize",
