@@ -1,3 +1,4 @@
+import { noteTitle } from '../notes/title'
 import type { Item, ItemKind } from './api'
 
 /** What each kind of item is called, in lists and on cards. */
@@ -21,12 +22,7 @@ export function itemLabel(item: Item) {
   const caption = (item.kind === 'image' || item.kind === 'album') && item.body.trim()
   if (caption) return caption.split('\n')[0].trim()
   if (item.kind === 'link') return item.metadata.title || item.url
-  if (item.kind === 'note') {
-    const line = plainLinks(item.body)
-      .split('\n')
-      .find((text) => text.trim())
-    return line?.replace(/^[#>*\-+\s]+|\[[ xX]\]\s*/g, '').trim() || 'Empty note'
-  }
+  if (item.kind === 'note') return noteTitle(item.body, 'Empty note')
   if (item.kind === 'album') {
     return `${item.album_items?.length ?? 0} images`
   }
