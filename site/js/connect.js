@@ -1,5 +1,5 @@
 // Connecting an assistant: tabs per app, and the visitor's Brain address
-// filled into the prompt, the MCP URL and the Claude Code command.
+// filled into the prompts, the MCP URL and the Claude Code command.
 (() => {
   const DOCS = 'https://github.com/CarlosLugones/brain/blob/main/docs/mcp.md';
   const EXAMPLE = 'https://brain.example.com';
@@ -8,6 +8,7 @@
   const input = document.getElementById('brain-address');
   const promptText = document.getElementById('prompt-text');
   const codeCommand = document.getElementById('code-command');
+  const grokPrompt = document.getElementById('grok-prompt');
 
   function normalize(value) {
     const trimmed = value.trim().replace(/\/+$/, '');
@@ -34,6 +35,7 @@ From then on: search Brain before answering about my notes or plans, save what I
     const mcp = `${address || EXAMPLE}/api/mcp`;
     promptText.textContent = prompt(address);
     codeCommand.textContent = `claude mcp add --transport http brain ${mcp}`;
+    grokPrompt.textContent = `Add Brain as a connector: a remote MCP server at ${mcp}. Once I've signed in, list my inbox to check it works.`;
     document.querySelectorAll('[data-mcp-url]').forEach((code) => (code.textContent = mcp));
     try {
       localStorage.setItem(STORAGE_KEY, input.value);
