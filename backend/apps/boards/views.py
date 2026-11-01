@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from apps.events.changes import changed
 from apps.items.models import Item, rank_now
 from apps.items.ordering import place
 from apps.items.serializers import ITEM_PREFETCH
@@ -143,6 +144,7 @@ def move_board(board, after):
         # Not `updated_at`: a board's place isn't an edit of it.
         Board.objects.filter(id=board_id).update(rank=rank)
 
+    changed(board.owner_id)
     return place(rows, board.id, after, set_rank)
 
 

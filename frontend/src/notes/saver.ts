@@ -24,6 +24,8 @@ export type SaverOptions<T extends SavedNote> = {
   update: (id: string, body: string, version: string, options: { keepalive: boolean }) => Promise<T>
   onChange: (state: SaverState<T>) => void
   onSaved?: (note: T, created: boolean) => void
+  /** Text from the server replaced ours (theirs, after a conflict or a change elsewhere). */
+  onLoaded?: (note: T) => void
   drafts: DraftStore
   debounceMs?: number
 }
@@ -134,6 +136,7 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
     this.loads++
     this.options.drafts.remove(this.draftKey)
     this.autosave.reset()
+    this.options.onLoaded?.(note)
   }
 
   /** Ends a conflict: `theirs` drops our text, `mine` saves it over theirs. */

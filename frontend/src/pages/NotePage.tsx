@@ -7,6 +7,7 @@ import {
   FileQuestion,
   FolderInput,
   Inbox,
+  RefreshCw,
   RotateCw,
   Trash2,
   type LucideIcon,
@@ -108,7 +109,7 @@ function NoteWorkspace({
   onCreated: (id: string) => void
 }) {
   const navigate = useNavigate()
-  const { saver, state, latest } = useNoteSaver(initial, {
+  const { saver, state, latest, outdated } = useNoteSaver(initial, {
     onCreated: (item) => {
       onCreated(item.id)
       navigate(`/notes/${item.id}`, { replace: true })
@@ -263,6 +264,22 @@ function NoteWorkspace({
           </button>
           <button type="button" className="button-ghost" onClick={() => saver.resolve('mine')}>
             Keep mine
+          </button>
+        </div>
+      )}
+      {outdated && (
+        <div
+          role="status"
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <RefreshCw className="size-4 shrink-0 text-zinc-500" aria-hidden="true" />
+          <span className="mr-auto">
+            {outdated.by
+              ? `${outdated.by} edited this note.`
+              : 'This note changed in another tab or device.'}
+          </span>
+          <button type="button" className="button-ghost" onClick={outdated.load}>
+            Load latest
           </button>
         </div>
       )}

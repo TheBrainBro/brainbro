@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
@@ -5,6 +6,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { useMarkWelcomeSeen, useSession } from '../auth/session'
 import { CaptureProvider } from '../capture/CaptureProvider'
 import { isEditable } from '../lib/dom'
+import { followChanges } from '../live/changes'
 import { WelcomeDialog } from '../onboarding/WelcomeDialog'
 import { SearchPalette } from '../search/SearchPalette'
 import { SettingsDialog } from '../settings/SettingsDialog'
@@ -26,6 +28,10 @@ export function AppLayout() {
   const { data: session } = useSession()
   const markWelcomeSeen = useMarkWelcomeSeen()
   const [welcome, setWelcome] = useState(() => session?.welcome_seen === false)
+  const queryClient = useQueryClient()
+
+  // What changes elsewhere (other devices, assistants) shows up here as it happens.
+  useEffect(() => followChanges(queryClient), [queryClient])
 
   // `?` lists the shortcuts of the screen it's pressed on; Ctrl/Cmd+K
   // searches from anywhere, text fields included.

@@ -498,6 +498,15 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     place(item, dropSpot(point, DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
   }
 
+  // Saved elsewhere (another device, an assistant), and refetched: shown at
+  // once if nothing here is pending, a conflict to resolve otherwise.
+  useEffect(() => {
+    const theirs = session.changedElsewhere(board)
+    if (!theirs) return
+    historyChanged()
+    show(toScene(theirs.layout))
+  }, [board, session, show])
+
   function resolveConflict(side: 'mine' | 'theirs') {
     const theirs = session.resolve(side)
     if (!theirs) return
