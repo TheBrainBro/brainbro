@@ -216,10 +216,15 @@
                 <div class="b-card b-note" data-step style="--x: 12%; --y: 58%"><b>Alfama</b>Castle, trams</div>
                 <div class="b-card b-link" data-step style="--x: 60%; --y: 14%"><svg><use href="#i-link" /></svg>Sintra guide</div>
                 <div class="b-card b-sticky" data-step style="--x: 64%; --y: 56%">Day 2!</div>
-                <svg class="b-ink" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <path data-step pathLength="1" d="M36 36 C 46 30, 52 26, 60 26" />
-                  <path data-step pathLength="1" class="pen" d="M62 60 C 60 48, 92 46, 93 62 C 94 78, 62 82, 61 64" />
+                <svg class="b-ink" viewBox="0 0 250 100" preserveAspectRatio="none">
+                  <defs>
+                    <marker id="b-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" /></marker>
+                  </defs>
+                  <path class="b-connect" pathLength="1" marker-end="url(#b-head)" d="M64 38 C 100 36, 130 27, 160 27" />
+                  <path class="b-pen" d="M166 80 C 164 63, 230 60, 230 78 C 230 96, 168 98, 164 82" />
+                  <path class="b-pen" d="M234 70 L239 78 L248 62" />
                 </svg>
+                <svg class="b-pencil" viewBox="0 0 24 24"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" /><path d="m15 5 4 4" /></svg>
               </div>
             </div>
             <h3>Boards</h3>
@@ -255,22 +260,7 @@
           </article>
           <article class="tile">
             <div class="art art-graph" aria-hidden="true">
-              <svg viewBox="0 0 240 150">
-                <g class="g-lines">
-                  <path data-step pathLength="1" d="M120 72 L60 40" /><path data-step pathLength="1" d="M120 72 L190 46" />
-                  <path data-step pathLength="1" d="M120 72 L84 118" /><path data-step pathLength="1" d="M120 72 L168 112" />
-                  <path data-step pathLength="1" d="M60 40 L30 86" /><path data-step pathLength="1" d="M190 46 L214 98" />
-                  <path data-step pathLength="1" d="M84 118 L168 112" /><path data-step pathLength="1" class="g-new" d="M168 112 L214 98" />
-                </g>
-                <g class="g-dots">
-                  <circle data-step cx="120" cy="72" r="9" class="hub" /><circle data-step cx="60" cy="40" r="6" />
-                  <circle data-step cx="190" cy="46" r="6" /><circle data-step cx="84" cy="118" r="6" />
-                  <circle data-step cx="168" cy="112" r="6" /><circle data-step cx="30" cy="86" r="4" />
-                  <circle data-step cx="214" cy="98" r="4" />
-                </g>
-                <circle class="g-spark" r="3.5" />
-              </svg>
-              <span class="g-label">Sintra guide links to Lisbon trip</span>
+              <svg viewBox="0 0 240 150"><g class="g-lines"></g><g class="g-dots"></g></svg>
             </div>
             <h3>Graph</h3>
             <p>Everything and how it ties together, from [[wikilinks]] to collections.</p>
@@ -334,15 +324,6 @@
             <p>Install it as an app and share to Brain from anywhere. Telegram works too.</p>
           </article>
         </div>
-      </section>
-
-      <section class="uses wrap" aria-labelledby="uses-title">
-        <div class="copy centered">
-          <h2 id="uses-title">Use cases</h2>
-          <p>One place for whatever you are working on, start to finish.</p>
-        </div>
-        <div class="use-tabs" role="tablist" aria-label="Use case"></div>
-        <ol class="steps" role="tabpanel" aria-live="polite"></ol>
       </section>
 
       <section id="connect" class="panel wrap" aria-labelledby="connect-title">
@@ -449,8 +430,6 @@ make prod-up</pre>
       <div class="footer-inner wrap">
         <span class="brand"><img src="favicon.svg" alt="" width="28" height="28" />Drop it now, sort it later.</span>
         <nav>
-          <a href="#connect">Connect</a>
-          <a href="#install">Install</a>
           <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
           <a href="https://github.com/CarlosLugones/brain">GitHub</a>
         </nav>
