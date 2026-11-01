@@ -12,6 +12,8 @@ export type PublicNoteSummary = { slug: string; title: string; published_at: str
 export type PublicNote = PublicNoteSummary & {
   body: string
   edited_at: string | null
+  /** Its author's display name; empty when they have none. */
+  author: string
   images: NoteImages
   links: NoteLinks
   /** The published notes its `[[links]]` lead to, by the titles they find. */
