@@ -15,6 +15,7 @@ import { useMemo } from 'react'
 import { EDGE_COLOR } from '../boards/FloatingEdge'
 import type { EdgeType, GraphNode } from '../graph/api'
 import { nodeColor } from '../graph/model'
+import { useTheme } from '../theme/theme'
 import { type Branch, layout, type Side } from './model'
 
 type BranchData = {
@@ -114,6 +115,7 @@ export function MindMapCanvas({
   onToggle: (id: string) => void
   onOpen: (node: GraphNode) => void
 }) {
+  const theme = useTheme()
   const { nodes, edges } = useMemo(() => {
     const placed = layout(root, open)
     const nodes: BranchNode[] = placed.map(({ branch, side, x, y }) => ({
@@ -149,7 +151,7 @@ export function MindMapCanvas({
       fitViewOptions={{ maxZoom: 1 }}
       minZoom={0.1}
       maxZoom={2}
-      colorMode="system"
+      colorMode={theme}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={false}
