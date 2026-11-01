@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { VoiceRecorder } from './VoiceRecorder'
@@ -52,7 +52,7 @@ describe('VoiceRecorder', () => {
     expect(getUserMedia).toHaveBeenCalledWith({ audio: true })
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
 
-    expect(onRecorded).toHaveBeenCalledOnce()
+    await waitFor(() => expect(onRecorded).toHaveBeenCalledOnce())
     const file: File = onRecorded.mock.calls[0][0]
     expect(file.name).toBe('Voice note.webm')
     expect(file.type).toBe('audio/webm')
@@ -68,6 +68,7 @@ describe('VoiceRecorder', () => {
     render(<VoiceRecorder onRecorded={onRecorded} />)
     fireEvent.click(screen.getByRole('button', { name: 'Record' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
+    await waitFor(() => expect(onRecorded).toHaveBeenCalledOnce())
     expect(onRecorded.mock.calls[0][0].name).toBe('Voice note.m4a')
     FakeRecorder.supported = ['audio/webm;codecs=opus']
   })

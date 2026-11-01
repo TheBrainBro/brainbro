@@ -2,6 +2,7 @@ import { Mic, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { formatTime } from '../items/waveform'
+import { withDuration } from '../items/webm'
 
 // What the browser records in, best first: WebM (Chrome, Firefox), MP4 (Safari).
 const TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
@@ -12,10 +13,13 @@ function canRecord() {
   return typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
 }
 
-function recordingFile(chunks: Blob[], type: string) {
+/** What was recorded, as a file; WebM with its length written in (see `webm`). */
+async function recordingFile(chunks: Blob[], type: string, seconds: number) {
   const base = type.split(';')[0] || 'audio/webm'
   const extension = EXTENSIONS[base.split('/')[1]] ?? 'webm'
-  return new File(chunks, `Voice note.${extension}`, { type: base })
+  const data = new Uint8Array(await new Blob(chunks).arrayBuffer())
+  const fixed = withDuration(data, seconds)
+  return new File([fixed ?? data], `Voice note.${extension}`, { type: base })
 }
 
 type Recording = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; started: number }
@@ -26,7 +30,9 @@ function release(active: Recording | null, keep?: (file: File) => void) {
   const { recorder, stream, chunks } = active
   const done = () => {
     stream.getTracks().forEach((track) => track.stop())
-    if (keep && chunks.length) keep(recordingFile(chunks, recorder.mimeType))
+    if (!keep || !chunks.length) return
+    const seconds = (Date.now() - active.started) / 1000
+    void recordingFile(chunks, recorder.mimeType, seconds).then(keep)
   }
   if (recorder.state === 'inactive') return done()
   recorder.onstop = done

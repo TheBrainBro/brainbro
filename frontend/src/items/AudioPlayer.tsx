@@ -47,9 +47,9 @@ function useWaveform(src: string | null, size: number | undefined, root: HTMLEle
  * A recording: play and pause, its waveform filling up as it plays (click
  * or drag on it to go there; arrows skip 5 seconds), the time and the speed.
  *
- * Recordings made in a browser (WebM) don't say how long they are, and a
- * player can't seek in them until it knows: the waveform's decoding says,
- * and the audio is sent to the end once, unseen, to find out for itself.
+ * Recordings made in a browser (WebM) without their length written in can't
+ * seek: once the waveform is in, they play from a copy that has it (see
+ * `webm`), unless they started playing before.
  */
 export function AudioPlayer({
   src,
@@ -70,18 +70,26 @@ export function AudioPlayer({
   const [time, setTime] = useState(0)
   const [ownDuration, setOwnDuration] = useState<number | null>(null)
   const [speed, setSpeed] = useState(1)
-  // Finding out the length (see above): play and seek wait for it.
-  const resolving = useRef(false)
-  const pending = useRef<{ play: boolean; seek: number | null }>({
-    play: autoPlay,
-    seek: null,
-  })
+  // Play came before the waveform: it goes on with what it was given.
+  const [early, setEarly] = useState(false)
   const scrubbing = useRef(false)
+  const autoStarted = useRef(false)
 
   const duration = waveform?.duration ?? ownDuration
   const progress = duration ? Math.min(time / duration, 1) : 0
 
-  // `autoPlay` starts it once its metadata is in (see `settle`).
+  // What plays: chosen once the waveform is in, or on Play if that's first.
+  const chosen = early ? src : waveform === undefined ? null : (waveform?.src ?? src)
+
+  // Started once what plays is chosen, so it doesn't start on one and switch.
+  useEffect(() => {
+    const element = audio.current
+    if (autoPlay && chosen && element && !autoStarted.current) {
+      autoStarted.current = true
+      start(element)
+    }
+  }, [autoPlay, chosen])
+
   useEffect(() => {
     const element = audio.current
     return () => {
@@ -92,18 +100,15 @@ export function AudioPlayer({
   function start(element: HTMLAudioElement) {
     if (playing && playing !== element) playing.pause()
     playing = element
-    element.play().catch(() => setPaused(true))
+    // Older browsers (and jsdom) return nothing.
+    element.play()?.catch(() => setPaused(true))
   }
 
   function toggle() {
     const element = audio.current
     if (!element) return
     if (!element.paused) return element.pause()
-    if (resolving.current || element.readyState === 0) {
-      pending.current.play = true
-      if (element.readyState === 0) element.load()
-      return
-    }
+    if (chosen === null) setEarly(true)
     start(element)
   }
 
@@ -112,8 +117,7 @@ export function AudioPlayer({
     if (!element || !duration) return
     const at = Math.min(Math.max(seconds, 0), duration)
     setTime(at)
-    if (resolving.current) pending.current.seek = at
-    else element.currentTime = at
+    element.currentTime = at
   }
 
   function seekTo(event: PointerEvent<HTMLDivElement>) {
@@ -122,18 +126,8 @@ export function AudioPlayer({
     seek(((event.clientX - box.left) / box.width) * duration)
   }
 
-  /** The length is known now: back to where it should be, playing if it was asked to. */
-  function settle(element: HTMLAudioElement) {
-    if (resolving.current) {
-      if (!Number.isFinite(element.duration)) return
-      resolving.current = false
-      element.currentTime = pending.current.seek ?? 0
-    }
+  function measure(element: HTMLAudioElement) {
     if (Number.isFinite(element.duration)) setOwnDuration(element.duration)
-    if (pending.current.play) {
-      pending.current.play = false
-      start(element)
-    }
   }
 
   return (
@@ -144,21 +138,14 @@ export function AudioPlayer({
     >
       <audio
         ref={audio}
-        src={src ?? undefined}
+        src={(chosen ?? src) || undefined}
         preload="metadata"
         onLoadedMetadata={(event) => {
-          const element = event.currentTarget
-          element.playbackRate = speed
-          if (element.duration === Infinity) {
-            resolving.current = true
-            element.currentTime = Number.MAX_SAFE_INTEGER
-          } else {
-            settle(element)
-          }
+          event.currentTarget.playbackRate = speed
+          measure(event.currentTarget)
         }}
-        onDurationChange={(event) => settle(event.currentTarget)}
+        onDurationChange={(event) => measure(event.currentTarget)}
         onTimeUpdate={(event) => {
-          if (resolving.current) return settle(event.currentTarget)
           if (!scrubbing.current) setTime(event.currentTarget.currentTime)
         }}
         onPlay={() => setPaused(false)}
