@@ -4,8 +4,14 @@ import 'fake-indexeddb/auto'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
+import { FakeLiveServer } from './liveServer'
+
 // Vitest runs without globals, so Testing Library can't register this itself.
 afterEach(cleanup)
+
+// jsdom's WebSocket would reach for a real server: notes opened live talk to
+// an empty fake one, unless a test stubs its own (FakeLiveServer).
+globalThis.WebSocket = new FakeLiveServer().WebSocket
 
 // jsdom doesn't implement layout APIs.
 Element.prototype.scrollIntoView ??= () => {}

@@ -2,12 +2,14 @@ import { EditorView } from '@codemirror/view'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router'
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppRoutes } from '../App'
 import type { Board, BoardSummary, Layout } from '../boards/api'
 import { emptyLayout } from '../boards/layout'
 import type { Item } from '../items/api'
+import { FakeLiveServer } from '../test/liveServer'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -356,7 +358,10 @@ describe('board cards', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('edits a note in its card and saves it like the note page', async () => {
+  it('edits a note in its card live, like on the note page', async () => {
+    const server = new FakeLiveServer((id) => items.find((item) => item.id === id)?.body ?? '')
+    vi.stubGlobal('WebSocket', server.WebSocket)
+    vi.stubGlobal('indexedDB', new IDBFactory())
     renderAt('/boards/b1')
     fireEvent.doubleClick(await screen.findByText('On the board'))
     const content = await waitFor(() => {
@@ -365,13 +370,13 @@ describe('board cards', () => {
       return element as HTMLElement
     })
     const view = EditorView.findFromDOM(content)!
-    view.dispatch({ changes: { from: 0, insert: 'Written on the board' } })
+    const before = view.state.doc.toString()
+    view.dispatch({ changes: { from: 0, insert: 'Written on the board. ' } })
+    await waitFor(() => expect(server.text(items[0].id)).toBe(`Written on the board. ${before}`))
     fireEvent.keyDown(content, { key: 'Escape' })
 
-    await waitFor(() => expect(patches).toHaveLength(1))
-    expect(patches[0]).toEqual({ id: items[0].id, body: 'Written on the board', ifMatch: '"v1"' })
     await waitFor(() => expect(document.querySelector('.cm-content')).toBeNull())
-    expect(await screen.findByText('Written on the board')).toBeInTheDocument()
+    expect(patches).toEqual([])
     // Editing a note is not a layout change.
     expect(saves).toHaveLength(0)
   })
