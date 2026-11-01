@@ -270,6 +270,8 @@ function note(id: string, body: string, collection: string): Item {
     edited_by: '',
     edited_via: '',
     edited_at: null,
+    public_slug: null,
+    published_at: null,
   }
 }
 

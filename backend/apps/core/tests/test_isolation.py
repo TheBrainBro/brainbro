@@ -171,6 +171,8 @@ BY_ID = [
     ("get", "/api/items/{upload}/file/"),
     ("put", "/api/items/{album}/album-items/"),
     ("post", "/api/items/{album}/ungroup/"),
+    ("put", "/api/items/{note}/publication/"),
+    ("delete", "/api/items/{note}/publication/"),
     ("get", "/api/note-images/{note_image}/file/"),
     ("get", "/api/note-links/{note_link}/image/"),
     ("get", "/api/collections/{collection}/"),

@@ -66,6 +66,10 @@ export type Item = {
   edited_by: string
   edited_via: ItemSource
   edited_at: string | null
+  /** Notes only: its address, `/p/<slug>`, kept while unpublished. */
+  public_slug: string | null
+  /** When it was published; null while it isn't. */
+  published_at: string | null
 }
 
 /** Where an item came from; empty for items from before this was recorded. */
@@ -243,6 +247,58 @@ export function useSaveNoteBody() {
     onSuccess: (saved) => patchCachedItem(queryClient, saved),
     // Changed elsewhere (412) or failed: show what the server has.
     onError: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
+  })
+}
+
+/** Makes a note public at `/p/<slug>`, or private again. */
+export function usePublication() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, publish }: { id: string; publish: boolean }) =>
+      api<Item>(`/items/${id}/publication/`, { method: publish ? 'PUT' : 'DELETE' }),
+    onSuccess: (item) => {
+      patchCachedItem(queryClient, item)
+      void queryClient.invalidateQueries({ queryKey: pageKey(item.id) })
+    },
+  })
+}
+
+/**
+ * A public note's page: its address and how it shows in search results and
+ * shared links. Empty values take the `defaults`; `preview` is the result.
+ * `image` is the `src` of one of the note's images, or "none".
+ */
+export type PageSettings = {
+  slug: string | null
+  title: string
+  description: string
+  image: string
+  defaults: { title: string; description: string; image: string | null }
+  preview: { title: string; description: string; image_url: string | null }
+}
+
+export type PageChanges = Partial<Pick<PageSettings, 'slug' | 'title' | 'description' | 'image'>>
+
+const pageKey = (id: string) => [...itemKey(id), 'page']
+
+export function usePageSettings(id: string) {
+  return useQuery({
+    queryKey: pageKey(id),
+    queryFn: () => api<PageSettings>(`/items/${id}/page/`),
+  })
+}
+
+/** Saves page settings; rejects with the reason when the slug is taken or not an address. */
+export function useSavePage(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (changes: PageChanges) =>
+      api<PageSettings>(`/items/${id}/page/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+    onSuccess: (page) => {
+      queryClient.setQueryData(pageKey(id), page)
+      // The note's slug shows elsewhere (the link in its menu).
+      void queryClient.invalidateQueries({ queryKey: itemKey(id), exact: true })
+    },
   })
 }
 

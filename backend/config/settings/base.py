@@ -47,6 +47,7 @@ LOCAL_APPS = [
     "apps.events.apps.EventsConfig",
     "apps.collab.apps.CollabConfig",
     "apps.history.apps.HistoryConfig",
+    "apps.public.apps.PublicConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -144,7 +145,8 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
-# User uploads. Never served publicly: files go through authenticated views.
+# User uploads. Never served from here: files go through views that check who
+# asks (only the images of a published note are open to anyone, apps.public).
 MEDIA_ROOT = Path(get_env_variable("STORAGE_PATH", str(BASE_DIR / "storage")))
 MEDIA_URL = "/media/"
 
