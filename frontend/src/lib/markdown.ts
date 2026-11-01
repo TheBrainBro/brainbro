@@ -69,9 +69,13 @@ md.inline.ruler.before('link', 'wikilink', (state, silent) => {
 md.renderer.rules.wikilink = (tokens, idx, _options, env) => {
   const link = tokens[idx].meta as { target: string; heading: string | null; text: string | null }
   const label = md.utils.escapeHtml(wikilinkLabel(link))
-  const notes = (env as RenderEnv | undefined)?.notes
+  const { notes, isPublic } = (env as RenderEnv | undefined) ?? {}
+  const id = notes ? resolveWikilink(notes, link.target) : null
+  // A public page links other public notes only; the rest is just words.
+  if (isPublic) {
+    return id ? `<a class="wikilink" href="/p/${md.utils.escapeHtml(id)}">${label}</a>` : label
+  }
   if (!notes) return `<span class="wikilink">${label}</span>`
-  const id = resolveWikilink(notes, link.target)
   if (!id) {
     return `<span class="wikilink wikilink-unresolved" title="No note with this title">${label}</span>`
   }
@@ -181,6 +185,8 @@ type RenderEnv = {
   embeds?: boolean
   /** Note ids by title, to resolve `[[Title]]`; without it links show unresolved. */
   notes?: NoteTitleIndex | null
+  /** A published note (`/p/<slug>`): `notes` holds slugs of the other published ones. */
+  isPublic?: boolean
 }
 
 // Players only from known sites, whatever the HTML says.
@@ -197,10 +203,10 @@ DOMPurify.addHook('uponSanitizeElement', (node, data) => {
  */
 export function renderNote(
   body: string,
-  { docId, tasks = false, images, links, embeds = false, notes }: RenderEnv = {},
+  { docId, tasks = false, images, links, embeds = false, notes, isPublic = false }: RenderEnv = {},
 ) {
   // docId keeps footnote anchors apart when several notes share a page.
-  const html = md.render(body, { docId, tasks, images, links, embeds, notes })
+  const html = md.render(body, { docId, tasks, images, links, embeds, notes, isPublic })
   return DOMPurify.sanitize(html, {
     ADD_ATTR: ['target'],
     ...(embeds
