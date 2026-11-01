@@ -2,10 +2,10 @@ import {
   Archive,
   Check,
   CloudOff,
+  Ellipsis,
   FileDown,
   FileQuestion,
   FolderInput,
-  Globe,
   History,
   Inbox,
   RotateCw,
@@ -23,12 +23,14 @@ import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import { NotePrint } from '../notes/NotePrint'
-import { PublishDialog } from '../notes/PublishDialog'
+import { PageSettingsDialog } from '../notes/PageSettingsDialog'
 import { Peers } from '../notes/Peers'
+import { VisibilityMenu } from '../notes/VisibilityMenu'
 import { forgetLiveNote, useLiveNote, type LiveNote, type LiveStatus } from '../notes/live'
 import { NEW_NOTE, type NoteSaver, type SaverState } from '../notes/saver'
 import { useNewNoteSaver } from '../notes/useNewNoteSaver'
 import { BackLink } from '../ui/BackLink'
+import { Dropdown } from '../ui/Dropdown'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
 
@@ -138,7 +140,7 @@ function NoteWorkspace({
   const [organizing, setOrganizing] = useState(false)
   const [printing, setPrinting] = useState(false)
   const [history, setHistory] = useState(false)
-  const [publishing, setPublishing] = useState(false)
+  const [pageSettings, setPageSettings] = useState(false)
 
   const current = latest ?? initial
   const status = current?.status
@@ -244,19 +246,48 @@ function NoteWorkspace({
               onMore={() => setOrganizing(true)}
               trigger={(props) => <Action icon={FolderInput} label="Organize" {...props} />}
             />
-            {status === 'archived' ? (
-              <Action icon={Inbox} label="To inbox" onClick={archive} />
-            ) : (
-              <Action icon={Archive} label="Archive" onClick={archive} />
+            {current && (
+              <VisibilityMenu note={current} onSettings={() => setPageSettings(true)} />
             )}
-            <Action
-              icon={Globe}
-              label={current?.published_at ? 'Public' : 'Publish'}
-              onClick={() => setPublishing(true)}
-            />
-            <Action icon={History} label="History" onClick={() => setHistory(true)} />
-            <Action icon={FileDown} label="Export PDF" onClick={() => setPrinting(true)} />
-            <Action icon={Trash2} label="Delete" onClick={remove} />
+            <Dropdown
+              label="More actions"
+              trigger={(props) => (
+                <button type="button" aria-label="More actions" className="button-ghost" {...props}>
+                  <Ellipsis className="size-4" aria-hidden="true" />
+                </button>
+              )}
+            >
+              {(close) => {
+                const item = (icon: LucideIcon, label: string, run: () => void, danger = false) => {
+                  const Icon = icon
+                  return (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={`menu-item ${danger ? 'text-red-600 dark:text-red-400' : ''}`}
+                      onClick={() => {
+                        close()
+                        run()
+                      }}
+                    >
+                      <Icon className="size-4" aria-hidden="true" />
+                      {label}
+                    </button>
+                  )
+                }
+                return (
+                  <>
+                    {status === 'archived'
+                      ? item(Inbox, 'Move to inbox', archive)
+                      : item(Archive, 'Archive', archive)}
+                    {item(History, 'History', () => setHistory(true))}
+                    {item(FileDown, 'Export PDF', () => setPrinting(true))}
+                    <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+                    {item(Trash2, 'Delete', remove, true)}
+                  </>
+                )
+              }}
+            </Dropdown>
           </>
         )
       }
@@ -287,8 +318,8 @@ function NoteWorkspace({
           onClose={() => setHistory(false)}
         />
       )}
-      {publishing && current && (
-        <PublishDialog note={current} onClose={() => setPublishing(false)} />
+      {pageSettings && current && (
+        <PageSettingsDialog note={current} onClose={() => setPageSettings(false)} />
       )}
       {printing && (
         <NotePrint

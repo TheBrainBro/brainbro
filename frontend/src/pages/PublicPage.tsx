@@ -136,12 +136,7 @@ function PublicArticle({ note }: { note: PublicNote }) {
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-full bg-white dark:bg-zinc-950">
-      <div className="mx-auto max-w-2xl px-4 pt-6 pb-16">
-        <nav className="mb-10 text-sm">
-          <Link to="/p" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
-            All notes
-          </Link>
-        </nav>
+      <div className="mx-auto max-w-2xl px-4 pt-16 pb-16">
         {children}
       </div>
     </div>

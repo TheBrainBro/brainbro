@@ -241,7 +241,8 @@ describe('NotePage', () => {
     items = [makeItem({ id: 'n1', body: 'keep this' })]
     renderAt('/notes/n1')
     await editor()
-    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Archive' }))
     await waitFor(() => expect(triages).toEqual([{ ids: ['n1'], action: 'archive' }]))
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
   })
@@ -251,7 +252,8 @@ describe('NotePage', () => {
     renderAt('/notes/n1')
     await editor()
 
-    fireEvent.click(screen.getByRole('button', { name: 'History' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'History' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Note history' })
     const list = await within(dialog).findByRole('list', { name: 'Revisions' })
@@ -265,7 +267,8 @@ describe('NotePage', () => {
     items = [makeItem({ id: 'n1', body: 'start' })]
     renderAt('/notes/n1')
     await editor()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete this note?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
@@ -283,7 +286,8 @@ describe('NotePage', () => {
     type(view, ' and early')
     const title = document.title
 
-    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Export PDF' }))
     await waitFor(() => expect(print).toHaveBeenCalledOnce())
     const page = document.querySelector('.print-root')!
     expect(page.querySelector('h1')).toHaveTextContent('Trip plan')
