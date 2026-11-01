@@ -3,6 +3,8 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 
+from apps.items.origin import Source, acting
+
 from .models import Import
 from .vault import VaultError, import_vault
 
@@ -21,7 +23,7 @@ def run_import(import_id):
     error = ""
     counts = {}
     try:
-        with vault_import.file.open("rb") as source:
+        with vault_import.file.open("rb") as source, acting(Source.IMPORT):
             counts = import_vault(vault_import.owner, source)
     except VaultError as exc:
         error = str(exc)

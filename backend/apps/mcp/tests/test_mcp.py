@@ -535,6 +535,28 @@ def test_someone_else_s_items_are_left_alone(call, user, other_user):
     assert theirs.status == Item.Status.INBOX
 
 
+def test_what_an_assistant_writes_is_marked_as_its(call, user):
+    created = structured(call("capture", text="An idea", kind="note"))
+    assert (created["created_by"], created["created_via"]) == ("Claude", "mcp")
+    assert "edited_by" not in created
+
+    mine = note(user, "Mine")
+    edited = structured(call("edit_note", id=str(mine.id), append="More"))
+
+    assert (edited["created_by"], edited["created_via"]) == ("user", "unknown")
+    assert edited["edited_by"] == "Claude"
+    mine.refresh_from_db()
+    assert (mine.edited_by, mine.edited_via) == ("Claude", "mcp")
+
+
+def test_an_edit_that_changes_nothing_is_not_one(call, user):
+    mine = note(user, "Mine")
+
+    edited = structured(call("edit_note", id=str(mine.id), body="Mine"))
+
+    assert "edited_by" not in edited
+
+
 # Boards
 
 

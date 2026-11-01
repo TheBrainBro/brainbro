@@ -1,5 +1,5 @@
-import { Archive, Inbox, SquarePen } from 'lucide-react'
-import { useEffect } from 'react'
+import { Archive, Bot, Inbox, SquarePen } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
@@ -10,6 +10,7 @@ import { ItemListSkeleton } from '../items/ItemListSkeleton'
 import { useHasItems, useItems } from '../items/api'
 import { MODE_WIDTH, useViewMode } from '../items/viewMode'
 import { LoadMore } from '../items/LoadMore'
+import { OriginFilter, type OriginFilters } from '../items/OriginFilter'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { isEditable } from '../lib/dom'
 import { MOD } from '../lib/keys'
@@ -20,14 +21,17 @@ const TAB =
 
 /** The inbox, or with `archived` what was archived, to bring back or delete. */
 export function InboxPage({ archived = false }: { archived?: boolean }) {
-  const items = useItems({ status: archived ? 'archived' : 'inbox' })
+  const [origin, setOrigin] = useState<OriginFilters>({})
+  const filtered = Boolean(origin.origin || origin.app)
+  const items = useItems({ status: archived ? 'archived' : 'inbox', ...origin })
   const all = items.data?.pages.flatMap((page) => page.results) ?? []
   const captures = useCapturePipeline().pending.filter((entry) => !entry.collection)
-  // Captures land in the inbox: that is where they show.
-  const pending = archived ? [] : captures
+  // Captures land in the inbox: that is where they show, unless it is filtered.
+  const pending = archived || filtered ? [] : captures
   const navigate = useNavigate()
   const [mode, setMode] = useViewMode('inbox')
-  const empty = !archived && items.isSuccess && all.length === 0 && pending.length === 0
+  const nothing = items.isSuccess && all.length === 0 && pending.length === 0
+  const empty = !archived && !filtered && nothing
   // Nothing captured yet, or everything sorted: the empty inbox says which.
   const hasItems = useHasItems(empty)
   const paste = (
@@ -63,6 +67,7 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
                 Archive
               </NavLink>
             </nav>
+            <OriginFilter value={origin} onChange={setOrigin} />
             <ViewModeSwitch mode={mode} onChange={setMode} />
             <Link to="/notes/new" aria-label="New note" className="button-outline group/tip relative px-3 py-1.5">
               <SquarePen className="size-4" aria-hidden="true" />
@@ -77,7 +82,12 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
       <div className={`mx-auto ${MODE_WIDTH[mode]} transition-[max-width]`}>
         {items.isPending && <ItemListSkeleton mode={mode} />}
         {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
-        {archived && items.isSuccess && all.length === 0 && (
+        {filtered && nothing && (
+          <EmptyState icon={Bot} title="Nothing here">
+            No {archived ? 'archived items' : 'items in the inbox'} match who made them.
+          </EmptyState>
+        )}
+        {archived && !filtered && nothing && (
           <EmptyState icon={Archive} title="Nothing archived">
             Archive what you want to keep out of the way: it waits here, and search still finds it.
           </EmptyState>
@@ -108,7 +118,8 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
         {archived ? (
           <ItemList items={all} mode={mode} archived />
         ) : (
-          <ItemList items={all} mode={mode} sortable={{}} />
+          // A filtered list leaves items out: no sorting by hand in it.
+          <ItemList items={all} mode={mode} sortable={filtered ? undefined : {}} />
         )}
 
         {items.hasNextPage && (

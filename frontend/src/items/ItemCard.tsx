@@ -3,6 +3,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
 import { Markdown } from './Markdown'
+import { OriginMark } from './OriginMark'
 import { useRefreshPreview, useSaveNoteBody, type Item } from './api'
 
 function hostname(url: string) {
@@ -33,6 +34,16 @@ function Time({ iso }: { iso: string }) {
     <time dateTime={iso} title={new Date(iso).toLocaleString()} className="shrink-0">
       {timeAgo(iso)}
     </time>
+  )
+}
+
+/** When it was added, and whether an assistant had a hand in it. */
+function Stamp({ item }: { item: Item }) {
+  return (
+    <>
+      <Time iso={item.created_at} />
+      <OriginMark item={item} />
+    </>
   )
 }
 
@@ -82,7 +93,7 @@ function LinkPreview({
           <Favicon src={metadata.favicon_url} />
           <span className="truncate">{metadata.site_name || hostname(item.url)}</span>
           <span aria-hidden>·</span>
-          <Time iso={item.created_at} />
+          <Stamp item={item} />
           {item.preview_status === 'failed' && (
             <>
               <span aria-hidden>·</span>
@@ -206,7 +217,7 @@ function ImagePreview({
       </Viewable>
       <Caption text={item.body} />
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
-        <Time iso={item.created_at} />
+        <Stamp item={item} />
         {item.preview_status === 'failed' && (
           <>
             <span aria-hidden>·</span>
@@ -288,8 +299,8 @@ function FilePreview({
           </p>
         </div>
       </div>
-      <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
-        <Time iso={item.created_at} />
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        <Stamp item={item} />
         <div className="ml-auto">{actions}</div>
       </div>
     </>
@@ -351,7 +362,7 @@ function AlbumPreview({
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
         <span>{images.length} images</span>
         <span aria-hidden>·</span>
-        <Time iso={item.created_at} />
+        <Stamp item={item} />
         <div className="ml-auto">{actions}</div>
       </div>
     </>
@@ -452,8 +463,8 @@ export function ItemContent({
           {item.body}
         </Markdown>
       </div>
-      <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
-        <Time iso={item.created_at} />
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        <Stamp item={item} />
         <div className="ml-auto">{actions}</div>
       </div>
     </div>

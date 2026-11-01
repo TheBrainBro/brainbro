@@ -184,6 +184,11 @@ class ItemSerializer(serializers.ModelSerializer):
             "version",
             "created_at",
             "updated_at",
+            "created_by",
+            "created_via",
+            "edited_by",
+            "edited_via",
+            "edited_at",
         ]
         # Markdown is stored exactly as written: leading indentation and
         # trailing newlines are part of it.
@@ -197,6 +202,11 @@ class ItemSerializer(serializers.ModelSerializer):
             "album",
             "created_at",
             "updated_at",
+            "created_by",
+            "created_via",
+            "edited_by",
+            "edited_via",
+            "edited_at",
         ]
 
     def validate_filename(self, value):
@@ -212,11 +222,18 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         name = validated_data.pop("filename", None)
+        renamed = name is not None and name != instance.metadata.get("filename")
         if name is not None:
             instance.metadata = {**instance.metadata, "filename": name}
             # Files show their name as their title; images show their caption.
             if instance.kind == Item.Kind.FILE:
                 validated_data["title"] = name
+        if renamed or any(
+            field in validated_data
+            and validated_data[field] != getattr(instance, field)
+            for field in ("title", "body")
+        ):
+            instance.mark_edited()
         return super().update(instance, validated_data)
 
     def get_album_items(self, item):
