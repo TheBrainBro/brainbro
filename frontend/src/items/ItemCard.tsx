@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
+import { AudioPlayer } from './AudioPlayer'
 import { Markdown } from './Markdown'
 import { OriginMark } from './OriginMark'
 import { useRefreshPreview, useSaveNoteBody, type Item } from './api'
@@ -166,7 +167,7 @@ function Retry({ item }: { item: Item }) {
   )
 }
 
-/** What was written about an image or album when it was captured. */
+/** What was written about an image, a recording or an album when it was captured. */
 function Caption({ text }: { text: string }) {
   if (!text.trim()) return null
   return (
@@ -307,6 +308,50 @@ function FilePreview({
   )
 }
 
+/** A recording: its name, a player, and what was written with it. */
+function AudioPreview({
+  item,
+  actions,
+  onView,
+}: {
+  item: Item
+  actions?: ReactNode
+  onView?: () => void
+}) {
+  const { filename, size } = item.metadata
+  const name = item.title || filename || 'Audio'
+  return (
+    <>
+      {onView ? (
+        <button
+          type="button"
+          title={name}
+          className="block max-w-full truncate text-left font-medium hover:underline"
+          onClick={onView}
+        >
+          {name}
+        </button>
+      ) : (
+        <p title={name} className="truncate font-medium">
+          {name}
+        </p>
+      )}
+      <AudioPlayer src={item.file_url} className="mt-2 h-10" />
+      <Caption text={item.body} />
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        {size !== undefined && (
+          <>
+            <span>{formatBytes(size)}</span>
+            <span aria-hidden>·</span>
+          </>
+        )}
+        <Stamp item={item} />
+        <div className="ml-auto">{actions}</div>
+      </div>
+    </>
+  )
+}
+
 // An album's card shows this many of its images; the rest are a count.
 const ALBUM_COVER = 4
 
@@ -439,6 +484,7 @@ export function ItemContent({
   if (item.kind === 'link') return <LinkPreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'image') return <ImagePreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'file') return <FilePreview item={item} actions={actions} onView={onView} />
+  if (item.kind === 'audio') return <AudioPreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'album') return <AlbumPreview item={item} actions={actions} onView={onView} />
   return (
     <div className={fill ? 'flex h-full flex-col' : undefined}>
