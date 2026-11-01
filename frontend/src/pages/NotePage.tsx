@@ -5,6 +5,7 @@ import {
   FileDown,
   FileQuestion,
   FolderInput,
+  Globe,
   History,
   Inbox,
   RotateCw,
@@ -22,6 +23,7 @@ import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import { NotePrint } from '../notes/NotePrint'
+import { PublishDialog } from '../notes/PublishDialog'
 import { Peers } from '../notes/Peers'
 import { forgetLiveNote, useLiveNote, type LiveNote, type LiveStatus } from '../notes/live'
 import { NEW_NOTE, type NoteSaver, type SaverState } from '../notes/saver'
@@ -136,6 +138,7 @@ function NoteWorkspace({
   const [organizing, setOrganizing] = useState(false)
   const [printing, setPrinting] = useState(false)
   const [history, setHistory] = useState(false)
+  const [publishing, setPublishing] = useState(false)
 
   const current = latest ?? initial
   const status = current?.status
@@ -246,6 +249,11 @@ function NoteWorkspace({
             ) : (
               <Action icon={Archive} label="Archive" onClick={archive} />
             )}
+            <Action
+              icon={Globe}
+              label={current?.published_at ? 'Public' : 'Publish'}
+              onClick={() => setPublishing(true)}
+            />
             <Action icon={History} label="History" onClick={() => setHistory(true)} />
             <Action icon={FileDown} label="Export PDF" onClick={() => setPrinting(true)} />
             <Action icon={Trash2} label="Delete" onClick={remove} />
@@ -278,6 +286,9 @@ function NoteWorkspace({
           onRestored={() => setHistory(false)}
           onClose={() => setHistory(false)}
         />
+      )}
+      {publishing && current && (
+        <PublishDialog note={current} onClose={() => setPublishing(false)} />
       )}
       {printing && (
         <NotePrint

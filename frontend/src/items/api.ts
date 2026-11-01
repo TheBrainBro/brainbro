@@ -66,6 +66,10 @@ export type Item = {
   edited_by: string
   edited_via: ItemSource
   edited_at: string | null
+  /** Notes only: its address, `/p/<slug>`, kept while unpublished. */
+  public_slug: string | null
+  /** When it was published; null while it isn't. */
+  published_at: string | null
 }
 
 /** Where an item came from; empty for items from before this was recorded. */
@@ -243,6 +247,22 @@ export function useSaveNoteBody() {
     onSuccess: (saved) => patchCachedItem(queryClient, saved),
     // Changed elsewhere (412) or failed: show what the server has.
     onError: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
+  })
+}
+
+/**
+ * Publishes a note at `/p/<slug>` (with `slug`: changes it), or takes it
+ * down. Rejects with the reason when the slug is taken or not an address.
+ */
+export function usePublication() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, publish, slug }: { id: string; publish: boolean; slug?: string }) =>
+      api<Item>(`/items/${id}/publication/`, {
+        method: publish ? 'PUT' : 'DELETE',
+        body: publish ? JSON.stringify(slug ? { slug } : {}) : undefined,
+      }),
+    onSuccess: (item) => patchCachedItem(queryClient, item),
   })
 }
 
