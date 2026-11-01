@@ -6,7 +6,8 @@ what ties them are the edges.
 - `parent`: a collection sits inside another.
 - `board`: a line drawn between two items on a board (its label kept).
 - `link`: a note links another by its title, as Obsidian does (`[[Title]]`,
-  `[[Title|text]]`, `[[Title#heading]]`; embeds `![[…]]` aren't links).
+  `[[Title|text]]`, `[[Title#heading]]`; embeds `![[…]]` aren't links). An
+  untitled note's title is the one worked out from its body.
 
 Images in an album are not nodes of their own: the album stands for them.
 """
@@ -111,6 +112,10 @@ def _note_links(items, edges):
     for note in notes:
         if note.title:
             by_title.setdefault(note.title.casefold(), note.id)
+    # Untitled notes answer to the title the app shows, unless a saved one has it.
+    for note in notes:
+        if not note.title and (title := note_title(note.body, fallback="")):
+            by_title.setdefault(title.casefold(), note.id)
     for note in notes:
         for match in WIKILINK.finditer(note.body):
             # `Folder/Title.md` and `Title` both mean the note titled Title.
