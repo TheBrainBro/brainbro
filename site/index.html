@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Brain: drop it now, sort it later</title>
+    <meta
+      name="description"
+      content="A self-hosted second brain. Capture anything in a second, sort it later, and give every AI assistant you use the same memory."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#4c1d95" />
+    <meta property="og:title" content="Brain: drop it now, sort it later" />
+    <meta
+      property="og:description"
+      content="A self-hosted second brain, shared memory for every AI assistant you use."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="js/stage.js" defer></script>
+    <script src="js/hero.js" defer></script>
+    <script src="js/scenes.js" defer></script>
+    <script src="js/connect.js" defer></script>
+  </head>
+  <body>
+    <!-- Icons (Lucide shapes, used as <svg><use href="#i-..."/></svg>) and
+         logos (l-..., used with class="logo"). -->
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" /></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><path d="M12 19v3" /></symbol>
+      <symbol id="i-note" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
+      <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5" /><path d="M20 21a8 8 0 0 0-16 0" /></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" /><path d="M12 18h.01" /></symbol>
+      <symbol id="i-browser" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M10 4v4" /><path d="M2 8h20" /><path d="M6 4v4" /></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="i-swap" viewBox="0 0 24 24"><path d="m16 3 4 4-4 4" /><path d="M20 7H4" /><path d="m8 21-4-4 4-4" /><path d="M4 17h16" /></symbol>
+      <symbol id="i-plane" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" /></symbol>
+      <symbol id="i-board" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></symbol>
+      <symbol id="l-claude" viewBox="0 0 24 24"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></symbol>
+      <symbol id="l-openai" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></symbol>
+      <symbol id="l-grok" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815"></path></symbol>
+      <symbol id="l-obsidian" viewBox="0 0 24 24"><path d="M19.355 18.538a68.967 68.959 0 0 0 1.858-2.954.81.81 0 0 0-.062-.9c-.516-.685-1.504-2.075-2.042-3.362-.553-1.321-.636-3.375-.64-4.377a1.707 1.707 0 0 0-.358-1.05l-3.198-4.064a3.744 3.744 0 0 1-.076.543c-.106.503-.307 1.004-.536 1.5-.134.29-.29.6-.446.914l-.31.626c-.516 1.068-.997 2.227-1.132 3.59-.124 1.26.046 2.73.815 4.481.128.011.257.025.386.044a6.363 6.363 0 0 1 3.326 1.505c.916.79 1.744 1.922 2.415 3.5zM8.199 22.569c.073.012.146.02.22.02.78.024 2.095.092 3.16.29.87.16 2.593.64 4.01 1.055 1.083.316 2.198-.548 2.355-1.664.114-.814.33-1.735.725-2.58l-.01.005c-.67-1.87-1.522-3.078-2.416-3.849a5.295 5.295 0 0 0-2.778-1.257c-1.54-.216-2.952.19-3.84.45.532 2.218.368 4.829-1.425 7.531zM5.533 9.938c-.023.1-.056.197-.098.29L2.82 16.059a1.602 1.602 0 0 0 .313 1.772l4.116 4.24c2.103-3.101 1.796-6.02.836-8.3-.728-1.73-1.832-3.081-2.55-3.831zM9.32 14.01c.615-.183 1.606-.465 2.745-.534-.683-1.725-.848-3.233-.716-4.577.154-1.552.7-2.847 1.235-3.95.113-.235.223-.454.328-.664.149-.297.288-.577.419-.86.217-.47.379-.885.46-1.27.08-.38.08-.72-.014-1.043-.095-.325-.297-.675-.68-1.06a1.6 1.6 0 0 0-1.475.36l-4.95 4.452a1.602 1.602 0 0 0-.513.952l-.427 2.83c.672.59 2.328 2.316 3.335 4.711.09.21.175.43.253.653z"/></symbol>
+      <symbol id="l-telegram" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></symbol>
+      <symbol id="l-docker" viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></symbol>
+      <symbol id="l-umbrel" viewBox="0 0 24 24"><path d="M11.853 8.302c2.628-.05 4.698.656 6.303 2.05 1.166 1.01 2.14 2.43 2.895 4.305a7.584 7.584 0 0 0-1.818-.21c-1.345 0-2.552.31-3.558.987-1.127-.687-2.339-1.049-3.623-1.049-1.313 0-2.573.378-3.77 1.087-1.154-.726-2.456-1.087-3.875-1.087-.513 0-1.003.048-1.466.147.678-1.724 1.575-3.054 2.664-4.028 1.557-1.393 3.607-2.15 6.248-2.202zM1.842 17.616c.04-.037.078-.076.112-.119.48-.557 1.233-.91 2.453-.91 1.151 0 2.139.32 3.002.952l.035.025c.469.35 1.108.364 1.592.036 1.032-.698 2.032-1.014 3.017-1.014.967 0 1.906.304 2.836.965l.02.014a1.376 1.376 0 0 0 1.699-.078c.614-.53 1.455-.84 2.625-.84 1.232 0 2.186.344 2.94.98a1.092 1.092 0 0 0 .435.235 1.095 1.095 0 0 0 .806-.087 1.103 1.103 0 0 0 .547-1.267c-.873-3.383-2.3-6.03-4.363-7.82-2.084-1.808-4.712-2.646-7.787-2.588-3.063.06-5.653.955-7.673 2.762-2.003 1.793-3.344 4.39-4.104 7.67a1.1 1.1 0 0 0 1.807 1.083z"/></symbol>
+      <symbol id="l-grokbot" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M 21.675 8.364 C 22.181 9.711 22.401 11.160 22.318 12.596 C 22.240 13.947 21.893 15.281 21.305 16.500 C 19.286 20.674 14.707 23.000 10.145 22.167 C 9.064 21.970 8.015 21.599 7.049 21.073 C 6.010 20.506 5.070 19.758 4.283 18.874 C 3.438 17.927 2.772 16.824 2.325 15.636 C 1.819 14.289 1.599 12.840 1.682 11.404 C 1.760 10.053 2.107 8.719 2.695 7.500 C 4.714 3.326 9.293 1.000 13.855 1.833 C 14.936 2.030 15.985 2.401 16.951 2.927 C 17.990 3.494 18.930 4.242 19.717 5.126 C 20.562 6.073 21.228 7.177 21.675 8.364 Z M 12.012 6.137 L 12.309 6.139 L 12.599 6.198 L 12.871 6.314 L 13.114 6.485 L 13.310 6.706 L 13.490 6.943 L 13.665 7.183 L 13.838 7.423 L 14.010 7.666 L 14.178 7.911 L 14.344 8.157 L 14.509 8.405 L 14.670 8.653 L 14.830 8.903 L 14.986 9.155 L 15.124 9.418 L 15.206 9.703 L 15.222 9.998 L 15.171 10.290 L 15.052 10.562 L 14.872 10.797 L 14.641 10.982 L 14.374 11.108 L 14.083 11.168 L 13.787 11.160 L 13.500 11.086 L 13.235 10.954 L 13.003 10.767 L 12.817 10.537 L 12.659 10.287 L 12.497 10.037 L 12.334 9.790 L 12.170 9.542 L 12.003 9.296 L 11.837 9.051 L 11.667 8.807 L 11.495 8.565 L 11.322 8.323 L 11.148 8.084 L 10.978 7.839 L 10.869 7.565 L 10.839 7.271 L 10.890 6.979 L 11.016 6.712 L 11.209 6.486 L 11.449 6.312 L 11.721 6.195 Z M 16.385 4.055 L 16.653 4.082 L 16.911 4.159 L 17.157 4.272 L 17.386 4.412 L 17.600 4.576 L 17.793 4.764 L 17.972 4.967 L 18.144 5.175 L 18.313 5.386 L 18.475 5.601 L 18.633 5.818 L 18.787 6.041 L 18.934 6.267 L 19.077 6.495 L 19.214 6.728 L 19.347 6.963 L 19.474 7.200 L 19.594 7.441 L 19.685 7.696 L 19.736 7.960 L 19.734 8.229 L 19.659 8.486 L 19.488 8.692 L 19.239 8.788 L 18.971 8.769 L 18.720 8.673 L 18.494 8.528 L 18.293 8.347 L 18.119 8.141 L 17.972 7.915 L 17.846 7.677 L 17.716 7.442 L 17.582 7.206 L 17.442 6.976 L 17.298 6.748 L 17.150 6.523 L 16.997 6.300 L 16.838 6.083 L 16.676 5.868 L 16.508 5.655 L 16.336 5.449 L 16.158 5.245 L 16.001 5.026 L 15.884 4.783 L 15.837 4.519 L 15.911 4.264 L 16.121 4.101 Z"></path></symbol>
+    </svg>
+
+    <section class="hero">
+      <canvas class="marble" aria-hidden="true"></canvas>
+      <header class="topbar wrap">
+        <a class="brand" href="./">
+          <img src="favicon.svg" alt="" width="28" height="28" />
+          <span>Brain</span>
+        </a>
+        <nav>
+          <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
+          <a href="https://github.com/CarlosLugones/brain">GitHub</a>
+        </nav>
+      </header>
+      <div class="hero-inner wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">Self-hosted second brain</p>
+          <h1>Drop it now,<br />sort it later.</h1>
+          <p class="lead">
+            Capture anything in a second, organize it when you have time, and
+            give every AI assistant you use the same memory.
+          </p>
+          <div class="actions">
+            <a class="button light" href="#install">Install</a>
+            <a class="button glass" href="#connect">Connect an assistant</a>
+          </div>
+          <p class="works-with">
+            Works with
+            <svg class="logo" role="img" aria-label="Claude"><use href="#l-claude" /></svg>
+            <svg class="logo" role="img" aria-label="ChatGPT"><use href="#l-openai" /></svg>
+            <svg class="logo" role="img" aria-label="Grok"><use href="#l-grok" /></svg>
+            <svg class="logo" role="img" aria-label="Grok Bot"><use href="#l-grokbot" /></svg>
+            and any assistant with MCP
+          </p>
+        </div>
+        <canvas class="brain-3d" aria-hidden="true"></canvas>
+      </div>
+    </section>
+
+    <main>
+      <section class="scene wrap" aria-labelledby="drop-title">
+        <div class="copy">
+          <h2 id="drop-title">Drop anything</h2>
+          <p>
+            Links, photos, voice notes, files, notes. From your phone, the
+            browser, an AI assistant, or a message on Telegram. It all lands in
+            the inbox, to sort later.
+          </p>
+          <p class="hint">Tap a source to send something.</p>
+        </div>
+        <div class="stage drop-stage">
+          <svg class="links" aria-hidden="true">
+            <path data-from="phone" data-to="inbox" />
+            <path data-from="browser" data-to="inbox" />
+            <path data-from="assistant" data-to="inbox" />
+            <path data-from="telegram" data-to="inbox" />
+          </svg>
+          <div class="devices">
+            <button class="device" type="button" data-node="phone" data-source="phone">
+              <svg><use href="#i-phone" /></svg>Phone
+            </button>
+            <button class="device" type="button" data-node="browser" data-source="browser">
+              <svg><use href="#i-browser" /></svg>Browser
+            </button>
+          </div>
+          <div class="window inbox" data-node="inbox">
+            <div class="window-bar">
+              <svg><use href="#i-inbox" /></svg>Inbox<span class="count">0</span>
+            </div>
+            <ul class="cards" aria-live="polite">
+              <li class="empty">Nothing here yet</li>
+            </ul>
+          </div>
+          <div class="devices">
+            <button class="device" type="button" data-node="assistant" data-source="assistant">
+              <svg><use href="#i-bot" /></svg>AI assistant
+            </button>
+            <button class="device" type="button" data-node="telegram" data-source="telegram">
+              <svg class="logo"><use href="#l-telegram" /></svg>Telegram
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene wrap" aria-labelledby="memory-title">
+        <div class="copy">
+          <h2 id="memory-title">Shared memory for every assistant</h2>
+          <p>
+            What one assistant saves, every other one can find and build on.
+            They all connect to the same Brain over MCP, so nothing stays stuck
+            in one app's chat history.
+          </p>
+        </div>
+        <div class="stage memory-stage" aria-hidden="true">
+          <svg class="links">
+            <path data-from="claude" data-to="brain" />
+            <path data-from="chatgpt" data-to="brain" />
+            <path data-from="grok" data-to="brain" />
+          </svg>
+          <div class="assistants">
+            <div class="assistant" data-node="claude">
+              <span class="logo-badge"><svg class="logo"><use href="#l-claude" /></svg></span>Claude
+            </div>
+            <div class="assistant" data-node="chatgpt">
+              <span class="logo-badge"><svg class="logo"><use href="#l-openai" /></svg></span>ChatGPT
+            </div>
+            <div class="assistant" data-node="grok">
+              <span class="logo-badge"><svg class="logo"><use href="#l-grok" /></svg></span>Grok
+            </div>
+          </div>
+          <div class="brain-note" data-node="brain">
+            <div class="chat-head">
+              <img src="favicon.svg" alt="" width="18" height="18" />Brain
+            </div>
+            <ul class="items"></ul>
+          </div>
+          <div class="chat">
+            <div class="chat-head"></div>
+            <div class="messages"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene wrap" aria-labelledby="history-title">
+        <div class="copy">
+          <h2 id="history-title">See who wrote what, and go back</h2>
+          <p>
+            Every note says who wrote it, you or which assistant. Every change
+            is kept, so any edit can be undone in one click.
+          </p>
+        </div>
+        <div class="stage history-stage" aria-hidden="true">
+          <div class="note">
+            <div class="note-head">
+              <b>Lisbon trip</b>
+              <small class="note-by"></small>
+            </div>
+            <ul class="lines"></ul>
+          </div>
+          <div class="history">
+            <div class="chat-head"><svg><use href="#i-history" /></svg>History</div>
+            <ul class="revs"></ul>
+          </div>
+          <svg class="pointer" viewBox="0 0 24 24"><path d="M5 3l14 8-6.5 1.5L9 19z" /></svg>
+        </div>
+      </section>
+
+      <section class="features wrap" aria-labelledby="features-title">
+        <div class="copy centered">
+          <h2 id="features-title">Then sort it your way</h2>
+          <p>The same notes, links and files, seen however helps right now.</p>
+        </div>
+        <div class="tiles">
+          <article class="tile">
+            <div class="art art-board" aria-hidden="true">
+              <div class="canvas">
+                <div class="b-frame" data-step style="--x: 4%; --y: 8%; --w: 50%; --h: 82%"><span>Day 1</span></div>
+                <div class="b-card b-photo" data-step style="--x: 9%; --y: 20%"></div>
+                <div class="b-card b-note" data-step style="--x: 12%; --y: 58%"><b>Alfama</b>Castle, trams</div>
+                <div class="b-card b-link" data-step style="--x: 60%; --y: 14%"><svg><use href="#i-link" /></svg>Sintra guide</div>
+                <div class="b-card b-sticky" data-step style="--x: 64%; --y: 56%">Day 2!</div>
+                <svg class="b-ink" viewBox="0 0 250 100" preserveAspectRatio="none">
+                  <defs>
+                    <marker id="b-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" /></marker>
+                  </defs>
+                  <path class="b-connect" pathLength="1" marker-end="url(#b-head)" d="M64 38 C 100 36, 130 27, 160 27" />
+                  <path class="b-pen" d="M166 80 C 164 63, 230 60, 230 78 C 230 96, 168 98, 164 82" />
+                  <path class="b-pen" d="M234 70 L239 78 L248 62" />
+                </svg>
+                <svg class="b-pencil" viewBox="0 0 24 24"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" /><path d="m15 5 4 4" /></svg>
+              </div>
+            </div>
+            <h3>Boards</h3>
+            <p>Lay anything out on an infinite canvas, with sticky notes, frames and arrows.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-mind" aria-hidden="true">
+              <svg viewBox="0 0 240 150">
+                <path d="M120 75 C 90 75, 85 35, 55 35" /><path d="M120 75 C 90 75, 85 115, 55 115" />
+                <path d="M120 75 C 150 75, 155 35, 185 35" /><path d="M120 75 C 150 75, 155 115, 185 115" />
+              </svg>
+              <span class="m-node root">Lisbon trip</span>
+              <span class="m-node" style="--x: 23%; --y: 23%">Day 1</span>
+              <span class="m-node" style="--x: 23%; --y: 77%">Day 2</span>
+              <span class="m-node" style="--x: 77%; --y: 23%">Food</span>
+              <span class="m-node" style="--x: 77%; --y: 77%">Tickets</span>
+            </div>
+            <h3>Mind maps</h3>
+            <p>Open any collection as a mind map: what it holds, branch by branch.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-tree" aria-hidden="true">
+              <ul>
+                <li><svg><use href="#i-chevron" /></svg><svg><use href="#i-folder" /></svg>Projects</li>
+                <li class="in now"><svg><use href="#i-folder" /></svg>Lisbon trip<span>12</span></li>
+                <li class="in"><svg><use href="#i-folder" /></svg>Kitchen renovation<span>31</span></li>
+                <li><svg><use href="#i-chevron" /></svg><svg><use href="#i-folder" /></svg>Areas</li>
+                <li><svg><use href="#i-chevron" /></svg><svg><use href="#i-folder" /></svg>Resources</li>
+              </ul>
+            </div>
+            <h3>Collections</h3>
+            <p>Projects, areas and resources, nested as deep as you like.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-graph" aria-hidden="true">
+              <svg viewBox="0 0 240 150"><g class="g-lines"></g><g class="g-dots"></g></svg>
+            </div>
+            <h3>Graph</h3>
+            <p>Everything and how it ties together, from [[wikilinks]] to collections.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-search" aria-hidden="true">
+              <div class="s-box"><svg><use href="#i-search" /></svg><span class="s-query"></span><kbd data-shortcut>Ctrl K</kbd></div>
+              <div class="s-result"><svg><use href="#i-note" /></svg><span><b>Lisbon trip</b><small>Day 2: Cascais <mark>beach</mark>, swim and seafood</small></span></div>
+              <div class="s-result"><svg><use href="#i-link" /></svg><span><b>Sintra day trip guide</b><small>Palaces, hills, and the coast at Cabo da Roca</small></span></div>
+            </div>
+            <h3>Search by meaning</h3>
+            <p>Finds what you meant, not only the words you typed. <span data-shortcut>Ctrl K</span> from anywhere.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-public" aria-hidden="true">
+              <div class="p-bar">
+                <b>Lisbon itinerary</b>
+                <span class="p-toggle"><span class="p-private">Private</span><span class="p-public"><svg><use href="#i-globe" /></svg>Public</span></span>
+              </div>
+              <div class="p-url"><svg><use href="#i-link" /></svg>brain.example.com/p/lisbon-itinerary</div>
+              <div class="p-page"><i></i><i></i><i></i></div>
+            </div>
+            <h3>Public notes</h3>
+            <p>Publish a note as a page anyone can read: an itinerary, an article, a small blog.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-md" aria-hidden="true">
+              <div class="md-src"></div>
+              <div class="md-out"></div>
+            </div>
+            <h3>Plain Markdown</h3>
+            <p>Notes are Markdown, with live preview, images and [[links]].</p>
+          </article>
+          <article class="tile">
+            <div class="art art-vault" aria-hidden="true">
+              <svg class="links"><path data-from="vault" data-to="brain" /></svg>
+              <div class="v-side" data-node="vault">
+                <div class="v-head"><svg class="logo obsidian"><use href="#l-obsidian" /></svg>My vault</div>
+                <ul class="v-list"></ul>
+              </div>
+              <span class="v-label"></span>
+              <div class="v-side" data-node="brain">
+                <div class="v-head"><img src="favicon.svg" alt="" width="16" height="16" />Brain</div>
+                <ul class="v-list"></ul>
+              </div>
+            </div>
+            <h3>Your Obsidian vault, both ways</h3>
+            <p>Import a vault, folders become collections. Export everything as a vault, boards included.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-phone" aria-hidden="true">
+              <div class="phone">
+                <div class="ph-sheet">
+                  <span class="ph-label">Share to</span>
+                  <span class="ph-apps"><img src="favicon.svg" alt="" width="26" height="26" /><i></i><i></i><i></i></span>
+                </div>
+              </div>
+              <span class="ph-tg"><svg class="logo"><use href="#l-telegram" /></svg>or send it to the bot</span>
+            </div>
+            <h3>On your phone</h3>
+            <p>Install it as an app and share to Brain from anywhere. Telegram works too.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="connect" class="panel wrap" aria-labelledby="connect-title">
+        <div class="copy">
+          <h2 id="connect-title">Connect your assistant</h2>
+          <p>Each app connects a little differently. Pick yours.</p>
+        </div>
+        <label class="address">
+          <span>Your Brain's address</span>
+          <input type="url" id="brain-address" placeholder="https://brain.example.com" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="tabs" role="tablist" aria-label="Assistant">
+          <button role="tab" type="button" aria-selected="true" aria-controls="tab-any" id="tab-any-button">Any assistant</button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-claude" id="tab-claude-button">
+            <svg class="logo"><use href="#l-claude" /></svg>Claude
+          </button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-chatgpt" id="tab-chatgpt-button">
+            <svg class="logo"><use href="#l-openai" /></svg>ChatGPT
+          </button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-grok" id="tab-grok-button">
+            <svg class="logo"><use href="#l-grok" /></svg>Grok
+          </button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-grokbot" id="tab-grokbot-button">
+            <svg class="logo"><use href="#l-grokbot" /></svg>Grok Bot
+          </button>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-any" aria-labelledby="tab-any-button">
+          <p>Paste this into your assistant. It reads how Brain works and walks you through the rest.</p>
+          <div class="prompt">
+            <pre id="prompt-text"></pre>
+            <button class="button primary" type="button" data-copy="prompt-text">
+              <svg class="icon-copy"><use href="#i-copy" /></svg><svg class="icon-done"><use href="#i-check" /></svg><span class="label">Copy prompt</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-claude" aria-labelledby="tab-claude-button" hidden>
+          <h3 class="howto-title">Claude on the web, desktop or mobile</h3>
+          <ol class="howto">
+            <li>Open <b>Customize → Connectors → Add custom connector</b>.</li>
+            <li>Paste the address below and press <b>Add</b>.<span class="url-row"><code data-mcp-url></code><button class="button primary small" type="button" data-copy-mcp>Copy</button></span></li>
+            <li>Press <b>Connect</b>. Brain opens and asks you to allow Claude.</li>
+          </ol>
+          <p class="note-small">Custom connectors work on every plan (one on Free).</p>
+          <h3 class="howto-title">Claude Code</h3>
+          <ol class="howto">
+            <li>In a terminal:<span class="url-row"><code id="code-command"></code><button class="button primary small" type="button" data-copy="code-command">Copy</button></span></li>
+            <li>In Claude Code, run <code>/mcp</code>, choose <b>brain</b> and sign in.</li>
+          </ol>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-chatgpt" aria-labelledby="tab-chatgpt-button" hidden>
+          <ol class="howto">
+            <li>Open <a href="https://chatgpt.com/plugins">chatgpt.com/plugins</a>, press <b>+</b> and choose <b>Add custom MCP server</b>.</li>
+            <li>Name it Brain and paste the address below.<span class="url-row"><code data-mcp-url></code><button class="button primary small" type="button" data-copy-mcp>Copy</button></span></li>
+            <li>Accept the warning and create it. ChatGPT sends you to Brain to allow it.</li>
+          </ol>
+          <p class="note-small">Which plans can add custom MCP servers is up to OpenAI.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-grok" aria-labelledby="tab-grok-button" hidden>
+          <ol class="howto">
+            <li>Open <a href="https://grok.com/connectors">grok.com/connectors</a> and choose <b>New Connector → Custom</b>.</li>
+            <li>Paste the address below.<span class="url-row"><code data-mcp-url></code><button class="button primary small" type="button" data-copy-mcp>Copy</button></span></li>
+            <li>Sign in to Brain when asked.</li>
+          </ol>
+          <p class="note-small">On Grok Business and Enterprise, an admin adds the connector first.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-grokbot" aria-labelledby="tab-grokbot-button" hidden>
+          <p>Ask your Bot in a chat: it adds Brain by its address. Paste this, then sign in to Brain if it asks.</p>
+          <div class="prompt">
+            <pre id="grokbot-prompt"></pre>
+            <button class="button primary" type="button" data-copy="grokbot-prompt">
+              <svg class="icon-copy"><use href="#i-copy" /></svg><svg class="icon-done"><use href="#i-check" /></svg><span class="label">Copy prompt</span>
+            </button>
+          </div>
+          <p class="note-small">On a team, the Cursor connector policy decides which servers Bots can add.</p>
+        </div>
+      </section>
+
+      <section id="install" class="panel wrap" aria-labelledby="install-title">
+        <div class="copy">
+          <h2 id="install-title">Install it on your server</h2>
+          <p>Your notes stay on your machine. One Docker Compose stack runs everything.</p>
+        </div>
+        <div class="installs">
+          <article class="install">
+            <h3><svg class="logo docker"><use href="#l-docker" /></svg>Docker Compose</h3>
+            <pre>git clone https://github.com/CarlosLugones/brain
+cd brain
+cp stack.env.example stack.env  # your hostname and secrets
+make prod-up</pre>
+          </article>
+          <article class="install">
+            <h3><svg class="logo umbrel"><use href="#l-umbrel" /></svg>Umbrel</h3>
+            <p>
+              In Portainer, add a stack from the repository with
+              <code>docker-compose.production.yml</code> and the variables in
+              <code>stack.env.example</code>. A Cloudflare Tunnel gives it HTTPS.
+            </p>
+          </article>
+        </div>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/CarlosLugones/brain/blob/main/docs/deployment.md">
+            Installation guide<svg><use href="#i-arrow" /></svg>
+          </a>
+          <a class="button outline" href="https://github.com/CarlosLugones/brain/tree/main/docs">All docs</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <canvas class="marble" aria-hidden="true"></canvas>
+      <div class="footer-inner wrap">
+        <span class="brand"><img src="favicon.svg" alt="" width="28" height="28" />Drop it now, sort it later.</span>
+        <nav>
+          <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
+          <a href="https://github.com/CarlosLugones/brain">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

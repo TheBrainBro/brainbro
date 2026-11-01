@@ -35,6 +35,13 @@ is up to OpenAI.
 *Custom*, paste the URL and sign in to Brain when asked. On Grok Business and
 Enterprise, an admin adds the connector first.
 
+### Grok Bot
+
+Ask a Bot in a chat to add an MCP server by URL, giving it the URL, and sign
+in to Brain if it asks. Bots add servers outside their catalog this way
+([docs](https://docs.x.ai/grok-bot/computer-and-apps)); on a team, the Cursor
+connector policy decides which ones are allowed.
+
 ### Claude Code
 
 ```sh
