@@ -15,6 +15,7 @@ api_patterns = [
     path("", include("apps.telegram.urls")),
     path("", include("apps.mcp.urls")),
     path("", include("apps.events.urls")),
+    path("", include("apps.history.urls")),
 ]
 
 urlpatterns = [
