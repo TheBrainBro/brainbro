@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react'
 import { useCapturePipeline } from '../capture/context'
 import { itemKey, itemsKey, updateNoteBody, useItem, type Item } from '../items/api'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { editorOf } from '../live/changes'
 import { NoteSaver, localDrafts, type SaverState } from './saver'
 
 /**
  * Autosave for a note open in an editor, wherever it is (its page, a card on
- * a board): drafts kept on this device, flushed when the page goes away,
- * retried when back online, and replaced by what another tab saved if
- * nothing here is pending. `initial` is null for a note that doesn't exist
- * until it has text; `onCreated` (as given on the first render) runs once it
- * does.
+ * a board): drafts kept on this device, flushed when the page goes away and
+ * retried when back online. What another tab, device or assistant saves
+ * comes back as `outdated` (with who, for an assistant) for the owner to
+ * load; it never replaces the text on its own. `initial` is null for a note
+ * that doesn't exist until it has text; `onCreated` (as given on the first
+ * render) runs once it does.
  */
 export function useNoteSaver(
   initial: Item | null,
@@ -46,6 +48,8 @@ export function useNoteSaver(
         })
         if (isNew) onCreated?.(item)
       },
+      // What the editor now holds is the latest: not a change still to load.
+      onLoaded: (item) => queryClient.setQueryData(itemKey(item.id), item),
       drafts: localDrafts,
     })
     noteSaver.restoreDraft()
@@ -55,14 +59,15 @@ export function useNoteSaver(
   useEffect(() => saver.resume(), [saver])
   useSaveOnLeave(saver)
 
-  // Saved elsewhere (another tab, on focus): take it if nothing here is pending.
-  // A new note is followed from the save that creates it (which re-renders).
+  // Saved elsewhere while nothing here is pending. With something pending,
+  // saving it brings up the conflict instead. A new note is followed from the
+  // save that creates it (which re-renders).
   const latest = useItem(saver.noteId ?? undefined).data
-  useEffect(() => {
-    if (latest && latest.version !== saver.version && saver.status === 'saved') {
-      saver.load(latest)
-    }
-  }, [latest, saver])
+  const state = reported ?? saver.snapshot
+  const outdated =
+    latest && latest.version !== saver.version && state.status === 'saved'
+      ? { by: editorOf(latest.id), load: () => saver.load(latest) }
+      : null
 
-  return { saver, state: reported ?? saver.snapshot, latest }
+  return { saver, state, latest, outdated }
 }

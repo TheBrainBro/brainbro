@@ -167,6 +167,17 @@ export class Autosave<Theirs> {
     }
   }
 
+  /**
+   * Saved elsewhere while something here is pending: stop and let the owner
+   * choose. A save in flight finds out from its own answer (a 412).
+   */
+  conflict(theirs: Theirs) {
+    if (this.stopped || this.inFlight) return
+    this.clearTimers()
+    this.firstChange = undefined
+    this.set({ status: 'conflict', theirs })
+  }
+
   /** Ends a conflict on our side: the owner has rebased onto theirs, save over it now. */
   resume() {
     if (this.stopped) return
