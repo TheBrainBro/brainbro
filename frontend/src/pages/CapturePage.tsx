@@ -4,12 +4,13 @@ import { Link, useNavigate } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import type { CaptureInput } from '../capture/inputs'
+import { VoiceRecorder } from '../capture/VoiceRecorder'
 
 /**
  * `/capture`: the phone's quick capture (the tab bar's +, the app icon's
  * shortcut). Type or paste, or pick photos and files; it all goes to the
  * inbox, which shows it arriving. On iOS, with no share target, this is the
- * way in for photos and files.
+ * way in for photos and files. Or record a voice note.
  */
 export function CapturePage() {
   const { capture } = useCapturePipeline()
@@ -65,7 +66,7 @@ export function CapturePage() {
           send(files.map((file) => ({ kind: 'file', file })))
         }}
       />
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button type="button" className="button-outline" onClick={() => picker.current?.click()}>
           <Upload className="size-4" aria-hidden="true" />
           Upload
@@ -87,6 +88,7 @@ export function CapturePage() {
             Paste
           </button>
         )}
+        <VoiceRecorder onRecorded={(file) => send([{ kind: 'file', file }])} />
       </div>
     </form>
   )
