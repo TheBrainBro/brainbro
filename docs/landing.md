@@ -2,32 +2,51 @@
 
 The public page that explains Brain: `site/`. Plain HTML, CSS and JavaScript,
 with no build step and no dependencies, so any static host can serve the
-folder as is. Open `site/index.html` in a browser to see it.
+folder as is. Open `site/index.html` in a browser to see it (classic scripts,
+not modules, so it works from `file://` too).
 
-- `index.html`: the content. Three animated scenes (drop anything into the
-  inbox; Claude writes and ChatGPT reads it later; who wrote what, and
-  restoring a version), the prompt that connects an assistant, and install
-  links.
+- `index.html`: the content, top to bottom: the hero, three animated scenes,
+  the feature tiles, a trip planned start to finish, connecting an assistant
+  (a tab per app) and installing. Icons (Lucide shapes) and logos are inline
+  SVG symbols at the top.
 - `styles.css`: the app's colors (zinc and the logo's violet), light and dark
   from the system setting, one column on phones.
-- `main.js`: plays the scenes and the *Copy prompt* button.
+- `js/stage.js`: what the scenes share (below).
+- `js/hero.js`: the liquid marble behind the hero (a WebGL shader, with a CSS
+  gradient when WebGL is missing) and the brain of linked dots in front
+  (canvas 2D), which leans toward the pointer.
+- `js/scenes.js`: the three scenes and the animated tiles.
+- `js/connect.js`: the tabs, the visitor's Brain address (filled into the
+  prompt, the MCP URL and the Claude Code command, and remembered in the
+  browser), and the copy buttons.
 
 ## Scenes
 
-Each scene is a `.stage` that plays a step at a time while it is on screen,
-then starts over. `data-steps` on the stage is how long each step lasts, in
-milliseconds. Inside it:
+- **Drop anything**: phone, browser, AI assistant and Telegram send items
+  into the inbox along dashed lines. It plays on its own; tapping a source
+  sends one from it.
+- **Shared memory for every assistant**: Claude saves a note, Grok edits it,
+  ChatGPT finds it, each along its line to Brain, with the chat beside it.
+- **Who wrote what**: you and ChatGPT type into a note, the history fills
+  up, and a pointer clicks your version and *Restore*.
 
-- `data-at="n"`: shown from step `n` on (with a short appear animation).
-- `data-until="n"`: hidden from step `n` on. With `data-at`, it shows only in
-  between, which is how text swaps.
-- `data-now="n m"`: highlighted (class `now`) only on those steps.
+`Stage.loop(el, { reset, script })` plays a scene while it is on screen:
+`reset()` puts it back to its start and `script(run)` awaits the steps
+(`run.wait`, `run.type`, `run.send` for a dot along a line, `run.point` and
+`run.click` for the pointer). Leaving the screen stops the script at its next
+await. `Stage.links(stage)` draws the dashed lines between `[data-node]`
+elements, from the `path[data-from][data-to]` in the stage's `svg.links`, and
+redraws them when the stage changes size.
 
-Step 0 is the starting state. The stage keeps the height of its tallest step,
-so the page below doesn't move. With reduced motion, scenes show their last
-step and don't play.
+With reduced motion nothing moves: the hero draws one frame, each scene shows
+its last frame and the inbox starts with one item per source.
 
-## Links
+## Content
+
+The examples all follow one trip to Lisbon. Connecting steps come from
+[mcp.md](mcp.md); keep them in step when an app changes its menus. The logos
+come from LobeHub icons (Claude, OpenAI, Grok; MIT) and Simple Icons
+(Obsidian, Telegram; CC0).
 
 The prompt and the install links point to the docs on GitHub (`main`):
 [mcp.md](mcp.md) for connecting assistants and
