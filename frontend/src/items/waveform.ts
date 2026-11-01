@@ -3,6 +3,8 @@
  * by the player, and how long it really is, read by decoding it.
  */
 
+import { withDuration } from './webm'
+
 // Bars in the waveform, whatever its width.
 export const BARS = 64
 // Decoded this coarsely: enough for the shape, little memory for long ones.
@@ -10,7 +12,12 @@ const SAMPLE_RATE = 8000
 // Bigger files play without a waveform rather than being downloaded twice.
 export const MAX_WAVEFORM_SIZE = 20 * 1024 * 1024
 
-export type Waveform = { peaks: number[]; duration: number }
+export type Waveform = {
+  peaks: number[]
+  duration: number
+  /** A browser recording with its length written in, to play instead (see `webm`). */
+  src?: string
+}
 
 const waveforms = new Map<string, Promise<Waveform | null>>()
 
@@ -42,9 +49,18 @@ export function loadWaveform(src: string) {
 async function decode(src: string): Promise<Waveform> {
   const response = await fetch(src, { credentials: 'same-origin' })
   if (!response.ok) throw new Error(response.statusText)
+  const data = new Uint8Array(await response.arrayBuffer())
   const context = new OfflineAudioContext(1, 1, SAMPLE_RATE)
-  const buffer = await context.decodeAudioData(await response.arrayBuffer())
-  return { peaks: peaks(buffer.getChannelData(0)), duration: buffer.duration }
+  // Decoding takes the bytes it is given: it gets a copy.
+  const buffer = await context.decodeAudioData(data.slice().buffer)
+  const fixed = withDuration(data, buffer.duration)
+  const type = response.headers.get('Content-Type') ?? 'audio/webm'
+  return {
+    peaks: peaks(buffer.getChannelData(0)),
+    duration: buffer.duration,
+    // Kept for as long as the page: the cache above holds it for every player.
+    src: fixed ? URL.createObjectURL(new Blob([fixed], { type })) : undefined,
+  }
 }
 
 /** 75 -> "1:15". */
