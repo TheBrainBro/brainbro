@@ -8,7 +8,7 @@
   const input = document.getElementById('brain-address');
   const promptText = document.getElementById('prompt-text');
   const codeCommand = document.getElementById('code-command');
-  const grokPrompt = document.getElementById('grok-prompt');
+  const grokBotPrompt = document.getElementById('grokbot-prompt');
 
   function normalize(value) {
     const trimmed = value.trim().replace(/\/+$/, '');
@@ -35,7 +35,7 @@ From then on: search Brain before answering about my notes or plans, save what I
     const mcp = `${address || EXAMPLE}/api/mcp`;
     promptText.textContent = prompt(address);
     codeCommand.textContent = `claude mcp add --transport http brain ${mcp}`;
-    grokPrompt.textContent = `Add Brain as a connector: a remote MCP server at ${mcp}. Once I've signed in, list my inbox to check it works.`;
+    grokBotPrompt.textContent = `Add an MCP server by URL: ${mcp}. It's my Brain, a self-hosted second brain. Once it's connected, list my inbox to check it works.`;
     document.querySelectorAll('[data-mcp-url]').forEach((code) => (code.textContent = mcp));
     try {
       localStorage.setItem(STORAGE_KEY, input.value);
