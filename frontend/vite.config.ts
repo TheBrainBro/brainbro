@@ -48,7 +48,8 @@ export default defineConfig(({ command }) => ({
         scope: '/',
         display: 'standalone',
         background_color: '#fafafa',
-        theme_color: '#18181b',
+        // One color for every theme: the launch screen is light, like background_color.
+        theme_color: '#ffffff',
         icons: [
           { src: icon('pwa-192x192.png'), sizes: '192x192', type: 'image/png' },
           { src: icon('pwa-512x512.png'), sizes: '512x512', type: 'image/png' },
