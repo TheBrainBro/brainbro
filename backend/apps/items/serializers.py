@@ -189,6 +189,8 @@ class ItemSerializer(serializers.ModelSerializer):
             "edited_by",
             "edited_via",
             "edited_at",
+            "public_slug",
+            "published_at",
         ]
         # Markdown is stored exactly as written: leading indentation and
         # trailing newlines are part of it.
@@ -207,6 +209,9 @@ class ItemSerializer(serializers.ModelSerializer):
             "edited_by",
             "edited_via",
             "edited_at",
+            # Set through `PUT/DELETE /items/<id>/publication/`.
+            "public_slug",
+            "published_at",
         ]
 
     def validate_filename(self, value):
