@@ -14,6 +14,7 @@ import {
   previewOf,
   type LinkLine,
 } from './linkWidgets'
+import { noteTitles, wikilinkDecorations } from './wikilinkEditor'
 
 /*
  * Live preview: the note reads as rendered Markdown, and the Markdown shows
@@ -638,6 +639,7 @@ function build(state: EditorState, focused: boolean): DecorationSet {
     decorations.push(Decoration.line({ class: 'cm-md-gap' }).range(line.from))
   }
   for (const number of codeLines) skipLines.add(number)
+  decorations.push(...wikilinkDecorations(state, { excluded, skipLines, touches }))
   decorations.push(...dialectDecorations(state, { excluded, skipLines, touches }))
   for (const [number, depth] of quoteDepth) {
     const line = state.doc.line(number)
@@ -663,6 +665,7 @@ const preview = StateField.define<{ focused: boolean; decorations: DecorationSet
       tr.state.field(noteImages, false) !== tr.startState.field(noteImages, false) ||
       tr.state.field(localImages, false) !== tr.startState.field(localImages, false) ||
       tr.state.field(noteLinks, false) !== tr.startState.field(noteLinks, false) ||
+      tr.state.field(noteTitles, false) !== tr.startState.field(noteTitles, false) ||
       syntaxTree(tr.state) !== syntaxTree(tr.startState)
     return changed ? { focused, decorations: build(tr.state, focused) } : value
   },
