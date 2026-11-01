@@ -37,9 +37,10 @@ restore afterwards, even within the five minutes.
 
 ## In the app
 
-- **Notes**: *History* in the viewer's header. Pick a revision to see what
-  changed since (lines added and removed) or the note as it was, and restore
-  it.
+- **Notes**: *History* in the editor's bar, and in the viewer's header (a
+  note opened from a board, the graph or search). Pick a revision to see
+  what changed since (lines added and removed) or the note as it was, and
+  restore it; in the editor, the restored text shows up live.
 - **Boards**: *History* in the board's header opens a panel over the canvas:
   the revisions and, for the one picked, what changed since in words (cards
   added and removed, sticky notes edited, frames, connections, drawings, how
