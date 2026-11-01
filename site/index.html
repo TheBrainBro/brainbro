@@ -6,27 +6,31 @@
     <title>Brain: drop it now, sort it later</title>
     <meta
       name="description"
-      content="A self-hosted second brain. Capture anything in a second, sort it later, and let every AI assistant you use share the same memory."
+      content="A self-hosted second brain. Capture anything in a second, sort it later, and give every AI assistant you use the same memory."
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#4c1d95" />
     <meta property="og:title" content="Brain: drop it now, sort it later" />
     <meta
       property="og:description"
-      content="A self-hosted second brain that every AI assistant you use can share."
+      content="A self-hosted second brain, shared memory for every AI assistant you use."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
-    <script src="main.js" defer></script>
+    <script src="js/stage.js" defer></script>
+    <script src="js/hero.js" defer></script>
+    <script src="js/scenes.js" defer></script>
+    <script src="js/connect.js" defer></script>
   </head>
   <body>
-    <!-- Icons (Lucide shapes), used with <svg><use href="#i-..."/></svg>. -->
+    <!-- Icons (Lucide shapes, used as <svg><use href="#i-..."/></svg>) and
+         logos (l-..., used with class="logo"). -->
     <svg class="sprite" aria-hidden="true">
       <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></symbol>
       <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" /></symbol>
       <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><path d="M12 19v3" /></symbol>
       <symbol id="i-note" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
       <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></symbol>
       <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></symbol>
       <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol>
@@ -35,125 +39,138 @@
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
       <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
       <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5" /><path d="M20 21a8 8 0 0 0-16 0" /></symbol>
-      <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><path d="m16 6-4-4-4 4" /><path d="M12 2v13" /></symbol>
-      <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" /><path d="M12 18h.01" /></symbol>
+      <symbol id="i-browser" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M10 4v4" /><path d="M2 8h20" /><path d="M6 4v4" /></symbol>
       <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="i-swap" viewBox="0 0 24 24"><path d="m16 3 4 4-4 4" /><path d="M20 7H4" /><path d="m8 21-4-4 4-4" /><path d="M4 17h16" /></symbol>
+      <symbol id="i-plane" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" /></symbol>
+      <symbol id="i-board" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></symbol>
+      <symbol id="l-claude" viewBox="0 0 24 24"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></symbol>
+      <symbol id="l-openai" viewBox="0 0 24 24"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></symbol>
+      <symbol id="l-grok" viewBox="0 0 24 24"><path d="M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815"></path></symbol>
+      <symbol id="l-obsidian" viewBox="0 0 24 24"><path d="M19.355 18.538a68.967 68.959 0 0 0 1.858-2.954.81.81 0 0 0-.062-.9c-.516-.685-1.504-2.075-2.042-3.362-.553-1.321-.636-3.375-.64-4.377a1.707 1.707 0 0 0-.358-1.05l-3.198-4.064a3.744 3.744 0 0 1-.076.543c-.106.503-.307 1.004-.536 1.5-.134.29-.29.6-.446.914l-.31.626c-.516 1.068-.997 2.227-1.132 3.59-.124 1.26.046 2.73.815 4.481.128.011.257.025.386.044a6.363 6.363 0 0 1 3.326 1.505c.916.79 1.744 1.922 2.415 3.5zM8.199 22.569c.073.012.146.02.22.02.78.024 2.095.092 3.16.29.87.16 2.593.64 4.01 1.055 1.083.316 2.198-.548 2.355-1.664.114-.814.33-1.735.725-2.58l-.01.005c-.67-1.87-1.522-3.078-2.416-3.849a5.295 5.295 0 0 0-2.778-1.257c-1.54-.216-2.952.19-3.84.45.532 2.218.368 4.829-1.425 7.531zM5.533 9.938c-.023.1-.056.197-.098.29L2.82 16.059a1.602 1.602 0 0 0 .313 1.772l4.116 4.24c2.103-3.101 1.796-6.02.836-8.3-.728-1.73-1.832-3.081-2.55-3.831zM9.32 14.01c.615-.183 1.606-.465 2.745-.534-.683-1.725-.848-3.233-.716-4.577.154-1.552.7-2.847 1.235-3.95.113-.235.223-.454.328-.664.149-.297.288-.577.419-.86.217-.47.379-.885.46-1.27.08-.38.08-.72-.014-1.043-.095-.325-.297-.675-.68-1.06a1.6 1.6 0 0 0-1.475.36l-4.95 4.452a1.602 1.602 0 0 0-.513.952l-.427 2.83c.672.59 2.328 2.316 3.335 4.711.09.21.175.43.253.653z"/></symbol>
+      <symbol id="l-telegram" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></symbol>
     </svg>
 
-    <header class="topbar wrap">
-      <a class="brand" href="./">
-        <img src="favicon.svg" alt="" width="28" height="28" />
-        <span>Brain</span>
-      </a>
-      <nav>
-        <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
-        <a href="https://github.com/CarlosLugones/brain">GitHub</a>
-      </nav>
-    </header>
+    <section class="hero">
+      <canvas class="marble" aria-hidden="true"></canvas>
+      <header class="topbar wrap">
+        <a class="brand" href="./">
+          <img src="favicon.svg" alt="" width="28" height="28" />
+          <span>Brain</span>
+        </a>
+        <nav>
+          <a href="#connect">Connect</a>
+          <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
+          <a href="https://github.com/CarlosLugones/brain">GitHub</a>
+        </nav>
+      </header>
+      <div class="hero-inner wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">Self-hosted second brain</p>
+          <h1>Drop it now,<br />sort it later.</h1>
+          <p class="lead">
+            Capture anything in a second, organize it when you have time, and
+            give every AI assistant you use the same memory.
+          </p>
+          <div class="actions">
+            <a class="button light" href="#install">Install</a>
+            <a class="button glass" href="#connect">Connect an assistant</a>
+          </div>
+          <p class="works-with">
+            Works with
+            <svg class="logo" role="img" aria-label="Claude"><use href="#l-claude" /></svg>
+            <svg class="logo" role="img" aria-label="ChatGPT"><use href="#l-openai" /></svg>
+            <svg class="logo" role="img" aria-label="Grok"><use href="#l-grok" /></svg>
+            and any assistant with MCP
+          </p>
+        </div>
+        <canvas class="brain-3d" aria-hidden="true"></canvas>
+      </div>
+    </section>
 
     <main>
-      <section class="hero wrap">
-        <p class="eyebrow">Self-hosted second brain</p>
-        <h1>Drop it now,<br />sort it later.</h1>
-        <p class="lead">
-          Capture anything in a second. Organize it when you have time. Every AI
-          assistant you use shares the same memory.
-        </p>
-        <div class="actions">
-          <a class="button primary" href="#install">Install</a>
-          <a class="button outline" href="#connect">Connect an assistant</a>
-        </div>
-      </section>
-
-      <!-- Scenes play a step at a time while on screen: an element shows from
-           step data-at until (not including) step data-until, and is
-           highlighted on the steps in data-now. data-steps is how long each
-           step lasts, in ms. -->
-
       <section class="scene wrap" aria-labelledby="drop-title">
         <div class="copy">
           <h2 id="drop-title">Drop anything</h2>
           <p>
-            Links, photos, voice notes, files. From your phone, Telegram, the
-            browser or an assistant. It all lands in the inbox.
+            Links, photos, voice notes, files, notes. From your phone, the
+            browser, an AI assistant, or a message on Telegram. It all lands in
+            the inbox, to sort later.
           </p>
+          <p class="hint">Tap a source to send something.</p>
         </div>
-        <div class="stage" data-steps="900,1300,1300,1300,1300,1300,2800" aria-hidden="true">
-          <div class="sources">
-            <span class="source" data-now="1"><svg><use href="#i-share" /></svg>Phone</span>
-            <span class="source" data-now="2 5"><svg><use href="#i-send" /></svg>Telegram</span>
-            <span class="source" data-now="3"><svg><use href="#i-globe" /></svg>Browser</span>
-            <span class="source" data-now="4"><svg><use href="#i-bot" /></svg>Claude</span>
+        <div class="stage drop-stage">
+          <svg class="links" aria-hidden="true">
+            <path data-from="phone" data-to="inbox" />
+            <path data-from="browser" data-to="inbox" />
+            <path data-from="assistant" data-to="inbox" />
+            <path data-from="telegram" data-to="inbox" />
+          </svg>
+          <div class="devices">
+            <button class="device" type="button" data-node="phone" data-source="phone">
+              <svg><use href="#i-phone" /></svg>Phone
+            </button>
+            <button class="device" type="button" data-node="browser" data-source="browser">
+              <svg><use href="#i-browser" /></svg>Browser
+            </button>
           </div>
-          <div class="window">
+          <div class="window inbox" data-node="inbox">
             <div class="window-bar">
-              <svg><use href="#i-inbox" /></svg>Inbox
-              <span class="count">
-                <span data-until="1">0</span><span data-at="1" data-until="2">1</span><span data-at="2" data-until="3">2</span><span data-at="3" data-until="4">3</span><span data-at="4" data-until="5">4</span><span data-at="5">5</span>
-              </span>
+              <svg><use href="#i-inbox" /></svg>Inbox<span class="count">0</span>
             </div>
-            <ul class="cards">
-              <li class="empty" data-until="1">Nothing here yet</li>
-              <li class="card" data-at="5">
-                <span class="kind"><svg><use href="#i-link" /></svg></span>
-                <span class="card-text"><b>Pastel de nata recipe</b><small>Telegram</small></span>
-              </li>
-              <li class="card" data-at="4">
-                <span class="kind"><svg><use href="#i-note" /></svg></span>
-                <span class="card-text"><b>Gift ideas for Ana</b><small>Claude</small></span>
-                <span class="bot-mark" title="Made by Claude"><svg><use href="#i-bot" /></svg></span>
-              </li>
-              <li class="card" data-at="3">
-                <span class="kind"><svg><use href="#i-image" /></svg></span>
-                <span class="card-text"><b>whiteboard.jpg</b><small>Pasted in the browser</small></span>
-                <span class="thumb"></span>
-              </li>
-              <li class="card" data-at="2">
-                <span class="kind"><svg><use href="#i-mic" /></svg></span>
-                <span class="card-text"><b>Voice message</b><small>Telegram</small></span>
-                <span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-              </li>
-              <li class="card" data-at="1">
-                <span class="kind"><svg><use href="#i-link" /></svg></span>
-                <span class="card-text"><b>The case for boring technology</b><small>Shared from your phone</small></span>
-              </li>
+            <ul class="cards" aria-live="polite">
+              <li class="empty">Nothing here yet</li>
             </ul>
+          </div>
+          <div class="devices">
+            <button class="device" type="button" data-node="assistant" data-source="assistant">
+              <svg><use href="#i-bot" /></svg>AI assistant
+            </button>
+            <button class="device" type="button" data-node="telegram" data-source="telegram">
+              <svg class="logo"><use href="#l-telegram" /></svg>Telegram
+            </button>
           </div>
         </div>
       </section>
 
-      <section class="scene wrap" aria-labelledby="share-title">
+      <section class="scene wrap" aria-labelledby="memory-title">
         <div class="copy">
-          <h2 id="share-title">One memory, every assistant</h2>
+          <h2 id="memory-title">Shared memory for every assistant</h2>
           <p>
-            Claude writes it down today. ChatGPT finds it next month. Brain
-            speaks MCP, so any assistant can connect.
+            Claude writes the plan, Grok adds to it, ChatGPT finds it weeks
+            later. They all connect to the same Brain over MCP.
           </p>
         </div>
-        <div class="stage trio" data-steps="900,1600,1100,1100,1600,1100,1600,1300,3200" aria-hidden="true">
-          <div class="chat">
-            <div class="chat-head"><span class="dot claude"></span>Claude</div>
-            <p class="bubble me" data-at="1">Remember our Lisbon plan: Alfama first, Sintra on day 2, Belém last.</p>
-            <p class="tool" data-at="2"><svg><use href="#i-note" /></svg>capture · Brain</p>
-            <p class="bubble" data-at="4">Saved to your inbox as <b>Lisbon trip</b>.</p>
-          </div>
-          <div class="brain">
-            <div class="chat-head"><img src="favicon.svg" alt="" width="16" height="16" />Brain</div>
-            <div class="mini" data-at="3" data-now="7">
-              <b>Lisbon trip</b>
-              <span>Day 1: Alfama · Day 2: Sintra · Day 3: Belém</span>
-              <small><svg><use href="#i-bot" /></svg>Added by Claude</small>
+        <div class="stage memory-stage" aria-hidden="true">
+          <svg class="links">
+            <path data-from="claude" data-to="brain" />
+            <path data-from="chatgpt" data-to="brain" />
+            <path data-from="grok" data-to="brain" />
+          </svg>
+          <div class="assistants">
+            <div class="assistant" data-node="claude">
+              <span class="logo-badge"><svg class="logo"><use href="#l-claude" /></svg></span>Claude
             </div>
-            <div class="mini faded"><b>Reading list</b><span>12 links</span></div>
-            <div class="mini faded"><b>Kitchen renovation</b><span>Board · 18 cards</span></div>
+            <div class="assistant" data-node="chatgpt">
+              <span class="logo-badge"><svg class="logo"><use href="#l-openai" /></svg></span>ChatGPT
+            </div>
+            <div class="assistant" data-node="grok">
+              <span class="logo-badge"><svg class="logo"><use href="#l-grok" /></svg></span>Grok
+            </div>
+          </div>
+          <div class="brain-note" data-node="brain">
+            <div class="chat-head">
+              <img src="favicon.svg" alt="" width="18" height="18" />Brain
+            </div>
+            <ul class="items"></ul>
           </div>
           <div class="chat">
-            <div class="chat-head"><span class="dot gpt"></span>ChatGPT</div>
-            <p class="later" data-at="5">Two weeks later</p>
-            <p class="bubble me" data-at="6">Which day did we plan Sintra?</p>
-            <p class="tool" data-at="7"><svg><use href="#i-search" /></svg>search_items · Brain</p>
-            <p class="bubble" data-at="8">Day 2. It's in your note <b>Lisbon trip</b>, written with Claude.</p>
+            <div class="chat-head"></div>
+            <div class="messages"></div>
           </div>
         </div>
       </section>
@@ -162,81 +179,247 @@
         <div class="copy">
           <h2 id="history-title">See who wrote what, and go back</h2>
           <p>
-            Every note knows who wrote it. Every change is kept, so you can undo
-            any assistant's edit in one click.
+            Every note says who wrote it, you or which assistant. Every change
+            is kept, so any edit can be undone in one click.
           </p>
         </div>
-        <div class="stage duo" data-steps="1500,1300,2400,1500,3200" aria-hidden="true">
+        <div class="stage history-stage" aria-hidden="true">
           <div class="note">
             <div class="note-head">
               <b>Lisbon trip</b>
-              <small data-until="2"><svg><use href="#i-bot" /></svg>Added by Claude</small>
-              <small data-at="2" data-until="4"><svg><use href="#i-bot" /></svg>Edited by ChatGPT</small>
-              <small data-at="4"><svg><use href="#i-user" /></svg>Restored by you</small>
+              <small class="note-by"></small>
             </div>
-            <ul class="lines">
-              <li>Day 1: Alfama and the castle</li>
-              <li data-until="1">Day 2: Sintra</li>
-              <li data-at="1" data-until="2">Day 2: Sintra<span class="caret"></span></li>
-              <li class="del" data-at="2" data-until="4">Day 2: Sintra</li>
-              <li class="add" data-at="2" data-until="4">Day 2: Cascais beach</li>
-              <li class="back" data-at="4">Day 2: Sintra</li>
-              <li>Day 3: Belém</li>
-            </ul>
+            <ul class="lines"></ul>
           </div>
           <div class="history">
             <div class="chat-head"><svg><use href="#i-history" /></svg>History</div>
-            <ul>
-              <li class="rev" data-at="4">
-                <svg><use href="#i-user" /></svg><span><b>You</b><small>Restored Claude's version</small></span>
-              </li>
-              <li class="rev" data-at="2">
-                <svg><use href="#i-bot" /></svg><span><b>ChatGPT</b><small>Just now · through MCP</small></span>
-              </li>
-              <li class="rev" data-now="3">
-                <svg><use href="#i-bot" /></svg><span><b>Claude</b><small>2 weeks ago · through MCP</small></span>
-                <span class="restore" data-at="3" data-until="4"><svg><use href="#i-undo" /></svg>Restore</span>
-              </li>
-            </ul>
+            <ul class="revs"></ul>
           </div>
+          <svg class="pointer" viewBox="0 0 24 24"><path d="M5 3l14 8-6.5 1.5L9 19z" /></svg>
         </div>
       </section>
 
-      <section class="more wrap" aria-label="What else is in Brain">
-        <ul>
-          <li>Boards on an infinite canvas</li>
-          <li>Collections</li>
-          <li>Search by meaning</li>
-          <li>Graph of linked notes</li>
-          <li>Live editing</li>
-          <li>Public notes</li>
-          <li>Telegram bot</li>
-          <li>Installable on your phone</li>
-        </ul>
+      <section class="features wrap" aria-labelledby="features-title">
+        <div class="copy centered">
+          <h2 id="features-title">Then sort it your way</h2>
+          <p>The same notes, links and files, seen however helps right now.</p>
+        </div>
+        <div class="tiles">
+          <article class="tile">
+            <div class="art art-board" aria-hidden="true">
+              <div class="canvas">
+                <div class="b-card b-photo" style="--x: 8%; --y: 14%"></div>
+                <div class="b-card b-link" style="--x: 40%; --y: 10%"><svg><use href="#i-link" /></svg>Sintra guide</div>
+                <div class="b-card b-sticky" style="--x: 64%; --y: 48%">Day 2!</div>
+                <div class="b-card b-note" style="--x: 14%; --y: 58%"><b>Day 1</b>Alfama</div>
+                <svg class="b-arrow" viewBox="0 0 100 60" preserveAspectRatio="none"><path d="M34 38 C 46 40, 52 52, 62 62" /></svg>
+              </div>
+            </div>
+            <h3>Boards</h3>
+            <p>Lay anything out on an infinite canvas, with sticky notes, frames and arrows.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-mind" aria-hidden="true">
+              <svg viewBox="0 0 240 150">
+                <path d="M120 75 C 90 75, 85 35, 55 35" /><path d="M120 75 C 90 75, 85 115, 55 115" />
+                <path d="M120 75 C 150 75, 155 35, 185 35" /><path d="M120 75 C 150 75, 155 115, 185 115" />
+              </svg>
+              <span class="m-node root">Lisbon trip</span>
+              <span class="m-node" style="--x: 23%; --y: 23%">Day 1</span>
+              <span class="m-node" style="--x: 23%; --y: 77%">Day 2</span>
+              <span class="m-node" style="--x: 77%; --y: 23%">Food</span>
+              <span class="m-node" style="--x: 77%; --y: 77%">Tickets</span>
+            </div>
+            <h3>Mind maps</h3>
+            <p>Open any collection as a mind map: what it holds, branch by branch.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-tree" aria-hidden="true">
+              <ul>
+                <li><svg><use href="#i-chevron" /></svg><svg><use href="#i-folder" /></svg>Projects</li>
+                <li class="in now"><svg><use href="#i-folder" /></svg>Lisbon trip<span>12</span></li>
+                <li class="in"><svg><use href="#i-folder" /></svg>Kitchen renovation<span>31</span></li>
+                <li><svg><use href="#i-chevron" /></svg><svg><use href="#i-folder" /></svg>Areas</li>
+                <li><svg><use href="#i-chevron" /></svg><svg><use href="#i-folder" /></svg>Resources</li>
+              </ul>
+            </div>
+            <h3>Collections</h3>
+            <p>Projects, areas and resources, nested as deep as you like.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-graph" aria-hidden="true">
+              <svg viewBox="0 0 240 150">
+                <g class="g-lines">
+                  <path d="M120 72 L60 40" /><path d="M120 72 L190 46" /><path d="M120 72 L84 118" />
+                  <path d="M120 72 L168 112" /><path d="M60 40 L30 86" /><path d="M190 46 L214 98" />
+                  <path d="M84 118 L168 112" />
+                </g>
+                <g class="g-dots">
+                  <circle cx="120" cy="72" r="9" class="hub" /><circle cx="60" cy="40" r="6" /><circle cx="190" cy="46" r="6" />
+                  <circle cx="84" cy="118" r="6" /><circle cx="168" cy="112" r="6" /><circle cx="30" cy="86" r="4" />
+                  <circle cx="214" cy="98" r="4" />
+                </g>
+              </svg>
+            </div>
+            <h3>Graph</h3>
+            <p>Everything and how it ties together, from [[wikilinks]] to collections.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-search" aria-hidden="true">
+              <div class="s-box"><svg><use href="#i-search" /></svg><span class="s-query"></span><kbd>⌘K</kbd></div>
+              <div class="s-result"><svg><use href="#i-note" /></svg><span><b>Lisbon trip</b><small>Day 2: Cascais <mark>beach</mark>, swim and seafood</small></span></div>
+              <div class="s-result"><svg><use href="#i-link" /></svg><span><b>Sintra day trip guide</b><small>Palaces, hills, and the coast at Cabo da Roca</small></span></div>
+            </div>
+            <h3>Search by meaning</h3>
+            <p>Finds what you meant, not only the words you typed. ⌘K from anywhere.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-public" aria-hidden="true">
+              <div class="p-bar">
+                <b>Lisbon itinerary</b>
+                <span class="p-toggle"><span class="p-private">Private</span><span class="p-public"><svg><use href="#i-globe" /></svg>Public</span></span>
+              </div>
+              <div class="p-url"><svg><use href="#i-link" /></svg>brain.example.com/p/lisbon-itinerary</div>
+              <div class="p-page"><i></i><i></i><i></i></div>
+            </div>
+            <h3>Public notes</h3>
+            <p>Publish a note as a page anyone can read: an itinerary, an article, a small blog.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-md" aria-hidden="true">
+              <pre class="md-src"><span class="md-mark">#</span> Lisbon trip
+<span class="md-mark">- [x]</span> Book tram 28
+<span class="md-mark">- [ ]</span> Pastéis de Belém
+<span class="md-mark">**</span>Day 2<span class="md-mark">**</span>: Sintra</pre>
+              <div class="md-out">
+                <b>Lisbon trip</b>
+                <span><i class="box done"></i>Book tram 28</span>
+                <span><i class="box"></i>Pastéis de Belém</span>
+                <span><strong>Day 2</strong>: Sintra</span>
+              </div>
+            </div>
+            <h3>Plain Markdown</h3>
+            <p>Notes are Markdown, with live preview, images and [[links]].</p>
+          </article>
+          <article class="tile">
+            <div class="art art-vault" aria-hidden="true">
+              <span class="v-end"><svg class="logo obsidian"><use href="#l-obsidian" /></svg>Obsidian vault</span>
+              <span class="v-flow"><svg><use href="#i-swap" /></svg></span>
+              <span class="v-end"><img src="favicon.svg" alt="" width="34" height="34" />Brain</span>
+            </div>
+            <h3>Your Obsidian vault, both ways</h3>
+            <p>Import a vault, folders become collections. Export everything as a vault, boards included.</p>
+          </article>
+          <article class="tile">
+            <div class="art art-phone" aria-hidden="true">
+              <div class="phone">
+                <div class="ph-sheet">
+                  <span class="ph-label">Share to</span>
+                  <span class="ph-apps"><img src="favicon.svg" alt="" width="26" height="26" /><i></i><i></i><i></i></span>
+                </div>
+              </div>
+              <span class="ph-tg"><svg class="logo"><use href="#l-telegram" /></svg>or send it to the bot</span>
+            </div>
+            <h3>On your phone</h3>
+            <p>Install it as an app and share to Brain from anywhere. Telegram works too.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="trip wrap" aria-labelledby="trip-title">
+        <div class="copy centered">
+          <h2 id="trip-title">A trip, start to finish</h2>
+          <p>How planning a week in Lisbon goes with Brain.</p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-icon"><svg><use href="#i-inbox" /></svg></span>
+            <b>Drop</b>
+            <p>For weeks, every link, photo and voice note about Lisbon goes to the inbox, unsorted.</p>
+          </li>
+          <li>
+            <span class="step-icon"><svg><use href="#i-bot" /></svg></span>
+            <b>Sort</b>
+            <p>“Put everything about Lisbon in a collection.” Your assistant does it.</p>
+          </li>
+          <li>
+            <span class="step-icon"><svg><use href="#i-board" /></svg></span>
+            <b>Plan</b>
+            <p>Lay out the days on a board. Claude drafts the itinerary as a note.</p>
+          </li>
+          <li>
+            <span class="step-icon"><svg><use href="#i-plane" /></svg></span>
+            <b>Go</b>
+            <p>Publish the itinerary for your friends. On the road, ask any assistant what's next.</p>
+          </li>
+        </ol>
       </section>
 
       <section id="connect" class="panel wrap" aria-labelledby="connect-title">
         <div class="copy">
           <h2 id="connect-title">Connect your assistant</h2>
-          <p>
-            Paste this into Claude, ChatGPT, Grok or any assistant with MCP. It
-            walks you through the rest.
-          </p>
+          <p>Each app connects a little differently. Pick yours.</p>
         </div>
-        <div class="prompt">
-          <pre id="prompt-text">I use Brain, a self-hosted second brain, as shared memory across my AI assistants. Help me connect you to it.
-
-1. Read how Brain works with assistants: https://github.com/CarlosLugones/brain/blob/main/docs/mcp.md
-2. Ask me for my Brain's address (like https://brain.example.com). Its MCP server is that address plus /api/mcp.
-3. Walk me through adding it as a custom connector in the app we are using now, one step at a time. I sign in to Brain to allow it.
-4. Once connected, list my inbox to check it works.
-
-From then on: search Brain before answering about my notes or plans, save what I ask you to remember, and read a note before editing it.</pre>
-          <button class="button primary copy-button" type="button" data-copy="prompt-text">
-            <svg class="icon-copy"><use href="#i-copy" /></svg>
-            <svg class="icon-done"><use href="#i-check" /></svg>
-            <span class="label">Copy prompt</span>
+        <label class="address">
+          <span>Your Brain's address</span>
+          <input type="url" id="brain-address" placeholder="https://brain.example.com" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="tabs" role="tablist" aria-label="Assistant">
+          <button role="tab" type="button" aria-selected="true" aria-controls="tab-any" id="tab-any-button">Any assistant</button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-claude" id="tab-claude-button">
+            <svg class="logo"><use href="#l-claude" /></svg>Claude
           </button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-chatgpt" id="tab-chatgpt-button">
+            <svg class="logo"><use href="#l-openai" /></svg>ChatGPT
+          </button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-grok" id="tab-grok-button">
+            <svg class="logo"><use href="#l-grok" /></svg>Grok
+          </button>
+          <button role="tab" type="button" aria-selected="false" aria-controls="tab-code" id="tab-code-button">Claude Code</button>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-any" aria-labelledby="tab-any-button">
+          <p>Paste this into your assistant. It reads how Brain works and walks you through the rest.</p>
+          <div class="prompt">
+            <pre id="prompt-text"></pre>
+            <button class="button primary" type="button" data-copy="prompt-text">
+              <svg class="icon-copy"><use href="#i-copy" /></svg><svg class="icon-done"><use href="#i-check" /></svg><span class="label">Copy prompt</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-claude" aria-labelledby="tab-claude-button" hidden>
+          <ol class="howto">
+            <li>In Claude (web, desktop or mobile), open <b>Customize → Connectors → Add custom connector</b>.</li>
+            <li>Paste the address below and press <b>Add</b>.<span class="url-row"><code data-mcp-url></code><button class="button outline small" type="button" data-copy-mcp>Copy</button></span></li>
+            <li>Press <b>Connect</b>. Brain opens and asks you to allow Claude.</li>
+          </ol>
+          <p class="note-small">Custom connectors work on every plan (one on Free).</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-chatgpt" aria-labelledby="tab-chatgpt-button" hidden>
+          <ol class="howto">
+            <li>Open <a href="https://chatgpt.com/plugins">chatgpt.com/plugins</a>, press <b>+</b> and choose <b>Add custom MCP server</b>.</li>
+            <li>Name it Brain and paste the address below.<span class="url-row"><code data-mcp-url></code><button class="button outline small" type="button" data-copy-mcp>Copy</button></span></li>
+            <li>Accept the warning and create it. ChatGPT sends you to Brain to allow it.</li>
+          </ol>
+          <p class="note-small">Which plans can add custom MCP servers is up to OpenAI.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-grok" aria-labelledby="tab-grok-button" hidden>
+          <ol class="howto">
+            <li>Open <a href="https://grok.com/connectors">grok.com/connectors</a> and choose <b>New Connector → Custom</b>.</li>
+            <li>Paste the address below.<span class="url-row"><code data-mcp-url></code><button class="button outline small" type="button" data-copy-mcp>Copy</button></span></li>
+            <li>Sign in to Brain when asked.</li>
+          </ol>
+          <p class="note-small">On Grok Business and Enterprise, an admin adds the connector first.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="tab-code" aria-labelledby="tab-code-button" hidden>
+          <ol class="howto">
+            <li>In a terminal:<span class="url-row"><code id="code-command"></code><button class="button outline small" type="button" data-copy="code-command">Copy</button></span></li>
+            <li>In Claude Code, run <code>/mcp</code>, choose <b>brain</b> and sign in.</li>
+          </ol>
         </div>
       </section>
 
@@ -272,7 +455,7 @@ make prod-up</pre>
     </main>
 
     <footer class="wrap">
-      <span>Brain · your notes, on your server</span>
+      <span class="brand"><img src="favicon.svg" alt="" width="22" height="22" />Drop it now, sort it later.</span>
       <nav>
         <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
         <a href="https://github.com/CarlosLugones/brain">GitHub</a>
