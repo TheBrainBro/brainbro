@@ -38,6 +38,7 @@ from .tasks import (
     generate_thumbnail,
     make_note_image_display,
 )
+from .titles import linkable_titles
 from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
@@ -323,6 +324,24 @@ class ItemViewSet(
         names = set(mine.values_list("created_by", flat=True).distinct())
         names |= set(mine.values_list("edited_by", flat=True).distinct())
         return Response({"apps": sorted(filter(None, names), key=str.lower)})
+
+    @action(detail=False, methods=["get"], url_path="note-titles")
+    def note_titles(self, request):
+        """
+        `[{"id", "title"}]`: the titles `[[Title]]` links find notes by, in the
+        order they are tried (see `linkable_titles`), archived notes included.
+        """
+        notes = (
+            Item.objects.filter(owner=request.user, kind=Item.Kind.NOTE)
+            .only("id", "title", "body")
+            .order_by("created_at")
+        )
+        return Response(
+            [
+                {"id": str(note_id), "title": title}
+                for note_id, title in linkable_titles(notes)
+            ]
+        )
 
     @action(detail=False, methods=["get"])
     def search(self, request):

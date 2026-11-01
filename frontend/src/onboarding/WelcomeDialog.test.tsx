@@ -13,7 +13,9 @@ function renderApp() {
     if (url.includes('/auth/welcome/')) return new Response(null, { status: 204 })
     const body = url.includes('/auth/session/')
       ? { authenticated: true, user, welcome_seen: false }
-      : { results: [], next: null }
+      : url.includes('/items/note-titles/')
+        ? []
+        : { results: [], next: null }
     return new Response(JSON.stringify(body), {
       headers: { 'Content-Type': 'application/json' },
     })

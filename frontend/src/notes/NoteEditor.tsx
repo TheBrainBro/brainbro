@@ -13,6 +13,8 @@ import { imageUploads } from './imageUploads'
 import { setNoteLinks } from './linkWidgets'
 import type { LiveNote } from './live'
 import { livePreview, setNoteImages } from './livePreview'
+import { setNoteTitles, wikilinks } from './wikilinkEditor'
+import { useNoteTitles } from './wikilinks'
 
 // The text is the note. Live preview renders it around the cursor; this
 // styles what stays visible: headings large, emphasis emphasized, markers
@@ -67,7 +69,8 @@ const theme = EditorView.theme({
  * to load other text. With `live`, the text is the live note's instead,
  * edited together with its other sessions, whose cursors show. Images show
  * the note's stored copies (`images`); pasted or dropped ones are uploaded
- * with `uploadImage` and linked.
+ * with `uploadImage` and linked. `[[Title]]` links resolve against the
+ * user's notes, Mod-click opens them, and typing `[[` suggests titles.
  */
 export function NoteEditor({
   initial = '',
@@ -95,11 +98,21 @@ export function NoteEditor({
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(null)
   // Only the starting text and focus: the editor owns the document from here.
-  const startup = useRef({ initial, live, autoFocus, images, links, uploads: Boolean(uploadImage) })
+  const titles = useNoteTitles()
+  const startup = useRef({
+    initial,
+    live,
+    autoFocus,
+    images,
+    links,
+    uploads: Boolean(uploadImage),
+    titles: titles?.titles ?? null,
+  })
   const changed = useEffectEvent((body: string) => onChange?.(body))
   const save = useEffectEvent(() => onSave?.())
   const upload = useEffectEvent((file: File) => uploadImage!(file))
   const uploadFailed = useEffectEvent((message: string) => onUploadError?.(message))
+  const openNote = useEffectEvent((id: string) => titles?.open(id))
 
   useEffect(() => {
     const { live } = startup.current
@@ -114,6 +127,7 @@ export function NoteEditor({
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
           livePreview(startup.current.images ?? {}, startup.current.links ?? {}),
+          wikilinks(openNote, startup.current.titles),
           startup.current.uploads
             ? [imageUploads({ upload, onError: uploadFailed }), dropCursor()]
             : [],
@@ -152,6 +166,11 @@ export function NoteEditor({
   useEffect(() => {
     view.current?.dispatch({ effects: setNoteLinks.of(links ?? {}) })
   }, [links])
+
+  const titleList = titles?.titles
+  useEffect(() => {
+    if (titleList) view.current?.dispatch({ effects: setNoteTitles.of(titleList) })
+  }, [titleList])
 
   return <div ref={host} className="note-editor" />
 }

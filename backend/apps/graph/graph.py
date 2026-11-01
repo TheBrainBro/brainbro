@@ -18,7 +18,7 @@ from collections import defaultdict
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.items.models import Collection, CollectionItem, Item
-from apps.items.titles import note_title
+from apps.items.titles import linkable_titles, note_title, wikilink_target
 
 WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#\n]+)(?:#[^\]|\n]*)?(?:\|[^\]\n]*)?\]\]"
@@ -109,18 +109,11 @@ def _board_edges(owner, item_ids, edges):
 def _note_links(items, edges):
     notes = [item for item in items if item.kind == Item.Kind.NOTE]
     by_title = {}
-    for note in notes:
-        if note.title:
-            by_title.setdefault(note.title.casefold(), note.id)
-    # Untitled notes answer to the title the app shows, unless a saved one has it.
-    for note in notes:
-        if not note.title and (title := note_title(note.body, fallback="")):
-            by_title.setdefault(title.casefold(), note.id)
+    for note_id, title in linkable_titles(notes):
+        by_title.setdefault(title.casefold(), note_id)
     for note in notes:
         for match in WIKILINK.finditer(note.body):
-            # `Folder/Title.md` and `Title` both mean the note titled Title.
-            target = match["target"].strip().rsplit("/", 1)[-1].removesuffix(".md")
-            if found := by_title.get(target.casefold()):
+            if found := by_title.get(wikilink_target(match["target"]).casefold()):
                 edges.add(note.id, found, "link")
 
 
