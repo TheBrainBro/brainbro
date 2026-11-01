@@ -35,6 +35,11 @@ function makeItem(overrides: Partial<Item>): Item {
     version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    created_by: '',
+    created_via: 'web',
+    edited_by: '',
+    edited_via: '',
+    edited_at: null,
     ...overrides,
   }
 }
@@ -155,7 +160,12 @@ describe('InboxPage', () => {
     let calls = 0
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse(page([calls++ === 0 ? pending : ready]))),
+      vi.fn(async (url: string) =>
+        // Only the list counts: the filter asks for the apps once.
+        url.startsWith('/api/items/?')
+          ? jsonResponse(page([calls++ === 0 ? pending : ready]))
+          : jsonResponse(page([])),
+      ),
     )
     renderInbox()
 

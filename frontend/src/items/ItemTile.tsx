@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { timeAgo } from '../lib/time'
 import type { Item } from './api'
 import { ItemThumb } from './ItemThumb'
+import { OriginMark } from './OriginMark'
 import { itemLabel, KIND_LABEL, plainLinks } from './label'
 
 type Props = {
@@ -57,8 +58,9 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-3">
         <p className="line-clamp-2 text-sm font-medium break-words">{itemLabel(item)}</p>
-        <p className="mt-auto text-xs text-zinc-500">
+        <p className="mt-auto flex items-center gap-1.5 text-xs text-zinc-500">
           {KIND_LABEL[item.kind]} · {timeAgo(item.created_at)}
+          <OriginMark item={item} />
         </p>
       </div>
       <div className="absolute top-2 left-2">
@@ -85,8 +87,9 @@ export function ItemRow({ item, selected, focused, onToggleSelect, onOpen, actio
         <ItemThumb item={item} className="size-10" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{itemLabel(item)}</span>
-          <span className="block truncate text-xs text-zinc-500">
+          <span className="flex items-center gap-1.5 truncate text-xs text-zinc-500">
             {KIND_LABEL[item.kind]} · {timeAgo(item.created_at)}
+            <OriginMark item={item} />
           </span>
         </span>
       </button>
