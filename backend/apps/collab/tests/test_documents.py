@@ -12,6 +12,7 @@ from apps.collab.protocol import decode_awareness
 from apps.collab.text import rewrite, text_of
 from apps.events.changes import collect
 from apps.items.models import Item
+from apps.items.origin import Source
 
 
 @pytest.fixture
@@ -146,3 +147,17 @@ def test_a_save_from_a_client_without_the_socket_reaches_open_sessions(
     assert kind == relay.UPDATE
     document = NoteDocument.objects.get(note=note)
     assert text(doc_of(bytes(document.state))) == "Saved the old way"
+
+
+def test_saving_an_edit_made_live_is_the_users_on_the_web(note):
+    room = doc_of(open_document(note.id))
+    save_document(note.id, room.get_update())
+    note.refresh_from_db()
+    assert note.edited_at is None
+
+    rewrite(room, "# Plan\n\nFirst step, done\n")
+    save_document(note.id, room.get_update())
+
+    note.refresh_from_db()
+    assert (note.edited_by, note.edited_via) == ("", Source.WEB)
+    assert note.edited_at is not None

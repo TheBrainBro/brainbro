@@ -7,6 +7,7 @@ from django.db import transaction
 
 from apps.items.albums import make_album, set_album_images
 from apps.items.models import Item
+from apps.items.origin import Source, acting
 
 from . import bot
 from .updates import handle_update
@@ -19,7 +20,8 @@ ALBUM_DELAY = 5
 
 @shared_task
 def process_update(update):
-    item = handle_update(update)
+    with acting(Source.TELEGRAM):
+        item = handle_update(update)
     if item is not None and (group := item.metadata.get("telegram_media_group")):
         group_media.apply_async((item.owner_id, group), countdown=ALBUM_DELAY)
 
@@ -31,7 +33,7 @@ def group_media(owner_id, group_id):
     they were sent, with their captions as its text. Runs once per image, so
     a late one joins the album the others made.
     """
-    with transaction.atomic():
+    with transaction.atomic(), acting(Source.TELEGRAM):
         images = sorted(
             Item.objects.select_for_update().filter(
                 owner_id=owner_id,
