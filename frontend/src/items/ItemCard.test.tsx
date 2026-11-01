@@ -202,6 +202,7 @@ describe('ItemCard audio', () => {
     expect(screen.getByText('4 KB')).toBeInTheDocument()
     // On a board, using the player doesn't drag the card.
     expect(container.querySelector('audio')).toHaveAttribute('src', '/api/items/f1/file/?v=a')
-    expect(container.querySelector('audio')).toHaveClass('nodrag')
+    expect(container.querySelector('audio')!.parentElement).toHaveClass('nodrag')
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
   })
 })
