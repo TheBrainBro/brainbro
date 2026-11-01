@@ -212,7 +212,7 @@ export default function ItemViewer({
             onUngrouped={onClose}
           />
         ) : (
-          <Content key={item.id} item={item} />
+          <Content key={item.id} item={item} onClose={onClose} />
         )}
         {canBack && (
           <button
@@ -243,7 +243,7 @@ export default function ItemViewer({
   )
 }
 
-function Content({ item }: { item: Item }) {
+function Content({ item, onClose }: { item: Item; onClose: () => void }) {
   const mime = item.metadata.mime ?? ''
   if (item.kind === 'image') return <ImageView item={item} />
   if (item.kind === 'link') return <LinkView item={item} />
@@ -251,7 +251,14 @@ function Content({ item }: { item: Item }) {
     return (
       <div className="viewer-sheet max-w-3xl">
         {item.title && <h1 className="mb-3 text-2xl font-semibold">{item.title}</h1>}
-        <Markdown id={`viewer-${item.id}`} fill images={item.images} links={item.links} embeds>
+        <Markdown
+          id={`viewer-${item.id}`}
+          fill
+          images={item.images}
+          links={item.links}
+          embeds
+          onFollow={onClose}
+        >
           {item.body}
         </Markdown>
       </div>
