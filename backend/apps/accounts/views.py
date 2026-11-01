@@ -61,6 +61,7 @@ def signed_in(user):
         # The first visit opens on the welcome tour, once per user.
         "welcome_seen": bool(profile and profile.welcome_seen_at),
         "theme": profile.theme if profile else Profile.Theme.SYSTEM,
+        "language": profile.language if profile else Profile.Language.SYSTEM,
         "profile": profile_data(profile),
         # Lets the frontend refuse a file before uploading it.
         "limits": {"upload_max_size": settings.UPLOAD_MAX_SIZE},
@@ -126,6 +127,21 @@ def theme_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     profile.theme = payload.validated_data["theme"]
     profile.save(update_fields=["theme", "updated_at"])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class LanguageSerializer(serializers.Serializer):
+    language = serializers.ChoiceField(choices=Profile.Language.choices)
+
+
+@api_view(["PUT"])
+def language_view(request):
+    """`PUT {"language"}`: the app's language, or the browser's, on every device."""
+    payload = LanguageSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    profile.language = payload.validated_data["language"]
+    profile.save(update_fields=["language", "updated_at"])
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
