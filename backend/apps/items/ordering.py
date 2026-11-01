@@ -9,6 +9,8 @@ too close to split, the list is spaced out again first.
 from django.db import transaction
 from django.utils import timezone
 
+from apps.events.changes import changed
+
 from .models import Collection, CollectionItem, Item, rank_now
 
 # Closer than this, a midpoint loses precision: space the list out first.
@@ -60,6 +62,7 @@ def move_in_inbox(item, after):
     def set_rank(item_id, rank):
         Item.objects.filter(id=item_id).update(inbox_rank=rank)
 
+    changed(item.owner_id)
     return place(rows, item.id, after, set_rank)
 
 
@@ -80,6 +83,7 @@ def move_in_collection(item, collection, after):
             rank=rank
         )
 
+    changed(item.owner_id)
     return place(rows, item.id, after, set_rank)
 
 
@@ -103,6 +107,7 @@ def move_collection(collection, parent, after):
 
     if not place(rows, collection.id, after, set_rank):
         return False
+    changed(collection.owner_id)
     if collection.parent_id != (parent.id if parent else None):
         Collection.objects.filter(id=collection.id).update(
             parent=parent, updated_at=timezone.now()

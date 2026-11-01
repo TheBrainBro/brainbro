@@ -14,6 +14,7 @@ api_patterns = [
     path("", include("apps.imports.urls")),
     path("", include("apps.telegram.urls")),
     path("", include("apps.mcp.urls")),
+    path("", include("apps.events.urls")),
 ]
 
 urlpatterns = [

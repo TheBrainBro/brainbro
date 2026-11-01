@@ -3,7 +3,7 @@
 ## Architecture
 
 ```
-Internet ── Cloudflare Tunnel ──► api :8420 (gunicorn + Django + static frontend)
+Internet ── Cloudflare Tunnel ──► api :8420 (uvicorn + Django + static frontend)
                                     │
                          ┌──────────┼──────────┬──────────┐
                          ▼          ▼          ▼          ▼
@@ -14,11 +14,11 @@ Internet ── Cloudflare Tunnel ──► api :8420 (gunicorn + Django + stati
 
 | Service | What it does |
 |---|---|
-| `api` | Django on gunicorn. Serves the API, the admin and the frontend build (whitenoise). The only service with a published port. |
+| `api` | Django on uvicorn (ASGI). Serves the API, the admin and the frontend build (whitenoise), and keeps a stream open per tab with what changes (server-sent events, `GET /api/events/`). The only service with a published port. |
 | `worker` | Celery with the beat scheduler embedded. Single instance. |
 | `migrate` | Runs once per deploy: if migrations are pending it backs up the database first, then migrates and creates the admin user if missing. `api` and `worker` wait for it to succeed. |
 | `postgres` | `pgvector/pgvector:0.8.1-pg17`, internal network only. |
-| `redis` | Celery broker, internal network only. |
+| `redis` | Celery broker, and the pub/sub that tells open tabs what changed (`api` and `worker` publish, `api` streams it). Internal network only. |
 | `embedder` | Semantic search: turns text into vectors for `api` (search queries) and `worker` (items' text). The model (`paraphrase-multilingual-MiniLM-L12-v2`) is downloaded when the image is built, so the running container never goes online. Takes ~600 MB of memory. Internal network only. If it is down, search goes by words alone. See [search.md](search.md). |
 | `firewall` | Umbrel workaround, host network with `NET_ADMIN`. Adds `DOCKER-USER` accept rules for the stack's subnet (`10.77.0.0/24`) and re-checks them every minute. `migrate` waits for it. |
 

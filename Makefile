@@ -44,7 +44,7 @@ dev: services migrate ## Run Django, the Celery worker and Vite together
 
 .PHONY: backend
 backend: ## Run the Django dev server on :8000
-	$(MANAGE) runserver
+	$(POETRY) run uvicorn config.asgi:application --reload --port 8000 --lifespan off
 
 .PHONY: worker
 # Threads, not prefork: on macOS billiard spawns pool processes, which breaks
