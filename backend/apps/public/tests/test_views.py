@@ -41,37 +41,73 @@ def test_publishing_gives_the_note_an_address(api, user):
     assert response.json()["published_at"]
 
 
+def page(api, item, **changes):
+    return api.patch(f"/api/items/{item.id}/page/", changes, format="json")
+
+
 def test_the_slug_can_be_changed(api, user):
     item = publish(note(user, title="Trip plan"))
 
-    response = api.put(
-        f"/api/items/{item.id}/publication/", {"slug": "japan-2026"}, format="json"
-    )
+    response = page(api, item, slug="japan-2026")
 
-    assert response.json()["public_slug"] == "japan-2026"
+    assert response.status_code == 200
+    assert response.json()["slug"] == "japan-2026"
+    item.refresh_from_db()
+    assert item.public_slug == "japan-2026"
 
 
 def test_a_slug_in_use_is_refused(api, user, other_user):
     publish(note(other_user, title="Plan"))
-    item = note(user)
+    item = publish(note(user))
 
-    response = api.put(
-        f"/api/items/{item.id}/publication/", {"slug": "plan"}, format="json"
-    )
+    response = page(api, item, slug="plan")
 
     assert response.status_code == 400
     assert response.json() == {"slug": "Another note already has this address."}
 
 
 def test_a_slug_must_be_an_address(api, user):
-    item = note(user)
+    item = publish(note(user))
 
-    response = api.put(
-        f"/api/items/{item.id}/publication/", {"slug": "Trip plan"}, format="json"
-    )
+    response = page(api, item, slug="Trip plan")
 
     assert response.status_code == 400
     assert "slug" in response.json()
+
+
+def test_page_settings_show_their_defaults(api, user):
+    item = publish(note(user, body="# Trip\n\nTen days in **Japan**."))
+    stored_image(item, "https://x/a.png")
+    item.body += "\n\n![a](https://x/a.png)"
+    item.save()
+
+    data = api.get(f"/api/items/{item.id}/page/").json()
+
+    assert data["title"] == ""
+    assert data["defaults"] == {
+        "title": "Trip",
+        "description": "Ten days in Japan.",
+        "image": "https://x/a.png",
+    }
+    assert data["preview"]["title"] == "Trip"
+    assert data["preview"]["image_url"].startswith("/api/note-images/")
+
+
+def test_page_settings_replace_the_defaults(api, user):
+    item = publish(note(user, title="Trip", body="text"))
+    stored_image(item, "https://x/a.png")
+
+    data = page(api, item, title="Japan", description="Ten days", image="none").json()
+
+    assert data["preview"] == {
+        "title": "Japan",
+        "description": "Ten days",
+        "image_url": None,
+    }
+
+    data = page(api, item, title="").json()
+
+    assert data["preview"]["title"] == "Trip"
 
 
 def test_unpublishing_takes_it_down(api, anyone, user):
