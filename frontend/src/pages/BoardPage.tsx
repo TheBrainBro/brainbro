@@ -1,10 +1,11 @@
 import { ReactFlowProvider } from '@xyflow/react'
-import { Trash2, Waypoints } from 'lucide-react'
+import { History, Trash2, Waypoints } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { BoardCanvas } from '../boards/BoardCanvas'
 import { useBoard, useDeleteBoard, useRenameBoard, type Board } from '../boards/api'
+import { BoardHistory } from '../history/HistoryPanel'
 import { ApiError } from '../lib/api'
 import { useMediaQuery } from '../lib/dom'
 import { BackLink } from '../ui/BackLink'
@@ -17,6 +18,7 @@ export function BoardPage() {
   const board = useBoard(id)
   // Below `md` (phones) boards are read-only: pan, zoom and open items.
   const readOnly = !useMediaQuery('(min-width: 48rem)')
+  const [history, setHistory] = useState(false)
 
   if (board.isPending) return <Loading label="Opening board…" />
   if (board.isError) {
@@ -39,17 +41,30 @@ export function BoardPage() {
   }
   return (
     <div className="flex h-full flex-col">
-      <BoardHeader board={board.data} />
-      <div className="min-h-0 flex-1">
+      <BoardHeader
+        board={board.data}
+        history={history}
+        onHistory={() => setHistory(!history)}
+      />
+      <div className="relative min-h-0 flex-1">
         <ReactFlowProvider>
           <BoardCanvas key={board.data.id} board={board.data} readOnly={readOnly} />
         </ReactFlowProvider>
+        {history && <BoardHistory board={board.data} onClose={() => setHistory(false)} />}
       </div>
     </div>
   )
 }
 
-function BoardHeader({ board }: { board: Board }) {
+function BoardHeader({
+  board,
+  history,
+  onHistory,
+}: {
+  board: Board
+  history: boolean
+  onHistory: () => void
+}) {
   const rename = useRenameBoard(board.id)
   const remove = useDeleteBoard()
   const navigate = useNavigate()
@@ -85,6 +100,15 @@ function BoardHeader({ board }: { board: Board }) {
           {rename.error.message}
         </span>
       )}
+      <button
+        type="button"
+        className="button-ghost shrink-0"
+        aria-pressed={history}
+        onClick={onHistory}
+      >
+        <History className="size-3.5" aria-hidden="true" />
+        History
+      </button>
       <button
         type="button"
         className="button-ghost shrink-0"

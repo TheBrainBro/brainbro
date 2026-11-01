@@ -7,6 +7,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  History,
   ImageMinus,
   Pencil,
   Ungroup,
@@ -18,6 +19,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 
+import { NoteHistory } from '../history/HistoryPanel'
 import {
   itemsKey,
   renameItem,
@@ -90,6 +92,9 @@ export default function ItemViewer({
     const start = items[index]?.album_items?.findIndex((shown) => shown.id === image) ?? -1
     return start > 0 ? { id: items[index].id, at: start } : { id: '', at: 0 }
   })
+  // The note whose history is open, instead of the note itself.
+  const [history, setHistory] = useState<string | null>(null)
+  const showHistory = item?.kind === 'note' && history === item.id
   const images = item?.kind === 'album' ? (item.album_items ?? []) : []
   const at = place.id === item?.id ? Math.min(place.at, Math.max(images.length - 1, 0)) : 0
   const canBack = at > 0 || index > 0
@@ -157,6 +162,17 @@ export default function ItemViewer({
         </div>
         {actions?.(item, onClose)}
         {item.kind === 'note' && (
+          <button
+            type="button"
+            className="viewer-button"
+            aria-pressed={showHistory}
+            onClick={() => setHistory(showHistory ? null : item.id)}
+          >
+            <History className="size-4" aria-hidden="true" />
+            History
+          </button>
+        )}
+        {item.kind === 'note' && (
           <Link to={`/notes/${item.id}`} className="viewer-button" onClick={onClose}>
             <Pencil className="size-4" aria-hidden="true" />
             Edit
@@ -184,7 +200,9 @@ export default function ItemViewer({
         className="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-4 sm:px-16"
         onClick={(event) => event.target === event.currentTarget && onClose()}
       >
-        {item.kind === 'album' ? (
+        {showHistory ? (
+          <NoteHistory note={item} onRestored={onReplace} onClose={() => setHistory(null)} />
+        ) : item.kind === 'album' ? (
           <AlbumView
             album={item}
             at={at}
