@@ -4,10 +4,18 @@
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Dark only on screens: paper is always light (see .print-root). */
+/* Dark only on screens: paper is always light (see .print-root). The theme
+   picked in settings sets data-theme on <html>; without it, the system decides. */
 @custom-variant dark {
-  @media screen and (prefers-color-scheme: dark) {
-    @slot;
+  @media screen {
+    &:where([data-theme='dark'], [data-theme='dark'] *) {
+      @slot;
+    }
+    @media (prefers-color-scheme: dark) {
+      &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
+        @slot;
+      }
+    }
   }
 }
 
@@ -50,6 +58,14 @@
   --code-comment: var(--color-zinc-500);
   --code-function: light-dark(#0369a1, #7dd3fc);
   --code-type: light-dark(#be123c, #fda4af);
+}
+
+/* A theme picked in settings; light-dark() above follows it too. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 html,

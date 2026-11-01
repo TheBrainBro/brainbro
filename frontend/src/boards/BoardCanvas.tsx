@@ -52,6 +52,7 @@ import { isEditable } from '../lib/dom'
 import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { useTheme } from '../theme/theme'
 import { EmptyState } from '../ui/states'
 import { useViewer } from '../viewer/context'
 import { AddItemsPanel } from './AddItemsPanel'
@@ -177,6 +178,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
   const [adding, setAdding] = useState(false)
   const viewer = useViewer()
+  const theme = useTheme()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
@@ -663,7 +665,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           minZoom={0.05}
           maxZoom={4}
           onlyRenderVisibleElements
-          colorMode="system"
+          colorMode={theme}
           nodesDraggable={!readOnly && tool === 'select'}
           nodesConnectable={!readOnly && tool === 'select'}
           elementsSelectable={!readOnly && tool === 'select'}

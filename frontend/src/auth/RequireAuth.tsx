@@ -3,12 +3,14 @@ import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 
 import { whenReachable } from '../lib/network'
+import { useSessionTheme } from '../theme/theme'
 import { EmptyState, Loading } from '../ui/states'
 import { useSession } from './session'
 
 export function RequireAuth() {
   const { data, isPending, isError, fetchStatus, refetch } = useSession()
   const location = useLocation()
+  useSessionTheme(data?.theme)
 
   // Opened offline (the service worker serves the app): try again when the
   // network is back or the app comes back to the foreground.
