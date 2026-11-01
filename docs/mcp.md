@@ -126,6 +126,10 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | `get_board` | A board's items, sticky notes and groups, in reading order, without the layout |
 | `add_to_board` | Puts items on a board, where the app puts new cards |
 
+A note saved without a title still comes back with one, worked out from its
+body as the app shows it: its first H1, or else its first line, shortened. It
+follows the note as it changes, and is never saved.
+
 `edit_note` takes the version `get_item` returned: if you edited the note in
 the app since, the assistant's edit is refused and it has to read it again,
 so it never overwrites your changes. Partial edits leave the rest of the note
