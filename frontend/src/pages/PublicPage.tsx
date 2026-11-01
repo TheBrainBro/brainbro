@@ -110,6 +110,13 @@ function PublicArticle({ note }: { note: PublicNote }) {
   return (
     <article>
       <p className="mb-6 text-sm text-zinc-500">
+        {note.author && (
+          <>
+            {'By '}
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">{note.author}</span>
+            {' · '}
+          </>
+        )}
         <time dateTime={note.published_at}>{day.format(new Date(note.published_at))}</time>
         {edited && (
           <>

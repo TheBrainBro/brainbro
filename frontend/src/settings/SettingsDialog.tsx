@@ -6,6 +6,7 @@ import {
   Send,
   Settings,
   UserPlus,
+  UserRound,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ import { ImportPanel } from '../imports/ImportPanel'
 import { InvitationsPanel } from '../invitations/InvitationsPanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
+import { ProfilePanel } from './ProfilePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
 type Page = { id: string; label: string; icon: LucideIcon; Panel: ComponentType }
@@ -38,7 +40,10 @@ const groups: { label: string; pages: Page[] }[] = [
   },
   {
     label: 'App',
-    pages: [{ id: 'appearance', label: 'Appearance', icon: Palette, Panel: AppearancePanel }],
+    pages: [
+      { id: 'profile', label: 'Profile', icon: UserRound, Panel: ProfilePanel },
+      { id: 'appearance', label: 'Appearance', icon: Palette, Panel: AppearancePanel },
+    ],
   },
 ]
 

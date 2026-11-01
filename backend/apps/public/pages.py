@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from django.urls import reverse
 from django.utils.html import escape
 
+from apps.accounts.models import Profile
 from apps.items.models import Item, NoteImage
 from apps.items.note_images import image_sources, markdown
 from apps.items.titles import note_title
@@ -47,6 +48,14 @@ def excerpt(body, limit=MAX_DESCRIPTION):
     if len(text) <= limit:
         return text
     return text[:limit].rsplit(" ", 1)[0].rstrip(".,;:") + "…"
+
+
+def author_name(note):
+    """The display name its owner signs with, or "" when they have none."""
+    names = Profile.objects.filter(user_id=note.owner_id).values_list(
+        "display_name", flat=True
+    )
+    return next(iter(names), "")
 
 
 def default_title(note):
@@ -135,6 +144,11 @@ def head_tags(request, slug):
     tags = [
         f"<title>{escape(preview.title)}</title>",
         f'<meta name="description" content="{escape(preview.description)}" />',
+        *(
+            [f'<meta name="author" content="{escape(author)}" />']
+            if (author := author_name(note))
+            else []
+        ),
         f'<link rel="canonical" href="{escape(url)}" />',
         *(
             f'<meta property="{name}" content="{escape(value)}" />'

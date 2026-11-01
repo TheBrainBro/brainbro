@@ -49,7 +49,10 @@ read-only; embed links play, since the author picked them.
   `Cache-Control: public, max-age=300`, so a page taken down stops showing them within minutes
   even behind a cache. Nothing else of the user is served: uploads, other notes' images and
   previews stay behind sign-in.
-- The page never says who owns the note, nor where it is filed.
+- **Author**: the page is signed with its owner's **display name** (Settings › Profile), and it
+  goes in the `author` meta tag. Without a display name the page shows no author: the
+  username, half of the login, never shows. The profile photo stays in the app.
+- The page never says which account owns the note, nor where it is filed.
 
 `/p` lists every published note on the server, the last published first. Nothing links to it
 for now.
@@ -63,7 +66,7 @@ for now.
 | `GET` | `/api/items/<id>/page/` | `{slug, title, description, image, defaults, preview}`: the page settings, their defaults and the result. |
 | `PATCH` | `/api/items/<id>/page/` | Any of `slug`, `title`, `description`, `image` (a `src` of the note's images, or `"none"`); empty ones go back to their default. |
 | `GET` | `/api/public/notes/` | Anyone: `{slug, title, published_at}`, paginated. |
-| `GET` | `/api/public/notes/<slug>/` | Anyone: `{slug, title, body, published_at, edited_at, images, links, notes}`; `notes` are the `[{slug, title}]` its links can lead to. |
+| `GET` | `/api/public/notes/<slug>/` | Anyone: `{slug, title, body, published_at, edited_at, author, images, links, notes}`; `notes` are the `[{slug, title}]` its links can lead to. |
 | `GET` | `/api/public/notes/<slug>/images/<id>/` | Anyone, while published: one of its images. |
 | `GET` | `/api/public/notes/<slug>/links/<id>/image/` | Anyone, while published: a card's image. |
 

@@ -25,7 +25,7 @@ from apps.public.publishing import (
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
-from .collection_images import make_collection_image
+from .collection_images import make_square_image
 from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
 from .note_images import MAX_PASTED_SIZE
 from .notes import sync_images
@@ -689,7 +689,7 @@ class CollectionDeleteSerializer(serializers.Serializer):
 
 
 class CollectionImageSerializer(serializers.Serializer):
-    # Checked by make_collection_image, size first.
+    # Checked by make_square_image, size first.
     file = serializers.FileField(allow_empty_file=False)
 
 
@@ -787,7 +787,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
         if request.method == "POST":
             upload = CollectionImageSerializer(data=request.data)
             upload.is_valid(raise_exception=True)
-            data = make_collection_image(upload.validated_data["file"])
+            data = make_square_image(upload.validated_data["file"])
             if data is None:
                 raise serializers.ValidationError(
                     {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}

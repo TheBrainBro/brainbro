@@ -16,7 +16,7 @@ from apps.items.models import Item, NoteImage, NoteLink
 from apps.items.serializers import note_link_preview
 from apps.items.titles import linkable_titles, note_title
 
-from .pages import public_image_url
+from .pages import author_name, public_image_url
 
 # Long enough to spare the server, short enough that a note taken down stops
 # showing its images soon, even through a cache in front.
@@ -112,9 +112,9 @@ class PublicNoteListView(generics.ListAPIView):
 
 class PublicNoteView(APIView):
     """
-    One published note: its Markdown, with its images, link previews and the
-    published notes its `[[links]]` lead to. Never who owns it, its
-    collections or anything else about it.
+    One published note: its Markdown, with its images, link previews, the
+    published notes its `[[links]]` lead to and its author's display name.
+    Never the owner's account, its collections or anything else about it.
     """
 
     authentication_classes = []
@@ -132,6 +132,8 @@ class PublicNoteView(APIView):
                 "body": note.body,
                 "published_at": note.published_at,
                 "edited_at": note.edited_at,
+                # The owner's display name, never their username; "" without one.
+                "author": author_name(note),
                 "images": public_images(note),
                 "links": public_links(note),
                 "notes": linked_notes(note),
