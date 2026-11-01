@@ -138,6 +138,10 @@ nothing is saved. On a note open in the app, the edit merges into it live,
 with the assistant's name and cursor on what it wrote (see
 [live-editing.md](live-editing.md)).
 
+Every item says who made it and who last edited it, `"user"` or the
+assistant's name, and through what (see [origin.md](origin.md)), so
+assistants can tell their notes from yours.
+
 `add_to_board` saves the board like the app does (its revision goes up), so a
 tab with the board open gets the usual conflict on its next save. Assistants
 can't move cards, connect them or edit the layout.
