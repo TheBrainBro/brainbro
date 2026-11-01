@@ -8,6 +8,7 @@ import {
   type PageChanges,
   type PageSettings,
 } from '../items/api'
+import { useT } from '../i18n/i18n'
 import { ErrorState, Loading } from '../ui/states'
 
 const NO_IMAGE = 'none'
@@ -18,6 +19,7 @@ const NO_IMAGE = 'none'
  * as placeholders: the note's title, the start of its text, its first image.
  */
 export function PageSettingsDialog({ note, onClose }: { note: Item; onClose: () => void }) {
+  const t = useT()
   const page = usePageSettings(note.id)
 
   return (
@@ -36,7 +38,7 @@ export function PageSettingsDialog({ note, onClose }: { note: Item; onClose: () 
         }}
       >
         <h2 id="page-settings-title" className="mb-4 font-semibold">
-          Page settings
+          {t('pageSettings.title')}
         </h2>
         {page.isPending ? (
           <Loading />
@@ -59,6 +61,7 @@ function SettingsForm({
   page: PageSettings
   onClose: () => void
 }) {
+  const t = useT()
   const save = useSavePage(note.id)
   const [slug, setSlug] = useState(page.slug ?? '')
   const [title, setTitle] = useState(page.title)
@@ -91,7 +94,7 @@ function SettingsForm({
         save.mutate(changes, { onSuccess: onClose, onError: (failure) => setError(failure.message) })
       }}
     >
-      <Field id={ids.slug} label="Address" hint="Changing it breaks links to the old one.">
+      <Field id={ids.slug} label={t('pageSettings.address')} hint={t('pageSettings.addressHint')}>
         <div className="flex items-center gap-1.5">
           <span className="text-sm whitespace-nowrap text-zinc-500">
             {window.location.host}/p/
@@ -108,7 +111,7 @@ function SettingsForm({
         </div>
       </Field>
 
-      <Field id={ids.title} label="Title">
+      <Field id={ids.title} label={t('pageSettings.pageTitle')}>
         <input
           id={ids.title}
           className="input"
@@ -119,21 +122,25 @@ function SettingsForm({
         />
       </Field>
 
-      <Field id={ids.description} label="Description">
+      <Field id={ids.description} label={t('pageSettings.description')}>
         <textarea
           id={ids.description}
           className="input min-h-20 resize-y"
           value={description}
           maxLength={300}
-          placeholder={page.defaults.description || 'A sentence about the page'}
+          placeholder={page.defaults.description || t('pageSettings.descriptionPlaceholder')}
           onChange={(event) => setDescription(event.target.value)}
         />
       </Field>
 
       <fieldset>
-        <legend className="mb-1 text-sm font-medium">Image</legend>
+        <legend className="mb-1 text-sm font-medium">{t('pageSettings.image')}</legend>
         <div className="flex flex-wrap gap-2">
-          <ImageChoice label="First image of the note" selected={image === ''} onClick={() => setImage('')}>
+          <ImageChoice
+            label={t('pageSettings.firstImage')}
+            selected={image === ''}
+            onClick={() => setImage('')}
+          >
             <Sparkles className="size-4" aria-hidden="true" />
           </ImageChoice>
           {images.map((candidate) => (
@@ -146,16 +153,20 @@ function SettingsForm({
               <img src={candidate.url} alt="" className="size-full object-cover" />
             </ImageChoice>
           ))}
-          <ImageChoice label="No image" selected={image === NO_IMAGE} onClick={() => setImage(NO_IMAGE)}>
+          <ImageChoice
+            label={t('pageSettings.noImage')}
+            selected={image === NO_IMAGE}
+            onClick={() => setImage(NO_IMAGE)}
+          >
             <ImageOff className="size-4" aria-hidden="true" />
           </ImageChoice>
         </div>
       </fieldset>
 
       <div>
-        <div className="mb-1 text-sm font-medium">Preview</div>
+        <div className="mb-1 text-sm font-medium">{t('pageSettings.preview')}</div>
         <div
-          aria-label="Link preview"
+          aria-label={t('pageSettings.linkPreview')}
           className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800"
         >
           {previewImage && (
@@ -178,14 +189,14 @@ function SettingsForm({
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="button-secondary" onClick={onClose}>
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="button-primary"
           disabled={!changed || !slug.trim() || save.isPending}
         >
-          Save
+          {t('common.save')}
         </button>
       </div>
     </form>

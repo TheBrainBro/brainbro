@@ -6,11 +6,13 @@ import { useGraph } from '../graph/api'
 import { GraphCanvas } from '../graph/GraphCanvas'
 import { COLLECTION_COLOR, EDGE_TYPES, KIND_COLORS, visibleGraph } from '../graph/model'
 import { useOpenNode } from '../graph/open'
+import { useT } from '../i18n/i18n'
 import { KIND_LABEL } from '../items/label'
 import { EmptyState, ErrorState, Loading } from '../ui/states'
 
 /** Items and collections as a graph, tied by collections, boards and note links. */
 export function GraphPage() {
+  const t = useT()
   const graph = useGraph()
   const open = useOpenNode()
   const [types, setTypes] = useState(() => new Set<EdgeType>(EDGE_TYPES.map((e) => e.type)))
@@ -33,9 +35,8 @@ export function GraphPage() {
   if (graph.isError) return <ErrorState error={graph.error} onRetry={() => graph.refetch()} />
   if (!graph.data.nodes.length) {
     return (
-      <EmptyState icon={Network} title="Nothing to show yet">
-        Capture something, organize it into collections or connect items on a board, and the graph
-        shows how it all ties together.
+      <EmptyState icon={Network} title={t('graph.nothing')}>
+        {t('graph.nothingHint')}
       </EmptyState>
     )
   }
@@ -43,7 +44,7 @@ export function GraphPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-200/80 px-4 py-2 text-sm dark:border-zinc-800/80">
-        <div role="group" aria-label="Connections" className="flex flex-wrap gap-1.5">
+        <div role="group" aria-label={t('graph.connections')} className="flex flex-wrap gap-1.5">
           {EDGE_TYPES.map(({ type, label }) => (
             <button
               key={type}
@@ -66,13 +67,13 @@ export function GraphPage() {
             checked={unconnected}
             onChange={(event) => setUnconnected(event.target.checked)}
           />
-          Show unconnected
+          {t('graph.showUnconnected')}
           {!unconnected && visible && visible.hidden > 0 && (
             <span className="text-zinc-400">({visible.hidden})</span>
           )}
         </label>
         <ul
-          aria-label="Colors"
+          aria-label={t('graph.colors')}
           className="ml-auto hidden items-center gap-3 text-xs text-zinc-500 lg:flex"
         >
           {Object.entries(KIND_COLORS).map(([kind, color]) => (
@@ -83,7 +84,7 @@ export function GraphPage() {
           ))}
           <li className="flex items-center gap-1">
             <span className="size-3 rounded-full" style={{ background: COLLECTION_COLOR }} />
-            Collection
+            {t('graph.collection')}
           </li>
         </ul>
       </div>
@@ -91,9 +92,8 @@ export function GraphPage() {
         {visible && visible.nodes.length ? (
           <GraphCanvas visible={visible} onOpen={open} />
         ) : (
-          <EmptyState icon={Network} title="Nothing is connected yet">
-            Organize items into collections, draw lines between them on a board or link notes with
-            [[Title]]. Or turn on Show unconnected.
+          <EmptyState icon={Network} title={t('graph.notConnected')}>
+            {t('graph.notConnectedHint')}
           </EmptyState>
         )}
       </div>

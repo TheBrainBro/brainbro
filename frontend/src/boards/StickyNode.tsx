@@ -1,12 +1,14 @@
 import { NodeResizer, NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { memo } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { ConnectHandles } from './ConnectHandles'
 import { useBoardActions } from './context'
 import { STICKY_COLORS, STICKY_DEFAULT, type StickyFlowNode } from './layout'
 
 /** A sticky note: text on a colored card that lives only on the board. */
 export const StickyNode = memo(function StickyNode({ id, data, selected }: NodeProps<StickyFlowNode>) {
+  const t = useT()
   const { readOnly, updateSticky, editSticky } = useBoardActions()
   const color = data.color || STICKY_DEFAULT
 
@@ -16,14 +18,14 @@ export const StickyNode = memo(function StickyNode({ id, data, selected }: NodeP
         <>
           <NodeResizer isVisible={selected && !data.editing} minWidth={80} minHeight={80} color="#8b5cf6" />
           <NodeToolbar isVisible={data.editing ? false : undefined} position={Position.Top}>
-            <div role="radiogroup" aria-label="Color" className="popover flex items-center gap-1 p-1.5">
+            <div role="radiogroup" aria-label={t('nodes.color')} className="popover flex items-center gap-1 p-1.5">
               {STICKY_COLORS.map((option) => (
                 <button
                   key={option || 'default'}
                   type="button"
                   role="radio"
                   aria-checked={data.color === option}
-                  aria-label={option || 'Yellow'}
+                  aria-label={option || t('nodes.yellow')}
                   className={`size-5 rounded-md border border-black/10 transition hover:scale-110 ${
                     data.color === option ? 'ring-2 ring-zinc-900 ring-offset-1 dark:ring-zinc-100' : ''
                   }`}
@@ -45,9 +47,9 @@ export const StickyNode = memo(function StickyNode({ id, data, selected }: NodeP
         {data.editing ? (
           <textarea
             autoFocus
-            aria-label="Sticky note"
+            aria-label={t('nodes.sticky')}
             defaultValue={data.text}
-            placeholder="Type something…"
+            placeholder={t('nodes.stickyPlaceholder')}
             className="nodrag nowheel h-full w-full resize-none bg-transparent text-base leading-snug outline-none placeholder:text-zinc-900/40"
             onFocus={(event) => event.currentTarget.select()}
             onBlur={(event) => updateSticky(id, { text: event.target.value, editing: false })}

@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { useNavigate } from 'react-router'
 
+import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
 import { useFeedback } from '../ui/feedback'
 import { isMoving, useFlip } from '../ui/flip'
@@ -61,6 +62,7 @@ export function ItemList({
   /** The hand-sorted list these items are: the inbox, or a collection. */
   sortable?: MoveTarget
 }) {
+  const t = useT()
   const triage = useTriage()
   const makeAlbum = useMakeAlbum()
   const setAlbumItems = useSetAlbumItems()
@@ -101,9 +103,10 @@ export function ItemList({
     }
     if (action === 'delete') {
       const confirmed = await confirm({
-        title: ids.length === 1 ? 'Delete this item?' : `Delete ${ids.length} items?`,
-        message: "It can't be undone.",
-        confirm: 'Delete',
+        title:
+          ids.length === 1 ? t('itemList.deleteOne') : t('itemList.deleteMany', { count: ids.length }),
+        message: t('itemList.cantUndo'),
+        confirm: t('common.delete'),
         danger: true,
       })
       if (!confirmed) return
@@ -277,14 +280,14 @@ export function ItemList({
                 ...done,
                 onSuccess: () => {
                   done.onSuccess()
-                  toast({ message: `Added ${images.length === 1 ? '1 image' : `${images.length} images`} to the album` })
+                  toast({ message: t('itemList.addedToAlbum', { count: images.length }) })
                 },
               },
             )
           }
         >
           <Images className="size-3.5" aria-hidden="true" />
-          Add to album
+          {t('itemList.addToAlbum')}
         </button>
       )
     }
@@ -300,36 +303,38 @@ export function ItemList({
               ...done,
               onSuccess: () => {
                 done.onSuccess()
-                toast({ message: `Made an album of ${images.length} images` })
+                toast({ message: t('itemList.madeAlbum', { count: images.length }) })
               },
             },
           )
         }
       >
         <Images className="size-3.5" aria-hidden="true" />
-        Make album
+        {t('itemList.makeAlbum')}
       </button>
     )
   }
 
   /** The triage actions: as words (cards, the selection bar), or as icons only (tiles and rows). */
   function actionsFor(ids: string[], note?: Item, icons = false) {
-    const all: { label: string; icon: LucideIcon; run: () => void }[] = [
-      ...(note ? [{ label: 'Edit', icon: Pencil, run: () => open(note) }] : []),
-      { label: 'Organize', icon: FolderInput, run: () => run(ids, 'organize') },
+    const all: { id: string; label: string; icon: LucideIcon; run: () => void }[] = [
+      ...(note ? [{ id: 'edit', label: t('itemList.edit'), icon: Pencil, run: () => open(note) }] : []),
+      { id: 'organize', label: t('itemList.organize'), icon: FolderInput, run: () => run(ids, 'organize') },
       ...(backToInbox || archived
-        ? [{ label: 'To inbox', icon: Inbox, run: () => run(ids, 'inbox') }]
+        ? [{ id: 'inbox', label: t('itemList.toInbox'), icon: Inbox, run: () => run(ids, 'inbox') }]
         : []),
-      ...(archived ? [] : [{ label: 'Archive', icon: Archive, run: () => run(ids, 'archive') }]),
-      { label: 'Delete', icon: Trash2, run: () => run(ids, 'delete') },
+      ...(archived
+        ? []
+        : [{ id: 'archive', label: t('itemList.archive'), icon: Archive, run: () => run(ids, 'archive') }]),
+      { id: 'delete', label: t('common.delete'), icon: Trash2, run: () => run(ids, 'delete') },
     ]
     // Already in them, for a single item.
     const current = ids.length === 1 ? (items.find((item) => item.id === ids[0])?.collections ?? []) : []
-    return all.map(({ label, icon: Icon, run: action }) => {
+    return all.map(({ id, label, icon: Icon, run: action }) => {
       const button = (props: object = {}) =>
         icons ? (
           <button
-            key={label}
+            key={id}
             type="button"
             aria-label={label}
             className="button-icon group/tip size-7"
@@ -340,15 +345,15 @@ export function ItemList({
             <span className="tooltip top-full mt-1.5">{label}</span>
           </button>
         ) : (
-          <button key={label} type="button" className="button-ghost" onClick={action} {...props}>
+          <button key={id} type="button" className="button-ghost" onClick={action} {...props}>
             <Icon className="size-3.5" aria-hidden="true" />
             {label}
           </button>
         )
-      if (label !== 'Organize') return button()
+      if (id !== 'organize') return button()
       return (
         <OrganizeMenu
-          key={label}
+          key={id}
           current={current}
           onPick={(collection) => organizeInto(ids, collection)}
           onRemove={(collection) => takeOutOf(ids, collection)}
@@ -364,19 +369,19 @@ export function ItemList({
       {visibleSelection.length > 0 && (
         <div
           role="toolbar"
-          aria-label="Selection"
+          aria-label={t('itemList.selection')}
           className="popover sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-1 px-2 py-1.5"
         >
           <button
             type="button"
-            aria-label="Clear selection (Esc)"
+            aria-label={t('itemList.clearSelection')}
             className="button-icon group/tip size-7"
             onClick={() => setSelected(new Set())}
           >
             <X className="size-4" aria-hidden="true" />
-            <span className="tooltip top-full mt-1.5">Clear selection (Esc)</span>
+            <span className="tooltip top-full mt-1.5">{t('itemList.clearSelection')}</span>
           </button>
-          <span className="mr-auto text-sm font-medium">{visibleSelection.length} selected</span>
+          <span className="mr-auto text-sm font-medium">{t('itemList.selected', { count: visibleSelection.length })}</span>
           {albumAction(visibleSelection)}
           {actionsFor(visibleSelection)}
         </div>

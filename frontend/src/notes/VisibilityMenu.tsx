@@ -1,6 +1,7 @@
 import { Check, ExternalLink, Globe, Lock, Settings2, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { usePublication, type Item } from '../items/api'
 import { CopyField } from '../ui/CopyField'
 import { Dropdown } from '../ui/Dropdown'
@@ -11,6 +12,7 @@ import { Dropdown } from '../ui/Dropdown'
  * link and page settings then show here.
  */
 export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: () => void }) {
+  const t = useT()
   const publication = usePublication()
   const [error, setError] = useState<string>()
   const isPublic = Boolean(note.published_at)
@@ -28,12 +30,12 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
   return (
     <Dropdown
       role="dialog"
-      label="Visibility"
+      label={t('visibility.label')}
       className="w-80"
       trigger={(props) => (
         <button
           type="button"
-          aria-label={isPublic ? 'Visibility: public' : 'Visibility: private'}
+          aria-label={isPublic ? t('visibility.isPublic') : t('visibility.isPrivate')}
           className="button-ghost group/tip relative"
           {...props}
         >
@@ -42,8 +44,12 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
           ) : (
             <Lock className="size-3.5" aria-hidden="true" />
           )}
-          <span className="hidden sm:inline">{isPublic ? 'Public' : 'Private'}</span>
-          <span className="tooltip top-full mt-2 sm:hidden">{isPublic ? 'Public' : 'Private'}</span>
+          <span className="hidden sm:inline">
+            {isPublic ? t('visibility.public') : t('visibility.private')}
+          </span>
+          <span className="tooltip top-full mt-2 sm:hidden">
+            {isPublic ? t('visibility.public') : t('visibility.private')}
+          </span>
         </button>
       )}
     >
@@ -51,15 +57,15 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
         <>
           <Choice
             icon={Lock}
-            title="Private"
-            detail="Only you can see it."
+            title={t('visibility.private')}
+            detail={t('visibility.privateHint')}
             selected={!isPublic}
             onClick={() => choose(false)}
           />
           <Choice
             icon={Globe}
-            title="Public"
-            detail="Anyone with the link can read it, without signing in."
+            title={t('visibility.public')}
+            detail={t('visibility.publicHint')}
             selected={isPublic}
             onClick={() => choose(true)}
           />
@@ -72,11 +78,11 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
             <>
               <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
               <div className="space-y-1 p-2">
-                <CopyField label="Public link" value={`${window.location.origin}${path}`} />
+                <CopyField label={t('visibility.link')} value={`${window.location.origin}${path}`} />
               </div>
               <a href={path} target="_blank" rel="noopener noreferrer" className="menu-item">
                 <ExternalLink className="size-4" aria-hidden="true" />
-                Open page
+                {t('visibility.openPage')}
               </a>
               <button
                 type="button"
@@ -87,7 +93,7 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
                 }}
               >
                 <Settings2 className="size-4" aria-hidden="true" />
-                Page settings…
+                {t('visibility.settings')}
               </button>
             </>
           )}

@@ -1,14 +1,15 @@
+import { t, useT, type MessageKey } from '../i18n/i18n'
 import { uploadNoteImage, useItem, type Item } from '../items/api'
 import { NoteEditor } from '../notes/NoteEditor'
 import { Peers } from '../notes/Peers'
 import { useLiveNote, type LiveStatus } from '../notes/live'
 import { useFeedback } from '../ui/feedback'
 
-const STATUS: Record<LiveStatus, string> = {
-  live: 'Saved',
-  connecting: 'Connecting…',
-  offline: 'Offline, kept on this device',
-  closed: "Can't edit this note",
+const STATUS: Record<LiveStatus, MessageKey> = {
+  live: 'note.saved',
+  connecting: 'note.connecting',
+  offline: 'note.offline',
+  closed: 'note.closed',
 }
 
 /**
@@ -17,6 +18,7 @@ const STATUS: Record<LiveStatus, string> = {
  * with CodeMirror.
  */
 export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: () => void }) {
+  useT()
   const note = useLiveNote(item.id)
   const latest = useItem(item.id).data ?? item
   const { toast } = useFeedback()
@@ -43,13 +45,13 @@ export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: (
           onUploadError={(message) => toast({ message, tone: 'error' })}
         />
       ) : (
-        <div role="status" aria-label="Loading note" className="space-y-2 py-2">
+        <div role="status" aria-label={t('nodes.loadingNote')} className="space-y-2 py-2">
           <div className="skeleton h-4 w-full" />
           <div className="skeleton h-4 w-2/3" />
         </div>
       )}
       <p className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
-        <span className="mr-auto">{STATUS[note.status]} · Esc to finish</span>
+        <span className="mr-auto">{t('nodes.escToFinish', { status: t(STATUS[note.status]) })}</span>
         <Peers peers={note.peers} />
       </p>
     </div>

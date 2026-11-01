@@ -1,24 +1,26 @@
 import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 
+import { useT, type MessageKey } from '../i18n/i18n'
 import { useSetTheme, useTheme, type Theme } from './theme'
 
-const OPTIONS: { theme: Theme; label: string; icon: LucideIcon }[] = [
-  { theme: 'light', label: 'Light', icon: Sun },
-  { theme: 'dark', label: 'Dark', icon: Moon },
-  { theme: 'system', label: 'System', icon: Monitor },
+const OPTIONS: { theme: Theme; label: MessageKey; icon: LucideIcon }[] = [
+  { theme: 'light', label: 'appearance.light', icon: Sun },
+  { theme: 'dark', label: 'appearance.dark', icon: Moon },
+  { theme: 'system', label: 'appearance.system', icon: Monitor },
 ]
 
 /** Light, dark or the device's own setting, the same on every device. */
 export function AppearancePanel() {
+  const t = useT()
   const theme = useTheme()
   const setTheme = useSetTheme()
 
   return (
     <div>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-        System follows the setting of each device you use Brain on.
+        {t('appearance.systemHint')}
       </p>
-      <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2 sm:max-w-sm">
+      <div role="radiogroup" aria-label={t('appearance.theme')} className="grid grid-cols-3 gap-2 sm:max-w-sm">
         {OPTIONS.map(({ theme: value, label, icon: Icon }) => (
           <button
             key={value}
@@ -29,13 +31,13 @@ export function AppearancePanel() {
             onClick={() => setTheme.mutate(value)}
           >
             <Icon className="size-5" aria-hidden="true" />
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
       {setTheme.isError && (
         <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
-          Couldn't save the theme. Try again.
+          {t('appearance.saveFailed')}
         </p>
       )}
     </div>

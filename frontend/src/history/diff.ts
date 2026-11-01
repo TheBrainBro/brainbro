@@ -1,6 +1,7 @@
 import { diffLines } from 'diff'
 
 import type { Layout, LayoutGroup, LayoutNode } from '../boards/api'
+import { t } from '../i18n/i18n'
 
 export type DiffLine = { type: 'same' | 'added' | 'removed'; text: string }
 /** Unchanged lines left out, around the changes. */
@@ -42,16 +43,12 @@ function quote(text: string) {
   return `“${line.length > QUOTE_LENGTH ? `${line.slice(0, QUOTE_LENGTH)}…` : line}”`
 }
 
-function plural(count: number, one: string, many: string) {
-  return `${count} ${count === 1 ? one : many}`
-}
-
 function byId<T extends { id: string }>(list: T[]) {
   return new Map(list.map((entry) => [entry.id, entry]))
 }
 
 function frameName(frame: LayoutGroup) {
-  return frame.title ? `frame ${quote(frame.title)}` : 'a frame'
+  return frame.title ? t('boardChanges.frameNamed', { title: quote(frame.title) }) : t('boardChanges.frame')
 }
 
 function moved(a: LayoutNode, b: LayoutNode) {
@@ -70,7 +67,7 @@ export function boardChanges(
 ): BoardChange[] {
   const changes: BoardChange[] = []
   if (before.title !== after.title) {
-    changes.push({ type: 'changed', text: `Renamed from ${quote(before.title)}` })
+    changes.push({ type: 'changed', text: t('boardChanges.renamedFrom', { title: quote(before.title) }) })
   }
   const then = byId(before.layout.nodes)
   const now = byId(after.layout.nodes)
@@ -81,13 +78,13 @@ export function boardChanges(
     const old = then.get(node.id)
     if (old) {
       if (node.type === 'sticky' && old.type === 'sticky' && node.text !== old.text) {
-        changes.push({ type: 'changed', text: `Edited a sticky note: ${quote(node.text)}` })
+        changes.push({ type: 'changed', text: t('boardChanges.editedSticky', { text: quote(node.text) }) })
       }
       if (node.type !== 'stroke' && moved(old, node)) movedCount++
     } else if (node.type === 'item') {
-      changes.push({ type: 'added', text: `Added ${label(node.item)}` })
+      changes.push({ type: 'added', text: t('boardChanges.added', { what: label(node.item) }) })
     } else if (node.type === 'sticky') {
-      changes.push({ type: 'added', text: `Added a sticky note: ${quote(node.text)}` })
+      changes.push({ type: 'added', text: t('boardChanges.addedSticky', { text: quote(node.text) }) })
     } else {
       drawn++
     }
@@ -95,9 +92,9 @@ export function boardChanges(
   for (const node of before.layout.nodes) {
     if (now.has(node.id)) continue
     if (node.type === 'item') {
-      changes.push({ type: 'removed', text: `Removed ${label(node.item)}` })
+      changes.push({ type: 'removed', text: t('boardChanges.removed', { what: label(node.item) }) })
     } else if (node.type === 'sticky') {
-      changes.push({ type: 'removed', text: `Removed a sticky note: ${quote(node.text)}` })
+      changes.push({ type: 'removed', text: t('boardChanges.removedSticky', { text: quote(node.text) }) })
     } else {
       erased++
     }
@@ -107,14 +104,17 @@ export function boardChanges(
   const framesNow = byId(after.layout.groups)
   for (const frame of after.layout.groups) {
     const old = framesThen.get(frame.id)
-    if (!old) changes.push({ type: 'added', text: `Added ${frameName(frame)}` })
+    if (!old) changes.push({ type: 'added', text: t('boardChanges.added', { what: frameName(frame) }) })
     else if (old.title !== frame.title) {
-      changes.push({ type: 'changed', text: `Renamed ${frameName(old)} to ${quote(frame.title)}` })
+      changes.push({
+        type: 'changed',
+        text: t('boardChanges.renamedFrame', { frame: frameName(old), title: quote(frame.title) }),
+      })
     }
   }
   for (const frame of before.layout.groups) {
     if (!framesNow.has(frame.id)) {
-      changes.push({ type: 'removed', text: `Removed ${frameName(frame)}` })
+      changes.push({ type: 'removed', text: t('boardChanges.removed', { what: frameName(frame) }) })
     }
   }
 
@@ -124,11 +124,11 @@ export function boardChanges(
   const disconnected = before.layout.edges.filter((edge) => !edgesNow.has(edge.id)).length
 
   const counts: [number, BoardChange['type'], string][] = [
-    [movedCount, 'changed', `Moved ${plural(movedCount, 'card', 'cards')}`],
-    [connected, 'added', `Added ${plural(connected, 'connection', 'connections')}`],
-    [disconnected, 'removed', `Removed ${plural(disconnected, 'connection', 'connections')}`],
-    [drawn, 'added', `Drew ${plural(drawn, 'line', 'lines')}`],
-    [erased, 'removed', `Erased ${plural(erased, 'line', 'lines')}`],
+    [movedCount, 'changed', t('boardChanges.moved', { count: movedCount })],
+    [connected, 'added', t('boardChanges.connected', { count: connected })],
+    [disconnected, 'removed', t('boardChanges.disconnected', { count: disconnected })],
+    [drawn, 'added', t('boardChanges.drew', { count: drawn })],
+    [erased, 'removed', t('boardChanges.erased', { count: erased })],
   ]
   for (const [count, type, text] of counts) if (count) changes.push({ type, text })
   return changes

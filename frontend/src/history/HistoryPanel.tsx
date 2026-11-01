@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { boardKey, boardsKey, seedItems, type Board } from '../boards/api'
+import { currentLanguage, t, useT } from '../i18n/i18n'
 import { itemKey, itemsKey, type Item } from '../items/api'
 import { itemLabel } from '../items/label'
 import { LoadMore } from '../items/LoadMore'
@@ -21,10 +22,9 @@ import {
 } from './api'
 import { aroundChanges, boardChanges, textDiff, type BoardChange } from './diff'
 
-const fullDate = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' })
-
 function when(iso: string) {
-  return fullDate.format(new Date(iso))
+  const format = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium', timeStyle: 'short' })
+  return format.format(new Date(iso))
 }
 
 /**
@@ -46,24 +46,25 @@ function RevisionList({
   history: ReturnType<typeof useHistory>
   className?: string
 }) {
+  useT()
   const { revisions, all, current, selected, select } = history
   if (revisions.isPending) {
     return (
       <p className="p-4 text-sm text-zinc-500" role="status">
-        Loading history…
+        {t('history.loading')}
       </p>
     )
   }
   if (revisions.isError) {
     return (
       <p className="p-4 text-sm text-red-600 dark:text-red-400" role="alert">
-        Couldn't load the history. {revisions.error.message}
+        {t('history.failed', { error: revisions.error.message })}
       </p>
     )
   }
   return (
     <div className={`overflow-y-auto p-2 ${className}`}>
-      <ol aria-label="Revisions" className="space-y-0.5">
+      <ol aria-label={t('history.revisions')} className="space-y-0.5">
         {all.map((revision) => (
           <li key={revision.id}>
             <button
@@ -96,8 +97,8 @@ function RevisionList({
 
 function RevisionTags({ revision, current }: { revision: Revision; current: boolean }) {
   const notes = [
-    current && 'Current version',
-    revision.restored_from_at && `Restored the version from ${when(revision.restored_from_at)}`,
+    current && t('history.current'),
+    revision.restored_from_at && t('history.restoredFrom', { date: when(revision.restored_from_at) }),
   ].filter(Boolean)
   if (!notes.length) return null
   return <span className="block text-xs text-zinc-500">{notes.join(' · ')}</span>
@@ -111,13 +112,13 @@ function RestoreButton({ busy, onClick }: { busy: boolean; onClick: () => void }
       ) : (
         <RotateCcw className="size-4" aria-hidden="true" />
       )}
-      Restore this version
+      {t('history.restoreThis')}
     </button>
   )
 }
 
 /** Asks first, restores, and says how it went. Resolves to what the server returned. */
-function useRestore<T>(restore: (id: string) => Promise<T>, what: string) {
+function useRestore<T>(restore: (id: string) => Promise<T>, what: 'note' | 'board') {
   const { confirm, toast } = useFeedback()
   const [busy, setBusy] = useState(false)
 
@@ -125,15 +126,17 @@ function useRestore<T>(restore: (id: string) => Promise<T>, what: string) {
     busy,
     async run(revision: Revision, onRestored: (result: T) => void) {
       const confirmed = await confirm({
-        title: 'Restore this version?',
-        message: `The ${what} goes back to how it was ${timeAgo(revision.updated_at)}. What it holds now stays in its history.`,
-        confirm: 'Restore',
+        title: t('history.restoreTitle'),
+        message: t(what === 'note' ? 'history.restoreNote' : 'history.restoreBoard', {
+          when: timeAgo(revision.updated_at),
+        }),
+        confirm: t('history.restore'),
       })
       if (!confirmed) return
       setBusy(true)
       try {
         onRestored(await restore(revision.id))
-        toast({ message: `Restored the version from ${when(revision.updated_at)}` })
+        toast({ message: t('history.restored', { date: when(revision.updated_at) }) })
       } catch (error) {
         toast({ message: (error as Error).message, tone: 'error' })
       } finally {
@@ -144,11 +147,12 @@ function useRestore<T>(restore: (id: string) => Promise<T>, what: string) {
 }
 
 function PanelHeader({ title, onClose }: { title: string; onClose: () => void }) {
+  useT()
   return (
     <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
       <History className="size-4 text-zinc-500" aria-hidden="true" />
       <h2 className="flex-1 text-sm font-semibold">{title}</h2>
-      <button type="button" aria-label="Close history" className="button-icon size-8" onClick={onClose}>
+      <button type="button" aria-label={t('history.close')} className="button-icon size-8" onClick={onClose}>
         <X className="size-4" aria-hidden="true" />
       </button>
     </div>
@@ -168,6 +172,7 @@ export function NoteHistory({
   onRestored: (note: Item) => void
   onClose: () => void
 }) {
+  useT()
   const queryClient = useQueryClient()
   const target = { item: note.id }
   const history = useHistory(target, note.version)
@@ -179,13 +184,13 @@ export function NoteHistory({
 
   return (
     <div className="flex size-full max-w-6xl flex-col gap-3 md:flex-row">
-      <section aria-label="Version" className="viewer-sheet flex min-h-0 flex-1 flex-col p-0">
+      <section aria-label={t('history.version')} className="viewer-sheet flex min-h-0 flex-1 flex-col p-0">
         <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 px-6 py-3 dark:border-zinc-800">
           <div role="tablist" className="flex rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-800">
             {(
               [
-                ['changes', 'Changes since'],
-                ['then', 'As it was'],
+                ['changes', t('history.changesSince')],
+                ['then', t('history.asItWas')],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -232,20 +237,20 @@ export function NoteHistory({
             )
           ) : shown.isError || now.isError ? (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              Couldn't load this version.
+              {t('history.versionFailed')}
             </p>
           ) : (
             <p role="status" className="text-sm text-zinc-500">
-              Loading…
+              {t('common.loading')}
             </p>
           )}
         </div>
       </section>
       <aside
-        aria-label="History"
+        aria-label={t('history.title')}
         className="flex max-h-72 w-full shrink-0 flex-col overflow-hidden rounded-2xl bg-white text-zinc-900 shadow-2xl md:max-h-full md:w-80 dark:bg-zinc-900 dark:text-zinc-100"
       >
-        <PanelHeader title="History" onClose={onClose} />
+        <PanelHeader title={t('history.title')} onClose={onClose} />
         <RevisionList history={history} className="min-h-0 flex-1" />
       </aside>
     </div>
@@ -262,6 +267,7 @@ export function NoteHistoryDialog({
   onRestored?: (note: Item) => void
   onClose: () => void
 }) {
+  useT()
   const dialog = useRef<HTMLDivElement>(null)
 
   // Focus comes in, and goes back where it was on closing.
@@ -276,7 +282,7 @@ export function NoteHistoryDialog({
       ref={dialog}
       role="dialog"
       aria-modal="true"
-      aria-label="Note history"
+      aria-label={t('history.noteHistory')}
       tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-4 outline-none backdrop-blur-sm sm:p-8"
       onKeyDown={(event) => {
@@ -307,25 +313,30 @@ function NoteChanges({
   after: { title: string; body: string }
   isCurrent: boolean
 }) {
-  if (isCurrent) return <p className="text-sm text-zinc-500">This is what the note holds now.</p>
+  useT()
+  if (isCurrent) return <p className="text-sm text-zinc-500">{t('history.noteNow')}</p>
   const lines = aroundChanges(textDiff(before.body, after.body))
   const renamed = before.title !== after.title
   if (!renamed && !lines.some((line) => line.type === 'added' || line.type === 'removed')) {
-    return <p className="text-sm text-zinc-500">Nothing changed since this version.</p>
+    return <p className="text-sm text-zinc-500">{t('history.nothingChanged')}</p>
   }
   return (
     <div className="space-y-3">
       {renamed && (
         <p className="text-sm">
-          Title: <del className="text-red-700 dark:text-red-300">{before.title || 'Untitled'}</del>{' '}
-          → <ins className="text-emerald-700 no-underline dark:text-emerald-300">{after.title || 'Untitled'}</ins>
+          {t('history.titleChange')}{' '}
+          <del className="text-red-700 dark:text-red-300">{before.title || t('history.untitled')}</del>{' '}
+          →{' '}
+          <ins className="text-emerald-700 no-underline dark:text-emerald-300">
+            {after.title || t('history.untitled')}
+          </ins>
         </p>
       )}
-      <pre aria-label="Changes" className="overflow-x-auto rounded-lg border border-zinc-200 font-mono text-[13px] leading-6 dark:border-zinc-800">
+      <pre aria-label={t('history.changes')} className="overflow-x-auto rounded-lg border border-zinc-200 font-mono text-[13px] leading-6 dark:border-zinc-800">
         {lines.map((line, index) =>
           line.type === 'gap' ? (
             <div key={index} className="bg-zinc-50 px-3 text-xs leading-7 text-zinc-500 dark:bg-zinc-800/60">
-              {line.count === 1 ? '1 unchanged line' : `${line.count} unchanged lines`}
+              {t('history.unchanged', { count: line.count })}
             </div>
           ) : (
             <div key={index} className={`flex px-3 whitespace-pre-wrap ${LINE_STYLE[line.type]}`}>
@@ -333,7 +344,9 @@ function NoteChanges({
                 {LINE_MARK[line.type]}
               </span>
               <span className="min-w-0 flex-1">
-                {line.type !== 'same' && <span className="sr-only">{line.type}: </span>}
+                {line.type !== 'same' && (
+                  <span className="sr-only">{t(`history.${line.type}`)}: </span>
+                )}
                 {line.text || ' '}
               </span>
             </div>
@@ -356,6 +369,7 @@ const CHANGE_MARK = { added: '+', removed: '−', changed: '•' }
  * picked, what changed on the board since, to restore.
  */
 export function BoardHistory({ board, onClose }: { board: Board; onClose: () => void }) {
+  useT()
   const queryClient = useQueryClient()
   const target = { board: board.id }
   const history = useHistory(target, board.revision)
@@ -368,7 +382,7 @@ export function BoardHistory({ board, onClose }: { board: Board; onClose: () => 
     const item =
       shown.data?.items?.find((candidate) => candidate.id === itemId) ??
       board.items.find((candidate) => candidate.id === itemId)
-    return item ? `“${itemLabel(item)}”` : 'an item deleted since'
+    return item ? `“${itemLabel(item)}”` : t('history.deletedItem')
   }
 
   let changes: BoardChange[] | null = null
@@ -382,26 +396,26 @@ export function BoardHistory({ board, onClose }: { board: Board; onClose: () => 
 
   return (
     <aside
-      aria-label="History"
+      aria-label={t('history.title')}
       className="absolute inset-y-0 right-0 z-10 flex w-96 max-w-full flex-col border-l border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <PanelHeader title="Board history" onClose={onClose} />
+      <PanelHeader title={t('history.boardHistory')} onClose={onClose} />
       <RevisionList history={history} className="min-h-0 flex-1" />
       {selected && (
         <section
-          aria-label="Changes since this version"
+          aria-label={t('history.changesSinceVersion')}
           className="max-h-[45%] overflow-y-auto border-t border-zinc-200 p-4 dark:border-zinc-800"
         >
           {selected === current ? (
-            <p className="text-sm text-zinc-500">This is what the board holds now.</p>
+            <p className="text-sm text-zinc-500">{t('history.boardNow')}</p>
           ) : changes === null ? (
             <p role="status" className="text-sm text-zinc-500">
-              Loading…
+              {t('common.loading')}
             </p>
           ) : (
             <>
               <h3 className="mb-2 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                Changes since this version
+                {t('history.changesSinceVersion')}
               </h3>
               {changes.length ? (
                 <ul className="mb-4 space-y-1 text-sm">
@@ -415,7 +429,7 @@ export function BoardHistory({ board, onClose }: { board: Board; onClose: () => 
                   ))}
                 </ul>
               ) : (
-                <p className="mb-4 text-sm text-zinc-500">Nothing changed since this version.</p>
+                <p className="mb-4 text-sm text-zinc-500">{t('history.nothingChanged')}</p>
               )}
               <RestoreButton
                 busy={restore.busy}

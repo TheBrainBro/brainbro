@@ -1,75 +1,85 @@
+import { t } from '../i18n/i18n'
 import { ALT, combo, MOD } from '../lib/keys'
 
 export type Shortcut = { keys: string[]; label: string }
 export type ShortcutGroup = { title: string; shortcuts: Shortcut[] }
 
-const LIST: ShortcutGroup = {
-  title: 'Lists',
-  shortcuts: [
-    { keys: ['J', 'K'], label: 'Next or previous item (also ↓ ↑)' },
-    { keys: ['Enter'], label: 'Open' },
-    { keys: ['X'], label: 'Select' },
-    { keys: ['O'], label: 'Organize' },
-    { keys: ['E'], label: 'Archive' },
-    { keys: ['#'], label: 'Delete' },
-    { keys: ['Esc'], label: 'Clear selection' },
-    { keys: [ALT, '↑', '↓'], label: 'Move the item up or down (or drag it)' },
-  ],
-}
-
-/** Hand-sorted collections or boards. */
-function sorting(what: string): ShortcutGroup {
+function list(): ShortcutGroup {
   return {
-    title: 'Sorting',
-    shortcuts: [{ keys: [ALT, '↑', '↓'], label: `Move the focused ${what} (or drag it)` }],
+    title: t('shortcuts.lists'),
+    shortcuts: [
+      { keys: ['J', 'K'], label: t('shortcuts.nextPrevious') },
+      { keys: ['Enter'], label: t('shortcuts.open') },
+      { keys: ['X'], label: t('shortcuts.select') },
+      { keys: ['O'], label: t('shortcuts.organize') },
+      { keys: ['E'], label: t('shortcuts.archive') },
+      { keys: ['#'], label: t('shortcuts.delete') },
+      { keys: ['Esc'], label: t('shortcuts.clearSelection') },
+      { keys: [ALT, '↑', '↓'], label: t('shortcuts.moveItem') },
+    ],
   }
 }
 
-const VIEWER: ShortcutGroup = {
-  title: 'Viewer',
-  shortcuts: [
-    { keys: ['←', '→'], label: 'Previous or next' },
-    { keys: ['Esc'], label: 'Close' },
-  ],
+/** Hand-sorted collections or boards. */
+function sorting(what: 'collection' | 'board'): ShortcutGroup {
+  return {
+    title: t('shortcuts.sorting'),
+    shortcuts: [
+      {
+        keys: [ALT, '↑', '↓'],
+        label: what === 'board' ? t('shortcuts.moveBoard') : t('shortcuts.moveCollection'),
+      },
+    ],
+  }
+}
+
+function viewer(): ShortcutGroup {
+  return {
+    title: t('shortcuts.viewer'),
+    shortcuts: [
+      { keys: ['←', '→'], label: t('shortcuts.previousNext') },
+      { keys: ['Esc'], label: t('shortcuts.close') },
+    ],
+  }
 }
 
 /** The shortcuts for the screen at `pathname`, most specific first. */
 export function shortcutsFor(pathname: string): ShortcutGroup[] {
   const everywhere: ShortcutGroup = {
-    title: 'Everywhere',
+    title: t('shortcuts.everywhere'),
     shortcuts: [
-      { keys: [combo('K')], label: 'Search' },
-      { keys: ['?'], label: 'Show these shortcuts' },
+      { keys: [combo('K')], label: t('shortcuts.search') },
+      { keys: ['?'], label: t('shortcuts.showShortcuts') },
     ],
   }
   if (pathname === '/') {
     return [
       {
-        title: 'Inbox',
+        title: t('shortcuts.inbox'),
         shortcuts: [
-          { keys: ['/'], label: 'Write in the capture box' },
-          { keys: ['N'], label: 'New note' },
-          { keys: [MOD, 'V'], label: 'Paste anywhere to capture' },
+          { keys: ['/'], label: t('shortcuts.writeCapture') },
+          { keys: ['N'], label: t('shortcuts.newNote') },
+          { keys: [MOD, 'V'], label: t('shortcuts.pasteCapture') },
         ],
       },
-      LIST,
-      VIEWER,
+      list(),
+      viewer(),
       everywhere,
     ]
   }
   if (pathname === '/collections') return [sorting('collection'), everywhere]
   if (pathname === '/boards') return [sorting('board'), everywhere]
   if (pathname.startsWith('/collections/')) {
-    return [LIST, sorting('collection'), VIEWER, everywhere]
+    return [list(), sorting('collection'), viewer(), everywhere]
   }
-  if (pathname === '/archive') return [LIST, VIEWER, everywhere]
+  if (pathname === '/archive') return [list(), viewer(), everywhere]
   if (pathname.startsWith('/notes/')) {
     return [
       {
-        title: 'Note',
+        title: t('shortcuts.note'),
         shortcuts: [
-          { keys: [combo('S')], label: 'Save now (it also saves on its own)' },
-          { keys: [`${MOD}-click`], label: 'Open a link' },
+          { keys: [combo('S')], label: t('shortcuts.saveNow') },
+          { keys: [`${MOD}-click`], label: t('shortcuts.openLink') },
         ],
       },
       everywhere,
@@ -78,30 +88,30 @@ export function shortcutsFor(pathname: string): ShortcutGroup[] {
   if (pathname.startsWith('/boards/')) {
     return [
       {
-        title: 'Tools',
+        title: t('shortcuts.tools'),
         shortcuts: [
-          { keys: ['V'], label: 'Select' },
-          { keys: ['H'], label: 'Pan' },
-          { keys: ['S'], label: 'Sticky note' },
-          { keys: ['P'], label: 'Pen' },
-          { keys: ['F'], label: 'Group' },
-          { keys: ['Esc'], label: 'Back to select' },
+          { keys: ['V'], label: t('shortcuts.select') },
+          { keys: ['H'], label: t('shortcuts.pan') },
+          { keys: ['S'], label: t('shortcuts.sticky') },
+          { keys: ['P'], label: t('shortcuts.pen') },
+          { keys: ['F'], label: t('shortcuts.group') },
+          { keys: ['Esc'], label: t('shortcuts.backToSelect') },
         ],
       },
       {
-        title: 'Board',
+        title: t('shortcuts.board'),
         shortcuts: [
-          { keys: ['N'], label: 'Note' },
-          { keys: ['L'], label: 'Link' },
-          { keys: [MOD, 'V'], label: 'Paste onto the board' },
-          { keys: [combo('G')], label: 'Group the selection' },
-          { keys: [combo('G', { shift: true })], label: 'Ungroup' },
-          { keys: ['Delete'], label: 'Take off the board (the item stays)' },
-          { keys: [combo('Z')], label: 'Undo' },
-          { keys: [combo('Z', { shift: true })], label: 'Redo' },
+          { keys: ['N'], label: t('shortcuts.note') },
+          { keys: ['L'], label: t('shortcuts.link') },
+          { keys: [MOD, 'V'], label: t('shortcuts.pasteBoard') },
+          { keys: [combo('G')], label: t('shortcuts.groupSelection') },
+          { keys: [combo('G', { shift: true })], label: t('shortcuts.ungroup') },
+          { keys: ['Delete'], label: t('shortcuts.takeOff') },
+          { keys: [combo('Z')], label: t('shortcuts.undo') },
+          { keys: [combo('Z', { shift: true })], label: t('shortcuts.redo') },
         ],
       },
-      VIEWER,
+      viewer(),
       everywhere,
     ]
   }

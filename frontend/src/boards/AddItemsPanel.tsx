@@ -1,25 +1,26 @@
 import { Check, Plus, Search, X } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 
+import { useT, type MessageKey } from '../i18n/i18n'
 import { useItems, type Item, type ItemKind, type ItemStatus } from '../items/api'
 import { ItemThumb } from '../items/ItemThumb'
 import { itemLabel, KIND_LABEL } from '../items/label'
 import { timeAgo } from '../lib/time'
 import { ITEM_DRAG_TYPE } from './layout'
 
-const sources: { status?: ItemStatus; label: string }[] = [
-  { status: 'inbox', label: 'Inbox' },
-  { label: 'All' },
+const sources: { status?: ItemStatus; label: MessageKey }[] = [
+  { status: 'inbox', label: 'addItems.inbox' },
+  { label: 'addItems.all' },
 ]
 
-const kinds: { kind?: ItemKind; label: string }[] = [
-  { label: 'Everything' },
-  { kind: 'note', label: 'Notes' },
-  { kind: 'link', label: 'Links' },
-  { kind: 'image', label: 'Images' },
-  { kind: 'file', label: 'Files' },
-  { kind: 'audio', label: 'Audio' },
-  { kind: 'album', label: 'Albums' },
+const kinds: { kind?: ItemKind; label: MessageKey }[] = [
+  { label: 'addItems.everything' },
+  { kind: 'note', label: 'addItems.notes' },
+  { kind: 'link', label: 'addItems.links' },
+  { kind: 'image', label: 'addItems.images' },
+  { kind: 'file', label: 'addItems.files' },
+  { kind: 'audio', label: 'addItems.audio' },
+  { kind: 'album', label: 'addItems.albums' },
 ]
 
 
@@ -33,6 +34,7 @@ export function AddItemsPanel({
   onAdd: (item: Item) => void
   onClose: () => void
 }) {
+  const t = useT()
   const [status, setStatus] = useState<ItemStatus | undefined>('inbox')
   const [kind, setKind] = useState<ItemKind | undefined>()
   const [query, setQuery] = useState('')
@@ -42,7 +44,7 @@ export function AddItemsPanel({
 
   return (
     <aside
-      aria-label="Add items"
+      aria-label={t('addItems.label')}
       className="absolute inset-y-0 right-0 z-10 flex w-96 max-w-full flex-col border-l border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
     >
       <div className="space-y-2 border-b border-zinc-200 p-3 dark:border-zinc-800">
@@ -57,11 +59,11 @@ export function AddItemsPanel({
                 className="rounded-md px-3 py-1 text-sm text-zinc-500 transition aria-selected:bg-white aria-selected:font-medium aria-selected:text-zinc-900 aria-selected:shadow-xs dark:aria-selected:bg-zinc-700 dark:aria-selected:text-zinc-100"
                 onClick={() => setStatus(source.status)}
               >
-                {source.label}
+                {t(source.label)}
               </button>
             ))}
           </div>
-          <button type="button" aria-label="Close" className="button-icon ml-auto" onClick={onClose}>
+          <button type="button" aria-label={t('common.close')} className="button-icon ml-auto" onClick={onClose}>
             <X className="size-4" aria-hidden="true" />
           </button>
         </div>
@@ -72,14 +74,14 @@ export function AddItemsPanel({
           />
           <input
             type="search"
-            aria-label="Search items"
-            placeholder="Search"
+            aria-label={t('addItems.search')}
+            placeholder={t('addItems.searchPlaceholder')}
             className="input pl-9"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <div className="flex flex-wrap gap-1" aria-label="Kind">
+        <div className="flex flex-wrap gap-1" aria-label={t('addItems.kind')}>
           {kinds.map((option) => (
             <button
               key={option.label}
@@ -88,7 +90,7 @@ export function AddItemsPanel({
               className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-xs text-zinc-600 transition hover:border-zinc-300 aria-pressed:border-accent-500 aria-pressed:bg-accent-50 aria-pressed:text-accent-700 dark:border-zinc-700 dark:text-zinc-300 dark:aria-pressed:bg-accent-500/15 dark:aria-pressed:text-accent-300"
               onClick={() => setKind(option.kind)}
             >
-              {option.label}
+              {t(option.label)}
             </button>
           ))}
         </div>
@@ -96,7 +98,7 @@ export function AddItemsPanel({
       <ul className="flex-1 space-y-1 overflow-y-auto p-2">
         {items.isSuccess && all.length === 0 && (
           <li className="px-3 py-8 text-center text-sm text-zinc-500">
-            {q ? 'Nothing matches.' : 'Nothing here.'}
+            {q ? t('addItems.nothingMatches') : t('addItems.nothing')}
           </li>
         )}
         {all.map((item) => {
@@ -105,7 +107,7 @@ export function AddItemsPanel({
             <li
               key={item.id}
               draggable={!placed}
-              title={placed ? undefined : 'Drag onto the board'}
+              title={placed ? undefined : t('addItems.drag')}
               onDragStart={(event) => {
                 event.dataTransfer.setData(ITEM_DRAG_TYPE, JSON.stringify(item))
                 event.dataTransfer.effectAllowed = 'copy'
@@ -123,12 +125,12 @@ export function AddItemsPanel({
               </div>
               {placed ? (
                 <span className="flex size-8 shrink-0 items-center justify-center text-zinc-400">
-                  <Check className="size-4" aria-label="On board" />
+                  <Check className="size-4" aria-label={t('addItems.onBoard')} />
                 </span>
               ) : (
                 <button
                   type="button"
-                  aria-label={`Add ${itemLabel(item)}`}
+                  aria-label={t('addItems.add', { name: itemLabel(item) })}
                   className="button-icon size-8 shrink-0 border border-zinc-200 dark:border-zinc-700"
                   onClick={() => onAdd(item)}
                 >
@@ -146,7 +148,7 @@ export function AddItemsPanel({
               disabled={items.isFetchingNextPage}
               onClick={() => items.fetchNextPage()}
             >
-              {items.isFetchingNextPage ? 'Loading…' : 'Load more'}
+              {items.isFetchingNextPage ? t('common.loading') : t('items.loadMore')}
             </button>
           </li>
         )}

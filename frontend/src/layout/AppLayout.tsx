@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 
 import { useMarkWelcomeSeen, useSession } from '../auth/session'
 import { CaptureProvider } from '../capture/CaptureProvider'
+import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
 import { followChanges } from '../live/changes'
 import { NoteTitlesProvider } from '../notes/NoteTitlesProvider'
@@ -19,6 +20,7 @@ import { TopBar } from './TopBar'
 
 /** The top bar over the page; on phones, a capture button within thumb's reach. */
 export function AppLayout() {
+  const t = useT()
   const { pathname } = useLocation()
   // Where it would only get in the way: capturing already, or writing.
   const capturing = pathname === '/capture' || pathname.startsWith('/notes/')
@@ -70,7 +72,7 @@ export function AppLayout() {
               {!capturing && (
                 <Link
                   to="/capture"
-                  aria-label="Capture"
+                  aria-label={t('layout.capture')}
                   className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 flex size-14 items-center justify-center rounded-full bg-accent-600 text-white shadow-lg shadow-accent-600/30 transition hover:bg-accent-500 active:scale-95 md:hidden"
                 >
                   <Plus className="size-6" aria-hidden="true" />

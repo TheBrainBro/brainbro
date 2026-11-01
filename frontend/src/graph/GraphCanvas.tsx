@@ -11,6 +11,7 @@ import {
 } from 'd3-force'
 import { useEffect, useRef } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { useDark } from '../theme/theme'
 import type { EdgeType, GraphEdge, GraphNode } from './api'
 import { neighbours, nodeColor, nodeRadius, type Visible } from './model'
@@ -60,6 +61,7 @@ export function GraphCanvas({
   visible: Visible
   onOpen: (node: GraphNode) => void
 }) {
+  const t = useT()
   const container = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const dark = useDark()
@@ -198,7 +200,7 @@ export function GraphCanvas({
       <canvas
         ref={canvas}
         role="img"
-        aria-label={`Graph of ${visible.nodes.length} items and collections, ${visible.edges.length} connections`}
+        aria-label={t('graph.canvas', { nodes: visible.nodes.length, edges: visible.edges.length })}
         className="size-full touch-none"
         onPointerDown={(event) => {
           const s = state.current

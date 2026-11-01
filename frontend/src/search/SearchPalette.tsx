@@ -3,6 +3,7 @@ import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useBoards, type BoardSummary } from '../boards/api'
+import { useT } from '../i18n/i18n'
 import { useCollections, useSearch, type Collection, type SearchResult } from '../items/api'
 import { ItemThumb } from '../items/ItemThumb'
 import { itemLabel, KIND_LABEL } from '../items/label'
@@ -44,6 +45,7 @@ function byName<T>(things: T[] | undefined, name: (thing: T) => string, words: s
  * where ← → go through the rest), Ctrl/Cmd+Enter opens a note to edit.
  */
 export function SearchPalette({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const navigate = useNavigate()
   const viewer = useViewer()
   const [query, setQuery] = useState('')
@@ -133,7 +135,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Search"
+          aria-label={t('search.label')}
           className="popover pointer-events-auto flex max-h-[75vh] w-full max-w-xl flex-col overflow-hidden"
           onKeyDown={onKeyDown}
           // Pasting here is typing a search, not capturing.
@@ -152,11 +154,11 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
               autoFocus
               type="search"
               role="combobox"
-              aria-label="Search"
+              aria-label={t('search.label')}
               aria-expanded={options.length > 0}
               aria-controls="search-results"
               aria-activedescendant={options.length ? `search-option-${current}` : undefined}
-              placeholder="Search notes, links, files, boards…"
+              placeholder={t('search.placeholder')}
               className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400 [&::-webkit-search-cancel-button]:hidden"
               value={query}
               onChange={(event) => {
@@ -170,10 +172,10 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
           <ul
             id="search-results"
             role="listbox"
-            aria-label="Results"
+            aria-label={t('search.results')}
             className="overflow-y-auto p-2 empty:hidden"
           >
-            {boards.length > 0 && <Heading>Boards</Heading>}
+            {boards.length > 0 && <Heading>{t('search.boards')}</Heading>}
             {boards.map((board) =>
               row(
                 { type: 'board', board },
@@ -182,7 +184,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
                 </Place>,
               ),
             )}
-            {collections.length > 0 && <Heading>Collections</Heading>}
+            {collections.length > 0 && <Heading>{t('search.collections')}</Heading>}
             {collections.map((collection) =>
               row(
                 { type: 'collection', collection },
@@ -192,7 +194,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
               ),
             )}
             {results.length > 0 && (boards.length > 0 || collections.length > 0) && (
-              <Heading>Items</Heading>
+              <Heading>{t('search.items')}</Heading>
             )}
             {results.map((result, index) =>
               row({ type: 'item', result, index }, <ItemRow result={result} words={words} />),
@@ -201,22 +203,22 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
 
           {!q && (
             <p className="px-4 py-6 text-center text-sm text-zinc-500">
-              Search titles, notes, links and files, boards and collections.
+              {t('search.hint')}
             </p>
           )}
-          {empty && <p className="px-4 py-6 text-center text-sm text-zinc-500">Nothing matches.</p>}
+          {empty && <p className="px-4 py-6 text-center text-sm text-zinc-500">{t('search.nothing')}</p>}
           {search.isError && (
             <p className="px-4 py-6 text-center text-sm text-red-600 dark:text-red-400">
-              Search failed. Try again.
+              {t('search.failed')}
             </p>
           )}
 
           <footer className="hidden items-center gap-4 border-t border-zinc-200 px-4 py-2 text-xs text-zinc-500 md:flex dark:border-zinc-800">
-            <Hint keys={['↑', '↓']}>Move</Hint>
-            <Hint keys={['Enter']}>Open</Hint>
-            <Hint keys={[combo('Enter')]}>Edit a note</Hint>
+            <Hint keys={['↑', '↓']}>{t('search.move')}</Hint>
+            <Hint keys={['Enter']}>{t('search.open')}</Hint>
+            <Hint keys={[combo('Enter')]}>{t('search.editNote')}</Hint>
             <span className="ml-auto">
-              <Hint keys={[MOD, 'K']}>Close</Hint>
+              <Hint keys={[MOD, 'K']}>{t('search.close')}</Hint>
             </span>
           </footer>
         </div>
@@ -273,6 +275,7 @@ function Place({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 }
 
 function ItemRow({ result, words }: { result: SearchResult; words: string[] }) {
+  const t = useT()
   const { item } = result
   const image = item.album_items?.find((shown) => shown.id === result.album_image)
   // A note without a title is named after its first line: no need to repeat it.
@@ -293,7 +296,7 @@ function ItemRow({ result, words }: { result: SearchResult; words: string[] }) {
           </span>
           {item.status === 'archived' && (
             <span className="shrink-0 rounded bg-zinc-200 px-1.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
-              Archived
+              {t('search.archived')}
             </span>
           )}
         </span>

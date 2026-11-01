@@ -1,11 +1,32 @@
+import { t } from '../i18n/i18n'
 import type { EdgeType, Graph, GraphEdge, GraphNode } from './api'
 
-/** What each kind of line means, in the order the filters list them. */
+/** What each kind of line means, in the order the filters list them, in the language shown. */
 export const EDGE_TYPES: { type: EdgeType; label: string }[] = [
-  { type: 'collection', label: 'In a collection' },
-  { type: 'parent', label: 'Collection inside another' },
-  { type: 'board', label: 'Lines on boards' },
-  { type: 'link', label: 'Links between notes' },
+  {
+    type: 'collection',
+    get label() {
+      return t('graph.inCollection')
+    },
+  },
+  {
+    type: 'parent',
+    get label() {
+      return t('graph.parent')
+    },
+  },
+  {
+    type: 'board',
+    get label() {
+      return t('graph.board')
+    },
+  },
+  {
+    type: 'link',
+    get label() {
+      return t('graph.link')
+    },
+  },
 ]
 
 export const KIND_COLORS: Record<string, string> = {

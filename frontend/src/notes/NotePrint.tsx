@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
+import { t } from '../i18n/i18n'
 import type { NoteImages, NoteLinks } from '../items/api'
 import { renderNote } from '../lib/markdown'
 import { noteTitle } from './title'
@@ -44,7 +45,7 @@ export function NotePrint({
     }
     loadImages(root.current!).then(() => {
       if (cancelled) return
-      document.title = noteTitle(body)
+      document.title = noteTitle(body, t('editor.untitled'))
       window.addEventListener('afterprint', finish, { once: true })
       window.print()
     })

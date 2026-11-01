@@ -1,3 +1,4 @@
+import { useT } from '../i18n/i18n'
 import { useItemApps, type ItemFilters } from './api'
 
 export type OriginFilters = Pick<ItemFilters, 'origin' | 'app'>
@@ -21,20 +22,21 @@ export function OriginFilter({
   value: OriginFilters
   onChange: (value: OriginFilters) => void
 }) {
+  const t = useT()
   const apps = useItemApps()
   const names = apps.data ?? []
   // Nothing an app made yet: nothing to filter by.
   if (names.length === 0 && !value.origin && !value.app) return null
   return (
     <select
-      aria-label="Made by"
+      aria-label={t('items.madeBy')}
       className="input w-auto py-1.5"
       value={encode(value)}
       onChange={(event) => onChange(decode(event.target.value))}
     >
-      <option value="">Everyone</option>
-      <option value="mine">Only mine</option>
-      <option value="assistants">Assistants</option>
+      <option value="">{t('items.everyone')}</option>
+      <option value="mine">{t('items.onlyMine')}</option>
+      <option value="assistants">{t('items.assistants')}</option>
       {names.map((name) => (
         <option key={name} value={`app:${name}`}>
           {name}

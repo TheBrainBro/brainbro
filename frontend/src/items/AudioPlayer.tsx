@@ -1,6 +1,7 @@
 import { Pause, Play } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { BARS, formatTime, loadWaveform, MAX_WAVEFORM_SIZE, type Waveform } from './waveform'
 
 const SPEEDS = [1, 1.5, 2]
@@ -63,6 +64,7 @@ export function AudioPlayer({
   autoPlay?: boolean
   className?: string
 }) {
+  const t = useT()
   const audio = useRef<HTMLAudioElement>(null)
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const waveform = useWaveform(src, size, root)
@@ -154,7 +156,7 @@ export function AudioPlayer({
       />
       <button
         type="button"
-        aria-label={paused ? 'Play' : 'Pause'}
+        aria-label={paused ? t('audio.play') : t('audio.pause')}
         className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-600 text-white shadow-sm transition hover:bg-accent-500 active:scale-95 disabled:opacity-50"
         disabled={!src}
         onClick={toggle}
@@ -168,11 +170,14 @@ export function AudioPlayer({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Position"
+        aria-label={t('audio.position')}
         aria-valuemin={0}
         aria-valuemax={Math.round(duration ?? 0)}
         aria-valuenow={Math.round(time)}
-        aria-valuetext={`${formatTime(time)} of ${duration ? formatTime(duration) : 'unknown'}`}
+        aria-valuetext={t('audio.positionValue', {
+          time: formatTime(time),
+          duration: duration ? formatTime(duration) : t('audio.unknown'),
+        })}
         className={`flex h-9 min-w-0 flex-1 touch-none items-center gap-[2px] rounded outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50 ${
           duration ? 'cursor-pointer' : ''
         } ${waveform === undefined ? 'animate-pulse' : ''}`}
@@ -224,8 +229,8 @@ export function AudioPlayer({
       </span>
       <button
         type="button"
-        aria-label={`Speed ${speed}×`}
-        title="Playback speed"
+        aria-label={t('audio.speed', { speed })}
+        title={t('audio.playbackSpeed')}
         className="w-9 shrink-0 rounded-md py-1 text-xs font-medium tabular-nums opacity-70 transition hover:bg-current/10 hover:opacity-100"
         onClick={() => {
           const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]

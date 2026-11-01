@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 
+import { useT } from '../i18n/i18n'
 import { useCollections, useCreateCollection, type Collection } from './api'
 import { CollectionAvatar } from './CollectionAvatar'
 import { CollectionPlace } from './CollectionPlace'
@@ -140,6 +141,7 @@ function Menu({
   onMore: () => void
   onClose: () => void
 }) {
+  const t = useT()
   const collections = useCollections()
   const create = useCreateCollection()
   const [query, setQuery] = useState('')
@@ -194,7 +196,7 @@ function Menu({
     <div
       ref={menu}
       role="menu"
-      aria-label="Organize into"
+      aria-label={t('organize.menu')}
       className="popover fixed z-50 flex flex-col p-1.5"
       style={{
         width: MENU_WIDTH,
@@ -214,8 +216,8 @@ function Menu({
     >
       <input
         className="input mb-1 py-1.5"
-        placeholder="Find or create a collection"
-        aria-label="Find or create a collection"
+        placeholder={t('collectionPicker.find')}
+        aria-label={t('collectionPicker.find')}
         autoFocus={focusFilter}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -252,14 +254,14 @@ function Menu({
               {inIt && (
                 <Check
                   className="size-4 text-accent-500"
-                  aria-label={onRemove ? 'In it: click to take it out' : 'Already in it'}
+                  aria-label={onRemove ? t('organize.takeOut') : t('organize.alreadyIn')}
                 />
               )}
             </button>
           )
         })}
         {collections.isSuccess && all.length === 0 && !needle && (
-          <p className="px-3 py-2 text-sm text-zinc-500">Type a name to create the first collection.</p>
+          <p className="px-3 py-2 text-sm text-zinc-500">{t('organize.first')}</p>
         )}
         {needle && !exact && (
           <button
@@ -270,7 +272,7 @@ function Menu({
             onClick={createAndPick}
           >
             <FolderPlus className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">Create “{query.trim()}”</span>
+            <span className="truncate">{t('organize.create', { name: query.trim() })}</span>
           </button>
         )}
       </div>
@@ -280,7 +282,7 @@ function Menu({
         className="menu-item mt-1 border-t border-zinc-200 py-1.5 text-xs text-zinc-500 dark:border-zinc-800"
         onClick={onMore}
       >
-        Several collections…
+        {t('organize.several')}
       </button>
     </div>
   )

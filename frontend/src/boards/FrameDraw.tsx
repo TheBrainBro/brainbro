@@ -1,9 +1,12 @@
 import { useState, type PointerEvent } from 'react'
 
+import { useT } from '../i18n/i18n'
+
 import type { Box } from './layout'
 
 /** Over the canvas while the group tool is on: drag a box (or click) to draw a group. */
 export function FrameDraw({ onDraw }: { onDraw: (screen: Box) => void }) {
+  const t = useT()
   const [start, setStart] = useState<{ x: number; y: number } | null>(null)
   const [box, setBox] = useState<Box | null>(null)
 
@@ -19,7 +22,7 @@ export function FrameDraw({ onDraw }: { onDraw: (screen: Box) => void }) {
 
   return (
     <div
-      aria-label="Draw a group"
+      aria-label={t('nodes.drawGroup')}
       className="absolute inset-0 z-[4] cursor-crosshair"
       onPointerDown={(event) => {
         if (event.button !== 0) return

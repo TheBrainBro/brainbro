@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { squareImage } from '../lib/image'
 import {
   collectionsKey,
@@ -31,6 +32,7 @@ export function CollectionDialog({
   onSaved: (collection: Collection) => void
   onClose: () => void
 }) {
+  const t = useT()
   const queryClient = useQueryClient()
   const create = useCreateCollection()
   const update = useUpdateCollection()
@@ -76,7 +78,7 @@ export function CollectionDialog({
       showLocal(square)
       setError(undefined)
     } catch {
-      setError("That file isn't an image this browser can read.")
+      setError(t('profile.notAnImage'))
     }
   }
 
@@ -122,19 +124,19 @@ export function CollectionDialog({
         }}
       >
         <h2 id="collection-dialog-title" className="mb-4 font-semibold">
-          {collection ? 'Edit collection' : 'New collection'}
+          {collection ? t('collectionDialog.edit') : t('collectionDialog.new')}
         </h2>
 
         <div className="flex items-end gap-3">
           <CollectionAvatar collection={look} size="lg" />
           <div className="min-w-0 flex-1">
             <label className="mb-1 block text-sm font-medium" htmlFor="collection-name">
-              Name
+              {t('collectionDialog.name')}
             </label>
             <input
               id="collection-name"
               className="input"
-              placeholder="Trip to Japan, Health, Typography…"
+              placeholder={t('collectionDialog.namePlaceholder')}
               autoFocus
               maxLength={120}
               value={name}
@@ -146,7 +148,7 @@ export function CollectionDialog({
         {places.length > 0 && (
           <div className="mt-4">
             <label className="mb-1 block text-sm font-medium" htmlFor="collection-parent">
-              Inside
+              {t('collectionDialog.inside')}
             </label>
             <select
               id="collection-parent"
@@ -154,7 +156,7 @@ export function CollectionDialog({
               value={parent ?? ''}
               onChange={(event) => setParent(event.target.value || null)}
             >
-              <option value="">Nothing, at the top</option>
+              <option value="">{t('collectionDialog.atTop')}</option>
               {places.map((place) => (
                 <option key={place.id} value={place.id}>
                   {place.label}
@@ -165,7 +167,7 @@ export function CollectionDialog({
         )}
 
         <fieldset className="mt-4">
-          <legend className="mb-1 text-sm font-medium">Kind</legend>
+          <legend className="mb-1 text-sm font-medium">{t('collectionDialog.kind')}</legend>
           <div className="grid grid-cols-3 gap-2">
             {COLLECTION_KINDS.map(({ value, label, hint, icon: Icon }) => (
               <label
@@ -193,11 +195,11 @@ export function CollectionDialog({
         </fieldset>
 
         <fieldset className="mt-4">
-          <legend className="mb-1 text-sm font-medium">Look</legend>
+          <legend className="mb-1 text-sm font-medium">{t('collectionDialog.look')}</legend>
           <div className="flex flex-wrap items-center gap-2">
             <input
               className="input w-16 text-center text-lg"
-              aria-label="Emoji"
+              aria-label={t('collectionDialog.emoji')}
               placeholder="🙂"
               value={icon}
               onChange={(event) => setIcon(firstGrapheme(event.target.value))}
@@ -208,7 +210,7 @@ export function CollectionDialog({
               onClick={() => fileInput.current?.click()}
             >
               <ImagePlus className="size-4" aria-hidden="true" />
-              {preview ? 'Change image' : 'Upload image'}
+              {preview ? t('collectionDialog.changeImage') : t('collectionDialog.uploadImage')}
             </button>
             {preview && (
               <button
@@ -220,7 +222,7 @@ export function CollectionDialog({
                 }}
               >
                 <X className="size-3.5" aria-hidden="true" />
-                Remove image
+                {t('collectionDialog.removeImage')}
               </button>
             )}
             <input
@@ -228,14 +230,14 @@ export function CollectionDialog({
               type="file"
               accept="image/*"
               className="hidden"
-              aria-label="Image"
+              aria-label={t('collectionDialog.image')}
               onChange={(event) => {
                 pickImage(event.target.files?.[0])
                 event.target.value = ''
               }}
             />
           </div>
-          <div className="mt-2 flex flex-wrap gap-0.5" aria-label="Suggested emoji">
+          <div className="mt-2 flex flex-wrap gap-0.5" aria-label={t('collectionDialog.suggestedEmoji')}>
             {SUGGESTED_EMOJI.map((emoji) => (
               <button
                 key={emoji}
@@ -251,14 +253,14 @@ export function CollectionDialog({
               </button>
             ))}
           </div>
-          <div role="radiogroup" aria-label="Color" className="mt-2 flex flex-wrap gap-1.5">
+          <div role="radiogroup" aria-label={t('collectionDialog.color')} className="mt-2 flex flex-wrap gap-1.5">
             {COLLECTION_COLORS.map((swatch) => (
               <button
                 key={swatch || 'default'}
                 type="button"
                 role="radio"
                 aria-checked={color === swatch}
-                aria-label={swatch || 'Default'}
+                aria-label={swatch || t('collectionDialog.defaultColor')}
                 className={`size-6 rounded-full border border-zinc-300 ring-offset-2 ring-offset-white transition hover:scale-110 dark:border-zinc-700 dark:ring-offset-zinc-900 ${
                   color === swatch ? 'ring-2 ring-zinc-900 dark:ring-zinc-100' : ''
                 } ${swatch ? '' : 'bg-accent-100 dark:bg-accent-500/20'}`}
@@ -268,7 +270,7 @@ export function CollectionDialog({
             ))}
           </div>
           {preview && (
-            <p className="mt-2 text-xs text-zinc-500">The image shows instead of the emoji.</p>
+            <p className="mt-2 text-xs text-zinc-500">{t('collectionDialog.imageInstead')}</p>
           )}
         </fieldset>
 
@@ -279,10 +281,10 @@ export function CollectionDialog({
         )}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className="button-secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button-primary" disabled={!name.trim() || saving}>
-            {collection ? 'Save' : 'Create'}
+            {collection ? t('common.save') : t('collectionDialog.create')}
           </button>
         </div>
       </form>
