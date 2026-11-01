@@ -1,10 +1,10 @@
 // The hero: liquid violet marble behind (a WebGL shader) and a brain made of
-// connected notes turning in front (canvas 2D). Both stop off screen, and
-// draw a single frame with reduced motion.
+// connected notes turning in front (canvas 2D). The footer has the marble
+// too. All of it stops off screen, and draws a single frame with reduced
+// motion.
 (() => {
   const hero = document.querySelector('.hero');
   const { reduceMotion, onScreen } = Stage;
-  let visible = true;
 
   // --- Marble -------------------------------------------------------------
 
@@ -66,7 +66,7 @@
       gl_FragColor = vec4(color, 1.0);
     }`;
 
-  function marble(canvas) {
+  function marble(canvas, offset = 40) {
     const gl = canvas.getContext('webgl', { antialias: false, alpha: false });
     if (!gl) return null; // The CSS gradient behind stays.
 
@@ -103,7 +103,7 @@
 
     return (seconds) => {
       gl.uniform2f(size, canvas.width, canvas.height);
-      gl.uniform1f(time, seconds + 40);
+      gl.uniform1f(time, seconds + offset);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
   }
@@ -243,19 +243,21 @@
 
   // --- Loop ---------------------------------------------------------------
 
-  const draws = [marble(hero.querySelector('.marble')), brain(hero.querySelector('.brain-3d'))].filter(Boolean);
-  const started = performance.now();
+  // Draws every frame while `container` is on screen.
+  function animate(container, draws) {
+    let visible = true;
+    const started = performance.now();
 
-  function frame(now) {
-    const seconds = (now - started) / 1000;
-    draws.forEach((draw) => draw(seconds));
-    if (visible && !reduceMotion) requestAnimationFrame(frame);
-  }
+    function frame(now) {
+      const seconds = (now - started) / 1000;
+      draws.forEach((draw) => draw(seconds));
+      if (visible && !reduceMotion) requestAnimationFrame(frame);
+    }
 
-  requestAnimationFrame(frame);
-  if (!reduceMotion) {
+    requestAnimationFrame(frame);
+    if (reduceMotion) return;
     onScreen(
-      hero,
+      container,
       () => {
         if (!visible) {
           visible = true;
@@ -266,4 +268,8 @@
       0,
     );
   }
+
+  animate(hero, [marble(hero.querySelector('.marble')), brain(hero.querySelector('.brain-3d'))].filter(Boolean));
+  const footer = document.querySelector('footer');
+  animate(footer, [marble(footer.querySelector('.marble'), 170)].filter(Boolean));
 })();

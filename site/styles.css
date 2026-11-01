@@ -185,6 +185,8 @@ svg.logo {
 
 .marble {
   position: absolute;
+  top: 0;
+  left: 0;
   inset: 0;
   z-index: -2;
   width: 100%;
@@ -209,7 +211,7 @@ svg.logo {
 }
 
 .topbar,
-footer {
+.footer-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -226,20 +228,20 @@ footer {
 }
 
 .topbar nav,
-footer nav {
+.footer-inner nav {
   display: flex;
   gap: 20px;
   font-size: 14px;
 }
 
 .topbar nav a,
-footer nav a {
+.footer-inner nav a {
   text-decoration: none;
   opacity: 0.8;
 }
 
 .topbar nav a:hover,
-footer nav a:hover {
+.footer-inner nav a:hover {
   opacity: 1;
 }
 
@@ -814,6 +816,10 @@ svg.links path.active.reverse {
   white-space: nowrap;
 }
 
+.caret[data-who='']::after {
+  display: none;
+}
+
 @keyframes blink {
   50% {
     border-color: transparent;
@@ -837,7 +843,8 @@ svg.links path.active.reverse {
   padding: 8px 10px;
   transition:
     background-color 200ms,
-    border-color 200ms;
+    border-color 200ms,
+    transform 150ms;
 }
 
 .rev > svg {
@@ -871,6 +878,10 @@ svg.links path.active.reverse {
   color: #fff;
   font-size: 12px;
   font-weight: 500;
+  transition:
+    transform 150ms,
+    background-color 150ms,
+    box-shadow 150ms;
   animation: appear 250ms ease-out both;
 }
 
@@ -888,19 +899,54 @@ svg.links path.active.reverse {
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 700ms cubic-bezier(0.45, 0, 0.2, 1),
+    transform 1000ms cubic-bezier(0.45, 0, 0.2, 1),
     opacity 300ms,
     scale 150ms;
 }
 
 .pointer.clicking {
-  scale: 0.82;
+  scale: 0.78;
+}
+
+/* The ring a click leaves, and what it pressed. */
+.ripple {
+  position: absolute;
+  z-index: 4;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: ripple 650ms ease-out forwards;
+}
+
+@keyframes ripple {
+  from {
+    opacity: 1;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+.rev.pressed {
+  background: var(--subtle);
+  transform: scale(0.98);
+}
+
+.restore.pressed {
+  background: var(--accent-hover);
+  transform: scale(0.88);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* Feature tiles */
 
 .features,
-.trip {
+.uses {
   padding-block: 64px;
 }
 
@@ -958,10 +1004,32 @@ svg.links path.active.reverse {
   }
 }
 
+.b-frame,
 .b-card {
   position: absolute;
-  top: var(--y);
-  left: var(--x);
+  top: calc(var(--y) + 20px);
+  left: calc(var(--x) + 20px);
+}
+
+.b-frame {
+  width: var(--w);
+  height: var(--h);
+  border: 1.5px dashed var(--link-line);
+  border-radius: 10px;
+}
+
+.b-frame span {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  background: var(--subtle);
+  padding: 0 4px;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.b-card {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -972,9 +1040,26 @@ svg.links path.active.reverse {
   box-shadow: var(--shadow);
 }
 
+/* Cards are dropped onto the canvas: from a little above, then settle. */
+.art-board [data-step]:is(.b-card, .b-frame) {
+  opacity: 0;
+  translate: 0 -10px;
+  scale: 1.08;
+  transition:
+    opacity 300ms,
+    translate 400ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    scale 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.art-board [data-step].on {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+}
+
 .b-photo {
-  width: 70px;
-  height: 56px;
+  width: 64px;
+  height: 46px;
   padding: 0;
   background: linear-gradient(135deg, #fbbf24, #f472b6 50%, #7dd3fc);
 }
@@ -989,11 +1074,10 @@ svg.links path.active.reverse {
   border-color: #fcd34d;
   background: #fef3c7;
   color: #78350f;
-  transform: rotate(3deg);
+  rotate: 3deg;
 }
 
 .b-note {
-  min-width: 84px;
   color: var(--muted);
 }
 
@@ -1001,11 +1085,31 @@ svg.links path.active.reverse {
   color: var(--text);
 }
 
-.b-arrow {
+.b-ink {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: 20px;
+  width: calc(100% - 40px);
+  height: calc(100% - 40px);
+  overflow: visible;
+}
+
+.art .b-ink path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  vector-effect: non-scaling-stroke;
+  transition: stroke-dashoffset 700ms ease-in-out;
+}
+
+.art .b-ink path.pen {
+  stroke: #f59e0b;
+  stroke-width: 2.5;
+  transition-duration: 1100ms;
+}
+
+.art .b-ink path.on {
+  stroke-dashoffset: 0;
 }
 
 /* Mind map */
@@ -1101,21 +1205,75 @@ svg.links path.active.reverse {
   fill: var(--surface);
   stroke: var(--accent);
   stroke-width: 2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  scale: 0.2;
+  transition:
+    opacity 250ms,
+    scale 350ms cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 
 .g-dots .hub {
   fill: var(--accent);
 }
 
-.art-graph g {
+.g-dots circle.on {
+  opacity: 1;
+  scale: 1;
+}
+
+.art-graph .g-lines path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 350ms ease-out;
+}
+
+.art-graph .g-lines path.on {
+  stroke-dashoffset: 0;
+}
+
+.art-graph .g-lines path.g-new {
+  stroke: #f59e0b;
+  stroke-width: 2;
+  transition-duration: 700ms;
+}
+
+.art-graph .packet {
+  fill: #f59e0b;
+  stroke: none;
+}
+
+.art-graph svg {
   animation: float 6s ease-in-out infinite alternate;
-  transform-origin: center;
 }
 
 @keyframes float {
   to {
-    transform: rotate(2deg) scale(1.03);
+    transform: rotate(1.5deg) scale(1.03);
   }
+}
+
+.g-label {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 2px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 300ms,
+    transform 300ms;
+}
+
+.g-label.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* Search */
@@ -1289,13 +1447,21 @@ mark {
 }
 
 .md-src {
-  margin: 0;
   overflow: hidden;
-  padding: 16px 12px;
+  padding: 14px 12px;
   color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   line-height: 1.9;
   white-space: pre;
+}
+
+.md-src > div {
+  border-radius: 3px;
+}
+
+.md-src .back {
+  animation: highlight 1600ms ease-out both;
 }
 
 .md-mark {
@@ -1306,26 +1472,37 @@ mark {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
   background: var(--surface);
-  padding: 16px 12px;
+  padding: 14px 12px;
   line-height: 1.4;
 }
 
-.md-out b {
+.md-h {
   font-size: 15px;
 }
 
-.md-out span {
+.md-task {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
+.md-quote {
+  border-left: 2px solid var(--accent);
+  padding-left: 6px;
+  color: var(--muted);
+}
+
 .box {
+  flex: none;
   width: 11px;
   height: 11px;
   border: 1.5px solid var(--muted);
   border-radius: 3px;
+  transition:
+    background-color 200ms,
+    border-color 200ms;
 }
 
 .box.done {
@@ -1336,46 +1513,76 @@ mark {
 /* Obsidian */
 
 .art-vault {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 20px;
+  padding: 14px;
 }
 
-.v-end {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
+.art-vault svg.links path {
+  stroke-width: 1.5;
 }
 
-.v-end .logo,
-.v-end img {
-  width: 34px;
-  height: 34px;
+.v-side {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.v-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+.v-head .logo {
+  width: 14px;
+  height: 14px;
 }
 
 .logo.obsidian {
   color: #7c3aed;
 }
 
-.v-flow {
+.v-list {
   display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--accent-text);
-  font-size: 18px;
-  animation: nudge 2.4s ease-in-out infinite;
+  gap: 2px;
+  min-height: 92px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
 }
 
-@keyframes nudge {
-  50% {
-    transform: scale(1.12);
-  }
+.v-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: var(--muted);
+  white-space: nowrap;
+  transition:
+    background-color 200ms,
+    color 200ms;
+}
+
+.v-list li.now,
+.v-list li.new {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.v-label {
+  align-self: center;
+  margin-bottom: 34px;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
 }
 
 /* Phone */
@@ -1458,7 +1665,28 @@ mark {
   color: #26a5e4;
 }
 
-/* A trip, start to finish */
+/* Use cases */
+
+.use-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 36px;
+}
+
+.use-tabs [role='tab'] {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 8px 16px;
+}
+
+.use-tabs [role='tab'][aria-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
 
 .steps {
   display: grid;
@@ -1470,27 +1698,77 @@ mark {
   counter-reset: step;
 }
 
+.steps.swap li {
+  animation: appear 400ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.steps.swap li:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.steps.swap li:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.steps.swap li:nth-child(4) {
+  animation-delay: 180ms;
+}
+
 .steps li {
   position: relative;
-  border-top: 2px solid var(--border);
-  padding-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 20px;
+  transition:
+    border-color 300ms,
+    box-shadow 300ms,
+    transform 300ms;
+}
+
+/* The step being shown, with a bar filling while it lasts. */
+.steps li.now {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
+  transform: translateY(-3px);
+}
+
+.steps li::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  bottom: 0;
+  left: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.steps li.now::after {
+  animation: fill 2200ms linear forwards;
+}
+
+.steps li.done::after {
+  transform: scaleX(1);
+  opacity: 0.35;
+}
+
+@keyframes fill {
+  to {
+    transform: scaleX(1);
+  }
 }
 
 .steps li::before {
   counter-increment: step;
   content: counter(step);
   position: absolute;
-  top: -13px;
-  right: 0;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border);
-  border-radius: 50%;
-  background: var(--bg);
+  top: 20px;
+  right: 20px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -1515,6 +1793,26 @@ mark {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 14px;
+}
+
+/* A section reached: its title lights up for a moment. */
+h2.glow {
+  animation: glow 1800ms ease-out;
+}
+
+@keyframes glow {
+  0% {
+    text-shadow: 0 0 0 transparent;
+  }
+  30% {
+    color: var(--accent-text);
+    text-shadow:
+      0 0 18px color-mix(in srgb, var(--accent) 70%, transparent),
+      0 0 42px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
 }
 
 /* Connect and install */
@@ -1670,8 +1968,24 @@ pre {
 }
 
 .install h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0 0 12px;
   font-size: 17px;
+}
+
+.install h3 .logo {
+  width: 26px;
+  height: 26px;
+}
+
+.logo.docker {
+  color: #2496ed;
+}
+
+.logo.umbrel {
+  color: var(--text);
 }
 
 .install p {
@@ -1685,17 +1999,33 @@ pre {
   padding: 12px 14px;
 }
 
+/* Footer: the hero's marble again, in a strip. */
+
 footer {
-  margin-top: 32px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 14px;
-  padding-block: 28px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: 48px;
+  background: linear-gradient(150deg, #4c1d95, #8b5cf6 45%, #e9a8e6 75%, #c4b5fd);
+  color: #fff;
 }
 
-footer .brand {
-  color: var(--text);
-  font-weight: 500;
+footer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(26 8 56 / 0.45);
+}
+
+.footer-inner {
+  padding-block: 48px;
+  font-size: 15px;
+}
+
+.footer-inner .brand {
+  font-size: 18px;
+  text-shadow: 0 1px 12px rgb(26 8 56 / 0.4);
 }
 
 /* Narrower screens */
@@ -1784,9 +2114,13 @@ footer .brand {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  footer {
+  .footer-inner {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .footer-inner nav {
+    flex-wrap: wrap;
   }
 }
 
