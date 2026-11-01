@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { History, LoaderCircle, RotateCcw, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { boardKey, boardsKey, seedItems, type Board } from '../boards/api'
 import { itemKey, itemsKey, type Item } from '../items/api'
@@ -248,6 +249,44 @@ export function NoteHistory({
         <RevisionList history={history} className="min-h-0 flex-1" />
       </aside>
     </div>
+  )
+}
+
+/** A note's history over the page, for the editor: Esc or the close button leaves it. */
+export function NoteHistoryDialog({
+  note,
+  onRestored,
+  onClose,
+}: {
+  note: Item
+  onRestored?: (note: Item) => void
+  onClose: () => void
+}) {
+  const dialog = useRef<HTMLDivElement>(null)
+
+  // Focus comes in, and goes back where it was on closing.
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null
+    dialog.current?.focus()
+    return () => before?.focus?.()
+  }, [])
+
+  return createPortal(
+    <div
+      ref={dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Note history"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-4 outline-none backdrop-blur-sm sm:p-8"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose()
+      }}
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <NoteHistory note={note} onRestored={(restored) => onRestored?.(restored)} onClose={onClose} />
+    </div>,
+    document.body,
   )
 }
 
