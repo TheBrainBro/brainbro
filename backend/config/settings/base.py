@@ -45,6 +45,7 @@ LOCAL_APPS = [
     "apps.telegram.apps.TelegramConfig",
     "apps.mcp.apps.McpConfig",
     "apps.events.apps.EventsConfig",
+    "apps.collab.apps.CollabConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
