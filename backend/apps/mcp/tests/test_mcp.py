@@ -205,6 +205,8 @@ def test_tools_are_listed_with_their_schemas(mcp):
         "create_collection",
         "capture",
         "edit_note",
+        "list_revisions",
+        "get_revision",
         "organize",
         "archive",
         "list_boards",
@@ -555,6 +557,47 @@ def test_an_edit_that_changes_nothing_is_not_one(call, user):
     edited = structured(call("edit_note", id=str(mine.id), body="Mine"))
 
     assert "edited_by" not in edited
+
+
+# History
+
+
+def test_list_a_notes_revisions(call, user, other_user):
+    item = note(user, "mine")
+    call("edit_note", id=str(item.id), append="Claude's line")
+    note(other_user, "theirs")
+
+    result = structured(call("list_revisions", id=str(item.id)))
+
+    assert result["total"] == 2
+    [claude, mine] = result["revisions"]
+    assert (claude["by"], claude["via"]) == ("Claude", "mcp")
+    assert (mine["by"], mine["via"]) == ("user", "unknown")
+    assert "body" not in claude
+
+
+def test_get_a_revision(call, user):
+    item = note(user, "first")
+    call("edit_note", id=str(item.id), body="second")
+    first = structured(call("list_revisions", id=str(item.id)))["revisions"][-1]
+
+    revision = structured(call("get_revision", revision_id=first["id"]))
+
+    assert (revision["body"], revision["note_id"]) == ("first", str(item.id))
+
+
+def test_revisions_are_of_your_notes(call, user, other_user):
+    theirs = note(other_user, "theirs")
+    link = Item.objects.create(owner=user, kind=Item.Kind.LINK, url="https://x.org")
+    board = Board.objects.create(owner=user, title="Ideas")
+
+    assert "No item" in failure(call("list_revisions", id=str(theirs.id)))
+    assert "Only notes" in failure(call("list_revisions", id=str(link.id)))
+    revision = theirs.revisions.get()
+    assert "No revision" in failure(call("get_revision", revision_id=str(revision.id)))
+    board_revision = board.revisions.get()
+    result = call("get_revision", revision_id=str(board_revision.id))
+    assert "No revision" in failure(result)
 
 
 # Boards

@@ -120,6 +120,8 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | `create_collection` | A new collection (project, area or resource), optionally inside another |
 | `capture` | A new note or link, with a title, in the inbox or straight into a collection |
 | `edit_note` | Changes part of a note (replace, prepend, append), or rewrites it |
+| `list_revisions` | A note's history: who saved each version, through what, and when |
+| `get_revision` | One version of a note in full, as it was then |
 | `organize` | Adds items to collections, out of the inbox |
 | `archive` | Takes items out of the way, without deleting them |
 | `list_boards` | Every board, with how many items are on it |
@@ -141,6 +143,10 @@ with the assistant's name and cursor on what it wrote (see
 Every item says who made it and who last edited it, `"user"` or the
 assistant's name, and through what (see [origin.md](origin.md)), so
 assistants can tell their notes from yours.
+
+Every edit lands in the note's history (see [history.md](history.md)):
+assistants can read it with `list_revisions` and `get_revision`, and only you
+restore a version, in the app.
 
 `add_to_board` saves the board like the app does (its revision goes up), so a
 tab with the board open gets the usual conflict on its next save. Assistants

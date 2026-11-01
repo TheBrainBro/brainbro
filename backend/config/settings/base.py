@@ -46,6 +46,7 @@ LOCAL_APPS = [
     "apps.mcp.apps.McpConfig",
     "apps.events.apps.EventsConfig",
     "apps.collab.apps.CollabConfig",
+    "apps.history.apps.HistoryConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

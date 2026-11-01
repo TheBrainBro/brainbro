@@ -1,15 +1,4 @@
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
-
-
-def migrate_to(target):
-    executor = MigrationExecutor(connection)
-    executor.migrate([target])
-    executor.loader.build_graph()
-    return executor.loader.project_state([target]).apps
-
-
-def test_personal_collections_become_resources(transactional_db, user):
+def test_personal_collections_become_resources(migrate_to, user):
     old = migrate_to(("items", "0001_initial"))
     Collection = old.get_model("items", "Collection")
     Collection.objects.create(owner_id=user.id, name="Home", kind="personal")
@@ -21,7 +10,7 @@ def test_personal_collections_become_resources(transactional_db, user):
     assert kinds == {"Home": "resource", "Work": "project"}
 
 
-def test_ranks_keep_the_newest_first_order(transactional_db, user):
+def test_ranks_keep_the_newest_first_order(migrate_to, user):
     old = migrate_to(("items", "0007_collection_image"))
     Item = old.get_model("items", "Item")
     Collection = old.get_model("items", "Collection")
@@ -42,7 +31,7 @@ def test_ranks_keep_the_newest_first_order(transactional_db, user):
     assert second.inbox_rank == second.created_at.timestamp()
 
 
-def test_collection_ranks_keep_the_order_by_name(transactional_db, user):
+def test_collection_ranks_keep_the_order_by_name(migrate_to, user):
     old = migrate_to(("items", "0011_unplaced_back_to_inbox"))
     Collection = old.get_model("items", "Collection")
     for name in ("Work", "Home", "Books"):
