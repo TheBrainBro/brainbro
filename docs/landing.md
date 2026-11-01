@@ -6,8 +6,8 @@ folder as is. Open `site/index.html` in a browser to see it (classic scripts,
 not modules, so it works from `file://` too).
 
 - `index.html`: the content, top to bottom: the hero, three animated scenes,
-  the feature tiles, use cases, connecting an assistant (a tab per app),
-  installing, and the footer. Icons (Lucide shapes) and logos are inline
+  the feature tiles, connecting an assistant (a tab per app), installing, and
+  the footer. Icons (Lucide shapes) and logos are inline
   SVG symbols at the top.
 - `styles.css`: the app's colors (zinc and the logo's violet), light and dark
   from the system setting, one column on phones.
@@ -15,8 +15,7 @@ not modules, so it works from `file://` too).
 - `js/hero.js`: the liquid marble behind the hero and the footer (a WebGL
   shader, with a CSS gradient when WebGL is missing) and the brain of linked
   dots in front (canvas 2D), which leans toward the pointer.
-- `js/scenes.js`: the three scenes, the animated tiles, the use cases, and
-  the glow on the Connect and Install titles when they come into view.
+- `js/scenes.js`: the three scenes, the animated tiles, and the glow on the Connect and Install titles when they come into view.
 - `js/connect.js`: the tabs, the visitor's Brain address (filled into the
   prompt, the MCP URL and the Claude Code command, and remembered in the
   browser), and the copy buttons.
@@ -32,14 +31,11 @@ not modules, so it works from `file://` too).
   up, and a pointer clicks your version and *Restore* (each click leaves a
   ring and presses what it hit).
 
-The tiles animate the same way: cards dropped on a board with an arrow and a
-pen stroke, a graph growing link by link, Markdown typed and rendered line by
-line, a vault crossing into Brain and back out. The search tile shows ⌘K on
+The tiles animate the same way: cards dropped on a board, a connection drawn
+between two of them and a pencil circling a sticky note; the graph all there
+at once, as in the app, drifting with sparks along its links; Markdown typed
+and rendered line by line; a vault crossing into Brain and back out. The search tile shows ⌘K on
 Apple devices and Ctrl+K elsewhere.
-
-**Use cases** (trip, research, renovation, writing) light up their four
-steps one by one and move to the next case on their own, until the visitor
-picks one.
 
 `Stage.loop(el, { reset, script })` plays a scene while it is on screen:
 `reset()` puts it back to its start and `script(run)` awaits the steps
