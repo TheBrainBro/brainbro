@@ -56,7 +56,7 @@ its last frame and the inbox starts with one item per source.
 
 The scenes and tiles follow one trip to Lisbon. Connecting steps come from
 [mcp.md](mcp.md); keep them in step when an app changes its menus. The logos
-come from LobeHub icons (Claude, OpenAI, Grok; MIT) and Simple Icons
+come from LobeHub icons (Claude, OpenAI, Grok, Grok Bot; MIT) and Simple Icons
 (Obsidian, Telegram, Docker, Umbrel; CC0).
 
 The prompt and the install links point to the docs on GitHub (`main`):
