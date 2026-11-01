@@ -167,6 +167,10 @@ TELEGRAM_BOT_TOKEN = get_env_variable("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = get_env_variable("TELEGRAM_BOT_USERNAME", "").lstrip("@")
 TELEGRAM_WEBHOOK_URL = get_env_variable("TELEGRAM_WEBHOOK_URL", "")
 
+# Semantic search (apps.items.embedder): the embedder container. Without it,
+# search goes by words alone.
+EMBEDDER_URL = get_env_variable("EMBEDDER_URL", "")
+
 # Link previews (apps.items.tasks.fetch_link_preview). Private, loopback and
 # link-local addresses are always refused unless explicitly allowed (tests).
 LINK_PREVIEW_ALLOWED_PORTS = {80, 443}
@@ -212,6 +216,12 @@ CELERY_BEAT_SCHEDULE = {
     "delete-old-exports": {
         "task": "apps.exports.tasks.delete_old_exports",
         "schedule": crontab(minute=30),
+    },
+    "embed-items": {
+        "task": "apps.items.tasks.embed_items",
+        "schedule": 60.0,
+        # A run missed while the worker was busy is covered by the next one.
+        "options": {"expires": 50},
     },
     "delete-unused-note-images": {
         "task": "apps.items.tasks.delete_unused_note_images",

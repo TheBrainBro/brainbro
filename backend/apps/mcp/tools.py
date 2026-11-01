@@ -596,10 +596,11 @@ TOOLS = {
             name="search_items",
             title="Search items",
             description=(
-                "Full-text search over the user's notes, links, images and "
-                "files, archived ones included. Items with every word come "
-                "first, then items with only some of them; typos are "
-                "tolerated. Best matches first, bodies cut short.\n\n"
+                "Search the user's notes, links, images and files, archived "
+                "ones included, by words and by meaning: items about the same "
+                "thing match without sharing a word, in any language. Items "
+                "with every word come first; typos are tolerated. Best "
+                "matches first, bodies cut short.\n\n"
                 "Use it before capture, to find a note to update instead of "
                 "saving a duplicate, and whenever the user asks what they "
                 "have on a topic. Then get_item or get_items for the whole "
@@ -611,7 +612,7 @@ TOOLS = {
             schema={
                 "query": {
                     "type": "string",
-                    "description": "A few distinctive words, not a sentence.",
+                    "description": "Distinctive words, or a short phrase.",
                 },
                 "limit": LIMIT,
             },

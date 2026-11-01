@@ -4,6 +4,7 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
+from .embeddings import embed_stale
 from .models import (
     Item,
     NoteImage,
@@ -158,6 +159,11 @@ def make_note_image_display(image_id):
         logger.info("Could not read pasted image %s", image.id)
         return _note_image_failed(image)
     _store_note_image(image, data)
+
+
+@shared_task
+def embed_items():
+    return embed_stale()
 
 
 @shared_task

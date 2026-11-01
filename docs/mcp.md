@@ -111,7 +111,7 @@ See `apps/mcp/tools.py`. Nothing deletes.
 
 | Tool | What it does |
 | --- | --- |
-| `search_items` | Full-text search, archived items included |
+| `search_items` | Search by words and by meaning, archived items included |
 | `get_item` | One item in full: a note's Markdown and its version |
 | `get_items` | Several items in full in one call, saying which ids weren't found |
 | `list_inbox` | What is waiting in the inbox, in the order the app shows |

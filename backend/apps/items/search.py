@@ -10,7 +10,13 @@ Items with every word of the query come first, then items with only some of
 them, ranked by how many. A word that appears nowhere as written is taken for
 a typo and matches similar words instead (only for longer words). Then
 matches on the title rank first; typos rank below exact words. Items that
-only match through typos, without every word, come last.
+only match through typos, without every word or a close meaning, come last.
+
+Items close in meaning match too, without sharing a word ("trip to Paris"
+finds "Vacaciones en Francia"), through the vectors of their chunks (see
+`embeddings`). The longer the query, the more meaning counts: one word goes
+mostly by its matches, a sentence mostly by what it means. Items with every
+word still come first. Without an embedder, search goes by words alone.
 """
 
 import re
@@ -22,9 +28,22 @@ from django.contrib.postgres.search import (
     TrigramWordSimilarity,
 )
 from django.db import connection
-from django.db.models import Case, F, FloatField, Func, Q, TextField, Value, When
+from django.db.models import (
+    Case,
+    F,
+    FloatField,
+    Func,
+    Min,
+    Q,
+    TextField,
+    Value,
+    When,
+)
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Coalesce, Concat, Lower
+from pgvector.django import CosineDistance
+
+from . import embedder
 
 # Mixed languages: no stemming, so Spanish and English words both match.
 CONFIG = "simple"
@@ -35,6 +54,10 @@ TYPO_MIN_LENGTH = 4
 # How close a word has to be to count as a typo (pg_trgm's default is 0.6,
 # which misses common ones like "mardown").
 TYPO_THRESHOLD = "0.5"
+# How close in meaning (cosine similarity) a chunk has to be for its item to
+# match. With this model unrelated texts score ~0.2 and related ones 0.5+.
+MEANING_THRESHOLD = 0.35
+MEANING_LIMIT = 50
 # Shorter words ("a", "to", "de") are in almost everything: they only make a
 # match when every word is there, and never add to the rank.
 PARTIAL_MIN_LENGTH = 3
@@ -85,11 +108,13 @@ def normalize(text):
 def find(items, text):
     """
     `items` matching `text`, annotated with `rank` (higher is better): the
-    number of longer words that match, plus a relevance score below 1. Items
-    that only match through typos rank below 0.
+    number of longer words that match, plus a relevance score below 1, plus
+    how close the item is in meaning. Items that only match through typos
+    rank below 0.
     """
+    close = _close_in_meaning(items, text)
     query = normalize(text)
-    every, some, matched = Q(), Q(pk__in=[]), Value(0.0)
+    every, some, matched = Q(), Q(pk__in=list(close)), Value(0.0)
     exact, typos, longer = Q(pk__in=[]), False, 0
     for term in query.split():
         match = Q(search_text__contains=term)
@@ -110,11 +135,14 @@ def find(items, text):
                 exact |= match
     items = items.filter(every | some)
     # A similar word alone is a weak guess ("paris" for "para"): below every
-    # item that has a word as written.
+    # item that has a word as written or a close meaning.
     penalty = Value(0.0)
     if typos:
+        guess = ~every & ~exact
+        if close:
+            guess &= ~Q(pk__in=list(close))
         penalty = Case(
-            When(~every & ~exact, then=Value(longer + 1.0)),
+            When(guess, then=Value(longer + 1.0)),
             default=0.0,
             output_field=FloatField(),
         )
@@ -124,7 +152,38 @@ def find(items, text):
     if prefixes:
         tsquery = SearchQuery(prefixes, config=CONFIG, search_type="raw")
         relevance += SearchRank(F("search_vector"), tsquery)
+    meaning = Case(
+        *(When(pk=pk, then=Value(closeness)) for pk, closeness in close.items()),
+        default=0.0,
+        output_field=FloatField(),
+    )
+    # The closest meaning counts like all the (longer) words but half of one:
+    # above most partial matches of a sentence, below matches of every word.
+    weight = max(longer - 0.5, 0.5)
     # Squeezed below 1, so one more matching word always ranks higher.
     return items.annotate(relevance=relevance).annotate(
-        rank=matched + F("relevance") / (F("relevance") + 1.0) - penalty
+        rank=matched
+        + F("relevance") / (F("relevance") + 1.0)
+        + meaning * weight
+        - penalty
     )
+
+
+def _close_in_meaning(items, text):
+    """
+    `{item id: closeness}` for the items whose text means something like
+    `text`, by their closest chunk: from 0 (at the threshold) to 1.
+    """
+    vector = embedder.query_vector(text)
+    if vector is None:
+        return {}
+    close = (
+        items.annotate(distance=Min(CosineDistance("chunks__embedding", vector)))
+        .filter(distance__lt=1 - MEANING_THRESHOLD)
+        .order_by("distance")
+        .values_list("id", "distance")[:MEANING_LIMIT]
+    )
+    return {
+        item_id: (1 - distance - MEANING_THRESHOLD) / (1 - MEANING_THRESHOLD)
+        for item_id, distance in close
+    }
