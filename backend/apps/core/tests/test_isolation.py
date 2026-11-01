@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 from apps.boards.layout import empty_layout
 from apps.boards.models import Board
 from apps.exports.models import Export
+from apps.history.models import Revision
 from apps.imports.models import Import
 from apps.items.models import Collection, Item, NoteImage, NoteLink
 from apps.telegram.models import TelegramLink
@@ -78,6 +79,8 @@ def theirs(other_user):
         "export": export,
         "import": imported,
         "telegram": telegram,
+        "revision": note.revisions.get(),
+        "board_revision": board.revisions.get(),
     }
 
 
@@ -120,6 +123,9 @@ def snapshot(owner):
         "telegram": list(
             TelegramLink.objects.filter(owner=owner).values_list("chat_id", "code")
         ),
+        "revisions": sorted(
+            Revision.objects.filter(owner=owner).values_list("id", "updated_at")
+        ),
     }
 
 
@@ -137,6 +143,8 @@ LISTS = [
     "/api/imports/",
     "/api/graph/",
     "/api/telegram/",
+    "/api/revisions/?item={note}",
+    "/api/revisions/?board={board}",
 ]
 
 
@@ -180,6 +188,9 @@ BY_ID = [
     ("get", "/api/exports/{export}/"),
     ("get", "/api/exports/{export}/download/"),
     ("get", "/api/imports/{import}/"),
+    ("get", "/api/revisions/{revision}/"),
+    ("post", "/api/revisions/{revision}/restore/"),
+    ("post", "/api/revisions/{board_revision}/restore/"),
 ]
 
 
