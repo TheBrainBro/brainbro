@@ -1,11 +1,13 @@
 // Thin fetch wrapper for the Django API: same-origin session cookies + CSRF.
 
+import { t } from '../i18n/i18n'
+
 export class ApiError extends Error {
   status: number
   data: unknown
 
   constructor(status: number, data: unknown) {
-    super(firstMessage(data) ?? `Request failed with status ${status}`)
+    super(firstMessage(data) ?? t('errors.requestFailed', { status: String(status) }))
     this.status = status
     this.data = data
   }
@@ -100,7 +102,7 @@ export function upload<T>(
       if (request.status >= 200 && request.status < 300) resolve(data as T)
       else reject(new ApiError(request.status, data))
     }
-    request.onerror = () => reject(new Error('Network error, check your connection.'))
+    request.onerror = () => reject(new Error(t('errors.network')))
     request.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'))
     signal?.addEventListener('abort', () => request.abort(), { once: true })
     request.send(form)

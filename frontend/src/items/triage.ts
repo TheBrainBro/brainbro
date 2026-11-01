@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 
+import { t } from '../i18n/i18n'
 import { useFeedback, type ToastAction } from '../ui/feedback'
 import {
   collectionsKey,
@@ -10,23 +11,21 @@ import {
   type TriagePayload,
 } from './api'
 
-function count(n: number) {
-  return n === 1 ? '1 item' : `${n} items`
-}
-
 /** What a toast says once a triage action is done. */
 export function triageMessage(action: TriageAction, n: number, into?: string) {
   switch (action) {
     case 'archive':
-      return `Archived ${count(n)}`
+      return t('triage.archived', { count: n })
     case 'inbox':
-      return `Moved ${count(n)} to the inbox`
+      return t('triage.toInbox', { count: n })
     case 'organize':
-      return into ? `Organized ${count(n)} into ${into}` : `Organized ${count(n)}`
+      return into
+        ? t('triage.organizedInto', { count: n, into })
+        : t('triage.organized', { count: n })
     case 'unorganize':
-      return into ? `Took ${count(n)} out of ${into}` : `Took ${count(n)} out of the collection`
+      return into ? t('triage.tookOutOf', { count: n, into }) : t('triage.tookOut', { count: n })
     case 'delete':
-      return `Deleted ${count(n)}`
+      return t('triage.deleted', { count: n })
   }
 }
 
@@ -68,7 +67,7 @@ export function useUndoAction() {
     if (!payloads) return undefined
     return [
       {
-        label: 'Undo',
+        label: t('triage.undo'),
         onClick: async () => {
           try {
             for (const payload of payloads) await triageItems(payload)

@@ -28,6 +28,12 @@ class Profile(TimestampedModel):
         # Follows the device's own setting.
         SYSTEM = "system"
 
+    class Language(models.TextChoices):
+        ENGLISH = "en"
+        SPANISH = "es"
+        # Follows the browser's own language.
+        SYSTEM = "system"
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -36,6 +42,12 @@ class Profile(TimestampedModel):
     # Set the first time the welcome tour is closed, on any device.
     welcome_seen_at = models.DateTimeField(null=True, blank=True)
     theme = models.CharField(max_length=10, choices=Theme, default=Theme.SYSTEM)
+    language = models.CharField(
+        max_length=10,
+        choices=Language,
+        default=Language.SYSTEM,
+        db_default=Language.SYSTEM,
+    )
     # How the user signs what they publish (apps.public); never the username,
     # which is half of their login. Empty: published notes show no author.
     display_name = models.CharField(

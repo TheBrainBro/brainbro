@@ -3,6 +3,9 @@
  * For now one person has several sessions, so the name is the device and
  * browser ("Chrome on Mac"); the color is picked once per device.
  */
+
+import { t } from '../i18n/i18n'
+
 export type Presence = { name: string; color: string; colorLight: string }
 
 // Cursor colors that read on light and dark backgrounds.
@@ -35,8 +38,8 @@ function match(userAgent: string, patterns: [RegExp, string][]) {
 export function deviceName(userAgent = navigator.userAgent) {
   const browser = match(userAgent, BROWSERS)
   const system = match(userAgent, SYSTEMS)
-  if (browser && system) return `${browser} on ${system}`
-  return browser ?? system ?? 'Another device'
+  if (browser && system) return t('editor.deviceOn', { browser, system })
+  return browser ?? system ?? t('editor.anotherDevice')
 }
 
 function deviceColor() {

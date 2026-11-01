@@ -16,6 +16,7 @@ import {
 } from '@codemirror/state'
 import { Decoration, EditorView } from '@codemirror/view'
 
+import { t } from '../i18n/i18n'
 import { GlyphWidget } from './dialect'
 import {
   findWikilinks,
@@ -89,7 +90,7 @@ export function wikilinkDecorations(
       const resolved = index ? resolveWikilink(index, link.target) !== null : true
       const mark = Decoration.mark({
         class: resolved ? 'cm-wikilink' : 'cm-wikilink cm-wikilink-unresolved',
-        attributes: resolved ? {} : { title: 'No note with this title' },
+        attributes: resolved ? {} : { title: t('markdown.noNoteWithTitle') },
       })
       if (scan.touches(from, to)) {
         decorations.push(mark.range(from + 2, to - 2))

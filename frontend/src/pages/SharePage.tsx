@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
+import { useT } from '../i18n/i18n'
 import { shareToCaptureInputs } from '../share/inputs'
 
 /**
@@ -12,6 +13,7 @@ import { shareToCaptureInputs } from '../share/inputs'
  *   sheet. Any site could link here, so it asks before saving.
  */
 export function SharePage() {
+  const t = useT()
   const [params] = useSearchParams()
   const { capture } = useCapturePipeline()
   const navigate = useNavigate()
@@ -26,12 +28,12 @@ export function SharePage() {
 
   if (params.has('lost')) {
     return (
-      <SharePanel title="That share didn't arrive">
+      <SharePanel title={t('share.lost')}>
         <p className="text-sm text-zinc-500">
-          Brain wasn't ready to receive it on this device. Open the app once, then share it again.
+          {t('share.lostHint')}
         </p>
         <Link to="/" className="button-primary mt-4 inline-block">
-          Go to the inbox
+          {t('share.toInbox')}
         </Link>
       </SharePanel>
     )
@@ -42,13 +44,13 @@ export function SharePage() {
   const preview = input.kind === 'url' ? input.url : input.kind === 'file' ? '' : input.text
 
   return (
-    <SharePanel title="Save to the inbox?">
+    <SharePanel title={t('share.save')}>
       <p className="max-h-60 overflow-auto rounded-lg bg-zinc-100 p-3 text-sm break-words whitespace-pre-wrap dark:bg-zinc-800">
         {preview}
       </p>
       <div className="mt-4 flex justify-end gap-2">
         <Link to="/" replace className="button-secondary">
-          Cancel
+          {t('common.cancel')}
         </Link>
         <button
           type="button"
@@ -59,7 +61,7 @@ export function SharePage() {
             void capture(found)
           }}
         >
-          Save
+          {t('common.save')}
         </button>
       </div>
     </SharePanel>

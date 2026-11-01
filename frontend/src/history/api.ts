@@ -1,6 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 
 import { boardKey, type Board, type Layout } from '../boards/api'
+import { t } from '../i18n/i18n'
 import { itemKey, type Item, type ItemSource } from '../items/api'
 import { api } from '../lib/api'
 
@@ -92,7 +93,7 @@ export function restoreBoard(id: string) {
 
 /** Who saved it, in a few words: "You", "Claude", "You, from Telegram", "Imported". */
 export function revisionAuthor(revision: Pick<Revision, 'by' | 'via'>) {
-  if (revision.via === 'import') return 'Imported'
+  if (revision.via === 'import') return t('history.imported')
   if (revision.by) return revision.by
-  return revision.via === 'telegram' ? 'You, from Telegram' : 'You'
+  return revision.via === 'telegram' ? t('history.youTelegram') : t('history.you')
 }
