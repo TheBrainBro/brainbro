@@ -51,7 +51,7 @@ From then on: search Brain before answering about my notes or plans, save what I
   fill();
 
   // Tabs, with arrow keys between them.
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  const tabs = [...document.querySelectorAll('#connect [role="tab"]')];
   function select(tab) {
     for (const other of tabs) {
       const selected = other === tab;

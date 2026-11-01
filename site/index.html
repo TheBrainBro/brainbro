@@ -346,7 +346,6 @@
           <button role="tab" type="button" aria-selected="false" aria-controls="tab-grok" id="tab-grok-button">
             <svg class="logo"><use href="#l-grok" /></svg>Grok
           </button>
-          <button role="tab" type="button" aria-selected="false" aria-controls="tab-code" id="tab-code-button">Claude Code</button>
         </div>
 
         <div class="tab-panel" role="tabpanel" id="tab-any" aria-labelledby="tab-any-button">
@@ -360,12 +359,18 @@
         </div>
 
         <div class="tab-panel" role="tabpanel" id="tab-claude" aria-labelledby="tab-claude-button" hidden>
+          <h3 class="howto-title">Claude on the web, desktop or mobile</h3>
           <ol class="howto">
-            <li>In Claude (web, desktop or mobile), open <b>Customize → Connectors → Add custom connector</b>.</li>
+            <li>Open <b>Customize → Connectors → Add custom connector</b>.</li>
             <li>Paste the address below and press <b>Add</b>.<span class="url-row"><code data-mcp-url></code><button class="button outline small" type="button" data-copy-mcp>Copy</button></span></li>
             <li>Press <b>Connect</b>. Brain opens and asks you to allow Claude.</li>
           </ol>
           <p class="note-small">Custom connectors work on every plan (one on Free).</p>
+          <h3 class="howto-title">Claude Code</h3>
+          <ol class="howto">
+            <li>In a terminal:<span class="url-row"><code id="code-command"></code><button class="button outline small" type="button" data-copy="code-command">Copy</button></span></li>
+            <li>In Claude Code, run <code>/mcp</code>, choose <b>brain</b> and sign in.</li>
+          </ol>
         </div>
 
         <div class="tab-panel" role="tabpanel" id="tab-chatgpt" aria-labelledby="tab-chatgpt-button" hidden>
@@ -384,13 +389,6 @@
             <li>Sign in to Brain when asked.</li>
           </ol>
           <p class="note-small">On Grok Business and Enterprise, an admin adds the connector first.</p>
-        </div>
-
-        <div class="tab-panel" role="tabpanel" id="tab-code" aria-labelledby="tab-code-button" hidden>
-          <ol class="howto">
-            <li>In a terminal:<span class="url-row"><code id="code-command"></code><button class="button outline small" type="button" data-copy="code-command">Copy</button></span></li>
-            <li>In Claude Code, run <code>/mcp</code>, choose <b>brain</b> and sign in.</li>
-          </ol>
         </div>
       </section>
 
