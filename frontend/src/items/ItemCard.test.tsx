@@ -189,3 +189,19 @@ describe('ItemCard tasks', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('ItemCard audio', () => {
+  it('plays a recording in the card, with its caption', () => {
+    const { container } = renderCard({
+      ...fileItem({ filename: 'Voice note.webm', mime: 'audio/webm', size: 4096 }),
+      kind: 'audio',
+      body: 'Ideas for the trip',
+    })
+    expect(screen.getByText('Voice note.webm')).toBeInTheDocument()
+    expect(screen.getByText('Ideas for the trip')).toBeInTheDocument()
+    expect(screen.getByText('4 KB')).toBeInTheDocument()
+    // On a board, using the player doesn't drag the card.
+    expect(container.querySelector('audio')).toHaveAttribute('src', '/api/items/f1/file/?v=a')
+    expect(container.querySelector('audio')).toHaveClass('nodrag')
+  })
+})
