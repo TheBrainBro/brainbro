@@ -1,0 +1,829 @@
+/* The app's look: zinc neutrals and the logo's violet (see frontend/src/index.css). */
+:root {
+  color-scheme: light dark;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --subtle: #f4f4f5;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --accent-soft: #ede9fe;
+  --accent-text: #6d28d9;
+  --add: #047857;
+  --add-bg: #ecfdf5;
+  --del: #b91c1c;
+  --del-bg: #fef2f2;
+  --shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 8px 24px rgb(24 24 27 / 0.06);
+  --radius: 14px;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b;
+    --surface: #18181b;
+    --subtle: #27272a;
+    --border: #27272a;
+    --text: #f4f4f5;
+    --muted: #a1a1aa;
+    --accent: #7c3aed;
+    --accent-hover: #8b5cf6;
+    --accent-soft: #2e1065;
+    --accent-text: #c4b5fd;
+    --add: #6ee7b7;
+    --add-bg: #064e3b80;
+    --del: #fca5a5;
+    --del-bg: #7f1d1d80;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sprite {
+  display: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+/* Header and footer */
+
+.topbar,
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 20px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.topbar nav,
+footer nav {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+}
+
+.topbar nav a,
+footer nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.topbar nav a:hover,
+footer nav a:hover {
+  color: var(--text);
+}
+
+footer {
+  margin-top: 48px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+  padding-block: 28px;
+}
+
+/* Hero */
+
+.hero {
+  padding-block: 72px 56px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--accent-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(40px, 8vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.lead {
+  max-width: 560px;
+  margin: 20px auto 0;
+  color: var(--muted);
+  font-size: clamp(17px, 2.2vw, 20px);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    transform 100ms;
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.button.primary {
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff;
+}
+
+.button.primary:hover {
+  background: var(--accent-hover);
+}
+
+.button.outline {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.button.outline:hover {
+  border-color: var(--muted);
+}
+
+.button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+/* Scenes */
+
+.scene {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  align-items: center;
+  gap: 48px;
+  padding-block: 56px;
+}
+
+.copy h2 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.copy p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+}
+
+.stage {
+  display: grid;
+  gap: 12px;
+  min-height: 340px;
+  align-content: start;
+  font-size: 14px;
+}
+
+.stage.trio {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stage.duo {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+}
+
+/* Something showing up mid-scene. */
+.stage [data-at]:not([hidden]) {
+  animation: appear 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.window,
+.chat,
+.brain,
+.note,
+.history {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.window-bar,
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* Scene 1: drop anything */
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 6px 12px;
+  color: var(--muted);
+  transition:
+    color 200ms,
+    border-color 200ms,
+    background-color 200ms,
+    transform 200ms;
+}
+
+.source.now {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  transform: translateY(-2px);
+}
+
+.count {
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--subtle);
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cards {
+  display: grid;
+  gap: 8px;
+  min-height: 300px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
+}
+
+.empty {
+  align-self: center;
+  color: var(--muted);
+  text-align: center;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.kind {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.card-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-text b,
+.card-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-text b {
+  font-weight: 500;
+}
+
+small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bot-mark {
+  color: var(--accent-text);
+  font-size: 15px;
+}
+
+.thumb {
+  width: 44px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #c4b5fd, #7dd3fc);
+}
+
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+}
+
+.wave i {
+  width: 3px;
+  height: 40%;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.7;
+  animation: wave 900ms ease-in-out infinite alternate;
+}
+
+.wave i:nth-child(2n) {
+  animation-delay: -300ms;
+}
+
+.wave i:nth-child(3n) {
+  animation-delay: -600ms;
+}
+
+@keyframes wave {
+  to {
+    height: 100%;
+  }
+}
+
+/* Scene 2: one memory, every assistant */
+
+.chat,
+.brain {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 340px;
+  padding-bottom: 12px;
+}
+
+.chat > :not(.chat-head),
+.brain > :not(.chat-head) {
+  margin: 0 12px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot.claude {
+  background: #d97757;
+}
+
+.dot.gpt {
+  background: #10a37f;
+}
+
+.bubble {
+  max-width: 92%;
+  border-radius: 12px;
+  background: var(--subtle);
+  padding: 8px 10px;
+}
+
+.bubble.me {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+}
+
+.tool {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.later {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mini {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms;
+}
+
+.mini b {
+  font-weight: 500;
+}
+
+.mini span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mini small,
+.note-head small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-text);
+}
+
+.mini.faded {
+  opacity: 0.55;
+}
+
+.mini.now {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Scene 3: who wrote what, and going back */
+
+.note,
+.history {
+  min-height: 300px;
+}
+
+.note-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.note-head b {
+  font-size: 18px;
+}
+
+.lines {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+}
+
+.lines li {
+  position: relative;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.lines li::before {
+  content: '• ';
+  color: var(--muted);
+}
+
+.lines .del {
+  background: var(--del-bg);
+  color: var(--del);
+  text-decoration: line-through;
+}
+
+.lines .add {
+  background: var(--add-bg);
+  color: var(--add);
+}
+
+.lines .back:not([hidden]) {
+  animation: flash 1600ms ease-out both;
+}
+
+@keyframes flash {
+  from {
+    background: var(--accent-soft);
+  }
+}
+
+.caret {
+  position: relative;
+  margin-left: 2px;
+  border-left: 2px solid #10a37f;
+  animation: blink 1s steps(1) infinite;
+}
+
+.caret::after {
+  content: 'ChatGPT';
+  position: absolute;
+  top: -18px;
+  left: -2px;
+  border-radius: 4px 4px 4px 0;
+  background: #10a37f;
+  padding: 1px 5px;
+  color: #fff;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@keyframes blink {
+  50% {
+    border-color: transparent;
+  }
+}
+
+.history ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+}
+
+.rev {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  transition:
+    background-color 200ms,
+    border-color 200ms;
+}
+
+.rev > svg {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.rev span {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.rev b {
+  font-weight: 500;
+}
+
+.rev.now {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rev .restore {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  padding: 4px 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* What else */
+
+.more ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 24px 0;
+  list-style: none;
+}
+
+.more li {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Connect and install */
+
+.panel {
+  padding-block: 56px;
+}
+
+.panel .copy {
+  max-width: 620px;
+  margin-bottom: 24px;
+}
+
+pre,
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+code {
+  border-radius: 4px;
+  background: var(--subtle);
+  padding: 1px 4px;
+  font-size: 0.9em;
+}
+
+pre {
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.prompt {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.prompt pre {
+  max-height: 260px;
+  overflow-y: auto;
+  color: var(--muted);
+}
+
+.copy-button {
+  margin-top: 16px;
+}
+
+.copy-button .icon-done,
+.copy-button.done .icon-copy {
+  display: none;
+}
+
+.copy-button.done .icon-done {
+  display: inline;
+}
+
+.installs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.install {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 20px;
+}
+
+.install h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.install p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.install pre {
+  border-radius: 10px;
+  background: var(--subtle);
+  padding: 12px 14px;
+}
+
+.panel .actions {
+  justify-content: flex-start;
+  margin-top: 24px;
+}
+
+/* Phones */
+
+@media (max-width: 860px) {
+  .scene {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-block: 40px;
+  }
+
+  .stage.trio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat,
+  .brain {
+    min-height: 0;
+  }
+
+  .stage {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding-block: 48px 32px;
+  }
+
+  .stage.duo,
+  .installs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topbar nav,
+  footer nav {
+    gap: 16px;
+  }
+
+  footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
