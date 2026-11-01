@@ -28,6 +28,7 @@ import {
 } from '../items/api'
 import { itemLabel } from '../items/label'
 import { Markdown } from '../items/Markdown'
+import { originText } from '../items/origin'
 import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
@@ -47,9 +48,11 @@ function hostname(url: string) {
 
 function describe(item: Item) {
   const { mime, size, site_name: site } = item.metadata
-  if (item.kind === 'link') return site || hostname(item.url)
-  if (item.kind === 'note') return `Note · ${timeAgo(item.updated_at)}`
-  return [size !== undefined && formatBytes(size), mime].filter(Boolean).join(' · ')
+  // "Edited by Claude, 2 hours ago", when an assistant had a hand in it.
+  const origin = originText(item)
+  if (item.kind === 'link') return [site || hostname(item.url), origin].filter(Boolean).join(' · ')
+  if (item.kind === 'note') return `Note · ${origin ?? timeAgo(item.updated_at)}`
+  return [size !== undefined && formatBytes(size), mime, origin].filter(Boolean).join(' · ')
 }
 
 /**

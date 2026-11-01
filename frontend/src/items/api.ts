@@ -58,7 +58,17 @@ export type Item = {
   version: string
   created_at: string
   updated_at: string
+  /** The app that made it (its OAuth name or the token's); empty for the user. */
+  created_by: string
+  created_via: ItemSource
+  /** The same for the last edit of its content; `edited_at` is null until then. */
+  edited_by: string
+  edited_via: ItemSource
+  edited_at: string | null
 }
+
+/** Where an item came from; empty for items from before this was recorded. */
+export type ItemSource = '' | 'web' | 'telegram' | 'mcp' | 'api' | 'import'
 
 /** A copy the app keeps of an image in a note; `url` once it is ready. */
 export type NoteImage = { status: PreviewStatus; url: string | null }
@@ -89,6 +99,10 @@ export type ItemFilters = {
   kind?: ItemKind
   /** Search text: items with every word first, then with some (typos allowed). */
   q?: string
+  /** Who made or last edited them: only the user, or an app. */
+  origin?: 'mine' | 'assistants'
+  /** This app made or last edited them. */
+  app?: string
 }
 
 export function useItems(filters: ItemFilters) {
@@ -100,6 +114,8 @@ export function useItems(filters: ItemFilters) {
       if (filters.collection) params.set('collection', filters.collection)
       if (filters.kind) params.set('kind', filters.kind)
       if (filters.q) params.set('q', filters.q)
+      if (filters.origin) params.set('origin', filters.origin)
+      if (filters.app) params.set('app', filters.app)
       return api<Page<Item>>(`/items/?${params}`)
     },
     initialPageParam: 0,
@@ -120,6 +136,15 @@ export function useHasItems(enabled: boolean) {
     queryFn: () => api<Page<Item>>('/items/?limit=1'),
     select: (page) => page.count > 0,
     enabled,
+  })
+}
+
+/** The apps that made or edited items, to filter by. */
+export function useItemApps() {
+  return useQuery({
+    queryKey: [...itemsKey, 'apps'],
+    queryFn: () => api<{ apps: string[] }>('/items/apps/'),
+    select: (data) => data.apps,
   })
 }
 
