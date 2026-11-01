@@ -523,9 +523,9 @@
 
   // --- Sections reached -----------------------------------------------------
 
-  // Connect and Install light up their title when they come into view (from
-  // the hero's buttons or by scrolling).
-  for (const section of document.querySelectorAll('#connect, #install')) {
+  // Every section lights up its title when it comes into view (by scrolling
+  // or from the hero's buttons).
+  for (const section of document.querySelectorAll('main section')) {
     const title = section.querySelector('h2');
     onScreen(section, () => replay(title, 'glow'), null, 0.5);
   }
