@@ -14,11 +14,13 @@ from rest_framework import serializers
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
+from apps.collab.documents import body_written
 from apps.items.capture import normalize_url
 from apps.items.models import Collection, CollectionItem, Item
+from apps.items.notes import sync_images
 from apps.items.search import find
 from apps.items.serializers import TriageSerializer
-from apps.items.views import capture_text, sync_images, triage
+from apps.items.views import capture_text, triage
 
 # How much of a body lists show; `get_item` has all of it.
 EXCERPT_LENGTH = 300
@@ -450,6 +452,8 @@ def edit_note(user, data):
     item.save(update_fields=[*fields, "updated_at"])
     if "body" in data:
         sync_images(item)
+        # Open in the app: the edit merges into it live, under its name.
+        body_written(item)
     return item_details(owned_items(user).get(id=item.id))
 
 

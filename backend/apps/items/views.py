@@ -11,14 +11,15 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from apps.collab.documents import body_written
 from apps.events.changes import items_changed
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .collection_images import make_collection_image
 from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
-from .note_images import MAX_PASTED_SIZE, sync_note_images
-from .note_links import sync_note_links
+from .note_images import MAX_PASTED_SIZE
+from .notes import sync_images
 from .ordering import move_collection, move_in_collection, move_in_inbox
 from .search import find
 from .serializers import (
@@ -33,8 +34,6 @@ from .serializers import (
 )
 from .tasks import (
     fetch_link_preview,
-    fetch_note_images,
-    fetch_note_links,
     generate_thumbnail,
     make_note_image_display,
 )
@@ -96,14 +95,6 @@ def enqueue_preview(item):
     # After commit, so the worker never looks for a row it can't see yet.
     task = fetch_link_preview if item.kind == Item.Kind.LINK else generate_thumbnail
     transaction.on_commit(lambda: task.delay(str(item.id)))
-
-
-def sync_images(note):
-    """Images and link previews the note now shows, fetched in the background."""
-    if sync_note_images(note):
-        transaction.on_commit(lambda: fetch_note_images.delay(str(note.id)))
-    if sync_note_links(note):
-        transaction.on_commit(lambda: fetch_note_links.delay(str(note.id)))
 
 
 def create_upload_item(owner, file, upload):
@@ -262,6 +253,9 @@ class ItemViewSet(
         With `If-Match: "<version>"`, the save only applies if the title and
         body are still the ones the client started from; otherwise 412 with
         the current item, so the editor can show the conflict.
+
+        The app edits notes live (`apps.collab`) instead; this is for clients
+        without it, like an older app still cached on a device.
         """
         expected = request.headers.get("If-Match")
         with transaction.atomic():
@@ -282,6 +276,7 @@ class ItemViewSet(
         item = serializer.save()
         if item.kind == Item.Kind.NOTE and "body" in serializer.validated_data:
             sync_images(item)
+            body_written(item)
 
     @action(detail=False, methods=["post"])
     def capture(self, request):
