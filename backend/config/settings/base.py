@@ -227,6 +227,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.items.tasks.delete_unused_note_images",
         "schedule": crontab(hour=4, minute=30),
     },
+    "delete-unused-oauth-clients": {
+        "task": "apps.accounts.tasks.delete_unused_oauth_clients",
+        "schedule": crontab(hour=5, minute=0),
+    },
 }
 
 # Admin
