@@ -1791,14 +1791,8 @@ pre {
   font-size: 16px;
 }
 
-.howto + .note-small + .howto-title,
-.prompt + .howto-title {
+.howto + .note-small + .howto-title {
   margin-top: 32px;
-}
-
-.howto-lead {
-  margin: 0 0 16px;
-  color: var(--muted);
 }
 
 .note-small {
