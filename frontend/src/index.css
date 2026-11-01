@@ -41,6 +41,8 @@
   --md-rule: light-dark(var(--color-zinc-300), var(--color-zinc-700));
   --md-subtle: light-dark(var(--color-zinc-100), var(--color-zinc-800));
   --md-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
+  --md-link: light-dark(var(--color-sky-700), var(--color-sky-400));
+  --md-popover: light-dark(var(--color-white), var(--color-zinc-900));
   /* ==mark== and ::: containers in the editor (literal colors, see below). */
   --md-highlight: light-dark(#fde68a, #f59e0b4d);
   --box-info: #38bdf8;
@@ -214,6 +216,11 @@ body {
     }
     & a {
       @apply underline decoration-zinc-400 underline-offset-2 hover:decoration-current;
+    }
+    /* `[[Title]]`: a link to another note, or muted when no note has that title. */
+    & .wikilink-unresolved {
+      @apply underline decoration-dashed underline-offset-2;
+      color: var(--md-muted);
     }
     & :is(ul, ol) {
       @apply space-y-0.5 pl-5;

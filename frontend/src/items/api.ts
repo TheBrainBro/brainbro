@@ -10,6 +10,7 @@ import {
 
 import { api } from '../lib/api'
 import type { LinkPreview } from '../lib/linkPreviews'
+import type { NoteTitle } from '../notes/wikilinks'
 import { moveCollection } from './collectionTree'
 
 export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'audio' | 'album'
@@ -158,6 +159,14 @@ export function useSearch(q: string) {
     queryFn: () => api<SearchResult[]>(`/items/search/?${new URLSearchParams({ q })}`),
     enabled: Boolean(q),
     placeholderData: keepPreviousData,
+  })
+}
+
+/** The titles `[[Title]]` links find notes by, in the order they are tried. */
+export function useNoteTitleList() {
+  return useQuery({
+    queryKey: [...itemsKey, 'note-titles'],
+    queryFn: () => api<NoteTitle[]>('/items/note-titles/'),
   })
 }
 
