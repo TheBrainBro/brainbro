@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppRoutes } from '../App'
 import type { Item } from '../items/api'
+import { FakeEventSource } from '../test/eventSource'
 
 const MARKDOWN = '# Title\n\n* star bullet\n__bold__ and *em*\\\nhard break\n\n    indented code\n'
 
@@ -182,6 +183,26 @@ describe('NotePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Load latest' }))
     expect((await editor()).state.doc.toString()).toBe('from another tab')
     expect(screen.queryByText(/changed in another tab/)).toBeNull()
+  })
+
+  it('says when an assistant edited the note, and loads it on request', async () => {
+    vi.stubGlobal('EventSource', FakeEventSource)
+    items = [makeItem({ id: 'n1', body: 'start', version: 'v-start' })]
+    renderAt('/notes/n1')
+    const view = await editor()
+    Object.assign(items[0], { body: 'start, and more', version: 'v-more' })
+
+    act(() => FakeEventSource.last!.send({ items: ['n1'], by: 'Claude' }))
+    expect(
+      await screen.findByText('Claude edited this note.', {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
+    // Nothing replaced under the cursor until asked.
+    expect(view.state.doc.toString()).toBe('start')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load latest' }))
+    expect((await editor()).state.doc.toString()).toBe('start, and more')
+    expect(screen.queryByText('Claude edited this note.')).toBeNull()
+    expect(patches).toEqual([])
   })
 
   it('restores an unsaved draft after a reload', async () => {
