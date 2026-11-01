@@ -32,8 +32,9 @@ See `apps/telegram/messages.py`.
   each one arrives as its own message, so `group_media` puts them together a
   few seconds after each, in the order they were sent, with the captions as
   the album's text. One that arrives late joins the album.
-- **Files, videos, audio, voice messages, GIFs** become image or file items,
-  detected by content like any upload.
+- **Files, videos, audio, voice messages, GIFs** become image, audio or file
+  items, detected by content like any upload. Audio and voice messages get a
+  player (see [Audio](audio.md)).
 - **Can't be kept**: stickers, locations, contacts, polls and the like (👎).
   Files over 20 MB, the most a bot can download through the Bot API (👎).
 - Forwarded messages are saved like any other; who sent them first isn't
