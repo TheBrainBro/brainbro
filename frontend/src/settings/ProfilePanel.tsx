@@ -2,11 +2,13 @@ import { ImagePlus, Trash2 } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 
 import { useSaveDisplayName, useSession, useSetAvatar } from '../auth/session'
+import { useT } from '../i18n/i18n'
 import { squareImage } from '../lib/image'
 import { Avatar } from './Avatar'
 
 /** The display name that signs public notes, and the photo the app shows. */
 export function ProfilePanel() {
+  const t = useT()
   const { data: session } = useSession()
   const profile = session?.profile ?? { display_name: '', avatar_url: null }
   const saveName = useSaveDisplayName()
@@ -23,7 +25,7 @@ export function ProfilePanel() {
     try {
       square = await squareImage(file)
     } catch {
-      return setError("That file isn't an image this browser can read.")
+      return setError(t('profile.notAnImage'))
     }
     setAvatar.mutate(square, { onError: (failure) => setError(failure.message) })
   }
@@ -44,7 +46,7 @@ export function ProfilePanel() {
             onClick={() => fileInput.current?.click()}
           >
             <ImagePlus className="size-4" aria-hidden="true" />
-            {profile.avatar_url ? 'Change photo' : 'Upload photo'}
+            {profile.avatar_url ? t('profile.changePhoto') : t('profile.uploadPhoto')}
           </button>
           {profile.avatar_url && (
             <button
@@ -56,14 +58,14 @@ export function ProfilePanel() {
               }
             >
               <Trash2 className="size-4" aria-hidden="true" />
-              Remove
+              {t('common.remove')}
             </button>
           )}
           <input
             ref={fileInput}
             type="file"
             accept="image/*"
-            aria-label="Profile photo"
+            aria-label={t('profile.photo')}
             className="hidden"
             onChange={(event) => {
               void pickPhoto(event.target.files?.[0])
@@ -82,7 +84,7 @@ export function ProfilePanel() {
         }}
       >
         <label htmlFor={nameId} className="block text-sm font-medium">
-          Display name
+          {t('profile.displayName')}
         </label>
         <div className="flex gap-2">
           <input
@@ -90,7 +92,7 @@ export function ProfilePanel() {
             className="input"
             value={name}
             maxLength={80}
-            placeholder="Your name"
+            placeholder={t('profile.yourName')}
             onChange={(event) => setName(event.target.value)}
           />
           <button
@@ -98,11 +100,11 @@ export function ProfilePanel() {
             className="button-secondary shrink-0"
             disabled={name.trim() === profile.display_name || saveName.isPending}
           >
-            Save
+            {t('common.save')}
           </button>
         </div>
         <p className="text-xs text-zinc-500">
-          Signs your public notes. Without one they show no author; your username never shows.
+          {t('profile.displayNameHint')}
         </p>
       </form>
 

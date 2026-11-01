@@ -1,6 +1,7 @@
 import { FolderPlus } from 'lucide-react'
 import { useState } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { useCollections, useCreateCollection } from './api'
 import { CollectionAvatar } from './CollectionAvatar'
 import { CollectionPlace } from './CollectionPlace'
@@ -19,6 +20,7 @@ export function CollectionPicker({
   onConfirm: (collectionIds: string[], names: string) => void
   onClose: () => void
 }) {
+  const t = useT()
   const collections = useCollections()
   const create = useCreateCollection()
   const [query, setQuery] = useState('')
@@ -72,19 +74,19 @@ export function CollectionPicker({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Organize into collections"
+        aria-label={t('collectionPicker.label')}
         className="popover w-full max-w-sm p-3"
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose()
         }}
       >
         <p className="px-1 pb-2 text-sm text-zinc-500">
-          Organize {count === 1 ? '1 item' : `${count} items`} into…
+          {t('collectionPicker.title', { count })}
         </p>
         <input
           className="input"
-          placeholder="Find or create a collection"
-          aria-label="Find or create a collection"
+          placeholder={t('collectionPicker.find')}
+          aria-label={t('collectionPicker.find')}
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -121,19 +123,19 @@ export function CollectionPicker({
           ))}
           {!needle && all.length === 0 && collections.isSuccess && (
             <li className="px-2 py-1.5 text-sm text-zinc-500">
-              No collections yet: type a name to create the first one.
+              {t('collectionPicker.none')}
             </li>
           )}
           {needle && !exact && (
             <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-zinc-500">
               <FolderPlus className="size-4" aria-hidden="true" />
-              Enter to create “{query.trim()}”
+              {t('collectionPicker.enterToCreate', { name: query.trim() })}
             </li>
           )}
         </ul>
         <div className="mt-2 flex justify-end gap-2">
           <button type="button" className="button-secondary px-3 py-1.5" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -141,7 +143,7 @@ export function CollectionPicker({
             disabled={checked.size === 0}
             onClick={confirm}
           >
-            Organize
+            {t('collectionPicker.organize')}
           </button>
         </div>
       </div>

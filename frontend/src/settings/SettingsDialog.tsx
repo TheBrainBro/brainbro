@@ -1,6 +1,7 @@
 import {
   Bot,
   FolderInput,
+  Languages,
   PackageOpen,
   Palette,
   Send,
@@ -14,47 +15,53 @@ import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { useSession } from '../auth/session'
 import { ExportPanel } from '../exports/ExportPanel'
+import { useT, type MessageKey } from '../i18n/i18n'
 import { ImportPanel } from '../imports/ImportPanel'
 import { InvitationsPanel } from '../invitations/InvitationsPanel'
+import { LanguagePanel } from './LanguagePanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
 import { ProfilePanel } from './ProfilePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
-type Page = { id: string; label: string; icon: LucideIcon; Panel: ComponentType }
+type Page = { id: string; label: MessageKey; icon: LucideIcon; Panel: ComponentType }
 
-const groups: { label: string; pages: Page[] }[] = [
+const groups: { label: MessageKey; pages: Page[] }[] = [
   {
-    label: 'Data',
+    label: 'settings.groups.data',
     pages: [
-      { id: 'import', label: 'Import', icon: FolderInput, Panel: ImportPanel },
-      { id: 'export', label: 'Export', icon: PackageOpen, Panel: ExportPanel },
+      { id: 'import', label: 'settings.pages.import', icon: FolderInput, Panel: ImportPanel },
+      { id: 'export', label: 'settings.pages.export', icon: PackageOpen, Panel: ExportPanel },
     ],
   },
   {
-    label: 'Integrations',
+    label: 'settings.groups.integrations',
     pages: [
-      { id: 'telegram', label: 'Telegram', icon: Send, Panel: TelegramPanel },
-      { id: 'assistants', label: 'AI assistants', icon: Bot, Panel: TokensPanel },
+      { id: 'telegram', label: 'settings.pages.telegram', icon: Send, Panel: TelegramPanel },
+      { id: 'assistants', label: 'settings.pages.assistants', icon: Bot, Panel: TokensPanel },
     ],
   },
   {
-    label: 'App',
+    label: 'settings.groups.app',
     pages: [
-      { id: 'profile', label: 'Profile', icon: UserRound, Panel: ProfilePanel },
-      { id: 'appearance', label: 'Appearance', icon: Palette, Panel: AppearancePanel },
+      { id: 'profile', label: 'settings.pages.profile', icon: UserRound, Panel: ProfilePanel },
+      { id: 'appearance', label: 'settings.pages.appearance', icon: Palette, Panel: AppearancePanel },
+      { id: 'language', label: 'settings.pages.language', icon: Languages, Panel: LanguagePanel },
     ],
   },
 ]
 
 // Admins only: inviting people to the server.
 const adminGroup = {
-  label: 'Server',
-  pages: [{ id: 'invitations', label: 'Invitations', icon: UserPlus, Panel: InvitationsPanel }],
+  label: 'settings.groups.server' as MessageKey,
+  pages: [
+    { id: 'invitations', label: 'settings.pages.invitations', icon: UserPlus, Panel: InvitationsPanel },
+  ] as Page[],
 }
 
 /** Import, export, integrations and appearance: a list of pages on the side, the open one next to it. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])
   const { data: session } = useSession()
@@ -80,12 +87,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-2 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
             <Settings className="size-5 text-accent-500" aria-hidden="true" />
             <h2 id="settings-title" className="mr-auto font-semibold">
-              Settings
+              {t('settings.title')}
             </h2>
             <button
               ref={close}
               type="button"
-              aria-label="Close"
+              aria-label={t('common.close')}
               className="button-icon size-8"
               onClick={onClose}
             >
@@ -95,13 +102,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
           <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
             <nav
-              aria-label="Settings"
+              aria-label={t('settings.title')}
               className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 p-2 sm:w-52 sm:flex-col sm:border-r sm:border-b-0 dark:border-zinc-800"
             >
               {shown.map((group) => (
                 <div key={group.label} className="flex gap-1 sm:flex-col">
                   <div className="hidden px-3 pt-2 pb-1 text-xs font-medium text-zinc-500 sm:block">
-                    {group.label}
+                    {t(group.label)}
                   </div>
                   {group.pages.map(({ id, label, icon: Icon }) => (
                     <button
@@ -112,7 +119,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       onClick={() => setOpenId(id)}
                     >
                       <Icon className="size-4" aria-hidden="true" />
-                      {label}
+                      {t(label)}
                     </button>
                   ))}
                 </div>
@@ -121,7 +128,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
             <section aria-labelledby="settings-page-title" className="min-w-0 flex-1 overflow-y-auto p-5">
               <h3 id="settings-page-title" className="mb-2 font-semibold">
-                {page.label}
+                {t(page.label)}
               </h3>
               <page.Panel />
             </section>

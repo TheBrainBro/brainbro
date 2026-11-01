@@ -1,7 +1,10 @@
 import { ChevronDown, LoaderCircle } from 'lucide-react'
 
+import { useT } from '../i18n/i18n'
+
 /** The next page of a list, on request. */
 export function LoadMore({ loading, onClick }: { loading: boolean; onClick: () => void }) {
+  const t = useT()
   return (
     <button
       type="button"
@@ -14,7 +17,7 @@ export function LoadMore({ loading, onClick }: { loading: boolean; onClick: () =
       ) : (
         <ChevronDown className="size-4" aria-hidden="true" />
       )}
-      {loading ? 'Loading…' : 'Load more'}
+      {loading ? t('common.loading') : t('items.loadMore')}
     </button>
   )
 }

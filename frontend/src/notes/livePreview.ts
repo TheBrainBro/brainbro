@@ -4,6 +4,7 @@ import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemir
 import type { SyntaxNode } from '@lezer/common'
 
 import type { NoteImage, NoteImages, NoteLinks } from '../items/api'
+import { t } from '../i18n/i18n'
 import { emojiByName, imageKey } from '../lib/markdown'
 import { dialectDecorations, GlyphWidget } from './dialect'
 import {
@@ -52,7 +53,7 @@ class TaskWidget extends WidgetType {
     box.type = 'checkbox'
     box.className = 'cm-md-task'
     box.checked = this.checked
-    box.setAttribute('aria-label', this.checked ? 'Done' : 'To do')
+    box.setAttribute('aria-label', this.checked ? t('markdown.taskDone') : t('markdown.taskToDo'))
     // Keep the cursor where it is: clicking a box isn't editing its line.
     box.addEventListener('mousedown', (event) => event.preventDefault())
     box.addEventListener('click', (event) => {

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import type { Item } from './api'
 import { ItemThumb } from './ItemThumb'
@@ -23,10 +24,11 @@ function border(selected: boolean, focused: boolean) {
 }
 
 function Select({ selected, onToggle }: { selected: boolean; onToggle: () => void }) {
+  const t = useT()
   return (
     <input
       type="checkbox"
-      aria-label="Select"
+      aria-label={t('items.select')}
       className={`shrink-0 accent-accent-600 transition-opacity ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
       checked={selected}
       onChange={onToggle}
@@ -37,6 +39,7 @@ function Select({ selected, onToggle }: { selected: boolean; onToggle: () => voi
 
 /** A tile in the grid: the item's picture (or a note's first lines) over its name. */
 export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, actions }: Props) {
+  const t = useT()
   return (
     <article
       aria-current={focused || undefined}
@@ -44,7 +47,7 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
     >
       <button
         type="button"
-        aria-label={`Open ${itemLabel(item)}`}
+        aria-label={t('items.open', { name: itemLabel(item) })}
         className="block aspect-[4/3] w-full overflow-hidden bg-zinc-100 text-left dark:bg-zinc-800"
         onClick={onOpen}
       >
@@ -73,6 +76,7 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
 
 /** A row in the list: small picture, name, kind and age. */
 export function ItemRow({ item, selected, focused, onToggleSelect, onOpen, actions }: Props) {
+  useT()
   return (
     <article
       aria-current={focused || undefined}

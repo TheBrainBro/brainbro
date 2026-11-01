@@ -4,6 +4,8 @@
  * list of these, handled by one pipeline.
  */
 
+import { t } from '../i18n/i18n'
+
 /** `note` is text that stays a note as written (the editor), never inferred as a link. */
 export type CaptureInput =
   | { kind: 'text'; text: string }
@@ -26,8 +28,6 @@ export type TransferLike = Pick<DataTransfer, 'getData' | 'types'> & {
   files?: ArrayLike<File>
 }
 
-const FOLDER_REASON = "Folders aren't supported, drop the files inside"
-
 /** Whether a drag carries something we would capture (files or links). */
 export function isCapturableDrag(types: readonly string[]) {
   return types.includes('Files') || types.includes('text/uri-list')
@@ -45,8 +45,11 @@ function filesOf(data: TransferLike): CaptureInputs {
     // Must be read during the event: entries are gone once it returns.
     const entry = item.webkitGetAsEntry?.()
     const file = item.getAsFile()
-    if (entry?.isDirectory) skipped.push({ name: file?.name || 'Folder', reason: FOLDER_REASON })
-    else if (file) inputs.push({ kind: 'file', file })
+    if (entry?.isDirectory) {
+      skipped.push({ name: file?.name || t('capturing.folder'), reason: t('capturing.folderReason') })
+    } else if (file) {
+      inputs.push({ kind: 'file', file })
+    }
   }
   return { inputs, skipped }
 }

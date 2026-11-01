@@ -1,3 +1,5 @@
+import { t } from '../i18n/i18n'
+
 const SQUARE_SIZE = 256
 
 /**
@@ -11,7 +13,7 @@ export async function squareImage(file: Blob, size = SQUARE_SIZE): Promise<Blob>
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = Math.min(size, side)
   const context = canvas.getContext('2d')
-  if (!context) throw new Error("Couldn't read the image.")
+  if (!context) throw new Error(t('errors.unreadableImage'))
   context.drawImage(
     bitmap,
     (bitmap.width - side) / 2,
@@ -26,7 +28,7 @@ export async function squareImage(file: Blob, size = SQUARE_SIZE): Promise<Blob>
   bitmap.close()
   return new Promise((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Couldn't read the image."))),
+      (blob) => (blob ? resolve(blob) : reject(new Error(t('errors.unreadableImage')))),
       'image/webp',
       0.9,
     ),

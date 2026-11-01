@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router'
 import { useCapturePipeline } from '../capture/context'
 import type { CaptureInput } from '../capture/inputs'
 import { VoiceRecorder } from '../capture/VoiceRecorder'
+import { useT } from '../i18n/i18n'
 
 /**
  * `/capture`: the phone's quick capture (the tab bar's +, the app icon's
@@ -13,6 +14,7 @@ import { VoiceRecorder } from '../capture/VoiceRecorder'
  * way in for photos and files. Or record a voice note.
  */
 export function CapturePage() {
+  const t = useT()
   const { capture } = useCapturePipeline()
   const navigate = useNavigate()
   const [text, setText] = useState('')
@@ -36,21 +38,21 @@ export function CapturePage() {
     >
       {/* Actions on top: the keyboard and the toast take the bottom. */}
       <div className="flex items-center gap-2">
-        <h1 className="mr-auto text-xl font-semibold">Capture</h1>
+        <h1 className="mr-auto text-xl font-semibold">{t('capture.title')}</h1>
         <Link to="/" className="button-secondary">
-          Cancel
+          {t('common.cancel')}
         </Link>
         <button type="submit" className="button-primary" disabled={!text.trim()}>
-          Save
+          {t('common.save')}
         </button>
       </div>
       <label htmlFor="quick-capture" className="sr-only">
-        Text or link
+        {t('capture.textOrLink')}
       </label>
       <textarea
         id="quick-capture"
         className="input field-sizing-content max-h-[50vh] min-h-40 resize-none text-base"
-        placeholder="A link, a thought…"
+        placeholder={t('capture.placeholder')}
         autoFocus
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -60,7 +62,7 @@ export function CapturePage() {
         type="file"
         multiple
         hidden
-        aria-label="Upload"
+        aria-label={t('capture.upload')}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? [])
           send(files.map((file) => ({ kind: 'file', file })))
@@ -69,7 +71,7 @@ export function CapturePage() {
       <div className="flex flex-wrap gap-2">
         <button type="button" className="button-outline" onClick={() => picker.current?.click()}>
           <Upload className="size-4" aria-hidden="true" />
-          Upload
+          {t('capture.upload')}
         </button>
         {canPaste && (
           <button
@@ -85,7 +87,7 @@ export function CapturePage() {
             }}
           >
             <ClipboardPaste className="size-4" aria-hidden="true" />
-            Paste
+            {t('capture.paste')}
           </button>
         )}
         <VoiceRecorder onRecorded={(file) => send([{ kind: 'file', file }])} />

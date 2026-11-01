@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { t, useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import { CopyField } from '../ui/CopyField'
 import { type Invitation, useCreateInvitation, useInvitations, useRevokeInvitation } from './api'
@@ -9,12 +10,11 @@ import { type Invitation, useCreateInvitation, useInvitations, useRevokeInvitati
  * account, with a Brain of their own that nobody else can see.
  */
 export function InvitationsPanel() {
+  useT()
   return (
     <div className="space-y-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        Invite someone to have their own Brain on this server. They open the link and pick a
-        username and password. Each link works once and expires after 7 days. Nobody can see
-        anyone else's things.
+        {t('invitations.intro')}
       </p>
       <NewInvitationForm />
       <Invitations />
@@ -23,6 +23,7 @@ export function InvitationsPanel() {
 }
 
 function NewInvitationForm() {
+  useT()
   const create = useCreateInvitation()
   const [note, setNote] = useState('')
 
@@ -37,14 +38,14 @@ function NewInvitationForm() {
       >
         <input
           className="input"
-          aria-label="Who it's for"
-          placeholder="Who it's for (optional)"
+          aria-label={t('invitations.whoFor')}
+          placeholder={t('invitations.whoForOptional')}
           maxLength={100}
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />
         <button type="submit" className="button-primary shrink-0" disabled={create.isPending}>
-          Create link
+          {t('invitations.create')}
         </button>
       </form>
       {create.isError && (
@@ -55,9 +56,9 @@ function NewInvitationForm() {
       {create.data && (
         <div className="space-y-3 rounded-xl border border-accent-300 bg-accent-50/50 p-3 dark:border-accent-800 dark:bg-accent-950/30">
           <p role="status" className="text-sm font-medium">
-            Send this link now: it won't be shown again.
+            {t('invitations.sendNow')}
           </p>
-          <CopyField label="Invitation link" value={create.data.url} />
+          <CopyField label={t('invitations.link')} value={create.data.url} />
         </div>
       )}
     </section>
@@ -65,6 +66,7 @@ function NewInvitationForm() {
 }
 
 function Invitations() {
+  useT()
   const { data: invitations } = useInvitations()
   const revoke = useRevokeInvitation()
   if (!invitations?.length) return null
@@ -76,7 +78,7 @@ function Invitations() {
       {pending.length > 0 && (
         <section aria-labelledby="invitations-pending" className="space-y-2">
           <h4 id="invitations-pending" className="text-sm font-medium">
-            Waiting to be used
+            {t('invitations.pending')}
           </h4>
           <InvitationList invitations={pending} revoke={revoke} />
         </section>
@@ -84,7 +86,7 @@ function Invitations() {
       {done.length > 0 && (
         <section aria-labelledby="invitations-done" className="space-y-2">
           <h4 id="invitations-done" className="text-sm font-medium text-zinc-500">
-            Accepted or expired
+            {t('invitations.done')}
           </h4>
           <InvitationList invitations={done} revoke={revoke} />
         </section>
@@ -105,14 +107,17 @@ function InvitationList({
   invitations: Invitation[]
   revoke: ReturnType<typeof useRevokeInvitation>
 }) {
+  useT()
   const [confirming, setConfirming] = useState<string | null>(null)
 
   return (
     <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
       {invitations.map((invitation) => {
-        const name = invitation.note || 'Invitation'
+        const name = invitation.note || t('invitations.invitation')
         // Pending links are revoked; expired ones are only taken off the list.
-        const action = { pending: 'Revoke', expired: 'Remove', accepted: null }[invitation.status]
+        const action = ({ pending: 'revoke', expired: 'remove', accepted: null } as const)[
+          invitation.status
+        ]
         return (
           <li
             key={invitation.id}
@@ -128,7 +133,7 @@ function InvitationList({
               (confirming === invitation.id ? (
                 <>
                   <button type="button" className="button-ghost" onClick={() => setConfirming(null)}>
-                    Keep
+                    {t('invitations.keep')}
                   </button>
                   <button
                     type="button"
@@ -138,12 +143,14 @@ function InvitationList({
                       revoke.mutate(invitation.id, { onSuccess: () => setConfirming(null) })
                     }
                   >
-                    {action} {name}
+                    {t(action === 'revoke' ? 'invitations.revokeNamed' : 'invitations.removeNamed', {
+                      name,
+                    })}
                   </button>
                 </>
               ) : (
                 <button type="button" className="button-ghost" onClick={() => setConfirming(invitation.id)}>
-                  {action}
+                  {t(`invitations.${action}`)}
                 </button>
               ))}
           </li>
@@ -156,12 +163,17 @@ function InvitationList({
 function describe(invitation: Invitation) {
   switch (invitation.status) {
     case 'pending':
-      return `created ${timeAgo(invitation.created_at)} · expires ${timeAgo(invitation.expires_at)}`
+      return t('invitations.pendingStatus', {
+        created: timeAgo(invitation.created_at),
+        expires: timeAgo(invitation.expires_at),
+      })
     case 'accepted': {
-      const by = invitation.used_by ? ` by ${invitation.used_by}` : ''
-      return `accepted${by} ${timeAgo(invitation.used_at ?? invitation.expires_at)}`
+      const when = timeAgo(invitation.used_at ?? invitation.expires_at)
+      return invitation.used_by
+        ? t('invitations.acceptedBy', { name: invitation.used_by, when })
+        : t('invitations.accepted', { when })
     }
     case 'expired':
-      return `expired ${timeAgo(invitation.expires_at)}`
+      return t('invitations.expired', { when: timeAgo(invitation.expires_at) })
   }
 }

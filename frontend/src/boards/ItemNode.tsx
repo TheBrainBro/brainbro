@@ -10,6 +10,7 @@ import {
 import { Maximize2, Pencil, X } from 'lucide-react'
 import { lazy, memo, Suspense } from 'react'
 
+import { useT } from '../i18n/i18n'
 import type { Item } from '../items/api'
 import { ItemContent } from '../items/ItemCard'
 import { itemLabel, KIND_LABEL } from '../items/label'
@@ -34,6 +35,7 @@ export const ItemNode = memo(function ItemNode({
   selected,
   height,
 }: NodeProps<ItemFlowNode>) {
+  const t = useT()
   const item = useBoardItem(data.itemId)
   const { readOnly, openItem, startEditing, stopEditing } = useBoardActions()
   const summary = useStore(zoomedOut)
@@ -56,12 +58,12 @@ export const ItemNode = memo(function ItemNode({
           {/* Only for a single selected card (React Flow's default). */}
           <NodeToolbar isVisible={editing ? false : undefined} position={Position.Top}>
             <div className="popover flex gap-0.5 p-1">
-              <ToolButton label="Open" icon={Maximize2} onClick={() => openItem(data.itemId)} />
+              <ToolButton label={t('nodes.open')} icon={Maximize2} onClick={() => openItem(data.itemId)} />
               {item?.kind === 'note' && (
-                <ToolButton label="Edit" icon={Pencil} onClick={() => startEditing(id)} />
+                <ToolButton label={t('nodes.edit')} icon={Pencil} onClick={() => startEditing(id)} />
               )}
               <ToolButton
-                label="Remove from board"
+                label={t('nodes.removeFromBoard')}
                 icon={X}
                 onClick={() => flow.deleteElements({ nodes: [{ id }] })}
               />
@@ -84,7 +86,7 @@ export const ItemNode = memo(function ItemNode({
           <ItemSummary item={item} />
         ) : (
           <>
-            {item.status === 'archived' && <p className="mb-1 text-xs text-zinc-500">Archived</p>}
+            {item.status === 'archived' && <p className="mb-1 text-xs text-zinc-500">{t('nodes.archived')}</p>}
             <ItemContent item={item} fill={Boolean(height)} />
           </>
         )}
@@ -112,11 +114,12 @@ function ToolButton({
 }
 
 export function ItemSummary({ item }: { item: Item }) {
+  const t = useT()
   return (
     <div className="min-w-0">
       <p className="text-xs text-zinc-500">
         {KIND_LABEL[item.kind]}
-        {item.status === 'archived' && ' · Archived'}
+        {item.status === 'archived' && ` · ${t('nodes.archived')}`}
       </p>
       <p className="line-clamp-2 font-medium break-words">{itemLabel(item)}</p>
     </div>

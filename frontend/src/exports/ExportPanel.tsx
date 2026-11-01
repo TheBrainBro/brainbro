@@ -1,10 +1,12 @@
 import { Download, LoaderCircle } from 'lucide-react'
 
+import { currentLanguage, useT } from '../i18n/i18n'
 import { formatBytes } from '../lib/format'
 import { useLatestExport, useStartExport } from './api'
 
 /** Everything as a zip that works without Brain, built in the background. */
 export function ExportPanel() {
+  const t = useT()
   const { data: latest, isPending: loading } = useLatestExport()
   const start = useStartExport()
   const ready = latest?.status === 'ready' && latest.download_url ? latest : null
@@ -12,15 +14,13 @@ export function ExportPanel() {
   return (
     <div>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-        A zip with your notes and links as Markdown, your boards, and your images and files as
-        you uploaded them, archived ones included. It works without Brain: a README inside
-        explains the format.
+        {t('exports.intro')}
       </p>
 
       {loading ? null : latest?.status === 'pending' ? (
         <p role="status" className="flex items-center gap-2 text-sm">
           <LoaderCircle className="size-4 shrink-0 animate-spin text-accent-500" aria-hidden="true" />
-          Preparing your export… You can close this, it keeps going.
+          {t('exports.preparing')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -30,7 +30,8 @@ export function ExportPanel() {
                 <div className="truncate font-medium">{ready.filename}</div>
                 <div className="text-xs text-zinc-500">
                   {ready.size !== null && `${formatBytes(ready.size)} · `}
-                  {new Date(ready.created_at).toLocaleString()} · kept for a day
+                  {new Date(ready.created_at).toLocaleString(currentLanguage())} ·{' '}
+                  {t('exports.keptForADay')}
                 </div>
               </div>
               <a
@@ -39,13 +40,13 @@ export function ExportPanel() {
                 className="button-primary flex shrink-0 items-center gap-1.5"
               >
                 <Download className="size-4" aria-hidden="true" />
-                Download
+                {t('exports.download')}
               </a>
             </div>
           )}
           {latest?.status === 'failed' && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              The last export failed. Try again.
+              {t('exports.failed')}
             </p>
           )}
           {start.isError && (
@@ -59,7 +60,7 @@ export function ExportPanel() {
             disabled={start.isPending}
             onClick={() => start.mutate()}
           >
-            {ready ? 'Make a new one' : 'Create export'}
+            {ready ? t('exports.again') : t('exports.create')}
           </button>
         </div>
       )}

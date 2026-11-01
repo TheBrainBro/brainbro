@@ -15,6 +15,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
+import { rich, useT } from '../i18n/i18n'
 import { CollectionAvatar } from '../items/CollectionAvatar'
 import { CollectionDialog } from '../items/CollectionDialog'
 import { CollectionGrid } from '../items/CollectionGrid'
@@ -56,8 +57,8 @@ const OPEN_ON_HOVER_MS = 600
 type CollectionsView = 'tree' | 'grid'
 
 const VIEWS: ModeOption<CollectionsView>[] = [
-  { mode: 'tree', label: 'Tree', icon: ListTree },
-  { mode: 'grid', label: 'Grid', icon: LayoutGrid },
+  { mode: 'tree', label: 'collections.tree', icon: ListTree },
+  { mode: 'grid', label: 'collections.grid', icon: LayoutGrid },
 ]
 
 const VIEW_KEY = 'brain:collections-view'
@@ -83,6 +84,7 @@ function useCollectionsView() {
 }
 
 export function CollectionsPage() {
+  const t = useT()
   const collections = useCollections()
   const { toast } = useFeedback()
   const [creating, setCreating] = useState(false)
@@ -96,7 +98,7 @@ export function CollectionsPage() {
       onClick={() => setCreating(true)}
     >
       <Plus className="size-4" aria-hidden="true" />
-      New collection
+      {t('collections.new')}
     </button>
   )
 
@@ -104,7 +106,7 @@ export function CollectionsPage() {
     <div className="px-4 py-8">
       {/* The header keeps one width; only the collections below follow the view. */}
       <div className="mx-auto mb-6 flex max-w-3xl items-center gap-2">
-        <h1 className="mr-auto text-2xl font-semibold">Collections</h1>
+        <h1 className="mr-auto text-2xl font-semibold">{t('collections.title')}</h1>
         {some && <ViewModeSwitch mode={view} onChange={setView} modes={VIEWS} />}
         {some && newButton}
       </div>
@@ -113,7 +115,7 @@ export function CollectionsPage() {
         className={`mx-auto ${view === 'grid' ? 'max-w-6xl' : 'max-w-3xl'} transition-[max-width]`}
       >
         {collections.isPending && (
-          <div role="status" aria-label="Loading collections" className="grid gap-2 sm:grid-cols-2">
+          <div role="status" aria-label={t('collections.loading')} className="grid gap-2 sm:grid-cols-2">
             {Array.from({ length: 4 }, (_, index) => (
               <div key={index} className="skeleton h-16 rounded-xl" />
             ))}
@@ -123,14 +125,13 @@ export function CollectionsPage() {
           <ErrorState error={collections.error} onRetry={() => collections.refetch()} />
         )}
         {collections.isSuccess && collections.data.length === 0 && (
-          <EmptyState icon={Library} title="No collections yet" action={newButton}>
-            A collection gathers what belongs together: a project, an area of your life, a topic.
-            Create one here, or pick <strong>Organize</strong> on anything in the inbox.
+          <EmptyState icon={Library} title={t('collections.none')} action={newButton}>
+            {rich('collections.noneHint', { b: (chunk) => <strong>{chunk}</strong> })}
           </EmptyState>
         )}
         {some &&
           (view === 'grid' ? (
-            <CollectionGrid collections={collections.data} parent={null} label="Collections" />
+            <CollectionGrid collections={collections.data} parent={null} label={t('collections.title')} />
           ) : (
             <CollectionTree collections={collections.data} />
           ))}
@@ -141,7 +142,7 @@ export function CollectionsPage() {
           onClose={() => setCreating(false)}
           onSaved={(collection) => {
             setCreating(false)
-            toast({ message: `Created ${collection.name}` })
+            toast({ message: t('collections.created', { name: collection.name }) })
           }}
         />
       )}
@@ -257,10 +258,11 @@ function useTreeDrag(collections: Collection[]) {
 
 /** The collections as a tree, sorted by dragging. */
 function CollectionTree({ collections }: { collections: Collection[] }) {
+  const t = useT()
   const drag = useTreeDrag(collections)
   return (
     <ul
-      aria-label="Collections"
+      aria-label={t('collections.title')}
       className="surface p-1.5"
       onDragOver={drag.leave}
       onDrop={(event) => {
@@ -295,6 +297,7 @@ function CollectionNode({
   depth: number
   drag: TreeDrag
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const inside = childrenOf(collections, collection.id)
   const opens = inside.length > 0 || collection.item_count > 0
@@ -340,7 +343,7 @@ function CollectionNode({
           <button
             type="button"
             aria-expanded={open}
-            aria-label={`${open ? 'Close' : 'Open'} ${collection.name}`}
+            aria-label={t(open ? 'collections.close' : 'collections.open', { name: collection.name })}
             className="flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
             onClick={() => setOpen(!open)}
           >
@@ -370,7 +373,7 @@ function CollectionNode({
         </Link>
       </div>
       {open && (
-        <ul aria-label={`In ${collection.name}`}>
+        <ul aria-label={t('collections.inside', { name: collection.name })}>
           {inside.map((child) => (
             <CollectionNode
               key={child.id}
@@ -389,6 +392,7 @@ function CollectionNode({
 
 /** A collection's items in the tree: a short list; its page has the rest. */
 function TreeItems({ collection, depth }: { collection: Collection; depth: number }) {
+  const t = useT()
   const items = useItems({ collection: collection.id })
   const navigate = useNavigate()
   const viewer = useViewer()
@@ -407,7 +411,7 @@ function TreeItems({ collection, depth }: { collection: Collection; depth: numbe
 
   if (items.isPending) {
     return (
-      <li role="status" aria-label={`Loading ${collection.name}`} className={row} style={style}>
+      <li role="status" aria-label={t('collections.loadingNamed', { name: collection.name })} className={row} style={style}>
         <span className="skeleton size-8 rounded-lg" />
         <span className="skeleton h-4 w-40" />
       </li>
@@ -416,9 +420,9 @@ function TreeItems({ collection, depth }: { collection: Collection; depth: numbe
   if (items.isError) {
     return (
       <li className={`${row} text-red-600 dark:text-red-400`} style={style}>
-        Couldn't load these items.
+        {t('collections.couldNotLoadItems')}
         <button type="button" className="button-ghost" onClick={() => items.refetch()}>
-          Retry
+          {t('card.retry')}
         </button>
       </li>
     )
@@ -444,7 +448,7 @@ function TreeItems({ collection, depth }: { collection: Collection; depth: numbe
             to={`/collections/${collection.id}`}
             className="text-xs font-medium text-accent-600 hover:underline dark:text-accent-300"
           >
-            {more} more in {collection.name}
+            {t('collections.more', { count: more, name: collection.name })}
           </Link>
         </li>
       )}
@@ -453,6 +457,7 @@ function TreeItems({ collection, depth }: { collection: Collection; depth: numbe
 }
 
 export function CollectionPage() {
+  const t = useT()
   const { id = '' } = useParams()
   const collections = useCollections()
   const items = useItems({ collection: id })
@@ -483,10 +488,13 @@ export function CollectionPage() {
       {/* The header keeps one width; only what is below follows the view mode. */}
       <div className={`mx-auto ${MODE_WIDTH.cards}`}>
         {ancestors.length === 0 ? (
-          <BackLink to="/collections" label="Collections" />
+          <BackLink to="/collections" label={t('collections.title')} />
         ) : (
-          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-0.5 text-sm">
-            <BackLink to="/collections" label="Collections" />
+          <nav
+            aria-label={t('collections.breadcrumb')}
+            className="flex min-w-0 items-center gap-0.5 text-sm"
+          >
+            <BackLink to="/collections" label={t('collections.title')} />
             {ancestors.map((ancestor) => (
               <Fragment key={ancestor.id}>
                 <ChevronRight className="size-3.5 shrink-0 text-zinc-400" aria-hidden="true" />
@@ -511,47 +519,50 @@ export function CollectionPage() {
                 <NameField key={`${collection.id}:${collection.name}`} collection={collection} />
               </span>
             ) : missing ? (
-              'Collection'
+              t('collections.collection')
             ) : (
-              <span className="skeleton inline-block h-7 w-48 align-middle" aria-label="Loading" />
+              <span
+                className="skeleton inline-block h-7 w-48 align-middle"
+                aria-label={t('common.loading')}
+              />
             )}
           </h1>
           {collection && (
             <>
               <Link
                 to={`/collections/${id}/mindmap`}
-                aria-label="Mind map"
+                aria-label={t('collections.mindMap')}
                 className="button-icon group/tip"
               >
                 <Workflow className="size-4" aria-hidden="true" />
-                <span className="tooltip top-full mt-1.5">Mind map</span>
+                <span className="tooltip top-full mt-1.5">{t('collections.mindMap')}</span>
               </Link>
               <button
                 type="button"
-                aria-label="New collection inside"
+                aria-label={t('collections.newInside')}
                 className="button-icon group/tip"
                 onClick={() => setAdding(true)}
               >
                 <FolderPlus className="size-4" aria-hidden="true" />
-                <span className="tooltip top-full mt-1.5">New collection inside</span>
+                <span className="tooltip top-full mt-1.5">{t('collections.newInside')}</span>
               </button>
               <button
                 type="button"
-                aria-label="Edit collection"
+                aria-label={t('collections.edit')}
                 className="button-icon group/tip"
                 onClick={() => setEditing(true)}
               >
                 <Pencil className="size-4" aria-hidden="true" />
-                <span className="tooltip top-full mt-1.5">Edit collection</span>
+                <span className="tooltip top-full mt-1.5">{t('collections.edit')}</span>
               </button>
               <button
                 type="button"
-                aria-label="Delete collection"
+                aria-label={t('collections.delete')}
                 className="button-icon group/tip"
                 onClick={() => setDeleting(true)}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
-                <span className="tooltip top-full mt-1.5">Delete collection</span>
+                <span className="tooltip top-full mt-1.5">{t('collections.delete')}</span>
               </button>
             </>
           )}
@@ -571,7 +582,9 @@ export function CollectionPage() {
           onClose={() => setAdding(false)}
           onSaved={(created) => {
             setAdding(false)
-            toast({ message: `Created ${created.name} in ${collection.name}` })
+            toast({
+              message: t('collections.createdIn', { name: created.name, parent: collection.name }),
+            })
           }}
         />
       )}
@@ -585,7 +598,7 @@ export function CollectionPage() {
               { id, items },
               {
                 onSuccess: () => {
-                  toast({ message: `Deleted ${collection.name}` })
+                  toast({ message: t('collections.deleted', { name: collection.name }) })
                   navigate(collection.parent ? `/collections/${collection.parent}` : '/collections')
                 },
                 onError: (error) => {
@@ -601,10 +614,10 @@ export function CollectionPage() {
         {missing ? (
           <EmptyState
             icon={FolderOpen}
-            title="This collection no longer exists"
+            title={t('collections.gone')}
             action={
               <Link to="/collections" className="button-primary">
-                See all collections
+                {t('collections.seeAll')}
               </Link>
             }
           />
@@ -615,7 +628,7 @@ export function CollectionPage() {
                 <CollectionGrid
                   collections={collections.data}
                   parent={id}
-                  label="Collections inside"
+                  label={t('collections.collectionsInside')}
                 />
               </div>
             )}
@@ -624,19 +637,18 @@ export function CollectionPage() {
             {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
               <EmptyState
                 icon={FolderOpen}
-                title="Nothing here yet"
+                title={t('collections.empty')}
                 action={
                   <Link to="/" className="button-outline">
-                    Go to the inbox
+                    {t('collections.toInbox')}
                   </Link>
                 }
               >
-                Paste or drop anything here, or pick <strong>Organize</strong> on an inbox item, to
-                bring it into this collection.
+                {rich('collections.emptyHint', { b: (chunk) => <strong>{chunk}</strong> })}
               </EmptyState>
             )}
             {pending.length > 0 && (
-              <ul className="mb-3 space-y-3" aria-label="Capturing">
+              <ul className="mb-3 space-y-3" aria-label={t('inbox.capturing')}>
                 {pending.map((entry) => (
                   <li key={entry.id}>
                     <PendingCard entry={entry} />
@@ -657,6 +669,7 @@ export function CollectionPage() {
 
 /** The collection's name, as a field: click it to rename, Esc to leave it. */
 function NameField({ collection }: { collection: Collection }) {
+  const t = useT()
   const update = useUpdateCollection()
   const [name, setName] = useState(collection.name)
 
@@ -669,7 +682,7 @@ function NameField({ collection }: { collection: Collection }) {
   return (
     <span className="flex min-w-0 flex-1 flex-col">
       <input
-        aria-label="Collection name"
+        aria-label={t('collections.name')}
         className="-ml-2 w-full min-w-0 truncate rounded-md bg-transparent px-2 py-0.5 transition hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
         value={name}
         onChange={(event) => setName(event.target.value)}

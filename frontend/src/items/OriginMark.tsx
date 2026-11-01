@@ -1,10 +1,12 @@
 import { Bot } from 'lucide-react'
 
+import { useT } from '../i18n/i18n'
 import type { Item } from './api'
 import { originText } from './origin'
 
 /** A small mark on items an assistant made or last edited, saying which. */
 export function OriginMark({ item }: { item: Item }) {
+  useT()
   const text = originText(item)
   if (!text) return null
   return (

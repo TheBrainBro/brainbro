@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import type { Item } from './api'
 
@@ -13,10 +14,14 @@ export function byAssistant(item: Item) {
  */
 export function originText(item: Item, now = Date.now()) {
   if (!byAssistant(item)) return null
-  const edited = item.edited_at
-    ? `Edited by ${item.edited_by || 'you'}, ${timeAgo(item.edited_at, now)}`
-    : null
+  let edited: string | null = null
+  if (item.edited_at) {
+    const when = timeAgo(item.edited_at, now)
+    edited = item.edited_by
+      ? t('items.editedBy', { name: item.edited_by, when })
+      : t('items.editedByYou', { when })
+  }
   if (!item.created_by) return edited
-  const added = `Added by ${item.created_by}`
-  return edited ? `${added} · ${edited}` : `${added}, ${timeAgo(item.created_at, now)}`
+  if (edited) return `${t('items.addedBy', { name: item.created_by })} · ${edited}`
+  return t('items.addedByWhen', { name: item.created_by, when: timeAgo(item.created_at, now) })
 }

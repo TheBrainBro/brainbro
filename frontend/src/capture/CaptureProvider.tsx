@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 
 import { useSession } from '../auth/session'
+import { t, useT } from '../i18n/i18n'
 import { itemsKey, makeAlbum, ungroupAlbum, type Item } from '../items/api'
 import { api, ApiError, upload } from '../lib/api'
 import { isEditable } from '../lib/dom'
@@ -45,7 +46,7 @@ type Batch = {
 }
 
 function labelOf(input: CaptureInput) {
-  if (input.kind === 'file') return input.file.name || 'Pasted file'
+  if (input.kind === 'file') return input.file.name || t('capturing.pastedFile')
   return input.kind === 'url' ? input.url : input.text
 }
 
@@ -198,7 +199,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       settle(entry, { id: entry.id, item })
     } catch (error) {
       if (isAbort(error)) return
-      const message = error instanceof Error ? error.message : 'Capture failed'
+      const message = error instanceof Error ? error.message : t('capturing.failed')
       if (batches.current.get(entry.batch)?.retryLater && isTransient(error)) {
         remove(entry.id)
         settle(entry, { id: entry.id, error: message, deferred: true })
@@ -223,9 +224,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   /** Refuse what the server would refuse anyway, before uploading a byte. */
   function precheck(input: CaptureInput) {
     if (input.kind !== 'file') return undefined
-    if (input.file.size === 0) return 'The file is empty.'
+    if (input.file.size === 0) return t('capturing.empty')
     if (maxSize && input.file.size > maxSize) {
-      return `The file is too large (max ${formatBytes(maxSize)}).`
+      return t('capturing.tooLarge', { max: formatBytes(maxSize) })
     }
     return undefined
   }
@@ -496,10 +497,11 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
 /** Lets drags through, so an element that takes drops itself (a note) gets them. */
 function DropOverlay({ into }: { into: CaptureDestination | null }) {
+  useT()
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-6 backdrop-blur-sm">
       <div className="pointer-events-none flex size-full items-center justify-center rounded-3xl border-2 border-dashed border-white/80 text-2xl font-semibold text-white">
-        {into ? `Drop to add to ${into.name}` : 'Drop to capture'}
+        {into ? t('capturing.dropInto', { name: into.name }) : t('capturing.drop')}
       </div>
     </div>
   )
@@ -509,21 +511,25 @@ function DropOverlay({ into }: { into: CaptureDestination | null }) {
 function batchToast(batch: Batch, onUndo: () => void, onSeparate: () => void): Toast {
   const done = batch.created.length
   const later = batch.deferred.length
-  const count = (n: number) => (n === 1 ? '1 item' : `${n} items`)
-  const where = batch.into ? ` into ${batch.into.name}` : ''
+  const items = (count: number) => t('counts.items', { count })
+  const images = batch.images.size
   const message = !batch.settled
-    ? `Capturing ${count(batch.total)}…`
+    ? t('capturing.inProgress', { items: items(batch.total) })
     : batch.albumId
-      ? `Grouped ${batch.images.size} images into an album${
-          done > batch.images.size ? `, and captured ${count(done - batch.images.size)}` : ''
-        }`
+      ? done > images
+        ? t('capturing.groupedAnd', { count: images, items: items(done - images) })
+        : t('capturing.grouped', { count: images })
     : later > 0
-      ? `${done > 0 ? `Captured ${done}, kept` : 'Kept'} ${count(later)} on this device to send later`
+      ? done > 0
+        ? t('capturing.capturedKept', { done, items: items(later) })
+        : t('capturing.kept', { items: items(later) })
       : batch.failed.length === 0
-        ? `Captured ${count(done)}${where}`
+        ? batch.into
+          ? t('capturing.capturedInto', { items: items(done), name: batch.into.name })
+          : t('capturing.captured', { items: items(done) })
         : done === 0
-          ? `Couldn't capture ${count(batch.total)}`
-          : `Captured ${done} of ${batch.total}`
+          ? t('capturing.none', { items: items(batch.total) })
+          : t('capturing.some', { done, total: batch.total })
   const canUndo = batch.undoable && (done > 0 || !batch.settled)
 
   return {
@@ -532,8 +538,8 @@ function batchToast(batch: Batch, onUndo: () => void, onSeparate: () => void): T
     // The provider's own timer: in flight it stays, then TOAST_MS more.
     duration: null,
     actions: [
-      ...(batch.albumId ? [{ label: 'Separate', onClick: onSeparate }] : []),
-      ...(canUndo ? [{ label: 'Undo', onClick: onUndo }] : []),
+      ...(batch.albumId ? [{ label: t('capturing.separate'), onClick: onSeparate }] : []),
+      ...(canUndo ? [{ label: t('capturing.undo'), onClick: onUndo }] : []),
     ],
     details: batch.failed.map((failure) => `${failure.label}: ${failure.error}`),
   }
