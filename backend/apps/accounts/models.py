@@ -1,14 +1,22 @@
 import hashlib
 import secrets
+import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
 from apps.core.models import OwnedModel, TimestampedModel
 
 # Says what a token is when it turns up somewhere it shouldn't.
 TOKEN_PREFIX = "brain_"
+
+
+def avatar_path(profile, filename):
+    # A fresh name per upload, so a new photo never hits a stale cache.
+    return f"avatars/{profile.user_id}/{uuid.uuid4().hex}.webp"
 
 
 class Profile(TimestampedModel):
@@ -28,9 +36,22 @@ class Profile(TimestampedModel):
     # Set the first time the welcome tour is closed, on any device.
     welcome_seen_at = models.DateTimeField(null=True, blank=True)
     theme = models.CharField(max_length=10, choices=Theme, default=Theme.SYSTEM)
+    # How the user signs what they publish (apps.public); never the username,
+    # which is half of their login. Empty: published notes show no author.
+    display_name = models.CharField(
+        max_length=80, blank=True, default="", db_default=""
+    )
+    # A square WebP, made from an upload like a collection's image.
+    avatar = models.ImageField(upload_to=avatar_path, blank=True, db_default="")
 
     def __str__(self):
         return f"Profile of {self.user}"
+
+
+@receiver(post_delete, sender=Profile)
+def delete_avatar(sender, instance, **kwargs):
+    if instance.avatar:
+        instance.avatar.delete(save=False)
 
 
 class Invitation(TimestampedModel):

@@ -18,6 +18,7 @@ const plan = {
   body: '# Trip plan\n\nSee [[Packing]] and [[Diary]].\n\n![map](https://x.example/map.png)',
   published_at: '2026-10-01T10:00:00Z',
   edited_at: '2026-10-20T10:00:00Z',
+  author: 'Carlos Lugones',
   images: {
     'https://x.example/map.png': {
       status: 'ready',
@@ -28,7 +29,14 @@ const plan = {
   notes: [{ slug: 'packing', title: 'Packing' }],
 }
 
-const packing = { ...plan, slug: 'packing', title: 'Packing', body: '# Packing\n\nSocks', notes: [] }
+const packing = {
+  ...plan,
+  slug: 'packing',
+  title: 'Packing',
+  body: '# Packing\n\nSocks',
+  author: '',
+  notes: [],
+}
 
 function renderAt(path: string) {
   const fetchMock = vi.fn(async (url: string) => {
@@ -67,6 +75,7 @@ describe('PublicNotePage', () => {
       'src',
       '/api/public/notes/trip-plan/images/1/?v=a',
     )
+    expect(screen.getByText('Carlos Lugones')).toBeInTheDocument()
     expect(screen.getByText('October 1, 2026')).toBeInTheDocument()
     expect(screen.getByText('October 20, 2026')).toBeInTheDocument()
     // Never asks who is signed in.
@@ -83,6 +92,8 @@ describe('PublicNotePage', () => {
     fireEvent.click(packingLink)
 
     expect(await screen.findByText('Socks')).toBeInTheDocument()
+    // Without a display name, no author.
+    expect(screen.queryByText(/^By /)).not.toBeInTheDocument()
   })
 
   it('says when the page is not there', async () => {

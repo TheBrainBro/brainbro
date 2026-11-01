@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router'
 
 import { useLogout, useSession } from '../auth/session'
+import { Avatar } from '../settings/Avatar'
 import { combo } from '../lib/keys'
 import { Logo } from './Logo'
 
@@ -131,10 +132,10 @@ function AccountMenu({
         aria-label="Account"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-accent-400 to-accent-600 text-sm font-semibold text-white uppercase shadow-sm ring-offset-2 ring-offset-white transition hover:ring-2 hover:ring-accent-300 dark:ring-offset-zinc-950 dark:hover:ring-accent-700"
+        className="flex size-9 items-center justify-center rounded-full shadow-sm ring-offset-2 ring-offset-white transition hover:ring-2 hover:ring-accent-300 dark:ring-offset-zinc-950 dark:hover:ring-accent-700"
         onClick={() => setOpen((value) => !value)}
       >
-        {username.slice(0, 1) || '?'}
+        <Avatar username={username} profile={session?.profile} />
       </button>
       {open && (
         <div
