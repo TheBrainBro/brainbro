@@ -2,13 +2,14 @@ import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useCapturePipeline } from '../capture/context'
+import { VoiceRecorder } from '../capture/VoiceRecorder'
 import { isEditable } from '../lib/dom'
 import { MOD } from '../lib/keys'
 
 /**
- * Always-visible capture: type, Enter and done (Shift+Enter for a new line).
- * Pasting or dropping anywhere is handled by the capture pipeline, with no
- * box involved. `/` focuses the box.
+ * Always-visible capture: type, Enter and done (Shift+Enter for a new line),
+ * or record a voice note. Pasting or dropping anywhere is handled by the
+ * capture pipeline, with no box involved. `/` focuses the box.
  */
 export function CaptureBox() {
   const { capture, dismiss } = useCapturePipeline()
@@ -72,13 +73,21 @@ export function CaptureBox() {
           }
         }}
       />
-      {/* Phones paste into the box itself and have nothing to drop. */}
-      <p className="mt-1.5 hidden items-center justify-end gap-1 text-xs text-zinc-500 sm:flex">
-        or paste
-        <kbd className="kbd">{MOD}</kbd>
-        <kbd className="kbd">V</kbd>
-        or drop files anywhere
-      </p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        {/* A failed upload keeps its card, with Retry: the recording isn't lost. */}
+        <VoiceRecorder
+          className="button-ghost"
+          label="Voice note"
+          onRecorded={(file) => capture({ inputs: [{ kind: 'file', file }], skipped: [] })}
+        />
+        {/* Phones paste into the box itself and have nothing to drop. */}
+        <p className="ml-auto hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
+          or paste
+          <kbd className="kbd">{MOD}</kbd>
+          <kbd className="kbd">V</kbd>
+          or drop files anywhere
+        </p>
+      </div>
       {error && (
         <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
           <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
