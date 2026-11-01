@@ -19,7 +19,9 @@ Built by `apps/graph/graph.py`, served at `GET /api/graph/` as
   - `board`: a line drawn between two items on a board, with its label.
   - `link`: a note links another note by its title, as Obsidian does:
     `[[Title]]`, `[[Title|text]]`, `[[Title#heading]]` or `[[Folder/Title.md]]`
-    (case doesn't matter). Embeds (`![[…]]`) aren't links.
+    (case doesn't matter). Embeds (`![[…]]`) aren't links. A note without a
+    title answers to the one the app shows for it (its first H1, or else its
+    first line); a saved title wins when both match.
 
 ## The view
 
