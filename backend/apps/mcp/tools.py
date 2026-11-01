@@ -597,8 +597,9 @@ TOOLS = {
             title="Search items",
             description=(
                 "Full-text search over the user's notes, links, images and "
-                "files, archived ones included. Every word must match; typos "
-                "are tolerated. Best matches first, bodies cut short.\n\n"
+                "files, archived ones included. Items with every word come "
+                "first, then items with only some of them; typos are "
+                "tolerated. Best matches first, bodies cut short.\n\n"
                 "Use it before capture, to find a note to update instead of "
                 "saving a duplicate, and whenever the user asks what they "
                 "have on a topic. Then get_item or get_items for the whole "
