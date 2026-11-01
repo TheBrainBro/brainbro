@@ -89,6 +89,21 @@ def test_notes_link_each_other_by_title(api, user):
     assert set(edges) == {(str(a.id), str(b.id), "link")}
 
 
+def test_untitled_notes_are_linked_by_the_title_shown(api, user):
+    a = Item.objects.create(owner=user, kind="note", body="See [[what is ai]]")
+    b = Item.objects.create(owner=user, kind="note", body="Intro\n# What is AI\n…")
+    saved = Item.objects.create(owner=user, kind="note", title="Intro", body="x")
+    c = Item.objects.create(owner=user, kind="note", body="Intro\nmore\n[[Intro]]")
+
+    nodes, edges = graph(api)
+
+    # A saved title wins over one worked out from the body.
+    assert set(edges) == {
+        (str(a.id), str(b.id), "link"),
+        (str(c.id), str(saved.id), "link"),
+    }
+
+
 def test_albums_stand_for_their_images_and_labels(api, user):
     album = Item.objects.create(owner=user, kind="album")
     Item.objects.create(owner=user, kind="image", album=album)
