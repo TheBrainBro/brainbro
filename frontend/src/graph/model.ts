@@ -13,6 +13,7 @@ export const KIND_COLORS: Record<string, string> = {
   link: '#3b82f6',
   image: '#10b981',
   file: '#f59e0b',
+  audio: '#06b6d4',
   album: '#ec4899',
 }
 export const COLLECTION_COLOR = '#71717a'

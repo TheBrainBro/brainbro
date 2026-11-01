@@ -7,6 +7,7 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   link: 'Link',
   image: 'Image',
   file: 'File',
+  audio: 'Audio',
   album: 'Album',
 }
 
@@ -26,5 +27,5 @@ export function itemLabel(item: Item) {
   if (item.kind === 'album') {
     return `${item.album_items?.length ?? 0} images`
   }
-  return item.metadata.filename || (item.kind === 'image' ? 'Image' : 'File')
+  return item.metadata.filename || KIND_LABEL[item.kind]
 }
