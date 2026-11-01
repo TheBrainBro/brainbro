@@ -7,10 +7,11 @@ from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from pgvector.django import VectorField
 
 from apps.core.models import OwnedModel
 
-from . import search
+from . import embedder, search
 
 
 def collection_image_path(collection, filename):
@@ -166,6 +167,8 @@ class Item(OwnedModel):
         output_field=SearchVectorField(),
         db_persist=True,
     )
+    # MD5 of `search_text` when its chunks were made; see `embeddings`.
+    embedded_hash = models.CharField(max_length=32, blank=True, editable=False)
 
     objects = ItemManager()
 
@@ -207,6 +210,22 @@ class CollectionItem(models.Model):
         db_table = "items_item_collections"
         unique_together = [("item", "collection")]
         indexes = [models.Index(fields=["collection", "-rank"])]
+
+
+class ItemChunk(models.Model):
+    """
+    A piece of an item's text with its vector, for semantic search. Made and
+    replaced by `embeddings.embed_stale`; never edited.
+    """
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="chunks")
+    position = models.PositiveIntegerField()
+    text = models.TextField()
+    embedding = VectorField(dimensions=embedder.DIMENSIONS)
+
+    class Meta:
+        ordering = ["item", "position"]
+        unique_together = [("item", "position")]
 
 
 @receiver(post_delete, sender=Item)

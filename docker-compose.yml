@@ -1,5 +1,5 @@
 #######################################################
-# DEVELOPMENT services: Postgres + Redis only.         #
+# DEVELOPMENT services: Postgres, Redis, embedder.     #
 # Django and Vite run on the host (`make dev`).        #
 # Production stack: docker-compose.production.yml.     #
 #######################################################
@@ -31,6 +31,14 @@ services:
       - "${REDIS_PORT:-6389}:6379"
     volumes:
       - redis_data:/data
+
+  # Semantic search. The first build downloads the model (~250 MB).
+  embedder:
+    build:
+      context: docker/embedder
+    restart: unless-stopped
+    ports:
+      - "${EMBEDDER_PORT:-8100}:8000"
 
 volumes:
   postgres_data:
