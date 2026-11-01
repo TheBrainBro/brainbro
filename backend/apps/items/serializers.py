@@ -210,9 +210,9 @@ class ItemSerializer(serializers.ModelSerializer):
         ]
 
     def validate_filename(self, value):
-        uploaded = (Item.Kind.IMAGE, Item.Kind.FILE)
+        uploaded = (Item.Kind.IMAGE, Item.Kind.AUDIO, Item.Kind.FILE)
         if self.instance is None or self.instance.kind not in uploaded:
-            raise serializers.ValidationError("Only files and images have a name.")
+            raise serializers.ValidationError("Only uploads have a name.")
         name = clean_filename(value)
         # Without an extension, it keeps the one it had.
         extension = PurePath(self.instance.metadata.get("filename", "")).suffix
@@ -225,8 +225,9 @@ class ItemSerializer(serializers.ModelSerializer):
         renamed = name is not None and name != instance.metadata.get("filename")
         if name is not None:
             instance.metadata = {**instance.metadata, "filename": name}
-            # Files show their name as their title; images show their caption.
-            if instance.kind == Item.Kind.FILE:
+            # Files and recordings show their name as their title; images
+            # show their caption.
+            if instance.kind in (Item.Kind.FILE, Item.Kind.AUDIO):
                 validated_data["title"] = name
         if renamed or any(
             field in validated_data

@@ -2,8 +2,9 @@
 Files captured as items: detect what they really are, never trusting the
 name or the type the browser sends.
 
-Images in a known raster format become `image` items; everything else,
-SVG included (it can carry scripts), becomes a `file` item.
+Images in a known raster format become `image` items and recordings
+`audio` items (see `audio`); everything else, SVG included (it can carry
+scripts), becomes a `file` item.
 """
 
 import logging
@@ -17,6 +18,7 @@ from django.conf import settings
 from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 
+from .audio import audio_type
 from .models import Item
 from .previews import PREVIEW_IMAGE_SIZE, encode_preview, reencode_image
 
@@ -111,6 +113,9 @@ def inspect_upload(file):
         if size := _image_size(file, pillow_format):
             metadata["width"], metadata["height"] = size
             return Upload(Item.Kind.IMAGE, mime, extension, metadata)
+    if audio := audio_type(file, mime):
+        metadata["mime"], extension = audio
+        return Upload(Item.Kind.AUDIO, metadata["mime"], extension, metadata)
     extension = (mimetypes.guess_extension(mime) or ".bin").lstrip(".")
     return Upload(Item.Kind.FILE, mime, extension, metadata)
 
