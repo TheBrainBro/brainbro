@@ -27,10 +27,10 @@ INTERNAL_ERROR = -32603
 
 # What every client gets in every conversation: how to use Brain well.
 INSTRUCTIONS = """\
-Brain is the user's second brain: their notes (Markdown), links, images and
-files, and a memory they share across assistants. What you save here, other
-assistants and the user will read later, out of this conversation: write it
-so it stands on its own.
+Brain is the user's second brain: their notes (Markdown), links, images,
+recordings and files, and a memory they share across assistants. What you
+save here, other assistants and the user will read later, out of this
+conversation: write it so it stands on its own.
 
 How it is organized: everything new lands in the inbox, and sorting it is a
 later step the user owns. Collections nest, and follow PARA: project (a goal

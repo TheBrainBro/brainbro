@@ -18,6 +18,7 @@ const kinds: { kind?: ItemKind; label: string }[] = [
   { kind: 'link', label: 'Links' },
   { kind: 'image', label: 'Images' },
   { kind: 'file', label: 'Files' },
+  { kind: 'audio', label: 'Audio' },
   { kind: 'album', label: 'Albums' },
 ]
 

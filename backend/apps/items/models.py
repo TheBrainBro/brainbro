@@ -99,8 +99,8 @@ class ItemManager(models.Manager):
 
 class Item(OwnedModel):
     """
-    Anything captured: a note, a link, an image or a file, or an album of
-    images captured together.
+    Anything captured: a note, a link, an image, a recording or a file, or an
+    album of images captured together.
 
     Everything lands in the inbox; triage moves it to `organized` (it belongs
     somewhere) or `archived` (kept but out of the way).
@@ -111,6 +111,7 @@ class Item(OwnedModel):
         LINK = "link", "Link"
         IMAGE = "image", "Image"
         FILE = "file", "File"
+        AUDIO = "audio", "Audio"
         ALBUM = "album", "Album"
 
     class Status(models.TextChoices):
@@ -137,7 +138,7 @@ class Item(OwnedModel):
     )
     # Card image: the page's preview for links, a thumbnail for images.
     preview_image = models.ImageField(upload_to=preview_image_path, blank=True)
-    # The uploaded original, for image and file items.
+    # The uploaded original, for image, audio and file items.
     file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
     collections = models.ManyToManyField(
         Collection, related_name="items", blank=True, through="CollectionItem"

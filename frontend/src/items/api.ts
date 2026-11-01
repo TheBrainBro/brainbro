@@ -12,7 +12,7 @@ import { api } from '../lib/api'
 import type { LinkPreview } from '../lib/linkPreviews'
 import { moveCollection } from './collectionTree'
 
-export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'album'
+export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'audio' | 'album'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
 export type PreviewStatus = '' | 'pending' | 'ready' | 'failed'
 
@@ -26,7 +26,7 @@ export type ItemMetadata = {
   final_url?: string
   image_url?: string
   preview_error?: string
-  // Uploads (images and files)
+  // Uploads (images, audio and files)
   filename?: string
   mime?: string
   size?: number

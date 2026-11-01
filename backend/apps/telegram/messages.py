@@ -4,8 +4,9 @@ or a drop would make, in the inbox.
 
 - Text: one URL alone becomes a link, anything else a note. Links hidden
   under text (`text_link`) are kept as Markdown links.
-- Photos become images and files become image or file items (detected by
-  content, like any upload), with the caption as their text. Photos sent
+- Photos become images, and files, audio and voice messages become image,
+  audio or file items (detected by content, like any upload), with the
+  caption as their text. Photos sent
   together (an album on Telegram) become an album.
 - Anything else (stickers, locations, polls…) can't be kept.
 """

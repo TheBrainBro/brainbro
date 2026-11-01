@@ -28,6 +28,7 @@ import {
   useUngroupAlbum,
   type Item,
 } from '../items/api'
+import { AudioPlayer } from '../items/AudioPlayer'
 import { itemLabel } from '../items/label'
 import { Markdown } from '../items/Markdown'
 import { originText } from '../items/origin'
@@ -150,7 +151,7 @@ export default function ItemViewer({
     >
       <header className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          {item.kind === 'file' || item.kind === 'image' ? (
+          {item.kind === 'file' || item.kind === 'image' || item.kind === 'audio' ? (
             <NameField key={item.id} item={item} onSaved={onReplace} />
           ) : (
             <h2 className="truncate font-medium">{itemLabel(item)}</h2>
@@ -234,7 +235,7 @@ export default function ItemViewer({
           </button>
         )}
       </div>
-      {(item.kind === 'image' || item.kind === 'album') && (
+      {(item.kind === 'image' || item.kind === 'audio' || item.kind === 'album') && (
         <CaptionEditor key={item.id} item={item} onSaved={onReplace} />
       )}
     </div>,
@@ -263,7 +264,16 @@ function Content({ item }: { item: Item }) {
       <video src={item.file_url ?? undefined} controls autoPlay className="max-h-full max-w-full" />
     )
   }
-  if (mime.startsWith('audio/')) return <audio src={item.file_url ?? undefined} controls autoPlay />
+  if (item.kind === 'audio' || mime.startsWith('audio/')) {
+    return (
+      <AudioPlayer
+        src={item.file_url}
+        size={item.metadata.size}
+        autoPlay
+        className="w-full max-w-xl rounded-2xl bg-zinc-900/80 p-4"
+      />
+    )
+  }
   if (TEXT_TYPES.test(mime) && (item.metadata.size ?? 0) <= TEXT_LIMIT) {
     return <TextView item={item} />
   }
@@ -328,7 +338,7 @@ function NameField({ item, onSaved }: { item: Item; onSaved: (item: Item) => voi
 }
 
 /**
- * What an image or album is about, written under it: the context that only
+ * What an image, recording or album is about, written under it: the context that only
  * exists in your head when you capture it. Saved when the field is left.
  */
 function CaptionEditor({ item, onSaved }: { item: Item; onSaved: (item: Item) => void }) {

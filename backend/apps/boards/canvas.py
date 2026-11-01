@@ -20,7 +20,14 @@ from .layout import (
 
 # The canvas's own sizes for nodes that take their natural one (as the board
 # lays them out before measuring them).
-ITEM_WIDTH = {"note": 280, "link": 340, "image": 260, "file": 280, "album": 320}
+ITEM_WIDTH = {
+    "note": 280,
+    "link": 340,
+    "image": 260,
+    "file": 280,
+    "audio": 300,
+    "album": 320,
+}
 ITEM_HEIGHT = 160
 STICKY_SIZE = 200
 

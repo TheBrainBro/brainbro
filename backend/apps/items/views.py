@@ -21,6 +21,7 @@ from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_
 from .note_images import MAX_PASTED_SIZE
 from .notes import sync_images
 from .ordering import move_collection, move_in_collection, move_in_inbox
+from .ranges import file_response
 from .search import find
 from .serializers import (
     ITEM_PREFETCH,
@@ -469,18 +470,19 @@ class ItemViewSet(
         """
         The uploaded original. Only known raster images are shown inline;
         everything else is a download, so nothing uploaded can run as a page
-        on our origin.
+        on our origin. Players still play audio and video from it, in parts.
         """
         item = self.get_object()
         if not item.file:
             raise Http404
         mime = item.metadata.get("mime") or "application/octet-stream"
         inline = item.kind == Item.Kind.IMAGE and mime in INLINE_TYPES
-        response = FileResponse(
-            item.file.open("rb"),
+        response = file_response(
+            request,
+            item.file,
             content_type=mime,
-            as_attachment=not inline,
             filename=item.metadata.get("filename") or item.file.name,
+            as_attachment=not inline,
         )
         response["X-Content-Type-Options"] = "nosniff"
         response["Content-Security-Policy"] = "default-src 'none'; sandbox"
