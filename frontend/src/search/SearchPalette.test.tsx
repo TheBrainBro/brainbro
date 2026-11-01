@@ -31,6 +31,8 @@ function item(id: string, fields: Partial<Item>): Item {
     edited_by: '',
     edited_via: '',
     edited_at: null,
+    public_slug: null,
+    published_at: null,
     ...fields,
   }
 }

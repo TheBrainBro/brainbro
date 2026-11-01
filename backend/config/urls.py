@@ -16,6 +16,7 @@ api_patterns = [
     path("", include("apps.mcp.urls")),
     path("", include("apps.events.urls")),
     path("", include("apps.history.urls")),
+    path("", include("apps.public.urls")),
 ]
 
 urlpatterns = [

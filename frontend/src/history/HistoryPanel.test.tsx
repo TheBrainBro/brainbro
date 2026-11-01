@@ -58,6 +58,8 @@ const note: Item = {
   edited_by: 'Claude',
   edited_via: 'mcp',
   edited_at: minutesAgo(1),
+  public_slug: null,
+  published_at: null,
 }
 
 let revisions: RevisionDetail[]

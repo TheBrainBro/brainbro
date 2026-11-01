@@ -184,6 +184,24 @@ class Item(OwnedModel):
         max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
     )
     edited_at = models.DateTimeField(null=True, blank=True)
+    # Notes only: published at `/p/<public_slug>` while `published_at` is set
+    # (see `apps.public`). Unpublished, a note keeps its slug, so publishing it
+    # again brings back the same address.
+    public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    # How the page shows in search results and shared links (OpenGraph). Empty
+    # means the default: the note's title, the start of its text, its first
+    # image. `public_image` is the `src` of one of its images, or "none".
+    # Defaults in the database too, for rows written without these columns.
+    public_title = models.CharField(
+        max_length=200, blank=True, default="", db_default=""
+    )
+    public_description = models.CharField(
+        max_length=300, blank=True, default="", db_default=""
+    )
+    public_image = models.CharField(
+        max_length=2048, blank=True, default="", db_default=""
+    )
 
     objects = ItemManager()
 
@@ -192,6 +210,11 @@ class Item(OwnedModel):
         indexes = [
             models.Index(fields=["owner", "status", "-created_at"]),
             models.Index(fields=["owner", "status", "-inbox_rank"]),
+            models.Index(
+                fields=["-published_at"],
+                condition=models.Q(published_at__isnull=False),
+                name="item_published",
+            ),
             GinIndex(
                 fields=["search_text"],
                 opclasses=["gin_trgm_ops"],
