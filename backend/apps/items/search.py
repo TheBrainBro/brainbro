@@ -9,7 +9,8 @@ weighted: title, then link and file details, then the body) to rank them.
 Items with every word of the query come first, then items with only some of
 them, ranked by how many. A word that appears nowhere as written is taken for
 a typo and matches similar words instead (only for longer words). Then
-matches on the title rank first; typos rank below exact words.
+matches on the title rank first; typos rank below exact words. Items that
+only match through typos, without every word, come last.
 """
 
 import re
@@ -84,23 +85,39 @@ def normalize(text):
 def find(items, text):
     """
     `items` matching `text`, annotated with `rank` (higher is better): the
-    number of longer words that match, plus a relevance score below 1.
+    number of longer words that match, plus a relevance score below 1. Items
+    that only match through typos rank below 0.
     """
     query = normalize(text)
     every, some, matched = Q(), Q(pk__in=[]), Value(0.0)
+    exact, typos, longer = Q(pk__in=[]), False, 0
     for term in query.split():
         match = Q(search_text__contains=term)
         # Similar words only stand in for one that isn't there: "paris"
         # shouldn't bring up "parts" when there are notes about Paris.
-        if len(term) >= TYPO_MIN_LENGTH and not items.filter(match).exists():
+        typo = len(term) >= TYPO_MIN_LENGTH and not items.filter(match).exists()
+        if typo:
             match = Q(search_text__trigram_word_similar=term)
+            typos = True
         every &= match
         if len(term) >= PARTIAL_MIN_LENGTH:
             some |= match
+            longer += 1
             matched += Case(
                 When(match, then=1.0), default=0.0, output_field=FloatField()
             )
+            if not typo:
+                exact |= match
     items = items.filter(every | some)
+    # A similar word alone is a weak guess ("paris" for "para"): below every
+    # item that has a word as written.
+    penalty = Value(0.0)
+    if typos:
+        penalty = Case(
+            When(~every & ~exact, then=Value(longer + 1.0)),
+            default=0.0,
+            output_field=FloatField(),
+        )
     # Word prefixes, so a word being typed already ranks its matches.
     prefixes = " | ".join(f"{word}:*" for word in re.findall(r"\w+", query))
     relevance = TrigramWordSimilarity(Value(query), "search_text") * 0.1
@@ -109,5 +126,5 @@ def find(items, text):
         relevance += SearchRank(F("search_vector"), tsquery)
     # Squeezed below 1, so one more matching word always ranks higher.
     return items.annotate(relevance=relevance).annotate(
-        rank=matched + F("relevance") / (F("relevance") + 1.0)
+        rank=matched + F("relevance") / (F("relevance") + 1.0) - penalty
     )

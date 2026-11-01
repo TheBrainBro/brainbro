@@ -23,7 +23,9 @@ titles, note text, URLs, link previews (title, description, site, author) and fi
 
 Items matching more words of the query (of three letters or more) come first. Among those matching as many, title
 matches come first, then matches on the URL and the link or file details, then the body.
-Typos rank below words matched as written. Ties go to the newest item. The palette shows the
+Typos rank below words matched as written, and items that only match through typos (without
+every word) come after all the others: a similar word alone is a weak guess, like `paris` for
+"para". Ties go to the newest item. The palette shows the
 best 20 items, under up to five boards and five collections.
 
 ## Opening a result
