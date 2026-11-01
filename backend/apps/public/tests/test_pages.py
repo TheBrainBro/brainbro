@@ -1,6 +1,7 @@
 import pytest
 from django.core.files.base import ContentFile
 
+from apps.accounts.models import Profile
 from apps.items.models import Item, NoteImage
 from apps.public.pages import excerpt
 from apps.public.publishing import publish, unpublish
@@ -50,6 +51,15 @@ def test_a_public_page_tells_what_it_is(client, user):
         f'content="http://testserver/api/public/notes/trip-plan/images/{image.id}/'
     ) in html
     assert '<meta property="twitter:card" content="summary_large_image" />' in html
+
+
+def test_a_page_names_its_author(client, user):
+    Profile.objects.create(user=user, display_name="Carlos <L>")
+    publish(note(user, title="Plan"))
+
+    html = client.get("/p/plan").content.decode()
+
+    assert '<meta name="author" content="Carlos &lt;L&gt;" />' in html
 
 
 def test_pages_not_published_say_nothing(client, user):

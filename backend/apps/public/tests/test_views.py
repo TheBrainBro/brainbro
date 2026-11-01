@@ -2,6 +2,7 @@ import pytest
 from django.core.files.base import ContentFile
 from rest_framework.test import APIClient
 
+from apps.accounts.models import Profile
 from apps.items.models import Item, NoteImage, NoteLink
 from apps.public.publishing import publish, unpublish
 
@@ -148,11 +149,24 @@ def test_anyone_reads_a_published_note(anyone, user):
         "body",
         "published_at",
         "edited_at",
+        "author",
         "images",
         "links",
         "notes",
     }
     assert str(item.id) not in response.content.decode()
+
+
+def test_the_author_is_the_display_name_never_the_username(anyone, user):
+    publish(note(user, title="Plan"))
+
+    assert anyone.get("/api/public/notes/plan/").json()["author"] == ""
+
+    Profile.objects.create(user=user, display_name="Carlos Lugones")
+    response = anyone.get("/api/public/notes/plan/")
+
+    assert response.json()["author"] == "Carlos Lugones"
+    assert user.username not in response.content.decode()
 
 
 def test_notes_never_published_are_not_found(anyone, user):
