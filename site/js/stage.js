@@ -17,13 +17,18 @@ window.Stage = (() => {
   // Plays `script(run)` in a loop while `el` is on screen, calling `reset()`
   // before each pass. Leaving the screen stops the script at its next await.
   // With reduced motion the script runs once, instantly, to its last frame.
+  //
+  // Before playing, the script also runs once instantly to measure the stage
+  // at every step: the stage keeps the tallest height, so the page below
+  // doesn't move while it plays. It measures again when the width changes.
   function loop(el, { reset, script, pause = 2600 }) {
     let current = 0;
+    let visible = false;
 
-    function makeRun(id) {
-      const instant = reduceMotion;
+    function makeRun(id, instant, onStep) {
       const check = () => {
         if (id !== current) throw new Stopped();
+        onStep?.();
       };
       const run = {
         instant,
@@ -48,20 +53,42 @@ window.Stage = (() => {
         },
         async point(pointer, target) {
           movePointer(pointer, target, instant);
-          await run.wait(750);
+          await run.wait(1100);
         },
-        async click(pointer) {
+        // A click where the pointer is: it presses, a ring spreads from its
+        // tip, and `target` looks pressed for a moment.
+        async click(pointer, target) {
+          if (!instant) ripple(pointer);
           pointer.classList.add('clicking');
-          await run.wait(220);
+          target?.classList.add('pressed');
+          await run.wait(280);
           pointer.classList.remove('clicking');
+          target?.classList.remove('pressed');
+          await run.wait(450);
         },
       };
       return run;
     }
 
+    async function measure() {
+      const id = ++current;
+      let tallest = 0;
+      el.style.minHeight = '';
+      const run = makeRun(id, true, () => (tallest = Math.max(tallest, el.offsetHeight)));
+      try {
+        reset();
+        await script(run);
+      } catch (error) {
+        if (!(error instanceof Stopped)) throw error;
+        return;
+      }
+      el.style.minHeight = `${Math.ceil(tallest)}px`;
+      reset();
+    }
+
     async function start() {
       const id = ++current;
-      const run = makeRun(id);
+      const run = makeRun(id, reduceMotion);
       try {
         do {
           reset();
@@ -73,12 +100,32 @@ window.Stage = (() => {
       }
     }
 
-    reset();
-    if (reduceMotion) {
-      start();
-      return;
-    }
-    onScreen(el, start, () => current++);
+    let width = window.innerWidth;
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(async () => {
+        await measure();
+        if (visible || reduceMotion) start();
+      }, 300);
+    });
+
+    measure().then(() => {
+      if (reduceMotion) return start();
+      onScreen(
+        el,
+        () => {
+          visible = true;
+          start();
+        },
+        () => {
+          visible = false;
+          current++;
+        },
+      );
+    });
   }
 
   // Draws each `path[data-from][data-to]` of the stage's svg.links as a curve
@@ -98,19 +145,20 @@ window.Stage = (() => {
         const b = node(path.dataset.to).getBoundingClientRect();
         const ax = a.left + a.width / 2 - box.left;
         const ay = a.top + a.height / 2 - box.top;
+        const inset = Math.min(24, b.width / 4, b.height / 4);
         let d;
         if (a.bottom <= b.top || b.bottom <= a.top) {
           const down = a.bottom <= b.top;
           const y1 = (down ? a.bottom : a.top) - box.top;
           const y2 = (down ? b.top : b.bottom) - box.top;
-          const x2 = clamp(ax, b.left - box.left + 24, b.right - box.left - 24);
+          const x2 = clamp(ax, b.left - box.left + inset, b.right - box.left - inset);
           const mid = (y1 + y2) / 2;
           d = `M${ax} ${y1} C${ax} ${mid} ${x2} ${mid} ${x2} ${y2}`;
         } else {
           const right = a.left < b.left;
           const x1 = (right ? a.right : a.left) - box.left;
           const x2 = (right ? b.left : b.right) - box.left;
-          const y2 = clamp(ay, b.top - box.top + 24, b.bottom - box.top - 24);
+          const y2 = clamp(ay, b.top - box.top + inset, b.bottom - box.top - inset);
           const mid = (x1 + x2) / 2;
           d = `M${x1} ${ay} C${mid} ${ay} ${mid} ${y2} ${x2} ${y2}`;
         }
@@ -129,7 +177,7 @@ window.Stage = (() => {
   function travel(path, { reverse = false, duration = 750 } = {}) {
     const svg = path.ownerSVGElement;
     const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    dot.setAttribute('r', '5');
+    dot.setAttribute('r', path.dataset.dot ?? '5');
     dot.setAttribute('class', 'packet');
     svg.append(dot);
     path.classList.add('active', ...(reverse ? ['reverse'] : []));
@@ -151,16 +199,27 @@ window.Stage = (() => {
     });
   }
 
-  // Moves the pointer (absolutely placed in its stage, its parent) so its tip sits on
-  // the middle of `target`.
+  // Moves the pointer (absolutely placed in its stage, its parent) so its
+  // tip sits on the middle of `target`.
   function movePointer(pointer, target, instant) {
     const stage = pointer.parentElement.getBoundingClientRect();
     const box = target.getBoundingClientRect();
-    const x = box.left + box.width / 2 - stage.left - 4;
-    const y = box.top + box.height / 2 - stage.top - 2;
+    const x = box.left + box.width / 2 - stage.left;
+    const y = box.top + box.height / 2 - stage.top;
+    pointer.dataset.x = x;
+    pointer.dataset.y = y;
     pointer.style.transition = instant ? 'none' : '';
     pointer.style.opacity = '1';
-    pointer.style.transform = `translate(${x}px, ${y}px)`;
+    pointer.style.transform = `translate(${x - 5}px, ${y - 3}px)`;
+  }
+
+  function ripple(pointer) {
+    const ring = document.createElement('span');
+    ring.className = 'ripple';
+    ring.style.left = `${pointer.dataset.x}px`;
+    ring.style.top = `${pointer.dataset.y}px`;
+    ring.addEventListener('animationend', () => ring.remove());
+    pointer.parentElement.append(ring);
   }
 
   return { reduceMotion, onScreen, loop, links, travel };

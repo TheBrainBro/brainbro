@@ -105,7 +105,7 @@
   const memory = document.querySelector('.memory-stage');
   const memoryLink = links(memory);
   const items = memory.querySelector('.items');
-  const chatHead = memory.querySelector('.chat-head');
+  const chatHead = memory.querySelector('.chat .chat-head');
   const messages = memory.querySelector('.messages');
   const ASSISTANTS = {
     claude: { name: 'Claude', logo: 'claude' },
@@ -146,7 +146,7 @@
       await run.send(memoryLink('claude'));
       items.insertAdjacentHTML(
         'afterbegin',
-        `<li class="mini trip enter">
+        `<li class="mini trip-note enter">
           <b>Lisbon trip</b>
           <span class="trip-lines"><span>Day 1: Alfama</span><span>Day 2: Sintra</span></span>
           <small class="by">${logo('claude')}Added by Claude</small>
@@ -235,49 +235,181 @@
       day3.hidden = false;
       const yourCaret = caret('You', 'var(--accent)');
       day3.append(yourCaret);
-      await run.type(day3.querySelector('.typed'), 'Day 3: Belém and pastéis');
+      await run.type(day3.querySelector('.typed'), 'Day 3: Belém and pastéis', 60);
       yourCaret.remove();
       const yours = addRev('you', '1 minute ago, on the web');
       setBy('you', 'Edited by you');
-      await run.wait(1200);
+      await run.wait(1500);
 
       // ChatGPT changes another.
       const place = noteLines.querySelector('.place');
       const gptCaret = caret('ChatGPT', '#10a37f');
       place.after(gptCaret);
-      await run.wait(600);
-      place.classList.add('selected');
       await run.wait(700);
+      place.classList.add('selected');
+      await run.wait(900);
       place.classList.remove('selected');
       place.textContent = '';
-      await run.type(place, 'Cascais beach', 60);
+      await run.type(place, 'Cascais beach', 75);
       gptCaret.remove();
       addRev('chatgpt', 'Just now, through MCP');
       setBy('chatgpt', 'Edited by ChatGPT');
-      await run.wait(1300);
+      await run.wait(1800);
 
-      // You go back to your version.
-      await run.point(pointer, yours);
-      await run.click(pointer);
+      // You go back to your version: pick it, then Restore.
+      await run.point(pointer, yours.querySelector('b'));
+      await run.click(pointer, yours);
       yours.classList.add('now');
       yours.insertAdjacentHTML('beforeend', `<span class="restore">${icon('undo')}Restore</span>`);
       const restore = yours.querySelector('.restore');
-      await run.wait(500);
+      await run.wait(900);
       await run.point(pointer, restore);
-      await run.click(pointer);
+      await run.click(pointer, restore);
       restore.remove();
       yours.classList.remove('now');
       place.textContent = 'Sintra';
       replay(noteLines.querySelector('.day2'), 'back');
       addRev('you', 'Restored your version');
       setBy('you', 'Restored by you');
-      await run.wait(900);
+      await run.wait(1200);
       pointer.style.opacity = '0';
     },
-    pause: 3000,
+    pause: 3200,
   });
 
   // --- Feature tiles ------------------------------------------------------
+
+  // Tiles whose parts show one after another: `[data-step]` elements get
+  // `on`, in document order (or the order given).
+  function stepThrough(art, { order, gap = 450, after, pause = 3000 }) {
+    const steps = order ?? [...art.querySelectorAll('[data-step]')];
+    loop(art, {
+      reset() {
+        steps.forEach((step) => step.classList.remove('on'));
+        after?.reset?.();
+      },
+      async script(run) {
+        for (const step of steps) {
+          await run.wait(gap);
+          step.classList.add('on');
+        }
+        await after?.script?.(run);
+      },
+      pause,
+    });
+  }
+
+  // Boards: a frame, cards dropped in, an arrow and a pen circling a sticky.
+  stepThrough(document.querySelector('.art-board'), { gap: 550 });
+
+  // Graph: notes join one by one, a new link forms, and links carry sparks.
+  const graph = document.querySelector('.art-graph');
+  const dots = [...graph.querySelectorAll('.g-dots circle')];
+  const lines = [...graph.querySelectorAll('.g-lines path')];
+  const label = graph.querySelector('.g-label');
+  lines.forEach((line) => (line.dataset.dot = '3.5'));
+  stepThrough(graph, {
+    // Each line, then the dot at its far end; the last two lines link dots
+    // already there.
+    order: [dots[0], lines[0], dots[1], lines[1], dots[2], lines[2], dots[3], lines[3], dots[4], lines[4], dots[5], lines[5], dots[6], lines[6]],
+    gap: 260,
+    after: {
+      reset() {
+        label.classList.remove('on');
+        lines[7].classList.remove('on');
+      },
+      async script(run) {
+        await run.wait(700);
+        lines[7].classList.add('on');
+        label.classList.add('on');
+        for (const line of [lines[7], lines[0], lines[3], lines[1]]) {
+          await run.wait(250);
+          await run.send(line, { duration: 600 });
+        }
+      },
+    },
+  });
+
+  // Markdown: typed on the left, rendered on the right as each line ends;
+  // then a box ticked in the preview changes the source too.
+  const markdown = document.querySelector('.art-md');
+  const mdSource = markdown.querySelector('.md-src');
+  const mdOutput = markdown.querySelector('.md-out');
+  const mark = (text) => `<span class="md-mark">${text}</span>`;
+  const MD_LINES = [
+    { text: '# Lisbon trip', source: `${mark('#')} Lisbon trip`, output: '<b class="md-h">Lisbon trip</b>' },
+    { text: '- [x] Book tram 28', source: `${mark('- [x]')} Book tram 28`, output: '<span class="md-task"><i class="box done"></i>Book tram 28</span>' },
+    { text: '- [ ] Pastéis de Belém', source: `${mark('- [ ]')} Pastéis de Belém`, output: '<span class="md-task"><i class="box"></i>Pastéis de Belém</span>' },
+    { text: '**Day 2**: Sintra', source: `${mark('**')}Day 2${mark('**')}: Sintra`, output: '<span><strong>Day 2</strong>: Sintra</span>' },
+    { text: '> Take the 8:10 train', source: `${mark('&gt;')} Take the 8:10 train`, output: '<span class="md-quote">Take the 8:10 train</span>' },
+  ];
+  loop(markdown, {
+    reset() {
+      mdSource.innerHTML = '';
+      mdOutput.innerHTML = '';
+    },
+    async script(run) {
+      const lines = [];
+      for (const line of MD_LINES) {
+        const div = document.createElement('div');
+        const typed = document.createElement('span');
+        div.append(typed, caret('', 'var(--accent)'));
+        mdSource.append(div);
+        await run.type(typed, line.text, 32);
+        div.innerHTML = line.source;
+        mdOutput.insertAdjacentHTML('beforeend', line.output);
+        mdOutput.lastElementChild.classList.add('enter');
+        lines.push(div);
+        await run.wait(250);
+      }
+      await run.wait(900);
+      mdOutput.querySelectorAll('.box')[1].classList.add('done');
+      lines[2].innerHTML = `${mark('- [x]')} Pastéis de Belém`;
+      replay(lines[2], 'back');
+    },
+    pause: 3200,
+  });
+
+  // Obsidian: a vault's folders and notes cross into Brain, then everything
+  // goes back out as a vault, boards included.
+  const vault = document.querySelector('.art-vault');
+  const vaultLink = links(vault);
+  const vaultList = vault.querySelector('[data-node="vault"] .v-list');
+  const brainList = vault.querySelector('[data-node="brain"] .v-list');
+  const vaultLabel = vault.querySelector('.v-label');
+  const VAULT = [
+    { from: `${icon('folder')}Travel/`, to: `${icon('folder')}Travel` },
+    { from: `${icon('folder')}Recipes/`, to: `${icon('folder')}Recipes` },
+    { from: `${icon('note')}Ideas.md`, to: `${icon('inbox')}Ideas` },
+  ];
+  loop(vault, {
+    reset() {
+      vaultList.innerHTML = VAULT.map((item) => `<li>${item.from}</li>`).join('');
+      brainList.innerHTML = '';
+      vaultLabel.textContent = '';
+    },
+    async script(run) {
+      await run.wait(600);
+      vaultLabel.textContent = 'Import';
+      replay(vaultLabel, 'enter');
+      const rows = [...vaultList.children];
+      for (const [index, item] of VAULT.entries()) {
+        rows[index].classList.add('now');
+        await run.send(vaultLink('vault'), { duration: 650 });
+        rows[index].classList.remove('now');
+        brainList.insertAdjacentHTML('beforeend', `<li class="enter">${item.to}</li>`);
+        await run.wait(250);
+      }
+      await run.wait(1100);
+      vaultLabel.textContent = 'Export';
+      replay(vaultLabel, 'enter');
+      brainList.querySelectorAll('li').forEach((li) => li.classList.add('now'));
+      await run.send(vaultLink('vault'), { reverse: true, duration: 800 });
+      brainList.querySelectorAll('li').forEach((li) => li.classList.remove('now'));
+      vaultList.insertAdjacentHTML('beforeend', `<li class="enter new">${icon('board')}Lisbon.canvas</li>`);
+    },
+    pause: 3000,
+  });
 
   const search = document.querySelector('.art-search');
   const query = search.querySelector('.s-query');
@@ -306,4 +438,117 @@
     },
     pause: 3500,
   });
+
+  // The search shortcut as the visitor's keyboard has it.
+  const mac = /Mac|iPhone|iPad/.test(navigator.userAgentData?.platform ?? navigator.platform);
+  document.querySelectorAll('[data-shortcut]').forEach((el) => (el.textContent = mac ? '⌘K' : 'Ctrl+K'));
+
+  // --- Use cases ----------------------------------------------------------
+
+  const USES = [
+    {
+      name: 'Plan a trip',
+      steps: [
+        ['inbox', 'Drop', 'For weeks, every link, photo and voice note about Lisbon goes to the inbox, unsorted.'],
+        ['bot', 'Sort', '“Put everything about Lisbon in a collection.” Your assistant does it.'],
+        ['board', 'Plan', 'Lay out the days on a board. Claude drafts the itinerary as a note.'],
+        ['globe', 'Share', 'Publish the itinerary for your friends. On the road, ask any assistant what’s next.'],
+      ],
+    },
+    {
+      name: 'Research a topic',
+      steps: [
+        ['link', 'Collect', 'Articles, papers and videos about home solar, saved the moment you find them.'],
+        ['note', 'Connect', 'Link notes to each other with [[wikilinks]]. The graph shows what ties together.'],
+        ['search', 'Find', 'Search by meaning finds the piece about winter output, whatever words you use.'],
+        ['bot', 'Summarize', 'Ask Claude to sum up what you saved. It writes the summary back as a note.'],
+      ],
+    },
+    {
+      name: 'Renovate a home',
+      steps: [
+        ['image', 'Drop', 'Photos of the kitchen, quotes as PDFs, a voice note after talking to the builder.'],
+        ['folder', 'Sort', 'A Kitchen collection inside Projects, with quotes and ideas nested in it.'],
+        ['board', 'Plan', 'A board with the layout, the tiles you like and the budget note side by side.'],
+        ['history', 'Track', 'When the budget note changes, its history shows what changed and who changed it.'],
+      ],
+    },
+    {
+      name: 'Write and publish',
+      steps: [
+        ['phone', 'Capture', 'Ideas as they come, from the share sheet on your phone or a message on Telegram.'],
+        ['note', 'Draft', 'Write in Markdown. An assistant suggests edits, and you can undo any of them.'],
+        ['folder', 'Organize', 'A collection per series, in the order you want to publish.'],
+        ['globe', 'Publish', 'Make a note public. Readers get a clean page at its own address.'],
+      ],
+    },
+  ];
+  const uses = document.querySelector('.uses');
+  const useTabs = uses.querySelector('.use-tabs');
+  const steps = uses.querySelector('.steps');
+  let useIndex = 0;
+  let stepIndex = -1;
+  let useTimer = null;
+  let rotate = true;
+
+  useTabs.innerHTML = USES.map(
+    (use, index) => `<button role="tab" type="button" aria-selected="${index === 0}" data-use="${index}">${use.name}</button>`,
+  ).join('');
+  const useButtons = [...useTabs.children];
+
+  function showUse(index) {
+    useIndex = index;
+    stepIndex = -1;
+    useButtons.forEach((button, i) => button.setAttribute('aria-selected', String(i === index)));
+    steps.innerHTML = USES[index].steps
+      .map(([name, title, text]) => `<li><span class="step-icon">${icon(name)}</span><b>${title}</b><p>${text}</p></li>`)
+      .join('');
+    replay(steps, 'swap');
+    if (reduceMotion) steps.querySelectorAll('li').forEach((li) => li.classList.add('done'));
+  }
+
+  // Lights the steps one by one; after the last, the next use case, until
+  // the visitor picks one.
+  function advance() {
+    stepIndex++;
+    if (stepIndex >= USES[useIndex].steps.length) {
+      if (!rotate) return;
+      showUse((useIndex + 1) % USES.length);
+      stepIndex = 0;
+    }
+    [...steps.children].forEach((li, i) => {
+      li.classList.toggle('now', i === stepIndex);
+      li.classList.toggle('done', i < stepIndex);
+    });
+    useTimer = setTimeout(advance, 2200);
+  }
+
+  useButtons.forEach((button) =>
+    button.addEventListener('click', () => {
+      rotate = false;
+      clearTimeout(useTimer);
+      showUse(Number(button.dataset.use));
+      if (!reduceMotion) useTimer = setTimeout(advance, 300);
+    }),
+  );
+  showUse(0);
+  if (!reduceMotion) {
+    onScreen(
+      uses,
+      () => {
+        clearTimeout(useTimer);
+        useTimer = setTimeout(advance, 400);
+      },
+      () => clearTimeout(useTimer),
+    );
+  }
+
+  // --- Sections reached -----------------------------------------------------
+
+  // Connect and Install light up their title when they come into view (from
+  // the hero's buttons or by scrolling).
+  for (const section of document.querySelectorAll('#connect, #install')) {
+    const title = section.querySelector('h2');
+    onScreen(section, () => replay(title, 'glow'), null, 0.5);
+  }
 })();
