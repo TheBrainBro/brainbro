@@ -16,6 +16,8 @@ from apps.items.models import Item, NoteImage, NoteLink
 from apps.items.serializers import note_link_preview
 from apps.items.titles import linkable_titles, note_title
 
+from .pages import public_image_url
+
 # Long enough to spare the server, short enough that a note taken down stops
 # showing its images soon, even through a cache in front.
 IMAGE_MAX_AGE = 300
@@ -38,10 +40,7 @@ def public_images(note):
     """The note's stored images, by `src`, at their public addresses."""
     images = {}
     for image in note.note_images.all():
-        url = None
-        if image.image:
-            path = reverse("public-note-image", args=[note.public_slug, image.id])
-            url = versioned(path, image.image)
+        url = public_image_url(note, image) if image.image else None
         images[image.src] = {"status": image.status, "url": url}
     return images
 

@@ -63,6 +63,41 @@ def publish(note, slug=None):
     return note
 
 
+PAGE_FIELDS = {
+    "title": "public_title",
+    "description": "public_description",
+    "image": "public_image",
+}
+
+
+def save_page(note, changes):
+    """
+    Saves the page settings in `changes` (`slug`, `title`, `description`,
+    `image`); empty ones go back to their default. Raises SlugTaken if
+    another note has the slug.
+    """
+    fields = []
+    if "slug" in changes and changes["slug"] != note.public_slug:
+        if (
+            Item.objects.filter(public_slug=changes["slug"])
+            .exclude(pk=note.pk)
+            .exists()
+        ):
+            raise SlugTaken
+        note.public_slug = changes["slug"]
+        fields.append("public_slug")
+    for name, field in PAGE_FIELDS.items():
+        if name in changes:
+            setattr(note, field, changes[name])
+            fields.append(field)
+    try:
+        with transaction.atomic():
+            note.save(update_fields=[*fields, "updated_at"])
+    except IntegrityError:
+        raise SlugTaken from None
+    return note
+
+
 def unpublish(note):
     """Takes the note down. It keeps its slug for when it is published again."""
     note.published_at = None
