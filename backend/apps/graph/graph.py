@@ -139,5 +139,7 @@ def item_label(item, album_size=0):
         return note_title(item.body, fallback="Empty note")
     if item.kind == Item.Kind.ALBUM:
         return f"{album_size} images"
-    fallback = "Image" if item.kind == Item.Kind.IMAGE else "File"
+    fallback = {Item.Kind.IMAGE: "Image", Item.Kind.AUDIO: "Audio"}.get(
+        item.kind, "File"
+    )
     return (item.metadata.get("filename") or fallback)[:MAX_LABEL]
