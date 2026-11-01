@@ -1795,8 +1795,9 @@ pre {
   margin-top: 32px;
 }
 
-.note-small {
-  margin: 16px 0 0;
+/* Under a tab's steps; `.tab-panel > p` would take its margin otherwise. */
+.tab-panel > .note-small {
+  margin: 20px 0 0;
   color: var(--muted);
   font-size: 13px;
 }
