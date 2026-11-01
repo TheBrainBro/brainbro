@@ -1791,8 +1791,14 @@ pre {
   font-size: 16px;
 }
 
-.howto + .note-small + .howto-title {
+.howto + .note-small + .howto-title,
+.prompt + .howto-title {
   margin-top: 32px;
+}
+
+.howto-lead {
+  margin: 0 0 16px;
+  color: var(--muted);
 }
 
 .note-small {
@@ -1899,10 +1905,6 @@ footer::after {
     order: -1;
     max-width: 260px;
     margin-bottom: -24px;
-  }
-
-  .topbar nav a:first-child {
-    display: none;
   }
 
   /* Sources in a row above the inbox. */

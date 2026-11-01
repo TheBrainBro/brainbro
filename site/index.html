@@ -65,7 +65,6 @@
           <span>Brain</span>
         </a>
         <nav>
-          <a href="#connect">Connect</a>
           <a href="https://github.com/CarlosLugones/brain/tree/main/docs">Docs</a>
           <a href="https://github.com/CarlosLugones/brain">GitHub</a>
         </nav>
@@ -383,6 +382,15 @@
         </div>
 
         <div class="tab-panel" role="tabpanel" id="tab-grok" aria-labelledby="tab-grok-button" hidden>
+          <h3 class="howto-title">Just ask Grok</h3>
+          <p class="howto-lead">Grok adds the connector itself when you ask it in a chat. Paste this, then sign in to Brain when it asks.</p>
+          <div class="prompt">
+            <pre id="grok-prompt"></pre>
+            <button class="button primary" type="button" data-copy="grok-prompt">
+              <svg class="icon-copy"><use href="#i-copy" /></svg><svg class="icon-done"><use href="#i-check" /></svg><span class="label">Copy prompt</span>
+            </button>
+          </div>
+          <h3 class="howto-title">Or by hand</h3>
           <ol class="howto">
             <li>Open <a href="https://grok.com/connectors">grok.com/connectors</a> and choose <b>New Connector → Custom</b>.</li>
             <li>Paste the address below.<span class="url-row"><code data-mcp-url></code><button class="button outline small" type="button" data-copy-mcp>Copy</button></span></li>
