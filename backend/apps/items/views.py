@@ -11,6 +11,8 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from apps.events.changes import items_changed
+
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .collection_images import make_collection_image
@@ -151,6 +153,7 @@ def triage(items, action, collections=()):
     Returns how many were deleted, for `delete`.
     """
     Action = TriageSerializer.Action
+    items_changed(items)
     if action == Action.DELETE:
         # Per-object signals still run, so preview images are removed.
         _, deleted = items.delete()
