@@ -6,6 +6,7 @@ import requests
 
 from apps.items import embedder, embeddings
 from apps.items.models import Item, ItemChunk
+from apps.items.search import find
 from apps.items.tasks import embed_items
 
 # Words that mean the same to the fake model.
@@ -204,6 +205,17 @@ def test_one_word_goes_by_its_matches_first(api, user, fake_embedder):
     embeddings.embed_stale()
 
     assert search(api, "taxes") == [str(word.id), str(meaning.id)]
+
+
+def test_a_typo_close_in_meaning_isnt_a_lone_guess(user, fake_embedder):
+    trip = note(user, "Vacaciones en Francia")
+    guess = note(user, "vacaciones de verano")
+    embeddings.embed_stale()
+
+    # "vacacions" only matches both through a typo; "paris" is close in
+    # meaning to the first one alone.
+    ranks = dict(find(Item.objects.all(), "vacacions paris").values_list("id", "rank"))
+    assert ranks[trip.id] > 0 > ranks[guess.id]
 
 
 def test_unrelated_items_dont_match_by_meaning(api, user, fake_embedder):
