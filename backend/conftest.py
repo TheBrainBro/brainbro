@@ -18,3 +18,14 @@ def api(user):
     client = APIClient()
     client.force_authenticate(user)
     return client
+
+
+@pytest.fixture(autouse=True)
+def published(monkeypatch):
+    """What tests tell open tabs, as (owner id, message): nothing reaches Redis."""
+    messages = []
+    monkeypatch.setattr(
+        "apps.events.changes.publish",
+        lambda owner_id, message: messages.append((owner_id, message)),
+    )
+    return messages
