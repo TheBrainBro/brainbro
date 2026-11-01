@@ -13,7 +13,18 @@ export const THEMES: Theme[] = ['light', 'dark', 'system']
 // Also read by the script in index.html, so the first paint is already right.
 const KEY = 'brain:theme'
 
+// The browser bar (theme-color) matches the top bar: white, or zinc-950.
+const BAR_COLORS = { light: '#ffffff', dark: '#09090b' }
+
 const listeners = new Set<() => void>()
+
+/** Paints the browser bar: the picked theme, or each scheme's color while following the system. */
+function paintBar(theme: Theme) {
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    const scheme = meta.getAttribute('media')?.includes('dark') ? 'dark' : 'light'
+    meta.content = BAR_COLORS[theme === 'system' ? scheme : theme]
+  })
+}
 
 /** The theme shown now: `data-theme` on <html>, absent while following the system. */
 export function currentTheme(): Theme {
@@ -26,6 +37,7 @@ export function applyTheme(theme: Theme) {
   const root = document.documentElement
   if (theme === 'system') delete root.dataset.theme
   else root.dataset.theme = theme
+  paintBar(theme)
   try {
     if (theme === 'system') localStorage.removeItem(KEY)
     else localStorage.setItem(KEY, theme)
