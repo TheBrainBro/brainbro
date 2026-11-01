@@ -1,28 +1,24 @@
-import { uploadNoteImage, type Item } from '../items/api'
+import { uploadNoteImage, useItem, type Item } from '../items/api'
 import { NoteEditor } from '../notes/NoteEditor'
-import type { SaveStatus } from '../notes/saver'
-import { useNoteSaver } from '../notes/useNoteSaver'
+import { Peers } from '../notes/Peers'
+import { useLiveNote, type LiveStatus } from '../notes/live'
 import { useFeedback } from '../ui/feedback'
 
-const STATUS: Record<SaveStatus, string> = {
-  saved: 'Saved',
-  unsaved: 'Saving…',
-  saving: 'Saving…',
+const STATUS: Record<LiveStatus, string> = {
+  live: 'Saved',
+  connecting: 'Connecting…',
   offline: 'Offline, kept on this device',
-  error: "Couldn't save",
-  conflict: 'Not saved',
+  closed: "Can't edit this note",
 }
 
-const actionButton =
-  'rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
-
 /**
- * A note edited in its card on the canvas, saved like on its own page.
- * Escape (or clicking elsewhere on the board) ends it; what is pending is
- * saved then. Loaded on first use, with CodeMirror.
+ * A note edited in its card on the canvas, live like on its own page.
+ * Escape (or clicking elsewhere on the board) ends it. Loaded on first use,
+ * with CodeMirror.
  */
 export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: () => void }) {
-  const { saver, state, latest, outdated } = useNoteSaver(item)
+  const note = useLiveNote(item.id)
+  const latest = useItem(item.id).data ?? item
   const { toast } = useFeedback()
 
   return (
@@ -36,43 +32,26 @@ export default function NoteNodeEditor({ item, onDone }: { item: Item; onDone: (
         }
       }}
     >
-      {state.status === 'conflict' && (
-        <div
-          role="alert"
-          className="mb-2 flex flex-wrap items-center gap-1 text-xs text-amber-700 dark:text-amber-400"
-        >
-          <span className="mr-auto">Changed in another tab.</span>
-          <button type="button" className={actionButton} onClick={() => saver.resolve('theirs')}>
-            Load latest
-          </button>
-          <button type="button" className={actionButton} onClick={() => saver.resolve('mine')}>
-            Keep mine
-          </button>
-        </div>
-      )}
-      {outdated && (
-        <div role="status" className="mb-2 flex flex-wrap items-center gap-1 text-xs text-zinc-500">
-          <span className="mr-auto">
-            {outdated.by ? `${outdated.by} edited this note.` : 'Changed in another tab.'}
-          </span>
-          <button type="button" className={actionButton} onClick={outdated.load}>
-            Load latest
-          </button>
-        </div>
-      )}
       {item.title && <h2 className="mb-1 font-medium">{item.title}</h2>}
-      <NoteEditor
-        key={saver.generation}
-        initial={saver.body}
-        autoFocus
-        onChange={(body) => saver.edit(body)}
-        onSave={() => saver.flush()}
-        images={(latest ?? item).images}
-        links={(latest ?? item).links}
-        uploadImage={uploadNoteImage}
-        onUploadError={(message) => toast({ message, tone: 'error' })}
-      />
-      <p className="mt-1 text-xs text-zinc-500">{STATUS[state.status]} · Esc to finish</p>
+      {note.live && note.ready ? (
+        <NoteEditor
+          live={note.live}
+          autoFocus
+          images={latest.images}
+          links={latest.links}
+          uploadImage={uploadNoteImage}
+          onUploadError={(message) => toast({ message, tone: 'error' })}
+        />
+      ) : (
+        <div role="status" aria-label="Loading note" className="space-y-2 py-2">
+          <div className="skeleton h-4 w-full" />
+          <div className="skeleton h-4 w-2/3" />
+        </div>
+      )}
+      <p className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+        <span className="mr-auto">{STATUS[note.status]} · Esc to finish</span>
+        <Peers peers={note.peers} />
+      </p>
     </div>
   )
 }

@@ -8,7 +8,8 @@ import { TAB_ID } from '../lib/api'
  * What changed in this user's Brain, as the server tells it (backend
  * apps.events): items by id, boards by id with their new revision. Even with
  * neither, lists changed (collections, order). `tab` is the tab whose request
- * changed it; `by`, the assistant that did.
+ * changed it; `by`, the assistant that did (an open note shows it live, with
+ * its cursor, instead).
  */
 export type Change = {
   items: string[]
@@ -19,14 +20,6 @@ export type Change = {
 
 // An assistant organizing a dozen items sends a burst: refetch once it settles.
 const SETTLE_MS = 300
-
-// Who last changed each item from outside the app, for the note editor to name.
-const editors = new Map<string, string>()
-
-/** The assistant that last changed this item, if one did since the app opened. */
-export function editorOf(id: string) {
-  return editors.get(id)
-}
 
 /**
  * Keeps what is on screen up to date with changes made elsewhere: other tabs
@@ -87,11 +80,7 @@ export function followChanges(
   source.onmessage = (event: MessageEvent<string>) => {
     const change = JSON.parse(event.data) as Change
     if (change.tab === TAB_ID) return
-    for (const id of change.items) {
-      if (change.by) editors.set(id, change.by)
-      else editors.delete(id)
-      items.add(id)
-    }
+    for (const id of change.items) items.add(id)
     for (const id of Object.keys(change.boards)) boards.add(id)
     lists = true
     soon()

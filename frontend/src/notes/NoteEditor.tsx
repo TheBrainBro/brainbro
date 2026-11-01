@@ -6,10 +6,12 @@ import { EditorState } from '@codemirror/state'
 import { dropCursor, EditorView, keymap, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { useEffect, useEffectEvent, useRef } from 'react'
+import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next'
 
 import type { NoteImages, NoteLinks } from '../items/api'
 import { imageUploads } from './imageUploads'
 import { setNoteLinks } from './linkWidgets'
+import type { LiveNote } from './live'
 import { livePreview, setNoteImages } from './livePreview'
 
 // The text is the note. Live preview renders it around the cursor; this
@@ -54,17 +56,22 @@ const theme = EditorView.theme({
   },
   '.cm-line': { padding: '0' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'currentColor' },
+  // Others' cursors: their name shows on hover, in their color.
+  '.cm-ySelectionInfo': { fontFamily: 'var(--font-sans)', fontSize: '0.7rem', borderRadius: '0.25rem' },
 })
 
 /**
  * CodeMirror over the raw Markdown: the document is the stored text, so what
  * comes in is exactly what goes out, and it reads rendered except where the
  * cursor is (live preview). `initial` is read once; remount (key)
- * to load other text. Images show the note's stored copies (`images`);
- * pasted or dropped ones are uploaded with `uploadImage` and linked.
+ * to load other text. With `live`, the text is the live note's instead,
+ * edited together with its other sessions, whose cursors show. Images show
+ * the note's stored copies (`images`); pasted or dropped ones are uploaded
+ * with `uploadImage` and linked.
  */
 export function NoteEditor({
-  initial,
+  initial = '',
+  live,
   onChange,
   onSave,
   autoFocus = false,
@@ -73,8 +80,9 @@ export function NoteEditor({
   uploadImage,
   onUploadError,
 }: {
-  initial: string
-  onChange: (body: string) => void
+  initial?: string
+  live?: LiveNote
+  onChange?: (body: string) => void
   /** Mod-S: save now instead of waiting for the debounce. */
   onSave?: () => void
   autoFocus?: boolean
@@ -87,19 +95,22 @@ export function NoteEditor({
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(null)
   // Only the starting text and focus: the editor owns the document from here.
-  const startup = useRef({ initial, autoFocus, images, links, uploads: Boolean(uploadImage) })
-  const changed = useEffectEvent((body: string) => onChange(body))
+  const startup = useRef({ initial, live, autoFocus, images, links, uploads: Boolean(uploadImage) })
+  const changed = useEffectEvent((body: string) => onChange?.(body))
   const save = useEffectEvent(() => onSave?.())
   const upload = useEffectEvent((file: File) => uploadImage!(file))
   const uploadFailed = useEffectEvent((message: string) => onUploadError?.(message))
 
   useEffect(() => {
+    const { live } = startup.current
     const editor = new EditorView({
       parent: host.current!,
       state: EditorState.create({
-        doc: startup.current.initial,
+        doc: live ? live.text.toString() : startup.current.initial,
         extensions: [
-          history(),
+          live
+            ? yCollab(live.text, live.awareness, { undoManager: live.undoManager })
+            : history(),
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
           livePreview(startup.current.images ?? {}, startup.current.links ?? {}),
@@ -113,7 +124,7 @@ export function NoteEditor({
           keymap.of([
             { key: 'Mod-s', preventDefault: true, run: () => (save(), true) },
             ...markdownKeymap,
-            ...historyKeymap,
+            ...(live ? yUndoManagerKeymap : historyKeymap),
             ...defaultKeymap,
           ]),
           EditorView.updateListener.of((update) => {
