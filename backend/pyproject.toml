@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "brain-backend"
+name = "brainbro-backend"
 version = "0.3.0"
-description = "Brain: segundo cerebro self-hosted"
+description = "BrainBro: segundo cerebro self-hosted"
 authors = ["Carlos Lugones <contact@carloslugones.com>"]
 readme = "../README.md"
 package-mode = false

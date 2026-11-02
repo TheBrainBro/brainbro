@@ -33,7 +33,7 @@ class Export(OwnedModel):
 
     @property
     def filename(self):
-        return f"brain-export-{self.created_at:%Y-%m-%d}.zip"
+        return f"brainbro-export-{self.created_at:%Y-%m-%d}.zip"
 
 
 @receiver(post_delete, sender=Export)

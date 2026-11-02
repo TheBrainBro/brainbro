@@ -18,7 +18,7 @@ own shortcuts are off.
 | Anything else | A download. |
 
 Uploaded files are always served as downloads (`Content-Disposition: attachment`, with a
-sandboxing CSP), so nothing uploaded can run as a page on Brain's origin. The viewer fetches a
+sandboxing CSP), so nothing uploaded can run as a page on BrainBro's origin. The viewer fetches a
 PDF or a text file itself and shows it from memory (a `blob:` URL, or plain text), which leaves
 that rule as it is. Images, audio and video load straight from the file URL, as media; players
 ask for it in parts (HTTP `Range`), which Safari needs to play anything and every browser

@@ -397,11 +397,11 @@ describe('Collections grid', () => {
       'Project · 2 items · 1 collection',
     )
     expect(within(grid).queryByRole('link', { name: /Clients/ })).toBeNull()
-    expect(localStorage.getItem('brain:collections-view')).toBe('grid')
+    expect(localStorage.getItem('brainbro:collections-view')).toBe('grid')
   })
 
   it('sorts the cards by dragging', async () => {
-    localStorage.setItem('brain:collections-view', 'grid')
+    localStorage.setItem('brainbro:collections-view', 'grid')
     collections = [work, home]
     renderPage()
     const grid = await screen.findByRole('list', { name: 'Collections' })

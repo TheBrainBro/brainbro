@@ -6,8 +6,8 @@ import { Logo } from '../layout/Logo'
 import { useAnswerAuthorization, useAuthorizationAsk } from '../tokens/api'
 
 /**
- * "Sign in to Brain" for AI assistants (OAuth): an app like ChatGPT opens
- * this page and the user allows it to use their Brain, or cancels. Either
+ * "Sign in to BrainBro" for AI assistants (OAuth): an app like ChatGPT opens
+ * this page and the user allows it to use their BrainBro, or cancels. Either
  * way the browser goes back to the app.
  */
 export function AuthorizePage() {

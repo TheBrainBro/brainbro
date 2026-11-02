@@ -1,6 +1,6 @@
 # Who made an item, and through what
 
-Brain is memory shared by several assistants, so every item says who wrote
+BrainBro is memory shared by several assistants, so every item says who wrote
 it. See `apps/items/origin.py`.
 
 Each item records who created it and who last edited its content (title,

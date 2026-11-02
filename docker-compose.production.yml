@@ -20,7 +20,7 @@ x-app: &app
   environment:
     ENVIRONMENT: production
     SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required (openssl rand -base64 48)}
-    APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brain.example.com}
+    APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brainbro.example.com}
     TIME_ZONE: ${TIME_ZONE:-UTC}
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"

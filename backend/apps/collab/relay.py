@@ -27,7 +27,7 @@ OUTSIDE = bytes(SOURCE_LENGTH)
 
 
 def channel(note_id):
-    return f"brain:note:{note_id}"
+    return f"brainbro:note:{note_id}"
 
 
 def frame(source, kind, payload):

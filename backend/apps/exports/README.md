@@ -1,8 +1,8 @@
-# Brain export
+# BrainBro export
 
-Everything you had in Brain when this export was made: notes, links, images,
+Everything you had in BrainBro when this export was made: notes, links, images,
 files, albums, collections and boards. Everything you need is in plain files
-(Markdown, JSON and your originals), so you can open them without Brain.
+(Markdown, JSON and your originals), so you can open them without BrainBro.
 
 ## What's in here
 
@@ -57,9 +57,9 @@ Empty fields are left out.
 
 Images in a note open from this export, without the internet: images you
 pasted into a note are in `notes/attachments/`, where the note already points.
-For images from the web, Brain kept a copy: they are in
+For images from the web, BrainBro kept a copy: they are in
 `notes/images/<note>/` (`01.webp`, `02.webp`… in order) and the note's
-Markdown here points at them. An image Brain had no copy of keeps its web
+Markdown here points at them. An image BrainBro had no copy of keeps its web
 address.
 
 Links have the same block plus `url`, `site` and
@@ -104,7 +104,7 @@ The full record of every item, including the ones that are only a file:
   `src`, as in `body` (read the way Markdown reads it, so `<a b.png>` is
   `a%20b.png`), and where its file is. `body` is always the note as you wrote
   it; only the note's `.md` file points at these files.
-- `metadata` is what Brain found out about the item. For links: `title`,
+- `metadata` is what BrainBro found out about the item. For links: `title`,
   `description`, `site_name`, `author`, `image_url`, `final_url`… For
   uploads: the original `filename`, its `mime` type, `size` in bytes and, for
   images, `width` and `height`.

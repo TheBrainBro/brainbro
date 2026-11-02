@@ -12,7 +12,7 @@ beforeEach(() => {
   // As in index.html: one color per scheme while following the system.
   document.head.innerHTML = `
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141218" />
   `
 })
 
@@ -26,8 +26,8 @@ describe('applyTheme', () => {
     applyTheme('dark')
 
     expect(barColors()).toEqual([
-      ['(prefers-color-scheme: light)', '#09090b'],
-      ['(prefers-color-scheme: dark)', '#09090b'],
+      ['(prefers-color-scheme: light)', '#141218'],
+      ['(prefers-color-scheme: dark)', '#141218'],
     ])
   })
 
@@ -47,7 +47,7 @@ describe('applyTheme', () => {
 
     expect(barColors()).toEqual([
       ['(prefers-color-scheme: light)', '#ffffff'],
-      ['(prefers-color-scheme: dark)', '#09090b'],
+      ['(prefers-color-scheme: dark)', '#141218'],
     ])
   })
 })

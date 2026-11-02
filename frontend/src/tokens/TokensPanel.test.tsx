@@ -15,7 +15,7 @@ function jsonResponse(body: unknown, status = 200) {
 const existing: ApiToken = {
   id: 't1',
   name: 'Script',
-  prefix: 'brain_ab12',
+  prefix: 'brainbro_ab12',
   connected_app: false,
   created_at: '2026-01-01T00:00:00Z',
   last_used_at: null,
@@ -26,7 +26,7 @@ function renderPanel(tokens: ApiToken[]) {
     if (init?.method === 'POST') {
       const { name } = JSON.parse(String(init.body))
       return jsonResponse(
-        { ...existing, id: 't2', name, prefix: 'brain_cd34', token: 'brain_cd34secret' },
+        { ...existing, id: 't2', name, prefix: 'brainbro_cd34', token: 'brainbro_cd34secret' },
         201,
       )
     }
@@ -53,7 +53,7 @@ describe('TokensPanel', () => {
       `${window.location.origin}/api/mcp`,
     )
     expect(screen.getByRole('textbox', { name: 'Claude Code command' })).toHaveValue(
-      `claude mcp add --transport http brain ${window.location.origin}/api/mcp`,
+      `claude mcp add --transport http brainbro ${window.location.origin}/api/mcp`,
     )
   })
 
@@ -73,9 +73,9 @@ describe('TokensPanel', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Copy “Claude Code” now: it won\'t be shown again.',
     )
-    expect(screen.getByRole('textbox', { name: 'Token' })).toHaveValue('brain_cd34secret')
+    expect(screen.getByRole('textbox', { name: 'Token' })).toHaveValue('brainbro_cd34secret')
     expect(screen.getByRole('textbox', { name: 'Claude Code command with token' })).toHaveValue(
-      `claude mcp add --transport http brain ${window.location.origin}/api/mcp --header "Authorization: Bearer brain_cd34secret"`,
+      `claude mcp add --transport http brainbro ${window.location.origin}/api/mcp --header "Authorization: Bearer brainbro_cd34secret"`,
     )
   })
 
@@ -107,7 +107,7 @@ describe('TokensPanel', () => {
     const list = await screen.findByRole('region', { name: 'Connected apps and tokens' })
     const row = within(list).getByText('ChatGPT').closest('li')!
     expect(row).toHaveTextContent(/Connected app · allowed .* · never used/)
-    expect(row).not.toHaveTextContent('brain_ab12')
+    expect(row).not.toHaveTextContent('brainbro_ab12')
 
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect ChatGPT' }))

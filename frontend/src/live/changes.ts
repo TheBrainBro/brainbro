@@ -5,7 +5,7 @@ import { collectionsKey, itemsKey } from '../items/api'
 import { TAB_ID } from '../lib/api'
 
 /**
- * What changed in this user's Brain, as the server tells it (backend
+ * What changed in this user's BrainBro, as the server tells it (backend
  * apps.events): items by id, boards by id with their new revision. Even with
  * neither, lists changed (collections, order). `tab` is the tab whose request
  * changed it; `by`, the assistant that did (an open note shows it live, with

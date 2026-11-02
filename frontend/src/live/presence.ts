@@ -10,7 +10,7 @@ export type Presence = { name: string; color: string; colorLight: string }
 
 // Cursor colors that read on light and dark backgrounds.
 const COLORS = ['#2563eb', '#16a34a', '#db2777', '#ea580c', '#0d9488', '#9333ea', '#ca8a04']
-const COLOR_KEY = 'brain:presence-color'
+const COLOR_KEY = 'brainbro:presence-color'
 
 const BROWSERS: [RegExp, string][] = [
   [/Edg(e|A|iOS)?\//, 'Edge'],

@@ -1,33 +1,76 @@
-/* The app's look: zinc neutrals and the logo's violet (see frontend/src/index.css). */
+/* The app's look: zinc neutrals, the brand's off-white and near-black, and
+   its violets (see frontend/src/index.css). Fredoka for headings, Nunito for text. */
+@font-face {
+  font-family: Fredoka;
+  font-weight: 600;
+  font-display: swap;
+  src: url(fonts/fredoka-latin-600-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: Fredoka;
+  font-weight: 700;
+  font-display: swap;
+  src: url(fonts/fredoka-latin-700-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: Nunito;
+  font-weight: 400;
+  font-display: swap;
+  src: url(fonts/nunito-latin-400-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: Nunito;
+  font-weight: 500;
+  font-display: swap;
+  src: url(fonts/nunito-latin-500-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: Nunito;
+  font-weight: 600;
+  font-display: swap;
+  src: url(fonts/nunito-latin-600-normal.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: Nunito;
+  font-weight: 700;
+  font-display: swap;
+  src: url(fonts/nunito-latin-700-normal.woff2) format('woff2');
+}
+
 :root {
   color-scheme: light dark;
-  --bg: #fafafa;
+  --bg: #fbf8f3;
   --surface: #ffffff;
   --subtle: #f4f4f5;
   --border: #e4e4e7;
-  --text: #18181b;
+  --text: #141218;
   --muted: #71717a;
-  --accent: #7c3aed;
-  --accent-hover: #8b5cf6;
-  --accent-soft: #ede9fe;
-  --accent-text: #6d28d9;
-  --link-line: #c4b5fd;
+  --accent: #7c5bd6;
+  --accent-hover: #9b80e0;
+  --accent-soft: #ede6fb;
+  --accent-text: #4b1fa8;
+  --link-line: #b9a2ee;
   --shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 8px 24px rgb(24 24 27 / 0.06);
   --radius: 14px;
-  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: Nunito, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #09090b;
+    --bg: #141218;
     --surface: #18181b;
     --subtle: #27272a;
     --border: #27272a;
     --text: #f4f4f5;
     --muted: #a1a1aa;
-    --accent-soft: #2e1065;
-    --accent-text: #c4b5fd;
-    --link-line: #5b21b6;
+    --accent-soft: #2b1063;
+    --accent-text: #b9a2ee;
+    --link-line: #4b1fa8;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3);
   }
 }
@@ -54,6 +97,13 @@ body {
 
 a {
   color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  font-family: Fredoka, Nunito, system-ui, sans-serif;
+  font-weight: 600;
 }
 
 svg {
@@ -227,6 +277,7 @@ svg.logo {
   text-decoration: none;
 }
 
+
 .topbar nav,
 .footer-inner nav {
   display: flex;
@@ -257,7 +308,7 @@ h1 {
   margin: 0;
   font-size: clamp(40px, 6vw, 68px);
   line-height: 1.04;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   text-shadow: 0 2px 30px rgb(26 8 56 / 0.35);
 }
 

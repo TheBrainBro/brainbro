@@ -26,10 +26,10 @@ export const en = {
     shortcuts: 'Keyboard shortcuts',
     welcomeTour: 'Welcome tour',
     signOut: 'Sign out',
-    unreachable: "Couldn't reach Brain",
+    unreachable: "Couldn't reach BrainBro",
     offline: "You're offline",
     offlineHint:
-      'Anything you share is kept on this device and sent once Brain is reachable again. This page tries again on its own.',
+      'Anything you share is kept on this device and sent once BrainBro is reachable again. This page tries again on its own.',
   },
   ui: {
     copy: 'Copy {what}',
@@ -104,7 +104,7 @@ export const en = {
     alreadySignedIn: "You're signed in",
     signedInAs:
       "You're signed in as <b>{username}</b>. Sign out to make a new account with this invitation.",
-    join: 'Join Brain',
+    join: 'Join BrainBro',
     invited: "You're invited. Pick a username and password to make your account.",
     passwordHint: 'At least 8 characters.',
     makingAccount: 'Making your account…',
@@ -114,7 +114,7 @@ export const en = {
     connectApp: 'Connect {app}?',
     goesBackTo: 'It will go back to <b>{host}</b>',
     appCan:
-      "It will be able to search and read everything in your Brain, capture notes and links, edit notes, organize items into collections and archive them. It can't delete anything.",
+      "It will be able to search and read everything in your BrainBro, capture notes and links, edit notes, organize items into collections and archive them. It can't delete anything.",
     onlyAllow:
       'Only allow it if you started this from {app}. You can disconnect it any time in Settings → AI assistants.',
     allow: 'Allow',
@@ -128,25 +128,25 @@ export const en = {
   },
   tokens: {
     intro:
-      "Let an AI assistant search, read and add to your Brain. Add Brain to it with this address, then sign in here and allow it. It can't delete anything.",
+      "Let an AI assistant search, read and add to your BrainBro. Add BrainBro to it with this address, then sign in here and allow it. It can't delete anything.",
     mcpUrl: 'MCP server URL',
     localOnly:
-      "This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: use Brain's public address.",
+      "This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: use BrainBro's public address.",
     claudeDetail: 'Web, desktop and mobile',
     claudeStep1: 'In Claude, open <b>Customize → Connectors</b> and choose <b>Add custom connector</b>.',
     claudeStep2: 'Paste the URL and press <b>Add</b>.',
-    claudeStep3: 'Press <b>Connect</b>, then allow it here in Brain.',
+    claudeStep3: 'Press <b>Connect</b>, then allow it here in BrainBro.',
     chatgptDetail: 'Depends on your ChatGPT plan',
     chatgptStep1: 'Open {link}, press <b>+</b> and choose <b>Add custom MCP server</b>.',
     chatgptStep2: 'Give it a name, paste the URL, accept the warning and create it.',
-    chatgptStep3: 'When ChatGPT asks you to sign in, allow it here in Brain.',
+    chatgptStep3: 'When ChatGPT asks you to sign in, allow it here in BrainBro.',
     grokStep1: 'Open {link}, choose <b>New Connector</b> and then <b>Custom</b>.',
     grokStep2: 'Paste the URL.',
-    grokStep3: 'Sign in to Brain when asked and allow it.',
+    grokStep3: 'Sign in to BrainBro when asked and allow it.',
     claudeCodeStep1: 'Run this in a terminal:',
     claudeCodeCommand: 'Claude Code command',
     claudeCodeStep2:
-      'In Claude Code, run <code>/mcp</code>, choose <b>brain</b> and sign in. Or use a personal token below instead.',
+      'In Claude Code, run <code>/mcp</code>, choose <b>brainbro</b> and sign in. Or use a personal token below instead.',
     connections: 'Connected apps and tokens',
     connectedApp: 'Connected app',
     allowed: 'allowed {when}',
@@ -183,7 +183,7 @@ export const en = {
   },
   invitations: {
     intro:
-      "Invite someone to have their own Brain on this server. They open the link and pick a username and password. Each link works once and expires after 7 days. Nobody can see anyone else's things.",
+      "Invite someone to have their own BrainBro on this server. They open the link and pick a username and password. Each link works once and expires after 7 days. Nobody can see anyone else's things.",
     whoFor: "Who it's for",
     whoForOptional: "Who it's for (optional)",
     create: 'Create link',
@@ -230,7 +230,7 @@ export const en = {
   },
   exports: {
     intro:
-      'A zip with your notes and links as Markdown, your boards, and your images and files as you uploaded them, archived ones included. It works without Brain: a README inside explains the format.',
+      'A zip with your notes and links as Markdown, your boards, and your images and files as you uploaded them, archived ones included. It works without BrainBro: a README inside explains the format.',
     preparing: 'Preparing your export… You can close this, it keeps going.',
     keptForADay: 'kept for a day',
     download: 'Download',
@@ -266,13 +266,13 @@ export const en = {
     light: 'Light',
     dark: 'Dark',
     system: 'System',
-    systemHint: 'System follows the setting of each device you use Brain on.',
+    systemHint: 'System follows the setting of each device you use BrainBro on.',
     theme: 'Theme',
     saveFailed: "Couldn't save the theme. Try again.",
   },
   language: {
     system: 'Browser',
-    systemHint: 'Browser follows the language each browser you use Brain on is set to.',
+    systemHint: 'Browser follows the language each browser you use BrainBro on is set to.',
     label: 'Language',
     saveFailed: "Couldn't save the language. Try again.",
   },
@@ -522,7 +522,7 @@ export const en = {
   },
   share: {
     lost: "That share didn't arrive",
-    lostHint: "Brain wasn't ready to receive it on this device. Open the app once, then share it again.",
+    lostHint: "BrainBro wasn't ready to receive it on this device. Open the app once, then share it again.",
     toInbox: 'Go to the inbox',
     save: 'Save to the inbox?',
   },

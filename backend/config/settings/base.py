@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 ENVIRONMENT = get_env_variable("ENVIRONMENT", "develop")
 
-APP_NAME = get_env_variable("APP_NAME", "Brain")
+APP_NAME = get_env_variable("APP_NAME", "BrainBro")
 
 # Application definition
 

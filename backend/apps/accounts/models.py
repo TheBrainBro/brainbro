@@ -11,7 +11,7 @@ from django.utils import timezone
 from apps.core.models import OwnedModel, TimestampedModel
 
 # Says what a token is when it turns up somewhere it shouldn't.
-TOKEN_PREFIX = "brain_"
+TOKEN_PREFIX = "brainbro_"
 
 
 def avatar_path(profile, filename):
@@ -133,7 +133,7 @@ class Invitation(TimestampedModel):
 
 class OAuthClient(TimestampedModel):
     """
-    An app that connects through "Sign in to Brain" (OAuth): ChatGPT, Claude,
+    An app that connects through "Sign in to BrainBro" (OAuth): ChatGPT, Claude,
     Grok… Apps register themselves (dynamic client registration), so nothing
     here is trusted: the user sees the name and where it sends them back
     before allowing it. Its `id` is the OAuth `client_id`.

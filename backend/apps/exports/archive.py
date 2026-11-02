@@ -33,7 +33,7 @@ ZIP64_LIMIT = 2**31 - 1
 def write_export(owner, target, now=None):
     """Writes everything `owner` has as a zip at `target` (a path)."""
     now = now or timezone.now()
-    root = f"brain-export-{timezone.localdate(now).isoformat()}/"
+    root = f"brainbro-export-{timezone.localdate(now).isoformat()}/"
     items = list(
         Item.objects.filter(owner=owner)
         .prefetch_related("collections", "note_images")

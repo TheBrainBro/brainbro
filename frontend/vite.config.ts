@@ -32,7 +32,7 @@ export default defineConfig(({ command }) => ({
         // ~100 language modes) are cached by src/sw.ts once first used.
         globPatterns: [
           'index.html',
-          'favicon.svg',
+          'favicon.{svg,ico}',
           'icons/*.png',
           'assets/{index,rolldown-runtime,markdown}-*.{js,css}',
         ],
@@ -41,13 +41,13 @@ export default defineConfig(({ command }) => ({
       },
       manifest: {
         id: '/',
-        name: 'Brain',
-        short_name: 'Brain',
+        name: 'BrainBro',
+        short_name: 'BrainBro',
         description: 'Drop it now, sort it later.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#fafafa',
+        background_color: '#fbf8f3',
         // One color for every theme: the launch screen is light, like background_color.
         theme_color: '#ffffff',
         icons: [

@@ -317,7 +317,7 @@ function paint(s: S, element: HTMLCanvasElement) {
     context.fill()
     if (node.node.type === 'collection') {
       context.lineWidth = 2 / view.k
-      context.strokeStyle = dark ? '#09090b' : '#ffffff'
+      context.strokeStyle = dark ? '#141218' : '#ffffff'
       context.stroke()
       const icon = node.node.icon
       // An emoji, not an icon name.

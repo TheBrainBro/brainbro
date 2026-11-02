@@ -29,7 +29,7 @@ def test_a_new_token_is_shown_once_and_stored_hashed(session, user):
 
     assert response.status_code == 201
     key = response.json()["token"]
-    assert key.startswith("brain_")
+    assert key.startswith("brainbro_")
     token = ApiToken.objects.get(owner=user)
     assert token.name == "Claude"
     assert key not in (token.key_hash, token.prefix)
@@ -70,7 +70,7 @@ def test_a_token_writes_without_csrf(user):
 
 @pytest.mark.django_db
 def test_a_wrong_token_is_refused():
-    assert bearer("brain_nope").get("/api/items/").status_code == 403
+    assert bearer("brainbro_nope").get("/api/items/").status_code == 403
 
 
 def test_an_inactive_owner_s_token_is_refused(user):

@@ -9,7 +9,7 @@ def test_status_and_connect(api, user, fake_bot):
     status = api.get("/api/telegram/").json()
     assert status == {
         "configured": True,
-        "bot_username": "brain_bot",
+        "bot_username": "brainbro_bot",
         "linked": False,
         "telegram_name": "",
         "linked_at": None,
@@ -18,7 +18,7 @@ def test_status_and_connect(api, user, fake_bot):
     url = api.post("/api/telegram/connect/").json()["url"]
 
     parts = urlsplit(url)
-    assert f"{parts.netloc}{parts.path}" == "t.me/brain_bot"
+    assert f"{parts.netloc}{parts.path}" == "t.me/brainbro_bot"
     code = parse_qs(parts.query)["start"][0]
     assert TelegramLink.objects.get(owner=user).code == code
     # A new link replaces the old code.

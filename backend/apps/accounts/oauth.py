@@ -1,5 +1,5 @@
 """
-"Sign in to Brain" for AI assistants (ChatGPT, Claude, Grok…), as the MCP
+"Sign in to BrainBro" for AI assistants (ChatGPT, Claude, Grok…), as the MCP
 authorization spec asks: OAuth 2.1 with PKCE, apps that register themselves,
 and the metadata that lets them find all of it from the MCP URL alone.
 
@@ -120,7 +120,9 @@ class AuthorizationRequest(serializers.Serializer):
     def validate(self, data):
         client = OAuthClient.objects.filter(id=parse_uuid(data["client_id"])).first()
         if client is None:
-            raise serializers.ValidationError("This app isn't registered with Brain.")
+            raise serializers.ValidationError(
+                "This app isn't registered with BrainBro."
+            )
         if data["redirect_uri"] not in client.redirect_uris:
             raise serializers.ValidationError(
                 "This app gave an unknown return address."
@@ -247,7 +249,7 @@ class TokenView(APIView):
         ):
             return oauth_error("invalid_grant", "The code is invalid or expired.")
         if "resource" in data and not same_resource(data["resource"], request):
-            return oauth_error("invalid_target", "Tokens are only for Brain's MCP.")
+            return oauth_error("invalid_target", "Tokens are only for BrainBro's MCP.")
         if not code.owner.is_active:
             return oauth_error("invalid_grant", "The account is disabled.")
         token = ApiToken(owner=code.owner, name=client.name[:100], client=client)
