@@ -154,7 +154,7 @@
       );
       const trip = items.firstElementChild;
       await run.wait(600);
-      message('Saved to your Brain as <b>Lisbon trip</b>.', 'bubble');
+      message('Saved to your BrainBro as <b>Lisbon trip</b>.', 'bubble');
       await run.wait(2000);
 
       talkTo('grok');
@@ -448,7 +448,7 @@
     pause: 3200,
   });
 
-  // Obsidian: a vault's folders and notes cross into Brain, then everything
+  // Obsidian: a vault's folders and notes cross into BrainBro, then everything
   // goes back out as a vault, boards included.
   const vault = document.querySelector('.art-vault');
   const vaultLink = links(vault);
