@@ -80,11 +80,6 @@ export const ItemNode = memo(function ItemNode({
           <div className="skeleton h-6" />
         ) : (
           <>
-          {item.is_sample && (
-            <p className="mb-1 text-xs font-medium text-accent-700 dark:text-accent-300">
-              {t('sampleContent.badge')}
-            </p>
-          )}
           {editing ? (
             <Suspense fallback={<ItemContent item={item} />}>
               <NoteNodeEditor item={item} onDone={stopEditing} />

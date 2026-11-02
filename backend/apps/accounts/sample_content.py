@@ -1,8 +1,11 @@
 """The small, explicitly marked starter shared by every new BrainBro account."""
 
+from io import BytesIO
+
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
+from PIL import Image, ImageDraw
 
 from apps.boards.layout import empty_layout
 from apps.boards.models import Board
@@ -12,6 +15,58 @@ from apps.items.models import Collection, CollectionItem, Item, rank_now
 from apps.items.uploads import make_thumbnail
 
 from .models import Profile
+
+
+def _starter_illustration():
+    """A colorful, legible capture-to-collections diagram for the image demo."""
+    image = Image.new("RGB", (1200, 720), "#171521")
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle(
+        (28, 28, 1172, 692), 32, fill="#201c30", outline="#39334d", width=3
+    )
+
+    # Inbox card
+    draw.rounded_rectangle(
+        (82, 142, 470, 578), 24, fill="#29243a", outline="#51466f", width=3
+    )
+    draw.ellipse((116, 178, 146, 208), fill="#a78bfa")
+    draw.rounded_rectangle((164, 182, 330, 198), 8, fill="#ded6f7")
+    for y, color, line_width in (
+        (250, "#f0abfc", 244),
+        (350, "#93c5fd", 204),
+        (450, "#86efac", 264),
+    ):
+        draw.rounded_rectangle((112, y, 440, y + 82), 14, fill="#342e47")
+        draw.rounded_rectangle((132, y + 19, 148, y + 35), 6, fill=color)
+        draw.rounded_rectangle(
+            (166, y + 20, 166 + line_width, y + 31), 6, fill="#ddd8e9"
+        )
+        draw.rounded_rectangle((132, y + 51, 350, y + 60), 5, fill="#858095")
+
+    # A clear path from the inbox to organized collections.
+    draw.line((510, 360, 638, 360), fill="#a78bfa", width=12)
+    draw.polygon([(638, 338), (680, 360), (638, 382)], fill="#a78bfa")
+    draw.ellipse((548, 340, 588, 380), fill="#201c30", outline="#c4b5fd", width=5)
+
+    # Three distinct collection cards.
+    cards = (
+        (720, 142, "#c4b5fd", 250),
+        (720, 286, "#93c5fd", 205),
+        (720, 430, "#86efac", 280),
+    )
+    for x, y, color, line_width in cards:
+        draw.rounded_rectangle(
+            (x, y, 1084, y + 110), 20, fill="#29243a", outline="#51466f", width=2
+        )
+        draw.rounded_rectangle((x + 24, y + 26, x + 66, y + 68), 12, fill=color)
+        draw.rounded_rectangle(
+            (x + 90, y + 29, x + 90 + line_width, y + 43), 7, fill="#e7e1f2"
+        )
+        draw.rounded_rectangle((x + 90, y + 59, x + 280, y + 69), 5, fill="#858095")
+
+    output = BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    return output.getvalue()
 
 
 @transaction.atomic
@@ -25,24 +80,32 @@ def create_sample_content(user, mcp_url):
         (
             "Projects",
             Collection.Kind.PROJECT,
-            "Outcomes with a finish line. Keep plans and next steps here.",
+            "Projects have a clear outcome and an end. Examples: plan a trip, "
+            "prepare a talk, or launch a product. Keep the notes, links, and "
+            "next steps that help you finish it together. When it is done, "
+            "move it to Archives.",
         ),
         (
             "Areas",
             Collection.Kind.AREA,
-            "Ongoing parts of life that need care. Keep responsibilities and "
-            "routines here.",
+            "Areas are parts of life you look after over time, with no finish "
+            "line: health, home, finances, or a team. Keep the routines, "
+            "standards, and useful details you want to return to.",
         ),
         (
             "Resources",
             Collection.Kind.RESOURCE,
-            "Topics you may return to. Keep references and useful ideas here.",
+            "Save useful ideas and references that are not for a current "
+            "project yet: recipes, research, places to visit, or things to "
+            "learn. When one becomes something you will act on, start a "
+            "project and bring the best notes along.",
         ),
         (
             "Archives",
             Collection.Kind.RESOURCE,
-            "Finished or inactive things worth keeping. Move them here when "
-            "they are done.",
+            "Keep finished projects and inactive areas here, so useful history "
+            "stays close. Archived material remains available when you need "
+            "it; move an item back into an active collection anytime.",
         ),
     )
     collections = {}
@@ -66,53 +129,79 @@ def create_sample_content(user, mcp_url):
     note = Item.objects.create(
         owner=user,
         kind=Item.Kind.NOTE,
-        title="A note to try",
+        title="Start here: your second brain",
         body=(
-            "This is a sample note. Drag me to a collection, or archive me "
-            "when you are done."
+            "BrainBro is a private, self-hosted place for the things you want "
+            "to remember. Capture a thought, link, image, or voice note in "
+            "your inbox; you do not have to decide where it belongs right "
+            "away.\n\n"
+            "When you are ready, organize useful items into collections. "
+            "Use Projects for outcomes you will finish, Areas for ongoing "
+            "responsibilities, Resources for ideas to revisit, and Archives "
+            "for work you have finished.\n\n"
+            "Browse the same knowledge as a list, arrange related notes on a "
+            "board, or explore connections in the graph. You can also connect "
+            "an AI assistant to search and update your notes with your "
+            "permission.\n\n"
+            "Try it: move this note into Projects, add a next step, then "
+            "archive it when you are done."
         ),
         is_sample=True,
     )
     link = Item.objects.create(
         owner=user,
         kind=Item.Kind.LINK,
-        url="https://brainbro.app",
-        title="BrainBro",
-        metadata={"title": "BrainBro", "description": "Drop it now, sort it later."},
+        url="https://github.com/TheBrainBro/brainbro/blob/main/docs/mcp.md",
+        title="How BrainBro works with AI",
+        metadata={
+            "title": "How BrainBro works with AI",
+            "description": (
+                "Learn how assistants can search and update your notes with MCP."
+            ),
+        },
         is_sample=True,
     )
     picture = Item(
         owner=user,
         kind=Item.Kind.IMAGE,
-        title="A sample image",
-        body="Drag me to a collection, or archive me.",
-        metadata={"filename": "sample-image.png", "mime": "image/png", "size": 68},
+        title="From a quick capture to a clear plan",
+        body=(
+            "Capture first, organize when you are ready, and find your notes "
+            "when you need them."
+        ),
+        metadata={"filename": "brainbro-inbox-to-collections.png", "mime": "image/png"},
         is_sample=True,
     )
-    # A real, tiny PNG so the example behaves like an uploaded image.
-    image_data = bytes.fromhex(
-        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
-        "0000000b49444154789c636000020000050001a5f645400000000049454e44ae426082"
-    )
+    image_data = _starter_illustration()
+    with Image.open(BytesIO(image_data)) as illustration:
+        width, height = illustration.size
+    picture.metadata = {
+        **picture.metadata,
+        "size": len(image_data),
+        "width": width,
+        "height": height,
+    }
     picture.file.save(
-        "sample-image.png",
+        "brainbro-inbox-to-collections.png",
         ContentFile(image_data),
         save=True,
     )
     if thumbnail := make_thumbnail(picture):
         picture.preview_image.save(
-            "sample-image.webp", ContentFile(thumbnail), save=False
+            "brainbro-inbox-to-collections.webp", ContentFile(thumbnail), save=False
         )
         picture.preview_status = Item.PreviewStatus.READY
         picture.metadata = {
             **picture.metadata,
             "size": len(image_data),
-            "width": 1,
-            "height": 1,
+            "width": width,
+            "height": height,
         }
         picture.save(
             update_fields=["preview_image", "preview_status", "metadata", "updated_at"]
         )
+    else:
+        raise ValueError("The starter illustration must have a thumbnail.")
     Item.objects.create(
         owner=user,
         kind=Item.Kind.NOTE,
@@ -121,23 +210,23 @@ def create_sample_content(user, mcp_url):
             "Add BrainBro as an MCP connector in your AI assistant, then sign "
             "in and allow access. "
             "Copy the ready-to-paste prompt from Settings → AI assistants.\n\n"
-            "I use BrainBro, a self-hosted second brain, as shared memory "
-            "across my AI assistants. "
-            "Help me connect you to it.\n\n"
+            "BrainBro is my private second brain for notes, links, images, "
+            "and plans. I want you to use it as shared memory with my other "
+            "AI assistants. Help me connect you to it.\n\n"
             "1. Read how BrainBro works with assistants: https://github.com/TheBrainBro/brainbro/blob/main/docs/mcp.md\n"
             f"2. Its MCP server is {mcp_url}.\n"
             "3. Walk me through signing in and allowing access.\n"
             "4. Once connected, list my inbox to check it works.\n\n"
-            "Search BrainBro before answering about my notes or plans, save "
-            "what I ask you to remember, "
-            "and read a note before editing it."
+            "Once connected, search BrainBro before answering questions "
+            "about my notes or plans. Save things only when I ask you to "
+            "remember them, and read a note before editing it."
         ),
         is_sample=True,
     )
     # They remain clearly visible in the inbox while the collections are ready to try.
     board = Board.objects.create(
         owner=user,
-        title="A few ideas",
+        title="From capture to clarity",
         is_sample=True,
         layout={
             **empty_layout(),
@@ -163,20 +252,47 @@ def create_sample_content(user, mcp_url):
                     "parent": None,
                 },
                 {
-                    "id": "sample-sticky",
+                    "id": "sample-image",
+                    "type": "item",
+                    "item": str(picture.id),
+                    "x": 720,
+                    "y": 0,
+                    "w": 360.0,
+                    "h": None,
+                    "parent": None,
+                },
+                {
+                    "id": "sample-capture-tip",
                     "type": "sticky",
-                    "text": "Drag me to a collection",
+                    "text": (
+                        "Capture anything in your inbox. Decide where it belongs later."
+                    ),
                     "x": 0,
-                    "y": 260,
-                    "w": 220.0,
-                    "h": 180.0,
+                    "y": 360,
+                    "w": 320.0,
+                    "h": 160.0,
                     "parent": None,
                     "color": "#f5d0fe",
+                },
+                {
+                    "id": "sample-organize-tip",
+                    "type": "sticky",
+                    "text": (
+                        "Use collections to keep projects, responsibilities, and "
+                        "useful references together. Boards help you arrange and "
+                        "connect related ideas."
+                    ),
+                    "x": 370,
+                    "y": 360,
+                    "w": 420.0,
+                    "h": 200.0,
+                    "parent": None,
+                    "color": "#bfdbfe",
                 },
             ],
         },
     )
-    board.items.add(note, link)
+    board.items.add(note, link, picture)
     profile.sample_content_created_at = timezone.now()
     profile.save(update_fields=["sample_content_created_at", "updated_at"])
 
