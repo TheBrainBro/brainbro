@@ -69,5 +69,6 @@ come from LobeHub icons (Claude, OpenAI, Grok, Grok Bot; MIT) and Simple Icons
 (Obsidian, Telegram, Docker, Umbrel; CC0).
 
 The prompt and the install links point to the docs on GitHub (`main`):
-[mcp.md](mcp.md) for connecting assistants and
+[mcp.md](mcp.md) for connecting assistants, [`llms.txt`](../site/llms.txt)
+for a short agent guide, and
 [deployment.md](deployment.md) for installing.
