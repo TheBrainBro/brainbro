@@ -76,7 +76,7 @@ def test_streams_the_users_changes(user, pubsub):
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
     assert response["Cache-Control"] == "no-cache"
-    assert pubsub.channels == [f"brain:changes:{user.id}"]
+    assert pubsub.channels == [f"brainbro:changes:{user.id}"]
     assert received == [
         f"retry: {views.RETRY_MS}\n\n",
         'data: {"items": ["a"], "boards": {}, "tab": "", "by": ""}\n\n',

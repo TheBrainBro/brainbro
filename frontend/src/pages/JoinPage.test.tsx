@@ -54,10 +54,10 @@ function fill(username: string, password: string) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('JoinPage', () => {
-  it('makes the account with the link and opens the new Brain', async () => {
+  it('makes the account with the link and opens the new BrainBro', async () => {
     const fetchMock = renderAt('/join/abc')
 
-    expect(await screen.findByRole('heading', { name: 'Join Brain' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Join BrainBro' })).toBeInTheDocument()
     fill('ana', 'a-long-pass')
 
     expect(await screen.findByRole('heading', { name: 'Inbox' })).toBeInTheDocument()
@@ -75,7 +75,7 @@ describe('JoinPage', () => {
       joined: jsonResponse({ username: ['This username is taken.'] }, 400),
     })
 
-    await screen.findByRole('heading', { name: 'Join Brain' })
+    await screen.findByRole('heading', { name: 'Join BrainBro' })
     fill('carlos', 'a-long-pass')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This username is taken.')
@@ -98,6 +98,6 @@ describe('JoinPage', () => {
     expect(await screen.findByText(/signed in as/)).toHaveTextContent('ana')
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
-    expect(await screen.findByRole('heading', { name: 'Join Brain' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Join BrainBro' })).toBeInTheDocument()
   })
 })

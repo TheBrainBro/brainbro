@@ -38,7 +38,7 @@ function renderPanel(invitations: Invitation[]) {
     if (init?.method === 'POST') {
       const { note } = JSON.parse(String(init.body))
       return jsonResponse(
-        { ...pending, id: 'i2', note, url: 'https://brain.example.com/join/secret' },
+        { ...pending, id: 'i2', note, url: 'https://brainbro.example.com/join/secret' },
         201,
       )
     }
@@ -68,7 +68,7 @@ describe('InvitationsPanel', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent("it won't be shown again")
     expect(screen.getByRole('textbox', { name: 'Invitation link' })).toHaveValue(
-      'https://brain.example.com/join/secret',
+      'https://brainbro.example.com/join/secret',
     )
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/invitations/',

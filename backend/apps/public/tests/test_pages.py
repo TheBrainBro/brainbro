@@ -6,7 +6,7 @@ from apps.items.models import Item, NoteImage
 from apps.public.pages import excerpt
 from apps.public.publishing import publish, unpublish
 
-INDEX = "<html><head><title>Brain</title></head><body></body></html>"
+INDEX = "<html><head><title>BrainBro</title></head><body></body></html>"
 
 
 @pytest.fixture(autouse=True)

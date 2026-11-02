@@ -84,7 +84,7 @@ def test_a_request_tells_with_its_tab(api, user, note, commit, published):
             f"/api/items/{note.id}/",
             {"body": "Hello again"},
             format="json",
-            headers={"If-Match": f'"{note.version}"', "X-Brain-Tab": "tab-1"},
+            headers={"If-Match": f'"{note.version}"', "X-BrainBro-Tab": "tab-1"},
         )
     assert response.status_code == 200
     assert published == [
