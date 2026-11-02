@@ -1,6 +1,6 @@
 # Landing page
 
-The public page that explains Brain: `site/`. Plain HTML, CSS and JavaScript,
+The public page that explains BrainBro: `site/`. Plain HTML, CSS and JavaScript,
 with no build step and no dependencies, so any static host can serve the
 folder as is. Open `site/index.html` in a browser to see it (classic scripts,
 not modules, so it works from `file://` too).
@@ -9,15 +9,19 @@ not modules, so it works from `file://` too).
   the feature tiles, connecting an assistant (a tab per app), a short FAQ
   (plain `<details>`, no script), installing, and the footer. Icons (Lucide shapes) and logos are inline
   SVG symbols at the top.
-- `styles.css`: the app's colors (zinc and the logo's violet), light and dark
-  from the system setting, one column on phones.
+- `styles.css`: the app's colors (zinc, the brand's off-white, near-black and
+  violets) and fonts (Fredoka for headings, Nunito for text, in `fonts/`), light
+  and dark from the system setting, one column on phones.
+- `brand/`, the favicons and `og.png`: copied from the BrainBro brand kit. The
+  Blob never sits on violet or gold, so over the marble (top bar, footer) it
+  goes inside the app icon's near-black square.
 - `js/stage.js`: what the scenes share (below).
 - `js/hero.js`: the liquid marble behind the hero and the footer (a WebGL
   shader, with a CSS gradient when WebGL is missing) and the brain of linked
   dots in front (canvas 2D), which leans toward the pointer.
 - `js/scenes.js`: the three scenes, the animated tiles, and the glow on each
   section's title when it comes into view.
-- `js/connect.js`: the tabs, the visitor's Brain address (filled into the
+- `js/connect.js`: the tabs, the visitor's BrainBro address (filled into the
   prompts, the MCP URL and the Claude Code command, and remembered in the
   browser), and the copy buttons.
 
@@ -27,7 +31,7 @@ not modules, so it works from `file://` too).
   into the inbox along dashed lines. It plays on its own; tapping a source
   sends one from it.
 - **Shared memory for every assistant**: Claude saves a note, Grok edits it,
-  ChatGPT finds it, each along its line to Brain, with the chat beside it.
+  ChatGPT finds it, each along its line to BrainBro, with the chat beside it.
 - **Who wrote what**: you and ChatGPT type into a note, the history fills
   up, and a pointer clicks your version and *Restore* (each click leaves a
   ring and presses what it hit).
@@ -35,7 +39,7 @@ not modules, so it works from `file://` too).
 The tiles animate the same way: cards dropped on a board, a connection drawn
 between two of them and a pencil circling a sticky note; the graph all there
 at once, as in the app, drifting with sparks along its links; Markdown typed
-and rendered line by line; a vault crossing into Brain and back out. The search tile shows ⌘K on
+and rendered line by line; a vault crossing into BrainBro and back out. The search tile shows ⌘K on
 Apple devices and Ctrl+K elsewhere.
 
 `Stage.loop(el, { reset, script })` plays a scene while it is on screen:

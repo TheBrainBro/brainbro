@@ -10,7 +10,7 @@ reaction on each message it saved, or 👎 and a reply saying why it couldn't.
    and follow the steps. It gives you the bot's token and username.
 2. In Portainer, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (without
    the `@`) in the stack's environment, and redeploy.
-3. In Brain, account menu → *Telegram* → *Connect Telegram*, then *Open
+3. In BrainBro, account menu → *Telegram* → *Connect Telegram*, then *Open
    @your_bot in Telegram* and press *Start*. The dialog shows the chat as
    connected.
 
@@ -18,7 +18,7 @@ When the worker starts it points the bot at
 `https://<first APP_HOSTNAMES>/api/telegram/webhook/` (`setWebhook`), so
 updates come in through the Cloudflare Tunnel like everything else.
 `TELEGRAM_WEBHOOK_URL` overrides that address. If Cloudflare Access ever sits
-in front of Brain, bypass it for `/api/telegram/webhook/`: Telegram can't log
+in front of BrainBro, bypass it for `/api/telegram/webhook/`: Telegram can't log
 in.
 
 ## What becomes what
