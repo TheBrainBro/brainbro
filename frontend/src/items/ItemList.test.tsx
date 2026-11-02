@@ -103,6 +103,40 @@ function card(text: string) {
 }
 
 describe('ItemList triage', () => {
+  it('animates items added after the first list render', () => {
+    const view = renderList(undefined, undefined, [items[0]])
+
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <FeedbackProvider>
+            <ItemList items={[items[0], items[1]]} />
+          </FeedbackProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByText('Second').closest('li')).toHaveClass('item-entering')
+  })
+
+  it('keeps removed items visible while their exit animation runs', () => {
+    const view = renderList(undefined, undefined, [items[0], items[1]])
+
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <FeedbackProvider>
+            <ItemList items={[items[0]]} />
+          </FeedbackProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const exiting = screen.getByText('Second').closest('li') as HTMLElement
+    expect(exiting).toHaveClass('item-departing')
+    expect(exiting).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('shows card actions as icons in narrow masonry columns', () => {
     renderList('masonry')
     const archive = within(card('Second')).getByRole('button', { name: 'Archive' })
