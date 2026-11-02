@@ -6,8 +6,8 @@ folder as is. Open `site/index.html` in a browser to see it (classic scripts,
 not modules, so it works from `file://` too).
 
 - `index.html`: the content, top to bottom: the hero, three animated scenes,
-  the feature tiles, connecting an assistant (a tab per app), installing, and
-  the footer. Icons (Lucide shapes) and logos are inline
+  the feature tiles, connecting an assistant (a tab per app), a short FAQ
+  (plain `<details>`, no script), installing, and the footer. Icons (Lucide shapes) and logos are inline
   SVG symbols at the top.
 - `styles.css`: the app's colors (zinc and the logo's violet), light and dark
   from the system setting, one column on phones.
@@ -48,6 +48,11 @@ move while it plays (measured again when the width changes).
 `Stage.links(stage)` draws the dashed lines between `[data-node]`
 elements, from the `path[data-from][data-to]` in the stage's `svg.links`, and
 redraws them when the stage changes size.
+
+The hero swings in on load (the text from the left, the brain from the
+right), and each section of `main` swings in the same way the first time it
+comes into view, from alternating sides. Scripts set those classes, so
+without them everything just shows.
 
 With reduced motion nothing moves: the hero draws one frame, each scene shows
 its last frame and the inbox starts with one item per source.
