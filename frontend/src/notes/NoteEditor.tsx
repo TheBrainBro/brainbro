@@ -134,7 +134,14 @@ export function NoteEditor({
             : [],
           theme,
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ 'aria-label': t('editor.label'), spellcheck: 'true' }),
+          // lang="": what people write isn't in the UI language, so the
+          // browser spellchecks with the user's own dictionary (Firefox
+          // otherwise picks it from <html lang>).
+          EditorView.contentAttributes.of({
+            'aria-label': t('editor.label'),
+            spellcheck: 'true',
+            lang: '',
+          }),
           placeholder(t('editor.placeholder')),
           keymap.of([
             { key: 'Mod-s', preventDefault: true, run: () => (save(), true) },
