@@ -9,7 +9,7 @@ A self-hosted second brain: capture links, notes, images and files with zero fri
 
 > **Drop it now, sort it later.** Everything lands in the inbox; organizing is a separate step.
 
-Roadmap and pending work: [epic #1](https://github.com/CarlosLugones/brain/issues/1).
+Roadmap and pending work: [epic #1](https://github.com/TheBrainBro/brainbro/issues/1).
 
 ## Stack
 

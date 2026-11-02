@@ -1,7 +1,7 @@
 // Connecting an assistant: tabs per app, and the visitor's BrainBro address
 // filled into the prompts, the MCP URL and the Claude Code command.
 (() => {
-  const DOCS = 'https://github.com/CarlosLugones/brain/blob/main/docs/mcp.md';
+  const DOCS = 'https://github.com/TheBrainBro/brainbro/blob/main/docs/mcp.md';
   const EXAMPLE = 'https://brainbro.example.com';
   const STORAGE_KEY = 'brainbro-address';
 
