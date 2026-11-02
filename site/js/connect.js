@@ -1,11 +1,11 @@
-// Connecting an assistant: tabs per app, and the visitor's Brain address
+// Connecting an assistant: tabs per app, and the visitor's BrainBro address
 // filled into the prompts, the MCP URL and the Claude Code command.
 (() => {
   const DOCS = 'https://github.com/CarlosLugones/brain/blob/main/docs/mcp.md';
-  const EXAMPLE = 'https://brain.example.com';
-  const STORAGE_KEY = 'brain-address';
+  const EXAMPLE = 'https://brainbro.example.com';
+  const STORAGE_KEY = 'brainbro-address';
 
-  const input = document.getElementById('brain-address');
+  const input = document.getElementById('brainbro-address');
   const promptText = document.getElementById('prompt-text');
   const codeCommand = document.getElementById('code-command');
   const grokBotPrompt = document.getElementById('grokbot-prompt');
@@ -18,24 +18,24 @@
 
   function prompt(address) {
     const where = address
-      ? `My Brain is at ${address}, so its MCP server is ${address}/api/mcp.`
-      : "Ask me for my Brain's address (like https://brain.example.com). Its MCP server is that address plus /api/mcp.";
-    return `I use Brain, a self-hosted second brain, as shared memory across my AI assistants. Help me connect you to it.
+      ? `My BrainBro is at ${address}, so its MCP server is ${address}/api/mcp.`
+      : "Ask me for my BrainBro's address (like https://brainbro.example.com). Its MCP server is that address plus /api/mcp.";
+    return `I use BrainBro, a self-hosted second brain, as shared memory across my AI assistants. Help me connect you to it.
 
-1. Read how Brain works with assistants: ${DOCS}
+1. Read how BrainBro works with assistants: ${DOCS}
 2. ${where}
-3. Walk me through adding it as a custom connector in the app we are using now, one step at a time. I sign in to Brain to allow it.
+3. Walk me through adding it as a custom connector in the app we are using now, one step at a time. I sign in to BrainBro to allow it.
 4. Once connected, list my inbox to check it works.
 
-From then on: search Brain before answering about my notes or plans, save what I ask you to remember, and read a note before editing it.`;
+From then on: search BrainBro before answering about my notes or plans, save what I ask you to remember, and read a note before editing it.`;
   }
 
   function fill() {
     const address = normalize(input.value);
     const mcp = `${address || EXAMPLE}/api/mcp`;
     promptText.textContent = prompt(address);
-    codeCommand.textContent = `claude mcp add --transport http brain ${mcp}`;
-    grokBotPrompt.textContent = `Add an MCP server by URL: ${mcp}. It's my Brain, a self-hosted second brain. Once it's connected, list my inbox to check it works.`;
+    codeCommand.textContent = `claude mcp add --transport http brainbro ${mcp}`;
+    grokBotPrompt.textContent = `Add an MCP server by URL: ${mcp}. It's my BrainBro, a self-hosted second brain. Once it's connected, list my inbox to check it works.`;
     document.querySelectorAll('[data-mcp-url]').forEach((code) => (code.textContent = mcp));
     try {
       localStorage.setItem(STORAGE_KEY, input.value);
