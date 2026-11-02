@@ -165,6 +165,15 @@ describe('NotePage', () => {
     expect(view.state.doc.toString()).toBe(MARKDOWN)
   })
 
+  it("spellchecks with the browser's own language, not the UI's", async () => {
+    items = [makeItem({ id: 'n1', body: MARKDOWN })]
+    renderAt('/notes/n1')
+    const view = await editor()
+
+    expect(view.contentDOM).toHaveAttribute('spellcheck', 'true')
+    expect(view.contentDOM).toHaveAttribute('lang', '')
+  })
+
   it('edits live: typing reaches the server, and edits made elsewhere show up in place', async () => {
     items = [makeItem({ id: 'n1', body: 'start' })]
     renderAt('/notes/n1')
