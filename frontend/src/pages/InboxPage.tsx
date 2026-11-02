@@ -111,10 +111,15 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
         )}
 
         {archived ? (
-          <ItemList items={all} mode={mode} archived />
+          <ItemList items={all} mode={mode} archived animatePresence={items.isSuccess} />
         ) : (
           // A filtered list leaves items out: no sorting by hand in it.
-          <ItemList items={all} mode={mode} sortable={filtered ? undefined : {}} />
+          <ItemList
+            items={all}
+            mode={mode}
+            sortable={filtered ? undefined : {}}
+            animatePresence={items.isSuccess}
+          />
         )}
 
         {items.hasNextPage && (

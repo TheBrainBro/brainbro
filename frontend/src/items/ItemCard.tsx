@@ -58,7 +58,7 @@ function LinkPreview({
   actions?: ReactNode
   onView?: () => void
 }) {
-  useT()
+  const t = useT()
   const { metadata } = item
   const title = item.title || metadata.title || item.url
 
@@ -440,7 +440,7 @@ export function ItemCard({
   /** Open the item in the viewer (images, files, link previews). */
   onView?: () => void
 }) {
-  useT()
+  const t = useT()
   // The same selection and focus look as tiles and rows (ItemTile).
   const ring = selected
     ? 'border-accent-500 ring-2 ring-accent-500/30'

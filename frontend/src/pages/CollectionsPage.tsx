@@ -365,7 +365,9 @@ function CollectionNode({
         >
           <CollectionAvatar collection={collection} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium">{collection.name}</span>
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-medium">{collection.name}</span>
+            </span>
             <span className="block truncate text-xs text-zinc-500">
               {collectionSummary(collections, collection)}
             </span>
@@ -656,7 +658,13 @@ export function CollectionPage() {
                 ))}
               </ul>
             )}
-            <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
+            <ItemList
+              items={all}
+              backToInbox
+              mode={mode}
+              sortable={{ collection: id }}
+              animatePresence={items.isSuccess}
+            />
             {items.hasNextPage && (
               <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
             )}
