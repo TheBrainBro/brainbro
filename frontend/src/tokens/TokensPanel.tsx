@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { Check, Copy, TriangleAlert } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { rich, t, useT } from '../i18n/i18n'
@@ -47,15 +47,27 @@ function isLocal() {
 function Prompt() {
   const url = mcpUrl()
   const prompt = t('tokens.prompt', { url })
+  const [copied, setCopied] = useState(false)
   return (
     <section aria-labelledby="assistant-prompt-title" className="space-y-2">
       <h4 id="assistant-prompt-title" className="text-sm font-medium">
         {t('tokens.promptTitle')}
       </h4>
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        {t('tokens.promptIntro')}
-      </p>
-      <CopyField label={t('tokens.promptTitle')} value={prompt} multiline />
+      <button
+        type="button"
+        className="button-ghost inline-flex items-center gap-2"
+        onClick={() => {
+          void navigator.clipboard.writeText(prompt).then(() => setCopied(true))
+        }}
+      >
+        {copied ? (
+          <Check className="size-4" aria-hidden="true" />
+        ) : (
+          <Copy className="size-4" aria-hidden="true" />
+        )}
+        {copied ? t('tokens.promptCopied') : t('tokens.copyPrompt')}
+      </button>
+      {copied && <span role="status" className="sr-only">{t('tokens.promptCopied')}</span>}
     </section>
   )
 }

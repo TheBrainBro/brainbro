@@ -57,7 +57,7 @@ describe('TokensPanel', () => {
     )
   })
 
-  it('provides a ready-to-paste prompt with this installation’s MCP URL', async () => {
+  it('copies a ready-to-paste prompt with this installation’s MCP URL without displaying it', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -65,13 +65,14 @@ describe('TokensPanel', () => {
     })
     renderPanel([])
 
-    const prompt = screen.getByRole('textbox', { name: 'Ready-to-paste prompt' })
-    const promptText = (prompt as HTMLTextAreaElement).value
-    expect(promptText).toContain(`${window.location.origin}/api/mcp`)
-    expect(promptText).toContain('list my inbox to check it works')
+    expect(screen.queryByDisplayValue(/I use BrainBro/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy ready-to-paste prompt' }))
-    expect(writeText).toHaveBeenCalledWith(promptText)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy prompt' }))
+    await screen.findByRole('status')
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining(`${window.location.origin}/api/mcp`),
+    )
+    expect(writeText.mock.calls[0][0]).toContain('list my inbox to check it works')
   })
 
   it('warns that a local address is no use to apps on the internet', () => {
