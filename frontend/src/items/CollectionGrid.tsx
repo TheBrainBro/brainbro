@@ -21,7 +21,7 @@ export function CollectionGrid({
   parent: string | null
   label: string
 }) {
-  useT()
+  const t = useT()
   const move = useMoveCollection()
   const { toast } = useFeedback()
   // The same list until the collections change: dragging keeps its order for it.
@@ -51,7 +51,14 @@ export function CollectionGrid({
             >
               <CollectionAvatar collection={collection} size="lg" />
               <span className="min-w-0">
-                <span className="line-clamp-2 font-medium">{collection.name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="line-clamp-2 font-medium">{collection.name}</span>
+                  {collection.is_sample && (
+                    <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[10px] text-accent-700 dark:bg-accent-950 dark:text-accent-300">
+                      {t('sampleContent.badge')}
+                    </span>
+                  )}
+                </span>
                 <span className="mt-0.5 block truncate text-xs text-zinc-500">
                   {collectionSummary(collections, collection)}
                 </span>

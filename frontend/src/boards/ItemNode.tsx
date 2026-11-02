@@ -78,16 +78,27 @@ export const ItemNode = memo(function ItemNode({
       >
         {!item ? (
           <div className="skeleton h-6" />
-        ) : editing ? (
-          <Suspense fallback={<ItemContent item={item} />}>
-            <NoteNodeEditor item={item} onDone={stopEditing} />
-          </Suspense>
-        ) : summary ? (
-          <ItemSummary item={item} />
         ) : (
           <>
-            {item.status === 'archived' && <p className="mb-1 text-xs text-zinc-500">{t('nodes.archived')}</p>}
-            <ItemContent item={item} fill={Boolean(height)} />
+          {item.is_sample && (
+            <p className="mb-1 text-xs font-medium text-accent-700 dark:text-accent-300">
+              {t('sampleContent.badge')}
+            </p>
+          )}
+          {editing ? (
+            <Suspense fallback={<ItemContent item={item} />}>
+              <NoteNodeEditor item={item} onDone={stopEditing} />
+            </Suspense>
+          ) : summary ? (
+            <ItemSummary item={item} />
+          ) : (
+            <>
+              {item.status === 'archived' && (
+                <p className="mb-1 text-xs text-zinc-500">{t('nodes.archived')}</p>
+              )}
+              <ItemContent item={item} fill={Boolean(height)} />
+            </>
+          )}
           </>
         )}
       </article>
