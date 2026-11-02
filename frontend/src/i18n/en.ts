@@ -698,8 +698,8 @@ export const en = {
     skip: 'Skip',
     start: 'Get started',
     next: 'Next',
-    sampleTitle: 'Add sample content to try things out',
-    sampleHint: 'A few inbox items, PARA collections and a board. Remove them any time in Settings.',
+    sampleTitle: 'Start with a few examples',
+    sampleHint: 'Explore BrainBro with a few notes and ideas. You can remove them anytime in Settings.',
     sampleFailed: "Couldn't add sample content. Try again.",
   },
   sampleContent: {
