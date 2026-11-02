@@ -1,5 +1,6 @@
 import {
   Inbox,
+  CircleHelp,
   Info,
   Keyboard,
   Library,
@@ -34,11 +35,13 @@ export function TopBar({
   onShortcuts,
   onSettings,
   onWelcome,
+  onAbout,
 }: {
   onSearch: () => void
   onShortcuts: () => void
   onSettings: () => void
   onWelcome: () => void
+  onAbout: () => void
 }) {
   const t = useT()
   return (
@@ -68,7 +71,12 @@ export function TopBar({
             {t('layout.search')} {combo('K')}
           </span>
         </button>
-        <AccountMenu onShortcuts={onShortcuts} onSettings={onSettings} onWelcome={onWelcome} />
+        <AccountMenu
+          onShortcuts={onShortcuts}
+          onSettings={onSettings}
+          onWelcome={onWelcome}
+          onAbout={onAbout}
+        />
       </div>
     </header>
   )
@@ -101,10 +109,12 @@ function AccountMenu({
   onShortcuts,
   onSettings,
   onWelcome,
+  onAbout,
 }: {
   onShortcuts: () => void
   onSettings: () => void
   onWelcome: () => void
+  onAbout: () => void
 }) {
   const t = useT()
   const { data: session } = useSession()
@@ -189,6 +199,19 @@ function AccountMenu({
             <Info className="size-4" aria-hidden="true" />
             {t('layout.welcomeTour')}
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onAbout()
+            }}
+          >
+            <CircleHelp className="size-4" aria-hidden="true" />
+            {t('layout.about')}
+          </button>
+          <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
           <button
             type="button"
             role="menuitem"

@@ -45,6 +45,9 @@ describe('WelcomeDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to step 3' }))
     expect(screen.getByRole('heading', { name: 'See it your way' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('heading', { name: 'One memory for your AI' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(onClose).toHaveBeenCalled()

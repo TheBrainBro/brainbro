@@ -1,8 +1,12 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
+
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 const backend = 'http://localhost:8000'
 // Keeps the browser's Host (localhost:5173), so the URLs Django builds from
@@ -15,6 +19,8 @@ const icon = (name: string) => `/static/icons/${name}`
 export default defineConfig(({ command }) => ({
   // In production Django serves the build as static files under /static/.
   base: command === 'build' ? '/static/' : '/',
+  // One version for the whole app: the backend ships in the same image.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
     tailwindcss(),
