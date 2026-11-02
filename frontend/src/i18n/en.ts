@@ -25,6 +25,7 @@ export const en = {
     settings: 'Settings',
     shortcuts: 'Keyboard shortcuts',
     welcomeTour: 'Welcome tour',
+    about: 'About',
     signOut: 'Sign out',
     unreachable: "Couldn't reach BrainBro",
     offline: "You're offline",
@@ -709,6 +710,12 @@ export const en = {
     dinner: 'Dinner: Taberna do Largo',
     addedBy: 'Added by {name}',
     editedBy: 'Edited by {name}',
+  },
+  about: {
+    tagline: 'Drop it now, sort it later.',
+    version: 'Version',
+    server: 'Server',
+    docs: 'Docs',
   },
   visibility: {
     label: 'Visibility',

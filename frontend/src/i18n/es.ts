@@ -25,6 +25,7 @@ export const es: Messages = {
     settings: 'Ajustes',
     shortcuts: 'Atajos de teclado',
     welcomeTour: 'Tour de bienvenida',
+    about: 'Acerca de',
     signOut: 'Cerrar sesión',
     unreachable: 'No se pudo conectar con BrainBro',
     offline: 'Estás sin conexión',
@@ -720,6 +721,12 @@ export const es: Messages = {
     dinner: 'Cena: Taberna do Largo',
     addedBy: 'Añadido por {name}',
     editedBy: 'Editado por {name}',
+  },
+  about: {
+    tagline: 'Guárdalo ahora, ordénalo después.',
+    version: 'Versión',
+    server: 'Servidor',
+    docs: 'Documentación',
   },
   visibility: {
     label: 'Visibilidad',
