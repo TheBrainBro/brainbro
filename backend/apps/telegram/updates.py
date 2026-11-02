@@ -45,7 +45,7 @@ def handle_update(update):
     try:
         item = save_message(link.owner, message)
     except Unsupported:
-        _failed(chat_id, message_id, "Brain can't keep this kind of message.")
+        _failed(chat_id, message_id, "BrainBro can't keep this kind of message.")
     except bot.FileTooLarge:
         _failed(
             chat_id,
@@ -79,7 +79,7 @@ def _start(message, code):
             _tell(
                 bot.reply,
                 chat_id,
-                "To connect, open Brain and choose Connect Telegram "
+                "To connect, open BrainBro and choose Connect Telegram "
                 "in the account menu.",
             )
         return
@@ -99,7 +99,8 @@ def _start(message, code):
     _tell(
         bot.reply,
         chat_id,
-        "Connected to Brain. Send or forward anything here and it lands in your inbox.",
+        "Connected to BrainBro. Send or forward anything here and it lands in your "
+        "inbox.",
     )
 
 

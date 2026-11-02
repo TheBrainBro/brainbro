@@ -14,7 +14,7 @@ RETRY_MS = 3000
 async def stream(request):
     """
     `GET /api/events/`: server-sent events with what changes in the user's
-    Brain (see `changes`), one `data:` line of JSON each, for as long as the
+    BrainBro (see `changes`), one `data:` line of JSON each, for as long as the
     tab keeps it open. Needs the session; the browser reconnects on its own.
     """
     user = await request.auser()

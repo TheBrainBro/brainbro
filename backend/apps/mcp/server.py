@@ -25,9 +25,9 @@ METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
 
-# What every client gets in every conversation: how to use Brain well.
+# What every client gets in every conversation: how to use BrainBro well.
 INSTRUCTIONS = """\
-Brain is the user's second brain: their notes (Markdown), links, images,
+BrainBro is the user's second brain: their notes (Markdown), links, images,
 recordings and files, and a memory they share across assistants. What you
 save here, other assistants and the user will read later, out of this
 conversation: write it so it stands on its own.
@@ -92,7 +92,7 @@ def initialize(user, params):
     return {
         "protocolVersion": version,
         "capabilities": {"tools": {"listChanged": False}},
-        "serverInfo": {"name": "brain", "title": settings.APP_NAME, "version": "1"},
+        "serverInfo": {"name": "brainbro", "title": settings.APP_NAME, "version": "1"},
         "instructions": INSTRUCTIONS,
     }
 

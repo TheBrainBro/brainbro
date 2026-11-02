@@ -1,5 +1,5 @@
 """
-Where MCP clients find "Sign in to Brain" (see `oauth`), from the MCP URL
+Where MCP clients find "Sign in to BrainBro" (see `oauth`), from the MCP URL
 alone. Kept apart from the views: authentication needs these URLs, and DRF
 loads authentication while it starts.
 """
@@ -11,7 +11,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
 # One scope: everything the MCP tools do.
-SCOPE = "brain"
+SCOPE = "brainbro"
 AUTH_METHODS = ("none", "client_secret_post", "client_secret_basic")
 
 
