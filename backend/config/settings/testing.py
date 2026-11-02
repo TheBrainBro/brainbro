@@ -2,7 +2,7 @@ from .base import *  # noqa: F403
 
 DEBUG = False
 
-SECRET_KEY = "django-insecure-brain-testing-only-key"
+SECRET_KEY = "django-insecure-brainbro-testing-only-key"
 
 ALLOWED_HOSTS = ["testserver", "localhost"]
 

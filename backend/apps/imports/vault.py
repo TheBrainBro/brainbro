@@ -433,7 +433,7 @@ def _inspect(data, path):
 def _front_matter_as_code(text):
     """
     Obsidian's properties as a YAML code block, so they read as such instead
-    of a rule and a heading. A Brain export's own front matter is dropped.
+    of a rule and a heading. A BrainBro export's own front matter is dropped.
     """
     match = FRONT_MATTER.match(text)
     if not match:

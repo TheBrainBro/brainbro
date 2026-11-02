@@ -4,7 +4,7 @@ from .base import *  # noqa: F403
 
 DEBUG = True
 
-SECRET_KEY = "django-insecure-brain-develop-only-key"
+SECRET_KEY = "django-insecure-brainbro-develop-only-key"
 
 # HTTPS tunnels to try the PWA on a phone (`make preview`, then ngrok or
 # cloudflared to :8000): service workers need HTTPS.

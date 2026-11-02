@@ -1,5 +1,5 @@
 """
-What an assistant can do in Brain through MCP. Everything acts as the token's
+What an assistant can do in BrainBro through MCP. Everything acts as the token's
 owner, through the same code the app uses. Reading, capturing, editing notes,
 organizing and archiving: nothing deletes.
 """
@@ -69,7 +69,7 @@ class Tool:
                 "readOnlyHint": self.read_only,
                 "destructiveHint": False,
                 "idempotentHint": self.idempotent,
-                # Only the user's own Brain, nothing outside it.
+                # Only the user's own BrainBro, nothing outside it.
                 "openWorldHint": False,
             },
         }
