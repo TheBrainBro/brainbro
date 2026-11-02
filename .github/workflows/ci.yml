@@ -60,5 +60,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - run: docker build -t brain:ci .
-      - run: docker build -t brain-embedder:ci docker/embedder
+      - run: docker build -t brainbro:ci .
+      - run: docker build -t brainbro-embedder:ci docker/embedder

@@ -28,8 +28,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-client curl libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --system --gid 1000 brain \
-    && useradd --system --uid 1000 --gid brain --home /app brain
+RUN groupadd --system --gid 1000 brainbro \
+    && useradd --system --uid 1000 --gid brainbro --home /app brainbro
 
 WORKDIR /app
 
@@ -44,9 +44,9 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint \
     && SECRET_KEY=build APP_HOSTNAMES=build python manage.py collectstatic --no-input \
     && mkdir -p /data/storage /data/backups /data/exports \
-    && chown -R brain:brain /data
+    && chown -R brainbro:brainbro /data
 
-USER brain
+USER brainbro
 
 EXPOSE 8000
 
