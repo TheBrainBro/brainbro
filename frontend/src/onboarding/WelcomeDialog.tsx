@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Logo, Wordmark } from '../layout/Logo'
-import { CaptureScene, SortScene, ViewsScene } from './scenes'
+import { AssistantsScene, CaptureScene, SortScene, ViewsScene } from './scenes'
 
 type Step = { Scene: ComponentType; title: MessageKey; line: MessageKey }
 
@@ -15,6 +15,7 @@ const steps: Step[] = [
   },
   { Scene: SortScene, title: 'welcome.sortTitle', line: 'welcome.sortLine' },
   { Scene: ViewsScene, title: 'welcome.viewsTitle', line: 'welcome.viewsLine' },
+  { Scene: AssistantsScene, title: 'welcome.assistantsTitle', line: 'welcome.assistantsLine' },
 ]
 
 /** A short animated tour of what the app does, shown on the first visit. */
