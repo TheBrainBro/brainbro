@@ -42,6 +42,7 @@ class Collection(OwnedModel):
         RESOURCE = "resource", "Resource"
 
     name = models.CharField(max_length=120)
+    is_sample = models.BooleanField(default=False, db_default=False)
     kind = models.CharField(max_length=16, choices=Kind, default=Kind.RESOURCE)
     # Hex color (#rrggbb) and an emoji or icon name, both optional.
     color = models.CharField(max_length=7, blank=True)
@@ -126,6 +127,7 @@ class Item(OwnedModel):
         FAILED = "failed", "Failed"
 
     kind = models.CharField(max_length=8, choices=Kind)
+    is_sample = models.BooleanField(default=False, db_default=False)
     status = models.CharField(max_length=16, choices=Status, default=Status.INBOX)
     title = models.CharField(max_length=500, blank=True)
     body = models.TextField(blank=True, help_text="Markdown.")
