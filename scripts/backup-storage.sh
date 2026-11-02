@@ -7,7 +7,7 @@ source "$(dirname "$0")/_compose.sh"
 
 out_dir=${1:-backups}
 mkdir -p "$out_dir"
-target="$out_dir/brain-storage-$(date -u +%Y%m%d-%H%M%S).tar.gz"
+target="$out_dir/brainbro-storage-$(date -u +%Y%m%d-%H%M%S).tar.gz"
 
 compose run --rm --no-deps -T api tar czf - -C /data storage > "$target.partial"
 mv "$target.partial" "$target"
