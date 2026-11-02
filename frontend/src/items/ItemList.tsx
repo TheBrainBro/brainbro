@@ -2,15 +2,16 @@ import { Archive, FolderInput, Images, Inbox, Pencil, Trash2, X, type LucideIcon
 import {
   useEffect,
   useEffectEvent,
-  useLayoutEffect,
   useRef,
   useState,
   type DragEvent,
 } from 'react'
 import { useNavigate } from 'react-router'
 
+import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
 import { useFeedback } from '../ui/feedback'
+import { isMoving, useFlip } from '../ui/flip'
 import { useViewer } from '../viewer/context'
 import { CollectionPicker } from './CollectionPicker'
 import { ItemCard } from './ItemCard'
@@ -40,8 +41,6 @@ const LAYOUT: Record<ViewMode, string> = {
 /** The order shown while dragging, for the list it was taken from. */
 type Preview = { base: Item[]; ids: string[] }
 
-const MOVE_MS = 180
-
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
  * (j/k move, Enter open a note, x select, o organize, e archive, # delete,
@@ -63,6 +62,7 @@ export function ItemList({
   /** The hand-sorted list these items are: the inbox, or a collection. */
   sortable?: MoveTarget
 }) {
+  const t = useT()
   const triage = useTriage()
   const makeAlbum = useMakeAlbum()
   const setAlbumItems = useSetAlbumItems()
@@ -84,35 +84,9 @@ export function ItemList({
       ? preview.ids.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item))
       : items
   const list = useRef<HTMLUListElement>(null)
-  const layout = useRef<{ key: string; rects: Map<string, { x: number; y: number }> }>(null)
 
-  // Items that change place glide there (FLIP): measured after each render,
-  // relative to the list so scrolling isn't movement.
-  useLayoutEffect(() => {
-    const origin = list.current?.getBoundingClientRect()
-    if (!origin) return
-    const key = shown.map((item) => item.id).join()
-    const rects = new Map<string, { x: number; y: number }>()
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    for (const item of shown) {
-      const element = cards.current.get(item.id)
-      if (!element) continue
-      const rect = element.getBoundingClientRect()
-      const at = { x: rect.left - origin.left, y: rect.top - origin.top }
-      rects.set(item.id, at)
-      const before = layout.current?.rects.get(item.id)
-      if (!before || layout.current?.key === key || reduced) continue
-      const dx = before.x - at.x
-      const dy = before.y - at.y
-      if (dx || dy) {
-        element.animate?.(
-          [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-          { duration: MOVE_MS, easing: 'ease-out' },
-        )
-      }
-    }
-    layout.current = { key, rects }
-  })
+  // Items that change place glide there.
+  useFlip(shown.map((item) => item.id), cards, list)
 
   // Forget selections of items that left this list (triaged elsewhere).
   const visibleSelection = items.filter((item) => selected.has(item.id)).map((item) => item.id)
@@ -129,9 +103,10 @@ export function ItemList({
     }
     if (action === 'delete') {
       const confirmed = await confirm({
-        title: ids.length === 1 ? 'Delete this item?' : `Delete ${ids.length} items?`,
-        message: "It can't be undone.",
-        confirm: 'Delete',
+        title:
+          ids.length === 1 ? t('itemList.deleteOne') : t('itemList.deleteMany', { count: ids.length }),
+        message: t('itemList.cantUndo'),
+        confirm: t('common.delete'),
         danger: true,
       })
       if (!confirmed) return
@@ -215,7 +190,8 @@ export function ItemList({
    * over items of another size.
    */
   function dragOver(event: DragEvent, item: Item) {
-    if (!dragging || item.id === dragging) return
+    // Still gliding into place: passing under the pointer isn't a drag over it.
+    if (!dragging || item.id === dragging || isMoving(event.currentTarget)) return
     const ids = preview?.base === items ? preview.ids : items.map((each) => each.id)
     const from = ids.indexOf(dragging)
     const to = ids.indexOf(item.id)
@@ -226,7 +202,7 @@ export function ItemList({
     }
     const next = ids.filter((id) => id !== dragging)
     next.splice(to, 0, dragging)
-    setPreview({ base: items, ids: next })
+    if (next.join() !== ids.join()) setPreview({ base: items, ids: next })
   }
 
   function dropped() {
@@ -304,14 +280,14 @@ export function ItemList({
                 ...done,
                 onSuccess: () => {
                   done.onSuccess()
-                  toast({ message: `Added ${images.length === 1 ? '1 image' : `${images.length} images`} to the album` })
+                  toast({ message: t('itemList.addedToAlbum', { count: images.length }) })
                 },
               },
             )
           }
         >
           <Images className="size-3.5" aria-hidden="true" />
-          Add to album
+          {t('itemList.addToAlbum')}
         </button>
       )
     }
@@ -327,36 +303,38 @@ export function ItemList({
               ...done,
               onSuccess: () => {
                 done.onSuccess()
-                toast({ message: `Made an album of ${images.length} images` })
+                toast({ message: t('itemList.madeAlbum', { count: images.length }) })
               },
             },
           )
         }
       >
         <Images className="size-3.5" aria-hidden="true" />
-        Make album
+        {t('itemList.makeAlbum')}
       </button>
     )
   }
 
   /** The triage actions: as words (cards, the selection bar), or as icons only (tiles and rows). */
   function actionsFor(ids: string[], note?: Item, icons = false) {
-    const all: { label: string; icon: LucideIcon; run: () => void }[] = [
-      ...(note ? [{ label: 'Edit', icon: Pencil, run: () => open(note) }] : []),
-      { label: 'Organize', icon: FolderInput, run: () => run(ids, 'organize') },
+    const all: { id: string; label: string; icon: LucideIcon; run: () => void }[] = [
+      ...(note ? [{ id: 'edit', label: t('itemList.edit'), icon: Pencil, run: () => open(note) }] : []),
+      { id: 'organize', label: t('itemList.organize'), icon: FolderInput, run: () => run(ids, 'organize') },
       ...(backToInbox || archived
-        ? [{ label: 'To inbox', icon: Inbox, run: () => run(ids, 'inbox') }]
+        ? [{ id: 'inbox', label: t('itemList.toInbox'), icon: Inbox, run: () => run(ids, 'inbox') }]
         : []),
-      ...(archived ? [] : [{ label: 'Archive', icon: Archive, run: () => run(ids, 'archive') }]),
-      { label: 'Delete', icon: Trash2, run: () => run(ids, 'delete') },
+      ...(archived
+        ? []
+        : [{ id: 'archive', label: t('itemList.archive'), icon: Archive, run: () => run(ids, 'archive') }]),
+      { id: 'delete', label: t('common.delete'), icon: Trash2, run: () => run(ids, 'delete') },
     ]
     // Already in them, for a single item.
     const current = ids.length === 1 ? (items.find((item) => item.id === ids[0])?.collections ?? []) : []
-    return all.map(({ label, icon: Icon, run: action }) => {
+    return all.map(({ id, label, icon: Icon, run: action }) => {
       const button = (props: object = {}) =>
         icons ? (
           <button
-            key={label}
+            key={id}
             type="button"
             aria-label={label}
             className="button-icon group/tip size-7"
@@ -367,15 +345,15 @@ export function ItemList({
             <span className="tooltip top-full mt-1.5">{label}</span>
           </button>
         ) : (
-          <button key={label} type="button" className="button-ghost" onClick={action} {...props}>
+          <button key={id} type="button" className="button-ghost" onClick={action} {...props}>
             <Icon className="size-3.5" aria-hidden="true" />
             {label}
           </button>
         )
-      if (label !== 'Organize') return button()
+      if (id !== 'organize') return button()
       return (
         <OrganizeMenu
-          key={label}
+          key={id}
           current={current}
           onPick={(collection) => organizeInto(ids, collection)}
           onRemove={(collection) => takeOutOf(ids, collection)}
@@ -391,19 +369,19 @@ export function ItemList({
       {visibleSelection.length > 0 && (
         <div
           role="toolbar"
-          aria-label="Selection"
+          aria-label={t('itemList.selection')}
           className="popover sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-1 px-2 py-1.5"
         >
           <button
             type="button"
-            aria-label="Clear selection (Esc)"
+            aria-label={t('itemList.clearSelection')}
             className="button-icon group/tip size-7"
             onClick={() => setSelected(new Set())}
           >
             <X className="size-4" aria-hidden="true" />
-            <span className="tooltip top-full mt-1.5">Clear selection (Esc)</span>
+            <span className="tooltip top-full mt-1.5">{t('itemList.clearSelection')}</span>
           </button>
-          <span className="mr-auto text-sm font-medium">{visibleSelection.length} selected</span>
+          <span className="mr-auto text-sm font-medium">{t('itemList.selected', { count: visibleSelection.length })}</span>
           {albumAction(visibleSelection)}
           {actionsFor(visibleSelection)}
         </div>

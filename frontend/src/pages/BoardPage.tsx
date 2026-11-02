@@ -1,10 +1,12 @@
 import { ReactFlowProvider } from '@xyflow/react'
-import { Trash2, Waypoints } from 'lucide-react'
+import { History, Trash2, Waypoints } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { BoardCanvas } from '../boards/BoardCanvas'
 import { useBoard, useDeleteBoard, useRenameBoard, type Board } from '../boards/api'
+import { BoardHistory } from '../history/HistoryPanel'
+import { useT } from '../i18n/i18n'
 import { ApiError } from '../lib/api'
 import { useMediaQuery } from '../lib/dom'
 import { BackLink } from '../ui/BackLink'
@@ -13,25 +15,27 @@ import { EmptyState, ErrorState, Loading } from '../ui/states'
 
 /** `/boards/:id`: the canvas, full-bleed under a thin header. */
 export function BoardPage() {
+  const t = useT()
   const { id = '' } = useParams()
   const board = useBoard(id)
   // Below `md` (phones) boards are read-only: pan, zoom and open items.
   const readOnly = !useMediaQuery('(min-width: 48rem)')
+  const [history, setHistory] = useState(false)
 
-  if (board.isPending) return <Loading label="Opening board…" />
+  if (board.isPending) return <Loading label={t('board.opening')} />
   if (board.isError) {
     const missing = board.error instanceof ApiError && board.error.status === 404
     const back = (
       <Link to="/boards" className={missing ? 'button-primary' : 'button-secondary'}>
-        See all boards
+        {t('board.seeAll')}
       </Link>
     )
     return missing ? (
-      <EmptyState icon={Waypoints} title="This board no longer exists" action={back} />
+      <EmptyState icon={Waypoints} title={t('board.gone')} action={back} />
     ) : (
       <ErrorState
         error={board.error}
-        title="Couldn't open this board"
+        title={t('board.couldNotOpen')}
         onRetry={() => board.refetch()}
         action={back}
       />
@@ -39,17 +43,31 @@ export function BoardPage() {
   }
   return (
     <div className="flex h-full flex-col">
-      <BoardHeader board={board.data} />
-      <div className="min-h-0 flex-1">
+      <BoardHeader
+        board={board.data}
+        history={history}
+        onHistory={() => setHistory(!history)}
+      />
+      <div className="relative min-h-0 flex-1">
         <ReactFlowProvider>
           <BoardCanvas key={board.data.id} board={board.data} readOnly={readOnly} />
         </ReactFlowProvider>
+        {history && <BoardHistory board={board.data} onClose={() => setHistory(false)} />}
       </div>
     </div>
   )
 }
 
-function BoardHeader({ board }: { board: Board }) {
+function BoardHeader({
+  board,
+  history,
+  onHistory,
+}: {
+  board: Board
+  history: boolean
+  onHistory: () => void
+}) {
+  const t = useT()
   const rename = useRenameBoard(board.id)
   const remove = useDeleteBoard()
   const navigate = useNavigate()
@@ -64,9 +82,9 @@ function BoardHeader({ board }: { board: Board }) {
 
   return (
     <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-      <BackLink to="/boards" label="Boards" />
+      <BackLink to="/boards" label={t('boards.title')} />
       <input
-        aria-label="Board title"
+        aria-label={t('board.title')}
         className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-1 font-semibold transition hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
         value={title}
         onChange={(event) => setTitle(event.target.value)}
@@ -88,17 +106,26 @@ function BoardHeader({ board }: { board: Board }) {
       <button
         type="button"
         className="button-ghost shrink-0"
+        aria-pressed={history}
+        onClick={onHistory}
+      >
+        <History className="size-3.5" aria-hidden="true" />
+        {t('board.history')}
+      </button>
+      <button
+        type="button"
+        className="button-ghost shrink-0"
         onClick={async () => {
           const confirmed = await confirm({
-            title: 'Delete this board?',
-            message: 'Its items stay where they are: only the board and its layout go.',
-            confirm: 'Delete',
+            title: t('board.deleteTitle'),
+            message: t('board.deleteHint'),
+            confirm: t('common.delete'),
             danger: true,
           })
           if (!confirmed) return
           remove.mutate(board.id, {
             onSuccess: () => {
-              toast({ message: `Deleted ${board.title}` })
+              toast({ message: t('board.deleted', { name: board.title }) })
               navigate('/boards', { replace: true })
             },
             onError: (error) => toast({ message: error.message, tone: 'error' }),
@@ -106,7 +133,7 @@ function BoardHeader({ board }: { board: Board }) {
         }}
       >
         <Trash2 className="size-3.5" aria-hidden="true" />
-        Delete
+        {t('common.delete')}
       </button>
     </div>
   )

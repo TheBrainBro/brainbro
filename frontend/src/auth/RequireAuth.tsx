@@ -2,13 +2,19 @@ import { CloudOff } from 'lucide-react'
 import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 
+import { useT } from '../i18n/i18n'
+import { useSessionLanguage } from '../i18n/settings'
 import { whenReachable } from '../lib/network'
+import { useSessionTheme } from '../theme/theme'
 import { EmptyState, Loading } from '../ui/states'
 import { useSession } from './session'
 
 export function RequireAuth() {
   const { data, isPending, isError, fetchStatus, refetch } = useSession()
   const location = useLocation()
+  useSessionTheme(data?.theme)
+  useSessionLanguage(data?.language)
+  const t = useT()
 
   // Opened offline (the service worker serves the app): try again when the
   // network is back or the app comes back to the foreground.
@@ -23,10 +29,9 @@ export function RequireAuth() {
       <div className="flex h-full items-center justify-center">
         <EmptyState
           icon={CloudOff}
-          title={navigator.onLine ? "Couldn't reach Brain" : "You're offline"}
+          title={navigator.onLine ? t('layout.unreachable') : t('layout.offline')}
         >
-          Anything you share is kept on this device and sent once Brain is reachable again. This
-          page tries again on its own.
+          {t('layout.offlineHint')}
         </EmptyState>
       </div>
     )

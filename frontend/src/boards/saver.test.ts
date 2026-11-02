@@ -78,6 +78,46 @@ afterEach(() => {
 })
 
 describe('LayoutSaver', () => {
+  it('takes a board saved elsewhere when nothing here is pending', () => {
+    const saver = makeSaver(boardAt(3))
+    drafts.set('b1', { layout: layoutAt(0), base: 3 })
+    const theirs = boardAt(5, layoutAt(9))
+    expect(saver.changedElsewhere(theirs)).toBe(theirs)
+    expect(saver.currentRevision).toBe(5)
+    expect(saver.status).toBe('saved')
+    expect(drafts.store.size).toBe(0)
+  })
+
+  it('ignores the revision it already has', () => {
+    const saver = makeSaver(boardAt(3))
+    expect(saver.changedElsewhere(boardAt(3, layoutAt(9)))).toBeUndefined()
+    expect(saver.changedElsewhere(boardAt(2, layoutAt(9)))).toBeUndefined()
+  })
+
+  it('makes a board saved elsewhere a conflict when changes are pending', async () => {
+    const saver = makeSaver(boardAt(3))
+    saver.save(layoutAt(1))
+    const theirs = boardAt(5, layoutAt(9))
+    expect(saver.changedElsewhere(theirs)).toBeUndefined()
+    expect(saver.snapshot).toEqual({ status: 'conflict', theirs })
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('leaves a save in flight to find out for itself', async () => {
+    const pending = deferred<SavedLayout>()
+    save.mockReturnValueOnce(pending.promise)
+    const saver = makeSaver(boardAt(3))
+    saver.save(layoutAt(1))
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(saver.changedElsewhere(boardAt(5, layoutAt(9)))).toBeUndefined()
+    expect(saver.status).toBe('saving')
+    pending.reject(new ApiError(412, boardAt(5, layoutAt(9))))
+    await vi.runAllTimersAsync()
+    expect(saver.status).toBe('conflict')
+  })
+
   it('saves changes in a row once they stop, with the revision it started from', async () => {
     const statuses: string[] = []
     const saver = makeSaver(boardAt(3), { onChange: (state) => statuses.push(state.status) })

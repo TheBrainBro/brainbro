@@ -1,15 +1,17 @@
 import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { useLocation } from 'react-router'
 
+import { rich, useT } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
 import { useAnswerAuthorization, useAuthorizationAsk } from '../tokens/api'
 
 /**
- * "Sign in to Brain" for AI assistants (OAuth): an app like ChatGPT opens
- * this page and the user allows it to use their Brain, or cancels. Either
+ * "Sign in to BrainBro" for AI assistants (OAuth): an app like ChatGPT opens
+ * this page and the user allows it to use their BrainBro, or cancels. Either
  * way the browser goes back to the app.
  */
 export function AuthorizePage() {
+  const t = useT()
   const query = useLocation().search.replace(/^\?/, '')
   const ask = useAuthorizationAsk(query)
   const answer = useAnswerAuthorization(query)
@@ -21,32 +23,32 @@ export function AuthorizePage() {
       <div className="surface w-full max-w-sm space-y-4 rounded-2xl p-8 shadow-lg shadow-zinc-900/5 [animation:pop-in_200ms_ease-out]">
         <Logo className="size-10" />
         {ask.isPending ? (
-          <LoaderCircle className="size-5 animate-spin text-accent-500" aria-label="Loading" />
+          <LoaderCircle className="size-5 animate-spin text-accent-500" aria-label={t('common.loading')} />
         ) : ask.isError ? (
           <>
-            <h1 className="text-xl font-semibold">Can't connect this app</h1>
+            <h1 className="text-xl font-semibold">{t('auth.cantConnect')}</h1>
             <p role="alert" className="flex items-start gap-1.5 text-sm text-red-600 dark:text-red-400">
               <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               {ask.error.message}
             </p>
-            <p className="text-sm text-zinc-500">Go back to the app and try connecting again.</p>
+            <p className="text-sm text-zinc-500">{t('auth.connectAgain')}</p>
           </>
         ) : (
           <>
             <div>
-              <h1 className="text-xl font-semibold">Connect {ask.data.client_name}?</h1>
+              <h1 className="text-xl font-semibold">{t('auth.connectApp', { app: ask.data.client_name })}</h1>
               <p className="mt-1 text-sm text-zinc-500">
-                It will go back to <strong className="font-medium">{ask.data.redirect_host}</strong>
+                {rich('auth.goesBackTo', {
+                  host: ask.data.redirect_host,
+                  b: (chunk) => <strong className="font-medium">{chunk}</strong>,
+                })}
               </p>
             </div>
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              It will be able to search and read everything in your Brain, capture notes and
-              links, edit notes, organize items into collections and archive them. It can't
-              delete anything.
+              {t('auth.appCan')}
             </p>
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              Only allow it if you started this from {ask.data.client_name}. You can disconnect
-              it any time in Settings → AI assistants.
+              {t('auth.onlyAllow', { app: ask.data.client_name })}
             </p>
             {answer.isError && (
               <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -60,7 +62,7 @@ export function AuthorizePage() {
                 disabled={busy}
                 onClick={() => answer.mutate(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -69,7 +71,7 @@ export function AuthorizePage() {
                 onClick={() => answer.mutate(true)}
               >
                 {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-                Allow
+                {t('auth.allow')}
               </button>
             </div>
           </>

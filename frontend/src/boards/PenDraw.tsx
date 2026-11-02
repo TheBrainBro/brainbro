@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { useT } from '../i18n/i18n'
+
 type Point = { x: number; y: number }
 
 // Points closer than this (in screen pixels) add nothing but weight.
@@ -17,11 +19,12 @@ export function PenDraw({
   zoom: number
   onDraw: (points: Point[]) => void
 }) {
+  const t = useT()
   const [points, setPoints] = useState<Point[] | null>(null)
 
   return (
     <div
-      aria-label="Draw"
+      aria-label={t('nodes.draw')}
       className="absolute inset-0 z-[4] cursor-crosshair touch-none"
       onPointerDown={(event) => {
         if (event.button !== 0) return

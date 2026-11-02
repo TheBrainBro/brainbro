@@ -10,6 +10,13 @@ import mark from 'markdown-it-mark'
 import sub from 'markdown-it-sub'
 import sup from 'markdown-it-sup'
 
+import { t } from '../i18n/i18n'
+import {
+  resolveWikilink,
+  wikilinkLabel,
+  WIKILINK,
+  type NoteTitleIndex,
+} from '../notes/wikilinks'
 import { isEmbedSrc, linkCardHtml, linkEmbedHtml, type LinkPreview } from './linkPreviews'
 
 export { default as emojiByName } from 'markdown-it-emoji/lib/data/full.mjs'
@@ -42,6 +49,41 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   return self.renderToken(tokens, idx, options)
 }
 
+// `[[Title]]` links another note (notes/wikilinks); `![[…]]` embeds aren't links.
+const WIKILINK_AT = new RegExp(WIKILINK.source, 'y')
+
+md.inline.ruler.before('link', 'wikilink', (state, silent) => {
+  const { src, pos } = state
+  if (src.charCodeAt(pos) !== 0x5b || src.charCodeAt(pos + 1) !== 0x5b) return false
+  if (src.charCodeAt(pos - 1) === 0x21) return false
+  WIKILINK_AT.lastIndex = pos
+  const match = WIKILINK_AT.exec(src)
+  if (!match) return false
+  if (!silent) {
+    const token = state.push('wikilink', '', 0)
+    token.meta = { target: match[1], heading: match[2] ?? null, text: match[3] ?? null }
+  }
+  state.pos += match[0].length
+  return true
+})
+
+md.renderer.rules.wikilink = (tokens, idx, _options, env) => {
+  const link = tokens[idx].meta as { target: string; heading: string | null; text: string | null }
+  const label = md.utils.escapeHtml(wikilinkLabel(link))
+  const { notes, isPublic } = (env as RenderEnv | undefined) ?? {}
+  const id = notes ? resolveWikilink(notes, link.target) : null
+  // A public page links other public notes only; the rest is just words.
+  if (isPublic) {
+    return id ? `<a class="wikilink" href="/p/${md.utils.escapeHtml(id)}">${label}</a>` : label
+  }
+  if (!notes) return `<span class="wikilink">${label}</span>`
+  if (!id) {
+    return `<span class="wikilink wikilink-unresolved" title="${t('markdown.noNoteWithTitle')}">${label}</span>`
+  }
+  const note = md.utils.escapeHtml(id)
+  return `<a class="wikilink" href="/notes/${note}" data-note="${note}">${label}</a>`
+}
+
 /** A copy the app keeps of an image in a note (see items/api `NoteImage`). */
 type StoredImage = { status: string; url: string | null }
 
@@ -66,7 +108,7 @@ md.renderer.rules.image = (tokens, idx, _options, env) => {
     return `<img class="markdown-img" src="${md.utils.escapeHtml(stored.url)}" alt="${alt}" loading="lazy">`
   }
   const status = stored ? ` data-status="${md.utils.escapeHtml(stored.status)}"` : ''
-  const title = stored?.status === 'failed' ? ' title="Couldn\'t load this image"' : ''
+  const title = stored?.status === 'failed' ? ` title="${t('markdown.imageFailed')}"` : ''
   return `<span class="markdown-image"${status}${title}>${alt || 'image'}</span>`
 }
 
@@ -94,7 +136,7 @@ md.core.ruler.after('inline', 'task_lists', (state) => {
 md.renderer.rules.task_checkbox = (tokens, idx, _options, env) => {
   const tasks = (env as RenderEnv | undefined)?.tasks
   const { checked, line } = tokens[idx].meta as { checked: boolean; line: number }
-  const label = checked ? 'Done' : 'To do'
+  const label = checked ? t('markdown.taskDone') : t('markdown.taskToDo')
   return (
     `<input type="checkbox" data-task-line="${line}" aria-label="${label}"` +
     `${checked ? ' checked' : ''}${tasks ? '' : ' disabled'}>`
@@ -142,6 +184,10 @@ type RenderEnv = {
   links?: Record<string, LinkPreview> | null
   /** Embed links play in place; otherwise they show as cards. */
   embeds?: boolean
+  /** Note ids by title, to resolve `[[Title]]`; without it links show unresolved. */
+  notes?: NoteTitleIndex | null
+  /** A published note (`/p/<slug>`): `notes` holds slugs of the other published ones. */
+  isPublic?: boolean
 }
 
 // Players only from known sites, whatever the HTML says.
@@ -158,10 +204,10 @@ DOMPurify.addHook('uponSanitizeElement', (node, data) => {
  */
 export function renderNote(
   body: string,
-  { docId, tasks = false, images, links, embeds = false }: RenderEnv = {},
+  { docId, tasks = false, images, links, embeds = false, notes, isPublic = false }: RenderEnv = {},
 ) {
   // docId keeps footnote anchors apart when several notes share a page.
-  const html = md.render(body, { docId, tasks, images, links, embeds })
+  const html = md.render(body, { docId, tasks, images, links, embeds, notes, isPublic })
   return DOMPurify.sanitize(html, {
     ADD_ATTR: ['target'],
     ...(embeds

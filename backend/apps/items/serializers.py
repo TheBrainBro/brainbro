@@ -4,7 +4,7 @@ from django.db import models
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Collection, Item, NoteImage
+from .models import Collection, Item, NoteImage, rank_now
 from .uploads import clean_filename
 
 
@@ -13,6 +13,23 @@ class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
 
     def get_queryset(self):
         return super().get_queryset().filter(owner=self.context["request"].user)
+
+
+def check_parent(collection, parent):
+    """Raises if `parent` (None: the top) is `collection` or inside it."""
+    if parent is None:
+        return
+    # Walk up from the new parent: meeting this one would make a loop.
+    parents = dict(
+        Collection.objects.filter(owner=collection.owner).values_list("id", "parent_id")
+    )
+    node = parent.pk
+    while node is not None:
+        if node == collection.pk:
+            raise serializers.ValidationError(
+                "A collection can't go inside itself or one of its own."
+            )
+        node = parents.get(node)
 
 
 class CollectionSerializer(serializers.ModelSerializer):
@@ -58,22 +75,15 @@ class CollectionSerializer(serializers.ModelSerializer):
         return value.lower()
 
     def validate_parent(self, value):
-        if value is None or self.instance is None:
-            return value
-        # Walk up from the new parent: meeting this one would make a loop.
-        parents = dict(
-            Collection.objects.filter(owner=self.instance.owner).values_list(
-                "id", "parent_id"
-            )
-        )
-        node = value.pk
-        while node is not None:
-            if node == self.instance.pk:
-                raise serializers.ValidationError(
-                    "A collection can't go inside itself or one of its own."
-                )
-            node = parents.get(node)
+        if self.instance is not None:
+            check_parent(self.instance, value)
         return value
+
+    def update(self, instance, validated_data):
+        # Into another collection: on top there, like a new one.
+        if "parent" in validated_data and validated_data["parent"] != instance.parent:
+            validated_data["rank"] = rank_now()
+        return super().update(instance, validated_data)
 
     def validate_name(self, value):
         owner = self.context["request"].user
@@ -174,6 +184,13 @@ class ItemSerializer(serializers.ModelSerializer):
             "version",
             "created_at",
             "updated_at",
+            "created_by",
+            "created_via",
+            "edited_by",
+            "edited_via",
+            "edited_at",
+            "public_slug",
+            "published_at",
         ]
         # Markdown is stored exactly as written: leading indentation and
         # trailing newlines are part of it.
@@ -187,12 +204,20 @@ class ItemSerializer(serializers.ModelSerializer):
             "album",
             "created_at",
             "updated_at",
+            "created_by",
+            "created_via",
+            "edited_by",
+            "edited_via",
+            "edited_at",
+            # Set through `PUT/DELETE /items/<id>/publication/`.
+            "public_slug",
+            "published_at",
         ]
 
     def validate_filename(self, value):
-        uploaded = (Item.Kind.IMAGE, Item.Kind.FILE)
+        uploaded = (Item.Kind.IMAGE, Item.Kind.AUDIO, Item.Kind.FILE)
         if self.instance is None or self.instance.kind not in uploaded:
-            raise serializers.ValidationError("Only files and images have a name.")
+            raise serializers.ValidationError("Only uploads have a name.")
         name = clean_filename(value)
         # Without an extension, it keeps the one it had.
         extension = PurePath(self.instance.metadata.get("filename", "")).suffix
@@ -202,11 +227,19 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         name = validated_data.pop("filename", None)
+        renamed = name is not None and name != instance.metadata.get("filename")
         if name is not None:
             instance.metadata = {**instance.metadata, "filename": name}
-            # Files show their name as their title; images show their caption.
-            if instance.kind == Item.Kind.FILE:
+            # Files and recordings show their name as their title; images
+            # show their caption.
+            if instance.kind in (Item.Kind.FILE, Item.Kind.AUDIO):
                 validated_data["title"] = name
+        if renamed or any(
+            field in validated_data
+            and validated_data[field] != getattr(instance, field)
+            for field in ("title", "body")
+        ):
+            instance.mark_edited()
         return super().update(instance, validated_data)
 
     def get_album_items(self, item):

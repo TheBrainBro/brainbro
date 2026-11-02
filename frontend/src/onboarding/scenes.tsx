@@ -10,9 +10,12 @@ import {
   Waypoints,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 
+import { t, type MessageKey } from '../i18n/i18n'
+import { Logo as BrandLogo } from '../layout/Logo'
 import { MOD } from '../lib/keys'
+import { ClaudeLogo, GrokLogo, OpenAILogo } from './logos'
 
 /**
  * A looping animation as a counter: each scene draws itself for the phase it's
@@ -92,12 +95,17 @@ function Stage({ children }: { children: ReactNode }) {
   )
 }
 
-const TYPED = 'Trip ideas'
 const PASTED = 'youtube.com/watch?v=dQw4'
 
 /** When each capture lands, in ticks; the image and the PDF are dropped together. */
 const CAPTURED: { kind: Kind; label: string; at: number }[] = [
-  { kind: 'note', label: TYPED, at: 18 },
+  {
+    kind: 'note',
+    get label() {
+      return t('scenes.tripIdeas')
+    },
+    at: 18,
+  },
   { kind: 'link', label: 'youtube.com', at: 30 },
   { kind: 'photo', label: 'beach.jpg', at: 46 },
   { kind: 'pdf', label: 'flights.pdf', at: 46 },
@@ -115,7 +123,7 @@ export function CaptureScene() {
   // Ticks of 100ms: type 5-14, Enter 15-18, paste 22-30, drag 34-46, rest, fade 66-75.
   const tick = usePhase(76, 100, 60)
   const gone = tick >= 66
-  const typed = tick >= 5 && tick < 18 ? TYPED.slice(0, tick - 4) : ''
+  const typed = tick >= 5 && tick < 18 ? t('scenes.tripIdeas').slice(0, tick - 4) : ''
   const pasted = tick >= 24 && tick < 30
   const dragging = tick >= 34 && tick < 46
   const over = tick >= 40 && tick < 46
@@ -140,14 +148,14 @@ export function CaptureScene() {
           style={{ top: BOX_TOP }}
         >
           {over ? (
-            <span className="font-medium">Drop to capture</span>
+            <span className="font-medium">{t('scenes.drop')}</span>
           ) : typed || pasted ? (
             <span className="truncate text-zinc-800 dark:text-zinc-100">
               {pasted ? PASTED : typed}
               {typed && <span className="ml-px inline-block h-3.5 w-px animate-pulse bg-zinc-500 align-middle" />}
             </span>
           ) : (
-            <span className="text-zinc-400">Write or paste anything</span>
+            <span className="text-zinc-400">{t('scenes.write')}</span>
           )}
           <span
             className={`ml-auto flex gap-0.5 transition duration-200 ${
@@ -198,11 +206,29 @@ export function CaptureScene() {
   )
 }
 
-const TRIP = { emoji: '🏖️', name: 'Trip', top: 44 }
-const WATCH = { emoji: '🎬', name: 'Watch later', top: 108 }
+const TRIP = {
+  emoji: '🏖️',
+  get name() {
+    return t('scenes.trip')
+  },
+  top: 44,
+}
+const WATCH = {
+  emoji: '🎬',
+  get name() {
+    return t('scenes.watchLater')
+  },
+  top: 108,
+}
 
 const SORTED: { kind: Kind; label: string; to: typeof TRIP }[] = [
-  { kind: 'note', label: 'Trip ideas', to: TRIP },
+  {
+    kind: 'note',
+    get label() {
+      return t('scenes.tripIdeas')
+    },
+    to: TRIP,
+  },
   { kind: 'link', label: 'youtube.com', to: WATCH },
   { kind: 'photo', label: 'beach.jpg', to: TRIP },
 ]
@@ -218,9 +244,9 @@ export function SortScene() {
 
   return (
     <Stage>
-      <div className="absolute top-3 left-[6%] text-[11px] font-semibold text-zinc-500">Inbox</div>
+      <div className="absolute top-3 left-[6%] text-[11px] font-semibold text-zinc-500">{t('scenes.inbox')}</div>
       <div className="absolute top-3 right-[6%] w-[38%] text-[11px] font-semibold text-zinc-500">
-        Collections
+        {t('scenes.collections')}
       </div>
       <div
         className={`absolute top-24 left-[6%] flex w-[44%] items-center justify-center gap-1.5 text-xs font-medium text-emerald-600 transition-opacity duration-500 dark:text-emerald-400 ${
@@ -228,7 +254,7 @@ export function SortScene() {
         }`}
       >
         <Check className="size-4" />
-        Inbox zero
+        {t('scenes.inboxZero')}
       </div>
 
       {[TRIP, WATCH].map((folder) => (
@@ -277,10 +303,22 @@ const LENSES: { layout: Layout; icon: LucideIcon }[] = [
 
 /** Where each item sits, by its center in percent of the stage, per layout. */
 const VIEWED: { kind: Kind; label: string; at: Record<Layout, [number, number]> }[] = [
-  { kind: 'note', label: 'Trip ideas', at: { list: [50, 30], board: [24, 34], graph: [26, 38] } },
+  {
+    kind: 'note',
+    get label() {
+      return t('scenes.tripIdeas')
+    },
+    at: { list: [50, 30], board: [24, 34], graph: [26, 38] },
+  },
   { kind: 'link', label: 'youtube.com', at: { list: [50, 45], board: [74, 30], graph: [72, 30] } },
   { kind: 'photo', label: 'beach.jpg', at: { list: [50, 60], board: [26, 78], graph: [32, 80] } },
-  { kind: 'note', label: 'Packing list', at: { list: [50, 75], board: [72, 76], graph: [70, 74] } },
+  {
+    kind: 'note',
+    get label() {
+      return t('scenes.packingList')
+    },
+    at: { list: [50, 75], board: [72, 76], graph: [70, 74] },
+  },
   { kind: 'link', label: 'maps.app', at: { list: [50, 90], board: [50, 55], graph: [50, 55] } },
 ]
 
@@ -368,6 +406,123 @@ export function ViewsScene() {
           />
         )
       })}
+    </Stage>
+  )
+}
+
+type Assistant = { name: string; Logo: ComponentType<{ className?: string }>; does: MessageKey; y: number }
+
+/** Each assistant's row, by its center in percent of the stage's height. */
+const ASSISTANTS: Assistant[] = [
+  { name: 'Claude', Logo: ClaudeLogo, does: 'scenes.claudeDoes', y: 28 },
+  { name: 'Grok', Logo: GrokLogo, does: 'scenes.grokDoes', y: 51 },
+  { name: 'ChatGPT', Logo: OpenAILogo, does: 'scenes.chatgptDoes', y: 74 },
+]
+
+/** Where the lines meet the note, in percent of the stage. */
+const NOTE: [number, number] = [50, 50]
+const PILL_EDGE = 38
+
+/**
+ * Three assistants share one note: Claude saves a plan, Grok adds to it and
+ * ChatGPT finds it later, each over its own line into BrainBro.
+ */
+export function AssistantsScene() {
+  // 0 rest; per assistant: active (dot leaves), arrived, hold. 9-10 rest, 11 fade.
+  const phase = usePhase(12, 900, 8)
+  const turn = phase >= 1 && phase <= 9 ? Math.min(Math.floor((phase - 1) / 3), 2) : -1
+  const arrived = turn >= 0 && (phase - 1) % 3 >= 1
+  const gone = phase >= 11
+  const saved = phase >= 2 && !gone
+  const edited = phase >= 5 && !gone
+  const reading = turn === 2
+  // ChatGPT reads: its dot goes the other way, from the note back to it.
+  const dot: [number, number] =
+    turn < 0 || (reading ? !arrived : arrived) ? NOTE : [PILL_EDGE, ASSISTANTS[turn].y]
+  const by = edited ? ASSISTANTS[1] : ASSISTANTS[0]
+
+  return (
+    <Stage>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
+        {ASSISTANTS.map((assistant, index) => (
+          <line
+            key={assistant.name}
+            x1={PILL_EDGE}
+            y1={assistant.y}
+            x2={NOTE[0]}
+            y2={NOTE[1]}
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
+            className={`transition-colors duration-300 ${
+              index === turn ? 'stroke-accent-400 dark:stroke-accent-500' : 'stroke-zinc-200 dark:stroke-zinc-800'
+            }`}
+          />
+        ))}
+      </svg>
+      {/* Keyed by turn: each one starts where its assistant is, not where the last one ended. */}
+      {turn >= 0 && (
+        <span
+          key={turn}
+          className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-500 shadow-[0_0_0_3px] shadow-accent-500/20 transition-all duration-700 ease-in-out"
+          style={{ left: `${dot[0]}%`, top: `${dot[1]}%` }}
+        />
+      )}
+
+      {ASSISTANTS.map(({ name, Logo, does, y }, index) => (
+        <div
+          key={name}
+          className={`absolute left-[4%] flex h-10 w-[34%] -translate-y-1/2 items-center gap-2 rounded-lg border bg-white px-2.5 shadow-sm transition duration-300 dark:bg-zinc-900 ${
+            index === turn
+              ? 'scale-105 border-accent-400 dark:border-accent-500'
+              : 'border-zinc-200 dark:border-zinc-700'
+          }`}
+          style={{ top: `${y}%` }}
+        >
+          <Logo className="size-4 shrink-0 text-zinc-800 dark:text-zinc-100" />
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{name}</span>
+            <span
+              className={`block truncate text-[10px] text-accent-600 transition-all duration-300 dark:text-accent-300 ${
+                index === turn ? 'max-h-4 opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              {t(does)}
+            </span>
+          </span>
+        </div>
+      ))}
+
+      <div
+        className={`absolute top-1/2 right-[4%] w-[46%] -translate-y-1/2 rounded-lg border bg-white p-2.5 shadow-sm transition duration-300 dark:bg-zinc-900 ${
+          reading && arrived ? 'border-accent-400 ring-2 ring-accent-400/30 dark:border-accent-500' : 'border-zinc-200 dark:border-zinc-700'
+        }`}
+      >
+        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold text-zinc-500">
+          <BrandLogo className="size-3.5" />
+          BrainBro
+        </div>
+        <div className={`transition-opacity duration-500 ${saved ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+            <KindIcon kind="note" />
+            <span className="truncate">{t('scenes.lisbonTrip')}</span>
+          </div>
+          <ul className="mt-1.5 space-y-0.5 text-[11px] text-zinc-600 dark:text-zinc-300">
+            <li className="truncate">{t('scenes.day1')}</li>
+            <li className="truncate">{t('scenes.day2')}</li>
+            <li
+              className={`truncate rounded px-1 -mx-1 transition-all duration-500 ${
+                edited ? 'max-h-5 bg-accent-50 text-accent-700 opacity-100 dark:bg-accent-500/10 dark:text-accent-300' : 'max-h-0 opacity-0'
+              }`}
+            >
+              {t('scenes.dinner')}
+            </li>
+          </ul>
+          <div className="mt-2 flex items-center gap-1 text-[10px] text-zinc-500">
+            <by.Logo className="size-3 text-zinc-700 dark:text-zinc-200" />
+            {t(edited ? 'scenes.editedBy' : 'scenes.addedBy', { name: by.name })}
+          </div>
+        </div>
+      </div>
     </Stage>
   )
 }

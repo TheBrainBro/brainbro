@@ -1,11 +1,13 @@
 // Thin fetch wrapper for the Django API: same-origin session cookies + CSRF.
 
+import { t } from '../i18n/i18n'
+
 export class ApiError extends Error {
   status: number
   data: unknown
 
   constructor(status: number, data: unknown) {
-    super(firstMessage(data) ?? `Request failed with status ${status}`)
+    super(firstMessage(data) ?? t('errors.requestFailed', { status: String(status) }))
     this.status = status
     this.data = data
   }
@@ -31,10 +33,18 @@ function getCookie(name: string): string | null {
 
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
+/**
+ * This tab, on every request: the server's change stream (live/changes)
+ * marks what it changed with it, so this tab skips what it already shows.
+ * Not crypto.randomUUID: it needs HTTPS, and the app may be on a LAN address.
+ */
+export const TAB_ID = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2)).join('')
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase()
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
+  headers.set('X-BrainBro-Tab', TAB_ID)
 
   if (init.body && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
@@ -75,6 +85,7 @@ export function upload<T>(
     request.open('POST', `/api${path}`)
     request.withCredentials = true
     request.setRequestHeader('Accept', 'application/json')
+    request.setRequestHeader('X-BrainBro-Tab', TAB_ID)
     const token = getCookie('csrftoken')
     if (token) request.setRequestHeader('X-CSRFToken', token)
 
@@ -91,7 +102,7 @@ export function upload<T>(
       if (request.status >= 200 && request.status < 300) resolve(data as T)
       else reject(new ApiError(request.status, data))
     }
-    request.onerror = () => reject(new Error('Network error, check your connection.'))
+    request.onerror = () => reject(new Error(t('errors.network')))
     request.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'))
     signal?.addEventListener('abort', () => request.abort(), { once: true })
     request.send(form)

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Collection } from './api'
-import { ancestorsOf, childrenOf, collectionPath, withDescendants } from './collectionTree'
+import {
+  ancestorsOf,
+  childrenOf,
+  collectionPath,
+  collectionSummary,
+  moveCollection,
+  withDescendants,
+} from './collectionTree'
 
 function collection(id: string, parent: string | null = null): Collection {
   return {
@@ -48,5 +55,24 @@ describe('collection tree', () => {
   it('stops on a loop instead of hanging', () => {
     const loop = [collection('A', 'B'), collection('B', 'A')]
     expect(ancestorsOf(loop, 'A').map((c) => c.id)).toEqual(['B'])
+  })
+
+  it('moves a collection next to another, or first inside a collection', () => {
+    const ids = (parent: string | null, list: Collection[]) =>
+      childrenOf(list, parent).map((c) => c.id)
+    const after = moveCollection(all, 'Home', 'Clients', 'Acme')
+    expect(ids('Clients', after)).toEqual(['Acme', 'Home', 'Globex'])
+    expect(ids(null, after)).toEqual(['Work'])
+    const first = moveCollection(all, 'Globex', 'Clients', null)
+    expect(ids('Clients', first)).toEqual(['Globex', 'Acme'])
+    const top = moveCollection(all, 'Acme', null, null)
+    expect(ids(null, top)).toEqual(['Acme', 'Work', 'Home'])
+    const empty = moveCollection(all, 'Work', 'Home', null)
+    expect(ids('Home', empty)).toEqual(['Work'])
+  })
+
+  it('says what a collection is and holds', () => {
+    expect(collectionSummary(all, all[1])).toBe('Project · 0 items · 2 collections')
+    expect(collectionSummary(all, { ...all[4], item_count: 1 })).toBe('Project · 1 item')
   })
 })

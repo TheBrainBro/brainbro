@@ -1,8 +1,10 @@
+from config.env import get_env_variable
+
 from .base import *  # noqa: F403
 
 DEBUG = True
 
-SECRET_KEY = "django-insecure-brain-develop-only-key"
+SECRET_KEY = "django-insecure-brainbro-develop-only-key"
 
 # HTTPS tunnels to try the PWA on a phone (`make preview`, then ngrok or
 # cloudflared to :8000): service workers need HTTPS.
@@ -19,5 +21,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 # The tunnel terminates TLS and forwards the original scheme.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# The embedder from docker-compose.yml (`make services`).
+EMBEDDER_URL = get_env_variable("EMBEDDER_URL", "http://localhost:8100")
 
 UNFOLD["SITE_TITLE"] += " (develop)"  # noqa: F405

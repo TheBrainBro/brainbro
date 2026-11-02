@@ -7,15 +7,25 @@ from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from pgvector.django import VectorField
 
 from apps.core.models import OwnedModel
 
-from . import search
+from . import embedder, origin, search
 
 
 def collection_image_path(collection, filename):
     # A fresh name per upload, so a new image never hits a stale cache.
     return f"collections/{collection.id}/{uuid.uuid4().hex}.webp"
+
+
+def rank_now():
+    """
+    Where something new goes in a hand-sorted list: lists sort by rank, highest
+    first, so now is on top. Moving an item gives it a rank between its new
+    neighbours (see `ordering`).
+    """
+    return timezone.now().timestamp()
 
 
 class Collection(OwnedModel):
@@ -47,14 +57,17 @@ class Collection(OwnedModel):
         on_delete=models.SET_NULL,
         related_name="children",
     )
+    # Its place among the collections next to it; see `rank_now`.
+    rank = models.FloatField(default=rank_now)
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["-rank", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["owner", "name"], name="unique_collection_name_per_owner"
             ),
         ]
+        indexes = [models.Index(fields=["owner", "-rank"])]
 
     def __str__(self):
         return self.name
@@ -64,15 +77,6 @@ class Collection(OwnedModel):
 def delete_collection_image(sender, instance, **kwargs):
     if instance.image:
         instance.image.delete(save=False)
-
-
-def rank_now():
-    """
-    Where something new goes in a hand-sorted list: lists sort by rank, highest
-    first, so now is on top. Moving an item gives it a rank between its new
-    neighbours (see `ordering`).
-    """
-    return timezone.now().timestamp()
 
 
 def preview_image_path(item, filename):
@@ -95,8 +99,8 @@ class ItemManager(models.Manager):
 
 class Item(OwnedModel):
     """
-    Anything captured: a note, a link, an image or a file, or an album of
-    images captured together.
+    Anything captured: a note, a link, an image, a recording or a file, or an
+    album of images captured together.
 
     Everything lands in the inbox; triage moves it to `organized` (it belongs
     somewhere) or `archived` (kept but out of the way).
@@ -107,6 +111,7 @@ class Item(OwnedModel):
         LINK = "link", "Link"
         IMAGE = "image", "Image"
         FILE = "file", "File"
+        AUDIO = "audio", "Audio"
         ALBUM = "album", "Album"
 
     class Status(models.TextChoices):
@@ -133,7 +138,7 @@ class Item(OwnedModel):
     )
     # Card image: the page's preview for links, a thumbnail for images.
     preview_image = models.ImageField(upload_to=preview_image_path, blank=True)
-    # The uploaded original, for image and file items.
+    # The uploaded original, for image, audio and file items.
     file = models.FileField(upload_to=upload_path, max_length=255, blank=True)
     collections = models.ManyToManyField(
         Collection, related_name="items", blank=True, through="CollectionItem"
@@ -163,6 +168,40 @@ class Item(OwnedModel):
         output_field=SearchVectorField(),
         db_persist=True,
     )
+    # MD5 of `search_text` when its chunks were made; see `embeddings`.
+    embedded_hash = models.CharField(max_length=32, blank=True, editable=False)
+    # Who made it and through what (see `origin`): the app's name, empty for
+    # the user. Items from before this was recorded are the user's, from an
+    # unknown source.
+    created_by = models.CharField(max_length=200, blank=True)
+    created_via = models.CharField(
+        max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
+    )
+    # The same for the last edit of its content (title, body, name); null
+    # until it is edited. Triage and previews don't count.
+    edited_by = models.CharField(max_length=200, blank=True)
+    edited_via = models.CharField(
+        max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
+    )
+    edited_at = models.DateTimeField(null=True, blank=True)
+    # Notes only: published at `/p/<public_slug>` while `published_at` is set
+    # (see `apps.public`). Unpublished, a note keeps its slug, so publishing it
+    # again brings back the same address.
+    public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    # How the page shows in search results and shared links (OpenGraph). Empty
+    # means the default: the note's title, the start of its text, its first
+    # image. `public_image` is the `src` of one of its images, or "none".
+    # Defaults in the database too, for rows written without these columns.
+    public_title = models.CharField(
+        max_length=200, blank=True, default="", db_default=""
+    )
+    public_description = models.CharField(
+        max_length=300, blank=True, default="", db_default=""
+    )
+    public_image = models.CharField(
+        max_length=2048, blank=True, default="", db_default=""
+    )
 
     objects = ItemManager()
 
@@ -171,6 +210,11 @@ class Item(OwnedModel):
         indexes = [
             models.Index(fields=["owner", "status", "-created_at"]),
             models.Index(fields=["owner", "status", "-inbox_rank"]),
+            models.Index(
+                fields=["-published_at"],
+                condition=models.Q(published_at__isnull=False),
+                name="item_published",
+            ),
             GinIndex(
                 fields=["search_text"],
                 opclasses=["gin_trgm_ops"],
@@ -180,6 +224,21 @@ class Item(OwnedModel):
 
     def __str__(self):
         return self.title or self.url or self.body[:60] or str(self.id)
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.created_via:
+            made = origin.current()
+            self.created_by, self.created_via = made.by, made.via
+        super().save(*args, **kwargs)
+
+    # What `mark_edited` sets, for `save(update_fields=...)`.
+    EDIT_FIELDS = ("edited_by", "edited_via", "edited_at")
+
+    def mark_edited(self, by=None):
+        """Its content was just edited, by `by` (an `Origin`) or who is acting now."""
+        made = by or origin.current()
+        self.edited_by, self.edited_via = made.by, made.via
+        self.edited_at = timezone.now()
 
     @property
     def version(self):
@@ -204,6 +263,22 @@ class CollectionItem(models.Model):
         db_table = "items_item_collections"
         unique_together = [("item", "collection")]
         indexes = [models.Index(fields=["collection", "-rank"])]
+
+
+class ItemChunk(models.Model):
+    """
+    A piece of an item's text with its vector, for semantic search. Made and
+    replaced by `embeddings.embed_stale`; never edited.
+    """
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="chunks")
+    position = models.PositiveIntegerField()
+    text = models.TextField()
+    embedding = VectorField(dimensions=embedder.DIMENSIONS)
+
+    class Meta:
+        ordering = ["item", "position"]
+        unique_together = [("item", "position")]
 
 
 @receiver(post_delete, sender=Item)

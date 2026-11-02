@@ -1,10 +1,12 @@
 import { Keyboard, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { shortcutsFor } from './shortcuts'
 
 /** Every shortcut of the current screen, opened with `?`. */
 export function ShortcutsDialog({ pathname, onClose }: { pathname: string; onClose: () => void }) {
+  const t = useT()
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])
 
@@ -26,9 +28,9 @@ export function ShortcutsDialog({ pathname, onClose }: { pathname: string; onClo
           <div className="mb-4 flex items-center gap-2">
             <Keyboard className="size-5 text-accent-500" aria-hidden="true" />
             <h2 id="shortcuts-title" className="mr-auto font-semibold">
-              Keyboard shortcuts
+              {t('shortcuts.title')}
             </h2>
-            <button ref={close} type="button" aria-label="Close" className="button-icon size-8" onClick={onClose}>
+            <button ref={close} type="button" aria-label={t('common.close')} className="button-icon size-8" onClick={onClose}>
               <X className="size-4" aria-hidden="true" />
             </button>
           </div>

@@ -25,11 +25,11 @@ exportdeps: ## Export Poetry dependencies to backend/requirements*.txt
 	$(POETRY) export -f requirements.txt --output requirements-dev.txt --without-hashes --only=dev
 
 .PHONY: services
-services: ## Start Postgres and Redis for development
+services: ## Start Postgres, Redis and the embedder for development
 	docker compose up -d --wait
 
 .PHONY: services-down
-services-down: ## Stop development Postgres and Redis
+services-down: ## Stop development Postgres, Redis and the embedder
 	docker compose down
 
 .PHONY: down
@@ -44,7 +44,7 @@ dev: services migrate ## Run Django, the Celery worker and Vite together
 
 .PHONY: backend
 backend: ## Run the Django dev server on :8000
-	$(MANAGE) runserver
+	$(POETRY) run uvicorn config.asgi:application --reload --port 8000 --lifespan off
 
 .PHONY: worker
 # Threads, not prefork: on macOS billiard spawns pool processes, which breaks

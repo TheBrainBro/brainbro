@@ -9,6 +9,10 @@ export type Invitation = {
   note: string
   created_at: string
   expires_at: string
+  status: 'pending' | 'accepted' | 'expired'
+  used_at: string | null
+  /** Who joined with it; null if not yet, or if that account was deleted. */
+  used_by: string | null
 }
 
 /** An invitation just made: the only time its link comes back. */
@@ -16,7 +20,7 @@ export type NewInvitation = Invitation & { url: string }
 
 const invitationsKey = ['invitations'] as const
 
-/** Links nobody has used yet and that haven't expired. Admins only. */
+/** Every link, pending, accepted or expired. Admins only. */
 export function useInvitations() {
   return useQuery({ queryKey: invitationsKey, queryFn: () => api<Invitation[]>('/auth/invitations/') })
 }
@@ -30,6 +34,7 @@ export function useCreateInvitation() {
   })
 }
 
+/** Revokes a pending link or removes an expired one. */
 export function useRevokeInvitation() {
   const queryClient = useQueryClient()
   return useMutation({

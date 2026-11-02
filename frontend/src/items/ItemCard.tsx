@@ -1,8 +1,11 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 
+import { currentLanguage, t, useT } from '../i18n/i18n'
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
+import { AudioPlayer } from './AudioPlayer'
 import { Markdown } from './Markdown'
+import { OriginMark } from './OriginMark'
 import { useRefreshPreview, useSaveNoteBody, type Item } from './api'
 
 function hostname(url: string) {
@@ -30,9 +33,19 @@ function Favicon({ src }: { src?: string }) {
 
 function Time({ iso }: { iso: string }) {
   return (
-    <time dateTime={iso} title={new Date(iso).toLocaleString()} className="shrink-0">
+    <time dateTime={iso} title={new Date(iso).toLocaleString(currentLanguage())} className="shrink-0">
       {timeAgo(iso)}
     </time>
+  )
+}
+
+/** When it was added, and whether an assistant had a hand in it. */
+function Stamp({ item }: { item: Item }) {
+  return (
+    <>
+      <Time iso={item.created_at} />
+      <OriginMark item={item} />
+    </>
   )
 }
 
@@ -45,6 +58,7 @@ function LinkPreview({
   actions?: ReactNode
   onView?: () => void
 }) {
+  useT()
   const { metadata } = item
   const title = item.title || metadata.title || item.url
 
@@ -55,7 +69,7 @@ function LinkPreview({
           <p className="truncate text-sm text-zinc-500">{item.url}</p>
           <div className="skeleton h-4 w-3/4" />
           <div className="skeleton h-3 w-1/2" />
-          <p className="sr-only">Fetching preview…</p>
+          <p className="sr-only">{t('card.fetchingPreview')}</p>
         </div>
         <div className="skeleton h-20 w-32 shrink-0 rounded-lg" />
       </div>
@@ -82,11 +96,11 @@ function LinkPreview({
           <Favicon src={metadata.favicon_url} />
           <span className="truncate">{metadata.site_name || hostname(item.url)}</span>
           <span aria-hidden>·</span>
-          <Time iso={item.created_at} />
+          <Stamp item={item} />
           {item.preview_status === 'failed' && (
             <>
               <span aria-hidden>·</span>
-              <span>Preview unavailable</span>
+              <span>{t('card.previewUnavailable')}</span>
               <Retry item={item} />
             </>
           )}
@@ -94,7 +108,7 @@ function LinkPreview({
         </div>
       </div>
       {item.preview_image_url && (
-        <Viewable onView={onView} label="View" className="shrink-0">
+        <Viewable onView={onView} label={t('card.view')} className="shrink-0">
           <img
             src={item.preview_image_url}
             alt=""
@@ -142,6 +156,7 @@ function Viewable({
 }
 
 function Retry({ item }: { item: Item }) {
+  useT()
   const refresh = useRefreshPreview()
   return (
     <button
@@ -150,12 +165,12 @@ function Retry({ item }: { item: Item }) {
       disabled={refresh.isPending}
       onClick={() => refresh.mutate(item.id)}
     >
-      Retry
+      {t('card.retry')}
     </button>
   )
 }
 
-/** What was written about an image or album when it was captured. */
+/** What was written about an image, a recording or an album when it was captured. */
 function Caption({ text }: { text: string }) {
   if (!text.trim()) return null
   return (
@@ -174,13 +189,14 @@ function ImagePreview({
   actions?: ReactNode
   onView?: () => void
 }) {
+  useT()
   const { width, height, filename } = item.metadata
   return (
     <>
       {item.title && <h2 className="mb-2 font-medium">{item.title}</h2>}
       <Viewable
         onView={onView}
-        label={`View ${item.title || filename || 'image'}`}
+        label={t('card.viewNamed', { name: item.title || filename || t('card.image') })}
         className="w-full overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
         // Reserve the space before the thumbnail loads, so cards don't jump.
         style={
@@ -190,27 +206,27 @@ function ImagePreview({
         {item.preview_image_url ? (
           <img
             src={item.preview_image_url}
-            alt={item.title || filename || 'Image'}
+            alt={item.title || filename || t('card.imageAlt')}
             loading="lazy"
             className="mx-auto h-full max-h-80 object-contain"
           />
         ) : item.preview_status === 'pending' ? (
           <div className="h-full min-h-32 animate-pulse" aria-busy="true">
-            <span className="sr-only">Making thumbnail…</span>
+            <span className="sr-only">{t('card.makingThumbnail')}</span>
           </div>
         ) : (
           <div className="flex h-full min-h-20 items-center justify-center text-sm text-zinc-500">
-            {filename || 'Image'}
+            {filename || t('card.imageAlt')}
           </div>
         )}
       </Viewable>
       <Caption text={item.body} />
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
-        <Time iso={item.created_at} />
+        <Stamp item={item} />
         {item.preview_status === 'failed' && (
           <>
             <span aria-hidden>·</span>
-            <span>Thumbnail unavailable</span>
+            <span>{t('card.thumbnailUnavailable')}</span>
             <Retry item={item} />
           </>
         )}
@@ -229,9 +245,10 @@ function FilePreview({
   actions?: ReactNode
   onView?: () => void
 }) {
+  useT()
   const { filename, mime, size } = item.metadata
-  const extension = filename?.includes('.') ? filename.split('.').pop()!.slice(0, 4) : 'file'
-  const name = item.title || filename || 'File'
+  const extension = filename?.includes('.') ? filename.split('.').pop()!.slice(0, 4) : t('card.fileExtension')
+  const name = item.title || filename || t('card.file')
   // PDFs get their first page rendered in the background. SVGs are safe to
   // show as they are: in an <img> they run no scripts and load nothing
   // external, and opening the file itself is a sandboxed download.
@@ -239,7 +256,7 @@ function FilePreview({
   return (
     <>
       {preview ? (
-        <Viewable onView={onView} label={`View ${name}`} className="mb-3 w-fit">
+        <Viewable onView={onView} label={t('card.viewNamed', { name })} className="mb-3 w-fit">
           <img
             src={preview}
             alt={name}
@@ -253,7 +270,7 @@ function FilePreview({
             className="skeleton mb-3 h-40 w-32 rounded-lg"
             aria-busy="true"
           >
-            <span className="sr-only">Making preview…</span>
+            <span className="sr-only">{t('card.makingPreview')}</span>
           </div>
         )
       )}
@@ -288,8 +305,53 @@ function FilePreview({
           </p>
         </div>
       </div>
-      <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
-        <Time iso={item.created_at} />
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        <Stamp item={item} />
+        <div className="ml-auto">{actions}</div>
+      </div>
+    </>
+  )
+}
+
+/** A recording: its name, a player, and what was written with it. */
+function AudioPreview({
+  item,
+  actions,
+  onView,
+}: {
+  item: Item
+  actions?: ReactNode
+  onView?: () => void
+}) {
+  useT()
+  const { filename, size } = item.metadata
+  const name = item.title || filename || t('card.audio')
+  return (
+    <>
+      {onView ? (
+        <button
+          type="button"
+          title={name}
+          className="block max-w-full truncate text-left font-medium hover:underline"
+          onClick={onView}
+        >
+          {name}
+        </button>
+      ) : (
+        <p title={name} className="truncate font-medium">
+          {name}
+        </p>
+      )}
+      <AudioPlayer src={item.file_url} size={size} className="mt-2" />
+      <Caption text={item.body} />
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        {size !== undefined && (
+          <>
+            <span>{formatBytes(size)}</span>
+            <span aria-hidden>·</span>
+          </>
+        )}
+        <Stamp item={item} />
         <div className="ml-auto">{actions}</div>
       </div>
     </>
@@ -308,6 +370,7 @@ function AlbumPreview({
   actions?: ReactNode
   onView?: () => void
 }) {
+  useT()
   const images = item.album_items ?? []
   const shown = images.slice(0, ALBUM_COVER)
   const more = images.length - shown.length
@@ -316,7 +379,7 @@ function AlbumPreview({
       {item.title && <h2 className="mb-2 font-medium">{item.title}</h2>}
       <Viewable
         onView={onView}
-        label={`View album of ${images.length} images`}
+        label={t('card.viewAlbum', { count: images.length })}
         className={`grid h-64 w-full grid-rows-2 gap-1 overflow-hidden rounded-lg ${
           shown.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
         }`}
@@ -349,9 +412,9 @@ function AlbumPreview({
       </Viewable>
       <Caption text={item.body} />
       <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
-        <span>{images.length} images</span>
+        <span>{t('items.albumImages', { count: images.length })}</span>
         <span aria-hidden>·</span>
-        <Time iso={item.created_at} />
+        <Stamp item={item} />
         <div className="ml-auto">{actions}</div>
       </div>
     </>
@@ -377,6 +440,7 @@ export function ItemCard({
   /** Open the item in the viewer (images, files, link previews). */
   onView?: () => void
 }) {
+  useT()
   // The same selection and focus look as tiles and rows (ItemTile).
   const ring = selected
     ? 'border-accent-500 ring-2 ring-accent-500/30'
@@ -391,7 +455,7 @@ export function ItemCard({
       {onToggleSelect && (
         <input
           type="checkbox"
-          aria-label="Select"
+          aria-label={t('items.select')}
           className={`mt-1 shrink-0 self-start accent-accent-600 transition-opacity ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
           checked={selected}
           onChange={onToggleSelect}
@@ -424,10 +488,12 @@ export function ItemContent({
   onView?: () => void
   fill?: boolean
 }) {
+  useT()
   const save = useSaveNoteBody()
   if (item.kind === 'link') return <LinkPreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'image') return <ImagePreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'file') return <FilePreview item={item} actions={actions} onView={onView} />
+  if (item.kind === 'audio') return <AudioPreview item={item} actions={actions} onView={onView} />
   if (item.kind === 'album') return <AlbumPreview item={item} actions={actions} onView={onView} />
   return (
     <div className={fill ? 'flex h-full flex-col' : undefined}>
@@ -452,8 +518,8 @@ export function ItemContent({
           {item.body}
         </Markdown>
       </div>
-      <div className="mt-2 flex min-h-6 items-center text-xs text-zinc-500">
-        <Time iso={item.created_at} />
+      <div className="mt-2 flex min-h-6 items-center gap-1.5 text-xs text-zinc-500">
+        <Stamp item={item} />
         <div className="ml-auto">{actions}</div>
       </div>
     </div>

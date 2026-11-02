@@ -11,6 +11,7 @@ import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
 import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
+import { PublicIndexPage, PublicNotePage } from './pages/PublicPage'
 import { SharePage } from './pages/SharePage'
 
 // The editor (CodeMirror) loads when a note is first opened, not with the inbox.
@@ -42,6 +43,9 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/join/:token" element={<JoinPage />} />
+      {/* Published notes: open to anyone, signed in or not. */}
+      <Route path="/p" element={<PublicIndexPage />} />
+      <Route path="/p/:slug" element={<PublicNotePage />} />
       <Route element={<RequireAuth />}>
         <Route path="/oauth/authorize" element={<AuthorizePage />} />
         <Route element={<AppLayout />}>

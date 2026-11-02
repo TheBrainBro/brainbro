@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "brain-backend"
-version = "0.6.0"
-description = "Brain: segundo cerebro self-hosted"
+name = "brainbro-backend"
+version = "0.7.0"
+description = "BrainBro: One memory for all your AI assistants"
 authors = ["Carlos Lugones <contact@carloslugones.com>"]
 readme = "../README.md"
 package-mode = false
@@ -15,13 +15,17 @@ python-dotenv = "^1.2.4"
 whitenoise = "^6.12.0"
 celery = {extras = ["redis"], version = "^5.6.3"}
 django-unfold = "^0.110.0"
-gunicorn = "^26.2.0"
 requests = "^2.34.2"
 pillow = "^13.0.0"
 python-magic = "^0.4.27"
 pillow-heif = "^1.8.1"
 pypdfium2 = "^5.14.0"
 markdown-it-py = "^4"
+pgvector = "^0.5.1"
+redis = "^6.4.0"
+uvicorn = "^0.54.0"
+pycrdt = "^0.14.10"
+websockets = "^17.4"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.17.3"

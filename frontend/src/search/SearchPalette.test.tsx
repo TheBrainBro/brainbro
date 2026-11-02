@@ -26,6 +26,13 @@ function item(id: string, fields: Partial<Item>): Item {
     version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    created_by: '',
+    created_via: 'web',
+    edited_by: '',
+    edited_via: '',
+    edited_at: null,
+    public_slug: null,
+    published_at: null,
     ...fields,
   }
 }
@@ -54,6 +61,7 @@ beforeEach(() => {
     if (url.startsWith('/api/auth/session/')) {
       return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
     }
+    if (url.startsWith('/api/items/note-titles/')) return jsonResponse([])
     if (url.startsWith('/api/items/search/')) {
       const q = new URLSearchParams(url.split('?')[1]).get('q')
       return jsonResponse(

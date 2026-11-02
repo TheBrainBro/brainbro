@@ -1,4 +1,4 @@
-# Brain
+# BrainBro
 
 Self-hosted second brain (Umbrel). Product principle: **drop it now, sort it later**: capturing has zero friction and everything lands in the inbox; organizing (boards, collections) is a separate step. Views (canvas, folders, graph…) are different lenses over the same data.
 

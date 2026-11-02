@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { noteTitleIndex } from '../notes/wikilinks'
 import { imageKey, renderNote } from './markdown'
 
 describe('renderNote images', () => {
@@ -98,5 +99,29 @@ describe('card and embed links', () => {
     expect(renderNote('see [read](https://blog.example/a "card")')).not.toContain('link-card')
     expect(renderNote('[read](https://blog.example/a "A title")')).not.toContain('link-card')
     expect(renderNote('[read](javascript:alert(1) "card")')).not.toContain('link-card')
+  })
+})
+
+describe('wikilinks on a public page', () => {
+  const notes = noteTitleIndex([{ id: 'trip-plan', title: 'Trip plan' }])
+
+  it('link published notes by their address', () => {
+    const html = renderNote('[[Trip plan|the plan]]', { notes, isPublic: true })
+    expect(html).toContain('<a class="wikilink" href="/p/trip-plan">the plan</a>')
+    expect(html).not.toContain('data-note')
+  })
+
+  it('read as plain words when the note is not public', () => {
+    const html = renderNote('see [[Diary]]', { notes, isPublic: true })
+    expect(html).toBe('<p>see Diary</p>\n')
+  })
+})
+
+describe('raw HTML in a note', () => {
+  it('shows as text and never runs', () => {
+    const html = renderNote('<script>alert(1)</script> <img src=x onerror=alert(1)>')
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('<img')
+    expect(html).toContain('&lt;script&gt;')
   })
 })

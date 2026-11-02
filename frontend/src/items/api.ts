@@ -10,8 +10,10 @@ import {
 
 import { api } from '../lib/api'
 import type { LinkPreview } from '../lib/linkPreviews'
+import type { NoteTitle } from '../notes/wikilinks'
+import { moveCollection } from './collectionTree'
 
-export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'album'
+export type ItemKind = 'note' | 'link' | 'image' | 'file' | 'audio' | 'album'
 export type ItemStatus = 'inbox' | 'organized' | 'archived'
 export type PreviewStatus = '' | 'pending' | 'ready' | 'failed'
 
@@ -25,7 +27,7 @@ export type ItemMetadata = {
   final_url?: string
   image_url?: string
   preview_error?: string
-  // Uploads (images and files)
+  // Uploads (images, audio and files)
   filename?: string
   mime?: string
   size?: number
@@ -57,7 +59,21 @@ export type Item = {
   version: string
   created_at: string
   updated_at: string
+  /** The app that made it (its OAuth name or the token's); empty for the user. */
+  created_by: string
+  created_via: ItemSource
+  /** The same for the last edit of its content; `edited_at` is null until then. */
+  edited_by: string
+  edited_via: ItemSource
+  edited_at: string | null
+  /** Notes only: its address, `/p/<slug>`, kept while unpublished. */
+  public_slug: string | null
+  /** When it was published; null while it isn't. */
+  published_at: string | null
 }
+
+/** Where an item came from; empty for items from before this was recorded. */
+export type ItemSource = '' | 'web' | 'telegram' | 'mcp' | 'api' | 'import'
 
 /** A copy the app keeps of an image in a note; `url` once it is ready. */
 export type NoteImage = { status: PreviewStatus; url: string | null }
@@ -86,8 +102,12 @@ export type ItemFilters = {
   status?: ItemStatus
   collection?: string
   kind?: ItemKind
-  /** Search text: every word must match (typos allowed); sorted by relevance. */
+  /** Search text: items with every word first, then with some (typos allowed). */
   q?: string
+  /** Who made or last edited them: only the user, or an app. */
+  origin?: 'mine' | 'assistants'
+  /** This app made or last edited them. */
+  app?: string
 }
 
 export function useItems(filters: ItemFilters) {
@@ -99,6 +119,8 @@ export function useItems(filters: ItemFilters) {
       if (filters.collection) params.set('collection', filters.collection)
       if (filters.kind) params.set('kind', filters.kind)
       if (filters.q) params.set('q', filters.q)
+      if (filters.origin) params.set('origin', filters.origin)
+      if (filters.app) params.set('app', filters.app)
       return api<Page<Item>>(`/items/?${params}`)
     },
     initialPageParam: 0,
@@ -122,6 +144,15 @@ export function useHasItems(enabled: boolean) {
   })
 }
 
+/** The apps that made or edited items, to filter by. */
+export function useItemApps() {
+  return useQuery({
+    queryKey: [...itemsKey, 'apps'],
+    queryFn: () => api<{ apps: string[] }>('/items/apps/'),
+    select: (data) => data.apps,
+  })
+}
+
 /** A search match; an album's image shows up as its album, saying which image. */
 export type SearchResult = { item: Item; album_image: string | null }
 
@@ -132,6 +163,14 @@ export function useSearch(q: string) {
     queryFn: () => api<SearchResult[]>(`/items/search/?${new URLSearchParams({ q })}`),
     enabled: Boolean(q),
     placeholderData: keepPreviousData,
+  })
+}
+
+/** The titles `[[Title]]` links find notes by, in the order they are tried. */
+export function useNoteTitleList() {
+  return useQuery({
+    queryKey: [...itemsKey, 'note-titles'],
+    queryFn: () => api<NoteTitle[]>('/items/note-titles/'),
   })
 }
 
@@ -208,6 +247,58 @@ export function useSaveNoteBody() {
     onSuccess: (saved) => patchCachedItem(queryClient, saved),
     // Changed elsewhere (412) or failed: show what the server has.
     onError: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
+  })
+}
+
+/** Makes a note public at `/p/<slug>`, or private again. */
+export function usePublication() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, publish }: { id: string; publish: boolean }) =>
+      api<Item>(`/items/${id}/publication/`, { method: publish ? 'PUT' : 'DELETE' }),
+    onSuccess: (item) => {
+      patchCachedItem(queryClient, item)
+      void queryClient.invalidateQueries({ queryKey: pageKey(item.id) })
+    },
+  })
+}
+
+/**
+ * A public note's page: its address and how it shows in search results and
+ * shared links. Empty values take the `defaults`; `preview` is the result.
+ * `image` is the `src` of one of the note's images, or "none".
+ */
+export type PageSettings = {
+  slug: string | null
+  title: string
+  description: string
+  image: string
+  defaults: { title: string; description: string; image: string | null }
+  preview: { title: string; description: string; image_url: string | null }
+}
+
+export type PageChanges = Partial<Pick<PageSettings, 'slug' | 'title' | 'description' | 'image'>>
+
+const pageKey = (id: string) => [...itemKey(id), 'page']
+
+export function usePageSettings(id: string) {
+  return useQuery({
+    queryKey: pageKey(id),
+    queryFn: () => api<PageSettings>(`/items/${id}/page/`),
+  })
+}
+
+/** Saves page settings; rejects with the reason when the slug is taken or not an address. */
+export function useSavePage(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (changes: PageChanges) =>
+      api<PageSettings>(`/items/${id}/page/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+    onSuccess: (page) => {
+      queryClient.setQueryData(pageKey(id), page)
+      // The note's slug shows elsewhere (the link in its menu).
+      void queryClient.invalidateQueries({ queryKey: itemKey(id), exact: true })
+    },
   })
 }
 
@@ -330,6 +421,24 @@ export function useUpdateCollection() {
     mutationFn: ({ id, ...changes }: CollectionChanges & { id: string }) =>
       api<Collection>(`/collections/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
+  })
+}
+
+/** Puts a collection inside `parent` (null: at the top), right after `after` there (null: first). */
+export function useMoveCollection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, parent, after }: { id: string; parent: string | null; after: string | null }) =>
+      api<void>(`/collections/${id}/move/`, {
+        method: 'POST',
+        body: JSON.stringify({ parent, after }),
+      }),
+    onMutate: ({ id, parent, after }) =>
+      queryClient.setQueryData(
+        collectionsKey,
+        (data: Collection[] | undefined) => data && moveCollection(data, id, parent, after),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: collectionsKey }),
   })
 }
 

@@ -1,18 +1,11 @@
-import { ApiError } from '../lib/api'
-import {
-  Autosave,
-  localDraftStore,
-  type AutosaveState,
-  type DraftStore as Store,
-  type SaveStatus,
-} from '../lib/autosave'
+import { Autosave, localDraftStore, type AutosaveState, type DraftStore as Store, type SaveStatus } from '../lib/autosave'
 
 export type { SaveStatus }
 
 /** The parts of a note the editor works with. */
-export type SavedNote = { id: string; body: string; version: string }
+export type SavedNote = { id: string; body: string }
 
-export type Draft = { body: string; base: string | null }
+export type Draft = { body: string }
 
 /** Unsaved text kept on this device, so a reload or a dead network loses nothing. */
 export type DraftStore = Store<Draft>
@@ -20,60 +13,50 @@ export type DraftStore = Store<Draft>
 export type SaverOptions<T extends SavedNote> = {
   /** Creates the note (through the capture pipeline) from its first text. */
   create: (body: string) => Promise<T>
-  /** Saves the body if the server still has `version`; rejects with a 412 ApiError otherwise. */
-  update: (id: string, body: string, version: string, options: { keepalive: boolean }) => Promise<T>
   onChange: (state: SaverState<T>) => void
-  onSaved?: (note: T, created: boolean) => void
+  /** The note exists: from here on it is edited live. */
+  onCreated?: (note: T) => void
   drafts: DraftStore
   debounceMs?: number
 }
 
-/** `theirs`: the server's newer text when another tab or device saved first. */
 export type SaverState<T extends SavedNote = SavedNote> = AutosaveState<T>
 
 const DEBOUNCE_MS = 800
-// Browsers refuse keepalive requests over 64 KiB; the draft covers bigger ones.
-const KEEPALIVE_MAX_CHARS = 30_000
 
 export const NEW_NOTE = 'new'
 
 /**
- * Autosave for one note (see `Autosave` for the timing): drafts on this
- * device, and a new note created on its first text.
+ * A new note until it exists: created on its first text (see `Autosave` for
+ * the timing), with a draft on this device meanwhile. Once created it saves
+ * nothing more: the note is edited live (see `LiveNote`), starting from
+ * whatever was typed by then.
  */
 export class NoteSaver<T extends SavedNote = SavedNote> {
-  private id: string | null
-  private base: T | null
-  private text: string
+  private created: T | null = null
+  private text = ''
   private options: SaverOptions<T>
   private autosave: Autosave<T>
-  private loads = 0
 
-  constructor(note: T | null, options: SaverOptions<T>) {
+  constructor(options: SaverOptions<T>) {
     this.options = options
-    this.id = note?.id ?? null
-    this.base = note
-    this.text = note?.body ?? ''
     this.autosave = new Autosave<T>({
       // A new note only exists once it has something in it.
-      dirty: () => (this.id ? this.text !== this.base?.body : this.text.trim() !== ''),
-      save: (saveOptions) => this.send(saveOptions),
-      onClean: () => this.options.drafts.remove(this.draftKey),
-      describe: (error) =>
-        error instanceof ApiError && error.status === 404
-          ? 'This note no longer exists.'
-          : undefined,
+      dirty: () => !this.created && this.text.trim() !== '',
+      save: () => this.send(),
+      onClean: () => this.options.drafts.remove(NEW_NOTE),
       onChange: options.onChange,
       debounceMs: options.debounceMs ?? DEBOUNCE_MS,
     })
   }
 
+  /** What the editor holds, including what was typed after the note was created. */
   get body() {
     return this.text
   }
 
   get noteId() {
-    return this.id
+    return this.created?.id ?? null
   }
 
   get status() {
@@ -84,35 +67,12 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
     return this.autosave.snapshot
   }
 
-  /** Goes up each time text from elsewhere replaces ours: the editor remounts on it. */
-  get generation() {
-    return this.loads
-  }
-
-  /** The server version our text is based on. */
-  get version() {
-    return this.base?.version ?? null
-  }
-
-  private get draftKey() {
-    return this.id ?? NEW_NOTE
-  }
-
-  /**
-   * Picks up a draft left by an earlier visit, before the editor shows the
-   * text: kept as unsaved if it was written on top of what the server still
-   * has, as a conflict otherwise. No timers or callbacks; `resume` starts
-   * saving it.
-   */
+  /** Picks up a new note's draft left by an earlier visit; `resume` saves it. */
   restoreDraft() {
-    const draft = this.options.drafts.get(this.draftKey)
-    if (!draft || draft.body === this.text) return
+    const draft = this.options.drafts.get(NEW_NOTE)
+    if (!draft?.body) return
     this.text = draft.body
-    this.autosave.init(
-      this.base && draft.base !== this.base.version
-        ? { status: 'conflict', theirs: this.base }
-        : { status: 'unsaved' },
-    )
+    this.autosave.init({ status: 'unsaved' })
   }
 
   /** Saves a restored draft (once the editor is up). */
@@ -121,54 +81,22 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
   }
 
   edit(body: string) {
-    if (this.autosave.isStopped) return
     this.text = body
-    this.options.drafts.set(this.draftKey, { body, base: this.base?.version ?? null })
+    if (this.created || this.autosave.isStopped) return
+    this.options.drafts.set(NEW_NOTE, { body })
     this.autosave.changed()
   }
 
-  /** Text from the server replaces ours (it changed elsewhere and we had nothing pending). */
-  load(note: T) {
-    this.base = note
-    this.text = note.body
-    this.loads++
-    this.options.drafts.remove(this.draftKey)
-    this.autosave.reset()
+  private async send() {
+    const note = await this.options.create(this.text)
+    this.created = note
+    this.options.drafts.remove(NEW_NOTE)
+    this.options.onCreated?.(note)
   }
 
-  /** Ends a conflict: `theirs` drops our text, `mine` saves it over theirs. */
-  resolve(side: 'theirs' | 'mine') {
-    const theirs = this.snapshot.theirs
-    if (this.status !== 'conflict' || !theirs) return
-    if (side === 'theirs') {
-      this.load(theirs)
-      return
-    }
-    this.base = theirs
-    this.autosave.resume()
-  }
-
-  private async send({ keepalive }: { keepalive: boolean }) {
-    const body = this.text
-    const created = !this.id
-    const saved = this.id
-      ? await this.options.update(this.id, body, this.base!.version, {
-          keepalive: keepalive && body.length <= KEEPALIVE_MAX_CHARS,
-        })
-      : await this.options.create(body)
-    if (created) this.options.drafts.remove(NEW_NOTE)
-    this.id = saved.id
-    this.base = saved
-    this.options.onSaved?.(saved, created)
-    // Typed while saving: keep the draft current for the next round.
-    if (this.text !== saved.body) {
-      this.options.drafts.set(this.draftKey, { body: this.text, base: saved.version })
-    }
-  }
-
-  /** Saves now. `keepalive` lets the request outlive the page (closing the tab). */
-  flush(options: { keepalive?: boolean } = {}) {
-    return this.autosave.flush(options)
+  /** Saves now. `keepalive` is ignored: creating a note needs an answer. */
+  flush() {
+    return this.autosave.flush()
   }
 
   /** Back online: retry straight away instead of waiting out the backoff. */
@@ -176,22 +104,16 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
     this.autosave.retryNow()
   }
 
-  /** The note was deleted: drop pending edits and the draft, and never save again. */
-  discard() {
-    this.autosave.stop()
-    this.options.drafts.remove(this.draftKey)
-  }
-
   /** Mounted (again): failed saves retry. */
   attach() {
     this.autosave.attach()
   }
 
-  /** Leaving the note: save what's left and stop the timers. */
-  dispose(options: { keepalive?: boolean } = {}) {
-    this.autosave.dispose(options)
+  /** Leaving: save what's left and stop the timers. */
+  dispose() {
+    this.autosave.dispose()
   }
 }
 
 /** Drafts in localStorage; quietly does nothing where storage is unavailable. */
-export const localDrafts: DraftStore = localDraftStore<Draft>('brain:note-draft:')
+export const localDrafts: DraftStore = localDraftStore<Draft>('brainbro:note-draft:')

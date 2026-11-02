@@ -2,6 +2,7 @@ import { StateEffect, StateField, type EditorState, type Extension } from '@code
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view'
 
 import { claimEvent } from '../capture/claims'
+import { t } from '../i18n/i18n'
 import { imageKey } from '../lib/markdown'
 import { addLocalImage, localImages } from './livePreview'
 
@@ -56,7 +57,7 @@ class UploadingWidget extends WidgetType {
     const chip = document.createElement('span')
     chip.className = 'cm-md-image'
     chip.dataset.status = 'pending'
-    chip.textContent = this.count === 1 ? 'Uploading image…' : `Uploading ${this.count} images…`
+    chip.textContent = t('editor.uploadingImage', { count: this.count })
     return chip
   }
 }
@@ -114,8 +115,8 @@ export async function insertImages(
   results.forEach((result, index) => {
     const file = files[index]
     if (result.status === 'rejected') {
-      const reason = result.reason instanceof Error ? result.reason.message : 'Upload failed'
-      onError(`${file.name || 'Image'}: ${reason}`)
+      const reason = result.reason instanceof Error ? result.reason.message : t('editor.uploadFailed')
+      onError(`${file.name || t('editor.image')}: ${reason}`)
       return
     }
     const { src } = result.value

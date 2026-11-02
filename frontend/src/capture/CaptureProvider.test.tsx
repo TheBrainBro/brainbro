@@ -34,6 +34,13 @@ function makeItem(overrides: Partial<Item>): Item {
     version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    created_by: '',
+    created_via: 'web',
+    edited_by: '',
+    edited_via: '',
+    edited_at: null,
+    public_slug: null,
+    published_at: null,
     ...overrides,
   }
 }

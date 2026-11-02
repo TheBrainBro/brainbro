@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { NoteImages, NoteLinks } from './api'
 import { renderNote, toggleTaskAt } from '../lib/markdown'
+import { useNoteTitles } from '../notes/wikilinks'
 
 /**
  * A note's Markdown, rendered the way the editor reads it (see
@@ -10,6 +11,7 @@ import { renderNote, toggleTaskAt } from '../lib/markdown'
  * checkboxes can be ticked and the new text is handed back. Images show the
  * note's stored copies (`images`), never the remote ones, and card links
  * the stored previews (`links`); embed links play in place with `embeds`.
+ * `[[Title]]` links open the note they point to, then call `onFollow`.
  */
 export function Markdown({
   children,
@@ -19,6 +21,7 @@ export function Markdown({
   links,
   embeds = false,
   onChange,
+  onFollow,
 }: {
   children: string
   /** Keeps footnote anchors unique when several notes are on the page. */
@@ -28,15 +31,18 @@ export function Markdown({
   links?: NoteLinks | null
   embeds?: boolean
   onChange?: (body: string) => void
+  onFollow?: () => void
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [clipped, setClipped] = useState(false)
   // Same string, same DOM: React leaves the HTML alone across re-renders, so
   // a checkbox under the pointer is never replaced between press and click.
   const tasks = Boolean(onChange)
+  const noteTitles = useNoteTitles()
+  const notes = noteTitles?.index
   const html = useMemo(
-    () => renderNote(children, { docId: id, tasks, images, links, embeds }),
-    [children, id, tasks, images, links, embeds],
+    () => renderNote(children, { docId: id, tasks, images, links, embeds, notes }),
+    [children, id, tasks, images, links, embeds, notes],
   )
 
   useLayoutEffect(() => {
@@ -62,6 +68,14 @@ export function Markdown({
         const target = event.target as HTMLElement
         // Links leave the app; the click is theirs, not the card's.
         if (target.closest('a')) event.stopPropagation()
+        const note = target.closest<HTMLAnchorElement>('a[data-note]')
+        // A link to another note opens it here (Mod-click: in a new tab).
+        if (note && noteTitles && !(event.metaKey || event.ctrlKey || event.shiftKey)) {
+          event.preventDefault()
+          noteTitles.open(note.dataset.note!)
+          onFollow?.()
+          return
+        }
         const task = target.closest<HTMLInputElement>('input[data-task-line]')
         if (!task || !onChange) return
         event.stopPropagation()

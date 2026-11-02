@@ -55,15 +55,32 @@ def test_an_admin_makes_a_link_shown_once(admin, admin_user):
     assert "url" not in listed[0]
 
 
-def test_only_pending_invitations_are_listed(admin, admin_user, invitation):
-    used, _ = Invitation.issue(admin_user, "used", timedelta(days=7))
-    used.used_at = timezone.now()
-    used.save()
+def test_every_invitation_is_listed_with_its_status(admin, admin_user, invitation):
+    _, token = Invitation.issue(admin_user, "joined", timedelta(days=7))
+    join(Client(), token, username="bea")
     Invitation.issue(admin_user, "expired", timedelta(days=-1))
 
-    listed = admin.get("/api/auth/invitations/").json()
+    listed = {
+        entry["note"]: entry for entry in admin.get("/api/auth/invitations/").json()
+    }
 
-    assert [entry["note"] for entry in listed] == ["Ana"]
+    assert {note: entry["status"] for note, entry in listed.items()} == {
+        "Ana": "pending",
+        "joined": "accepted",
+        "expired": "expired",
+    }
+    assert (listed["Ana"]["used_at"], listed["Ana"]["used_by"]) == (None, None)
+    assert listed["joined"]["used_by"] == "bea"
+    assert listed["joined"]["used_at"] is not None
+
+
+def test_an_accepted_invitation_outlives_its_account(admin, invitation):
+    join(Client(), invitation[1])
+    get_user_model().objects.get(username="ana").delete()
+
+    [entry] = admin.get("/api/auth/invitations/").json()
+
+    assert (entry["status"], entry["used_by"]) == ("accepted", None)
 
 
 def test_revoking_stops_the_link(admin, invitation):
@@ -73,6 +90,23 @@ def test_revoking_stops_the_link(admin, invitation):
 
     assert not Invitation.objects.exists()
     assert Client().get(f"/api/auth/join/{token}/").status_code == 404
+
+
+def test_an_expired_invitation_can_be_removed(admin, admin_user):
+    expired, _ = Invitation.issue(admin_user, "", timedelta(days=-1))
+
+    assert admin.delete(f"/api/auth/invitations/{expired.id}/").status_code == 204
+
+    assert not Invitation.objects.exists()
+
+
+def test_an_accepted_invitation_stays(admin, invitation):
+    accepted, token = invitation
+    join(Client(), token)
+
+    assert admin.delete(f"/api/auth/invitations/{accepted.id}/").status_code == 204
+
+    assert Invitation.objects.filter(pk=accepted.pk).exists()
 
 
 @pytest.mark.parametrize("method", ["get", "post"])

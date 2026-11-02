@@ -1,52 +1,59 @@
 # AI assistants (MCP)
 
 AI assistants (Claude, ChatGPT, Grok, editors) can read from and write to
-your Brain through the [Model Context Protocol](https://modelcontextprotocol.io).
-They connect to `https://<your host>/api/mcp`, either by signing in to Brain
+your BrainBro through the [Model Context Protocol](https://modelcontextprotocol.io).
+They connect to `https://<your host>/api/mcp`, either by signing in to BrainBro
 (OAuth) or with a personal API token.
 
 Account menu → *Settings* → *AI assistants* has the URL, the steps for each
 app, and the list of connected apps and tokens.
 
 Claude, ChatGPT and Grok connect from their own servers, not from your
-computer, so Brain must be reachable from the internet over HTTPS (the
-Cloudflare Tunnel is). If Cloudflare Access ever sits in front of Brain,
+computer, so BrainBro must be reachable from the internet over HTTPS (the
+Cloudflare Tunnel is). If Cloudflare Access ever sits in front of BrainBro,
 bypass it for `/api/mcp`, `/api/auth/oauth/` and `/.well-known/`: the apps
-sign in through Brain itself.
+sign in through BrainBro itself.
 
 ## Connecting an app
 
 ### Claude (web, desktop and mobile)
 
 *Customize* → *Connectors* → *Add custom connector*, paste the URL, *Add*,
-then *Connect*: Brain opens and asks to allow it. Custom connectors are
+then *Connect*: BrainBro opens and asks to allow it. Custom connectors are
 available on every plan (one on Free).
 
 ### ChatGPT
 
 [chatgpt.com/plugins](https://chatgpt.com/plugins) → *+* → *Add custom MCP
 server*: a name, the URL, accept the risk warning and create it. ChatGPT
-then sends you to Brain to allow it. Which plans can add custom MCP servers
+then sends you to BrainBro to allow it. Which plans can add custom MCP servers
 is up to OpenAI.
 
 ### Grok
 
 [grok.com/connectors](https://grok.com/connectors) → *New Connector* →
-*Custom*, paste the URL and sign in to Brain when asked. On Grok Business and
+*Custom*, paste the URL and sign in to BrainBro when asked. On Grok Business and
 Enterprise, an admin adds the connector first.
+
+### Grok Bot
+
+Ask a Bot in a chat to add an MCP server by URL, giving it the URL, and sign
+in to BrainBro if it asks. Bots add servers outside their catalog this way
+([docs](https://docs.x.ai/grok-bot/computer-and-apps)); on a team, the Cursor
+connector policy decides which ones are allowed.
 
 ### Claude Code
 
 ```sh
-claude mcp add --transport http brain https://brain.example.com/api/mcp
+claude mcp add --transport http brainbro https://brainbro.example.com/api/mcp
 ```
 
-Then `/mcp` in Claude Code, choose *brain* and sign in. Or use a personal
+Then `/mcp` in Claude Code, choose *brainbro* and sign in. Or use a personal
 token instead:
 
 ```sh
-claude mcp add --transport http brain https://brain.example.com/api/mcp \
-  --header "Authorization: Bearer brain_..."
+claude mcp add --transport http brainbro https://brainbro.example.com/api/mcp \
+  --header "Authorization: Bearer brainbro_..."
 ```
 
 To share the setup in a project without the token, put it in `.mcp.json` and
@@ -55,10 +62,10 @@ keep the token in an environment variable:
 ```json
 {
   "mcpServers": {
-    "brain": {
+    "brainbro": {
       "type": "http",
-      "url": "https://brain.example.com/api/mcp",
-      "headers": { "Authorization": "Bearer ${BRAIN_TOKEN}" }
+      "url": "https://brainbro.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer ${BRAINBRO_TOKEN}" }
     }
   }
 }
@@ -66,18 +73,18 @@ keep the token in an environment variable:
 
 ### Grok API
 
-The xAI API can call Brain from a request with a [remote MCP
+The xAI API can call BrainBro from a request with a [remote MCP
 tool](https://docs.x.ai/developers/tools/remote-mcp): `server_url` is the URL
 and `authorization` a personal token.
 
 ## Signing in (OAuth)
 
-See `apps/accounts/oauth.py`. Brain is its own authorization server, as the
+See `apps/accounts/oauth.py`. BrainBro is its own authorization server, as the
 MCP authorization spec describes:
 
 1. The app calls `/api/mcp` without a token and gets a 401 whose
    `WWW-Authenticate` points at `/.well-known/oauth-protected-resource/api/mcp`.
-   That names Brain as the authorization server, and
+   That names BrainBro as the authorization server, and
    `/.well-known/oauth-authorization-server` lists its endpoints.
 2. The app registers itself (dynamic client registration,
    `/api/auth/oauth/register/`).
@@ -93,7 +100,7 @@ endpoint, not the rest of the API.
 
 ## Personal tokens
 
-*Create token* with a name (what it's for). The token is shown once; Brain
+*Create token* with a name (what it's for). The token is shown once; BrainBro
 only keeps a hash of it. It never expires: *Revoke* stops it.
 
 A personal token acts as you on the whole API, `Authorization: Bearer
@@ -102,7 +109,7 @@ list or revoke tokens: that only works signed in to the app. Scripts can use
 it too:
 
 ```sh
-curl -H "Authorization: Bearer $BRAIN_TOKEN" https://brain.example.com/api/items/?status=inbox
+curl -H "Authorization: Bearer $BRAINBRO_TOKEN" https://brainbro.example.com/api/items/?status=inbox
 ```
 
 ## Tools
@@ -111,18 +118,50 @@ See `apps/mcp/tools.py`. Nothing deletes.
 
 | Tool | What it does |
 | --- | --- |
-| `search_items` | Full-text search, archived items included |
+| `search_items` | Search by words and by meaning, archived items included |
 | `get_item` | One item in full: a note's Markdown and its version |
+| `get_items` | Several items in full in one call, saying which ids weren't found |
+| `list_inbox` | What is waiting in the inbox, in the order the app shows |
 | `list_collections` | Every collection, with its parent and item count |
 | `list_collection_items` | A collection's items, in the order you sorted them |
-| `capture` | A new note or link, in the inbox or straight into a collection |
-| `edit_note` | Replaces a note's title or body |
+| `create_collection` | A new collection (project, area or resource), optionally inside another |
+| `capture` | A new note or link, with a title, in the inbox or straight into a collection |
+| `edit_note` | Changes part of a note (replace, prepend, append), or rewrites it |
+| `list_revisions` | A note's history: who saved each version, through what, and when |
+| `get_revision` | One version of a note in full, as it was then |
 | `organize` | Adds items to collections, out of the inbox |
 | `archive` | Takes items out of the way, without deleting them |
+| `list_boards` | Every board, with how many items are on it |
+| `get_board` | A board's items, sticky notes and groups, in reading order, without the layout |
+| `add_to_board` | Puts items on a board, where the app puts new cards |
+
+A note saved without a title still comes back with one, worked out from its
+body as the app shows it: its first H1, or else its first line, shortened. It
+follows the note as it changes, and is never saved.
 
 `edit_note` takes the version `get_item` returned: if you edited the note in
 the app since, the assistant's edit is refused and it has to read it again,
-so it never overwrites your changes.
+so it never overwrites your changes. Partial edits leave the rest of the note
+as it was: each `replace` must match exactly once, and if one doesn't,
+nothing is saved. On a note open in the app, the edit merges into it live,
+with the assistant's name and cursor on what it wrote (see
+[live-editing.md](live-editing.md)).
+
+Every item says who made it and who last edited it, `"user"` or the
+assistant's name, and through what (see [origin.md](origin.md)), so
+assistants can tell their notes from yours.
+
+Every edit lands in the note's history (see [history.md](history.md)):
+assistants can read it with `list_revisions` and `get_revision`, and only you
+restore a version, in the app.
+
+`add_to_board` saves the board like the app does (its revision goes up), so a
+tab with the board open gets the usual conflict on its next save. Assistants
+can't move cards, connect them or edit the layout.
+
+The server's instructions (`apps/mcp/server.py`) and the tool descriptions
+are what every assistant reads in every conversation: they say when to use
+each tool, and failed calls say what to do next.
 
 ## How it works
 

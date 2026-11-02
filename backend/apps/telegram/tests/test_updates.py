@@ -36,7 +36,7 @@ def test_start_with_a_code_links_the_chat(user, fake_bot):
     link = TelegramLink.objects.get()
     assert (link.chat_id, link.telegram_name, link.code) == (42, "@carlos", None)
     assert link.linked_at is not None
-    assert "Connected to Brain" in fake_bot.sent("sendMessage")[0]["text"]
+    assert "Connected to BrainBro" in fake_bot.sent("sendMessage")[0]["text"]
 
 
 def test_expired_or_missing_codes_dont_link(user, fake_bot):
@@ -48,7 +48,7 @@ def test_expired_or_missing_codes_dont_link(user, fake_bot):
     handle_update(update(2, text="/start"))
 
     assert TelegramLink.objects.get().chat_id is None
-    assert all("open Brain" in m["text"] for m in fake_bot.sent("sendMessage"))
+    assert all("open BrainBro" in m["text"] for m in fake_bot.sent("sendMessage"))
 
 
 def test_each_user_links_their_own_chat(user, other_user, fake_bot):
@@ -105,7 +105,7 @@ def test_what_cant_be_saved_gets_a_thumbs_down_and_a_reason(user, fake_bot):
 
     assert fake_bot.sent("setMessageReaction")[0]["reaction"][0]["emoji"] == "👎"
     answer = fake_bot.sent("sendMessage")[0]
-    assert answer["text"] == "Brain can't keep this kind of message."
+    assert answer["text"] == "BrainBro can't keep this kind of message."
     assert answer["reply_parameters"]["message_id"] == 10
 
 
@@ -148,6 +148,15 @@ def test_the_webhook_is_registered_with_its_secret(fake_bot):
     register_webhook()
 
     [params] = fake_bot.sent("setWebhook")
-    assert params["url"] == "https://brain.example.com/api/telegram/webhook/"
+    assert params["url"] == "https://brainbro.example.com/api/telegram/webhook/"
     assert params["allowed_updates"] == ["message"]
     assert len(params["secret_token"]) == 64
+
+
+def test_what_comes_from_telegram_says_so(user, fake_bot):
+    linked(user)
+
+    process_update(update(5, text="An idea"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_via) == ("", "telegram")

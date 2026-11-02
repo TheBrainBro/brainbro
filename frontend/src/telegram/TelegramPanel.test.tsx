@@ -15,7 +15,7 @@ function jsonResponse(body: unknown, status = 200) {
 function statusOf(fields: Partial<TelegramStatus>): TelegramStatus {
   return {
     configured: true,
-    bot_username: 'brain_bot',
+    bot_username: 'brainbro_bot',
     linked: false,
     telegram_name: '',
     linked_at: null,
@@ -26,7 +26,7 @@ function statusOf(fields: Partial<TelegramStatus>): TelegramStatus {
 function renderPanel(status: TelegramStatus) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/telegram/connect/') {
-      return jsonResponse({ url: 'https://t.me/brain_bot?start=abc' })
+      return jsonResponse({ url: 'https://t.me/brainbro_bot?start=abc' })
     }
     if (init?.method === 'DELETE') return new Response(null, { status: 204 })
     return jsonResponse(status)
@@ -49,8 +49,8 @@ describe('TelegramPanel', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Connect Telegram' }))
 
-    const open = await screen.findByRole('link', { name: 'Open @brain_bot in Telegram' })
-    expect(open).toHaveAttribute('href', 'https://t.me/brain_bot?start=abc')
+    const open = await screen.findByRole('link', { name: 'Open @brainbro_bot in Telegram' })
+    expect(open).toHaveAttribute('href', 'https://t.me/brainbro_bot?start=abc')
     expect(screen.getByRole('status')).toHaveTextContent('Press Start there')
   })
 
@@ -58,7 +58,7 @@ describe('TelegramPanel', () => {
     const fetchMock = renderPanel(statusOf({ linked: true, telegram_name: '@carlos' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Connected as @carlos to @brain_bot.',
+      'Connected as @carlos to @brainbro_bot.',
     )
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
 

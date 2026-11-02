@@ -1,4 +1,6 @@
+import { t } from '../i18n/i18n'
 import type { Collection } from './api'
+import { collectionKind } from './collectionKinds'
 
 /** The collections directly inside `parent` (null: at the top), in list order. */
 export function childrenOf(collections: Collection[], parent: string | null) {
@@ -41,4 +43,36 @@ export function collectionPath(collections: Collection[], id: string) {
   return ancestorsOf(collections, id)
     .map((collection) => collection.name)
     .join(' / ')
+}
+
+/**
+ * `collections` with `id` inside `parent` (null: at the top), right after
+ * `after` there (null: first). The list keeps every level in order, so it
+ * goes next to `after`, or before the first collection already there.
+ */
+export function moveCollection(
+  collections: Collection[],
+  id: string,
+  parent: string | null,
+  after: string | null,
+) {
+  const moving = collections.find((collection) => collection.id === id)
+  if (!moving) return collections
+  const rest = collections.filter((collection) => collection !== moving)
+  const at = after
+    ? rest.findIndex((collection) => collection.id === after) + 1
+    : rest.findIndex((collection) => (collection.parent ?? null) === parent)
+  rest.splice(at < 0 ? rest.length : at, 0, { ...moving, parent })
+  return rest
+}
+
+/** "Project · 3 items · 2 collections": what a collection is and holds. */
+export function collectionSummary(collections: Collection[], collection: Collection) {
+  const inside = childrenOf(collections, collection.id).length
+  const parts = [
+    collectionKind(collection.kind).label,
+    t('counts.items', { count: collection.item_count }),
+  ]
+  if (inside) parts.push(t('counts.collections', { count: inside }))
+  return parts.join(' · ')
 }

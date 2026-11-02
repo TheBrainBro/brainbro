@@ -1,5 +1,5 @@
 /**
- * Brain's service worker, served by Django at /sw.js (scope /).
+ * BrainBro's service worker, served by Django at /sw.js (scope /).
  *
  * - Precaches the app shell, so the app opens offline. Navigations go to the
  *   network first and fall back to it. Other build assets (hashed, so never
@@ -21,7 +21,7 @@ declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: (string | Precac
 
 const SERVER_ONLY = /^\/(api|admin|media|static)\//
 const ASSETS = /^\/static\/assets\//
-const ASSET_CACHE = 'brain-assets'
+const ASSET_CACHE = 'brainbro-assets'
 
 async function receiveShare(request: Request) {
   const origin = self.location.origin
@@ -85,7 +85,10 @@ registerRoute(
 )
 
 // A new version takes over open tabs at once: assets are hashed, so the old
-// page keeps working until it reloads. Assets of older builds are dropped.
+// page keeps working until it reloads. Assets of older builds are dropped,
+// also the cache from before the rename to BrainBro.
 self.skipWaiting()
 clientsClaim()
-self.addEventListener('activate', (event) => event.waitUntil(caches.delete(ASSET_CACHE)))
+self.addEventListener('activate', (event) =>
+  event.waitUntil(Promise.all([caches.delete(ASSET_CACHE), caches.delete('brain-assets')])),
+)

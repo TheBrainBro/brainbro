@@ -6,6 +6,8 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from apps.accounts.authentication import McpAuthentication
+from apps.events.changes import collect
+from apps.items.origin import Source, acting, app_name
 
 from . import server
 
@@ -13,7 +15,7 @@ from . import server
 class McpView(APIView):
     """
     The Model Context Protocol endpoint (Streamable HTTP transport), so AI
-    assistants can read and write the token owner's Brain.
+    assistants can read and write the token owner's BrainBro.
 
     Stateless and without streams: each POST carries one JSON-RPC message and
     a request gets its response back as plain JSON. There is no session and
@@ -44,7 +46,10 @@ class McpView(APIView):
         if "id" not in message or "method" not in message:
             # A notification, or a response to us: nothing to answer.
             return HttpResponse(status=202)
-        return JsonResponse(server.handle(request.user, message))
+        # Open tabs name the assistant on what it changed, and so do items.
+        name = app_name(request.auth)
+        with collect(by=name), acting(Source.MCP, by=name):
+            return JsonResponse(server.handle(request.user, message))
 
 
 def rpc_error(code, text):

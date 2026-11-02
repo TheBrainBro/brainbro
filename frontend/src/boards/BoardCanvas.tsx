@@ -47,11 +47,13 @@ import {
 
 import { useCapturePipeline } from '../capture/context'
 import type { CaptureInput, CaptureInputs } from '../capture/inputs'
+import { rich, useT, type MessageKey } from '../i18n/i18n'
 import { itemKey, itemsKey, type Item } from '../items/api'
 import { isEditable } from '../lib/dom'
 import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { useTheme } from '../theme/theme'
 import { EmptyState } from '../ui/states'
 import { useViewer } from '../viewer/context'
 import { AddItemsPanel } from './AddItemsPanel'
@@ -101,12 +103,12 @@ const edgeTypes = { floating: FloatingEdge }
 /** What a drag (or click) on the canvas does: select, pan, or draw something. */
 type Tool = 'select' | 'hand' | 'sticky' | 'pen' | 'frame'
 
-const TOOLS: { tool: Tool; label: string; key: string; icon: LucideIcon }[] = [
-  { tool: 'select', label: 'Select', key: 'V', icon: MousePointer2 },
-  { tool: 'hand', label: 'Pan', key: 'H', icon: Hand },
-  { tool: 'sticky', label: 'Sticky note', key: 'S', icon: StickyNote },
-  { tool: 'pen', label: 'Pen', key: 'P', icon: PenLine },
-  { tool: 'frame', label: 'Group', key: 'F', icon: Frame },
+const TOOLS: { tool: Tool; label: MessageKey; key: string; icon: LucideIcon }[] = [
+  { tool: 'select', label: 'canvas.select', key: 'V', icon: MousePointer2 },
+  { tool: 'hand', label: 'canvas.pan', key: 'H', icon: Hand },
+  { tool: 'sticky', label: 'canvas.sticky', key: 'S', icon: StickyNote },
+  { tool: 'pen', label: 'canvas.pen', key: 'P', icon: PenLine },
+  { tool: 'frame', label: 'canvas.group', key: 'F', icon: Frame },
 ]
 
 const PEN_WIDTHS = [2, 4, 8]
@@ -169,6 +171,7 @@ function draggedItem(event: DragEvent): Item | undefined {
  * pipeline.
  */
 export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boolean }) {
+  const t = useT()
   const queryClient = useQueryClient()
   const flow = useReactFlow<BoardNode, BoardEdge>()
   const container = useRef<HTMLDivElement>(null)
@@ -177,6 +180,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
   const [adding, setAdding] = useState(false)
   const viewer = useViewer()
+  const theme = useTheme()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
@@ -496,6 +500,15 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     place(item, dropSpot(point, DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
   }
 
+  // Saved elsewhere (another device, an assistant), and refetched: shown at
+  // once if nothing here is pending, a conflict to resolve otherwise.
+  useEffect(() => {
+    const theirs = session.changedElsewhere(board)
+    if (!theirs) return
+    historyChanged()
+    show(toScene(theirs.layout))
+  }, [board, session, show])
+
   function resolveConflict(side: 'mine' | 'theirs') {
     const theirs = session.resolve(side)
     if (!theirs) return
@@ -581,13 +594,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 <button
                   type="button"
                   className="viewer-button"
-                  title="Take it off this board (the item stays)"
+                  title={t('canvas.takeOffHint')}
                   onClick={() => {
                     removeNode(item.id)
                     close()
                   }}
                 >
-                  Remove from board
+                  {t('canvas.removeFromBoard')}
                 </button>
               ),
         })
@@ -624,7 +637,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
         commit()
       },
     }
-  }, [readOnly, show, commit, queryClient, viewer, flow])
+  }, [readOnly, show, commit, queryClient, viewer, flow, t])
 
   const shownEdges = useMemo(() => edges.map(withMarkers), [edges])
 
@@ -663,7 +676,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           minZoom={0.05}
           maxZoom={4}
           onlyRenderVisibleElements
-          colorMode="system"
+          colorMode={theme}
           nodesDraggable={!readOnly && tool === 'select'}
           nodesConnectable={!readOnly && tool === 'select'}
           elementsSelectable={!readOnly && tool === 'select'}
@@ -703,11 +716,11 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           )}
           {!readOnly && (
             <Panel position="bottom-center">
-              <div role="toolbar" aria-label="Tools" className="popover flex items-center gap-0.5 p-1">
+              <div role="toolbar" aria-label={t('canvas.tools')} className="popover flex items-center gap-0.5 p-1">
                 {TOOLS.map(({ tool: value, label, key, icon }) => (
                   <ToolButton
                     key={value}
-                    label={`${label} (${key})`}
+                    label={t('canvas.withKey', { label: t(label), key })}
                     icon={icon}
                     pressed={tool === value}
                     onClick={() => setTool(value)}
@@ -715,19 +728,19 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 ))}
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <ToolButton
-                  label="Note (N)"
+                  label={t('canvas.note')}
                   icon={NotebookPen}
                   pressed={composing === 'note'}
                   onClick={() => setComposing((open) => (open === 'note' ? null : 'note'))}
                 />
                 <ToolButton
-                  label="Link (L)"
+                  label={t('canvas.link')}
                   icon={Link2}
                   pressed={composing === 'link'}
                   onClick={() => setComposing((open) => (open === 'link' ? null : 'link'))}
                 />
                 <ToolButton
-                  label="Upload"
+                  label={t('canvas.upload')}
                   icon={Upload}
                   onClick={() => upload.current?.click()}
                 />
@@ -736,7 +749,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                   type="file"
                   multiple
                   hidden
-                  aria-label="Upload"
+                  aria-label={t('canvas.upload')}
                   onChange={(event) => {
                     const files = Array.from(event.target.files ?? [])
                     event.target.value = ''
@@ -747,13 +760,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 />
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <ToolButton
-                  label={`Undo (${combo('Z')})`}
+                  label={t('canvas.undo', { key: combo('Z') })}
                   icon={Undo2}
                   disabled={!history.canUndo}
                   onClick={() => travel('undo')}
                 />
                 <ToolButton
-                  label={`Redo (${combo('Z', { shift: true })})`}
+                  label={t('canvas.redo', { key: combo('Z', { shift: true }) })}
                   icon={Redo2}
                   disabled={!history.canRedo}
                   onClick={() => travel('redo')}
@@ -766,7 +779,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                   onClick={() => setAdding((open) => !open)}
                 >
                   <Plus className="size-4" aria-hidden="true" />
-                  Add items
+                  {t('canvas.addItems')}
                 </button>
               </div>
             </Panel>
@@ -774,24 +787,24 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           {!readOnly && selected.length > 1 && (
             <NodeToolbar nodeId={selected.map((node) => node.id)} isVisible position={Position.Top}>
               <div className="popover flex items-center gap-1 p-1">
-                <span className="px-2 text-xs text-zinc-500">{selected.length} selected</span>
+                <span className="px-2 text-xs text-zinc-500">{t('canvas.selected', { count: selected.length })}</span>
                 <button type="button" className="button-ghost" onClick={groupSelection}>
                   <Group className="size-3.5" aria-hidden="true" />
-                  Group ({combo('G')})
+                  {t('canvas.groupSelection', { key: combo('G') })}
                 </button>
               </div>
             </NodeToolbar>
           )}
           {!readOnly && tool === 'pen' && (
             <Panel position="bottom-center" className="!mb-16">
-              <div className="popover flex items-center gap-1 p-1.5" aria-label="Pen">
+              <div className="popover flex items-center gap-1 p-1.5" aria-label={t('canvas.pen')}>
                 <PenColors value={pen.color} onChange={(color) => setPen({ ...pen, color })} />
                 <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
                 {PEN_WIDTHS.map((width) => (
                   <button
                     key={width}
                     type="button"
-                    aria-label={`${width} px`}
+                    aria-label={t('canvas.penWidth', { width })}
                     aria-pressed={pen.width === width}
                     className="button-icon size-7 aria-pressed:bg-zinc-100 dark:aria-pressed:bg-zinc-800"
                     onClick={() => setPen({ ...pen, width })}
@@ -825,15 +838,22 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             <Panel position="top-center" className="pointer-events-none">
               <div className="mt-12 max-w-md">
                 {readOnly ? (
-                  <EmptyState icon={Waypoints} title="An empty board">
-                    Open it on a larger screen to lay things out here.
+                  <EmptyState icon={Waypoints} title={t('canvas.empty')}>
+                    {t('canvas.emptyReadOnly')}
                   </EmptyState>
                 ) : (
-                  <EmptyState icon={Waypoints} title="An empty board">
-                    Paste (<span className="kbd">{MOD}</span> <span className="kbd">V</span>) or drop
-                    links, text and files anywhere here. Press <span className="kbd">N</span> for a
-                    note, <span className="kbd">S</span> for a sticky, <span className="kbd">P</span>{' '}
-                    to draw, or pick from <em>Add items</em>.
+                  <EmptyState icon={Waypoints} title={t('canvas.empty')}>
+                    {rich('canvas.emptyHint', {
+                      paste: (
+                        <>
+                          <span className="kbd">{MOD}</span> <span className="kbd">V</span>
+                        </>
+                      ),
+                      n: <span className="kbd">N</span>,
+                      s: <span className="kbd">S</span>,
+                      p: <span className="kbd">P</span>,
+                      em: (chunk) => <em>{chunk}</em>,
+                    })}
                   </EmptyState>
                 )}
               </div>
@@ -854,7 +874,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
         {pipeline.dragging && !readOnly && (
           <div className="pointer-events-none absolute inset-2 z-20 flex items-start justify-center rounded-2xl border-2 border-dashed border-zinc-400 bg-zinc-500/5 dark:border-zinc-500">
             <span className="mt-6 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
-              Drop to add to this board
+              {t('canvas.drop')}
             </span>
           </div>
         )}
@@ -863,12 +883,12 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
             role="alert"
             className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 flex w-fit max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm dark:border-amber-800 dark:bg-amber-950"
           >
-            <span className="mr-auto">This board changed in another tab or device.</span>
+            <span className="mr-auto">{t('canvas.conflict')}</span>
             <button type="button" className="button-ghost" onClick={() => resolveConflict('theirs')}>
-              Load latest
+              {t('canvas.loadLatest')}
             </button>
             <button type="button" className="button-ghost" onClick={() => resolveConflict('mine')}>
-              Keep mine
+              {t('canvas.keepMine')}
             </button>
           </div>
         )}
@@ -881,15 +901,16 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 }
 
 function PenColors({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  const t = useT()
   return (
-    <div role="radiogroup" aria-label="Pen color" className="flex items-center gap-1 px-1">
+    <div role="radiogroup" aria-label={t('canvas.penColor')} className="flex items-center gap-1 px-1">
       {PALETTE.map((color) => (
         <button
           key={color || 'default'}
           type="button"
           role="radio"
           aria-checked={value === color}
-          aria-label={color || 'Ink'}
+          aria-label={color || t('canvas.ink')}
           className={`size-4 rounded-full transition hover:scale-110 ${
             color ? '' : 'bg-zinc-800 dark:bg-zinc-100'
           } ${value === color ? 'ring-2 ring-accent-500 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900' : ''}`}
@@ -932,31 +953,32 @@ function ToolButton({
 }
 
 function SaveStatus({ state, onRetry }: { state: LayoutSaverState; onRetry: () => void }) {
+  const t = useT()
   switch (state.status) {
     case 'saved':
-      return <span className="px-2 text-xs text-zinc-500">Saved</span>
+      return <span className="px-2 text-xs text-zinc-500">{t('canvas.saved')}</span>
     case 'unsaved':
     case 'saving':
-      return <span className="px-2 text-xs text-zinc-500">Saving…</span>
+      return <span className="px-2 text-xs text-zinc-500">{t('canvas.saving')}</span>
     case 'offline':
       return (
         <span
           className="px-2 text-xs text-amber-700 dark:text-amber-400"
-          title="Kept on this device, it saves when the connection is back"
+          title={t('canvas.offlineHint')}
         >
-          Offline
+          {t('canvas.offline')}
         </span>
       )
     case 'error':
       return (
         <span className="flex items-center gap-1 px-2 text-xs text-red-600" title={state.error}>
-          Couldn't save
+          {t('canvas.saveFailed')}
           <button type="button" className="button-ghost" onClick={onRetry}>
-            Retry
+            {t('canvas.retry')}
           </button>
         </span>
       )
     case 'conflict':
-      return <span className="px-2 text-xs text-amber-700 dark:text-amber-400">Not saved</span>
+      return <span className="px-2 text-xs text-amber-700 dark:text-amber-400">{t('canvas.notSaved')}</span>
   }
 }

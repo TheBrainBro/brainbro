@@ -1,12 +1,27 @@
+import { t } from '../i18n/i18n'
+import { noteTitle } from '../notes/title'
 import type { Item, ItemKind } from './api'
 
-/** What each kind of item is called, in lists and on cards. */
+/** What each kind of item is called, in lists and on cards, in the language shown. */
 export const KIND_LABEL: Record<ItemKind, string> = {
-  note: 'Note',
-  link: 'Link',
-  image: 'Image',
-  file: 'File',
-  album: 'Album',
+  get note() {
+    return t('kinds.note')
+  },
+  get link() {
+    return t('kinds.link')
+  },
+  get image() {
+    return t('kinds.image')
+  },
+  get file() {
+    return t('kinds.file')
+  },
+  get audio() {
+    return t('kinds.audio')
+  },
+  get album() {
+    return t('kinds.album')
+  },
 }
 
 /** Markdown links and images read as their text: `[read](https://…)` is `read`. */
@@ -21,14 +36,9 @@ export function itemLabel(item: Item) {
   const caption = (item.kind === 'image' || item.kind === 'album') && item.body.trim()
   if (caption) return caption.split('\n')[0].trim()
   if (item.kind === 'link') return item.metadata.title || item.url
-  if (item.kind === 'note') {
-    const line = plainLinks(item.body)
-      .split('\n')
-      .find((text) => text.trim())
-    return line?.replace(/^[#>*\-+\s]+|\[[ xX]\]\s*/g, '').trim() || 'Empty note'
-  }
+  if (item.kind === 'note') return noteTitle(item.body, t('items.emptyNote'))
   if (item.kind === 'album') {
-    return `${item.album_items?.length ?? 0} images`
+    return t('items.albumImages', { count: item.album_items?.length ?? 0 })
   }
-  return item.metadata.filename || (item.kind === 'image' ? 'Image' : 'File')
+  return item.metadata.filename || KIND_LABEL[item.kind]
 }

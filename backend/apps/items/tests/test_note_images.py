@@ -33,7 +33,7 @@ def media(settings, tmp_path):
 @pytest.fixture
 def enqueued(monkeypatch):
     calls = []
-    monkeypatch.setattr(views.fetch_note_images, "delay", calls.append)
+    monkeypatch.setattr(tasks.fetch_note_images, "delay", calls.append)
     return calls
 
 

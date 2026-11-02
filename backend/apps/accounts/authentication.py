@@ -56,7 +56,7 @@ class ApiTokenAuthentication(authentication.BaseAuthentication):
 class McpAuthentication(ApiTokenAuthentication):
     """
     Personal tokens and connected apps. A 401 points at the metadata that
-    leads to "Sign in to Brain" (see `oauth`), as MCP clients expect.
+    leads to "Sign in to BrainBro" (see `oauth`), as MCP clients expect.
     """
 
     connected_apps = True

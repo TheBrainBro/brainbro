@@ -33,9 +33,17 @@ def test_unknown_api_route_is_404_not_spa(client, tmp_path):
     assert response.status_code == 404
 
 
+def test_admin_without_slash_redirects_to_the_admin(client, tmp_path):
+    (tmp_path / "index.html").write_text("<div id=root></div>")
+    with override_settings(FRONTEND_DIST_DIR=tmp_path):
+        response = client.get("/admin")
+    assert response.status_code == 301
+    assert response["Location"] == "/admin/"
+
+
 def test_pwa_files_are_served_from_the_root_uncached(client, tmp_path):
     (tmp_path / "sw.js").write_text("self.skipWaiting()")
-    (tmp_path / "manifest.webmanifest").write_text('{"name": "Brain"}')
+    (tmp_path / "manifest.webmanifest").write_text('{"name": "BrainBro"}')
     with override_settings(FRONTEND_DIST_DIR=tmp_path):
         worker = client.get("/sw.js")
         manifest = client.get("/manifest.webmanifest")

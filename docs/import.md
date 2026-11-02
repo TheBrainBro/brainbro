@@ -1,7 +1,7 @@
 # Import from Obsidian
 
 *Import from Obsidian* in the account menu takes an Obsidian vault, zipped,
-and brings it into Brain. The other direction needs nothing special: the
+and brings it into BrainBro. The other direction needs nothing special: the
 [full export](export.md) opens as a vault, boards included as `.canvas` files.
 
 ## What becomes what
@@ -18,7 +18,7 @@ and brings it into Brain. The other direction needs nothing special: the
     it, and the note links them as `attachments/<id>.<ext>`. `|300` sizes are
     dropped; any other text after the bar becomes the image's alt text.
   - Properties (the YAML front matter) become a `yaml` code block at the top,
-    so they stay readable. The front matter of a Brain export's own notes
+    so they stay readable. The front matter of a BrainBro export's own notes
     (with `id` and `kind`) is dropped.
   - Wikilinks between notes (`[[Other note]]`) and embeds of anything that
     isn't an image are kept as written.

@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import { ApiError } from './api'
 
 /** What a save indicator shows. `unsaved` is the debounce, before a save starts. */
@@ -146,7 +147,7 @@ export class Autosave<Theirs> {
         const offline = isOffline(error)
         this.set({
           status: offline ? 'offline' : 'error',
-          error: offline ? undefined : error instanceof Error ? error.message : 'Save failed',
+          error: offline ? undefined : error instanceof Error ? error.message : t('errors.saveFailed'),
         })
         if (!this.left) {
           this.retryTimer = setTimeout(() => this.flush(), this.retryDelay)
@@ -165,6 +166,17 @@ export class Autosave<Theirs> {
       this.again = false
       await this.flush({ keepalive })
     }
+  }
+
+  /**
+   * Saved elsewhere while something here is pending: stop and let the owner
+   * choose. A save in flight finds out from its own answer (a 412).
+   */
+  conflict(theirs: Theirs) {
+    if (this.stopped || this.inFlight) return
+    this.clearTimers()
+    this.firstChange = undefined
+    this.set({ status: 'conflict', theirs })
   }
 
   /** Ends a conflict on our side: the owner has rebased onto theirs, save over it now. */

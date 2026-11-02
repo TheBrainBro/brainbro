@@ -10,8 +10,8 @@ from apps.telegram import bot
 def telegram(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
     settings.TELEGRAM_BOT_TOKEN = "123:abc"
-    settings.TELEGRAM_BOT_USERNAME = "brain_bot"
-    settings.TELEGRAM_WEBHOOK_URL = "https://brain.example.com/api/telegram/webhook/"
+    settings.TELEGRAM_BOT_USERNAME = "brainbro_bot"
+    settings.TELEGRAM_WEBHOOK_URL = "https://brainbro.example.com/api/telegram/webhook/"
 
 
 class FakeBot:

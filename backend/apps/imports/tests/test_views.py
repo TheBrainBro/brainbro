@@ -38,6 +38,7 @@ def test_a_vault_is_imported(api, user, django_capture_on_commit_callbacks):
     assert result["filename"] == "vault.zip"
     assert result["counts"]["notes"] == 1
     assert Item.objects.get(owner=user).body == "world"
+    assert Item.objects.get(owner=user).created_via == "import"
     # The zip is gone once read.
     assert not Import.objects.get().file
 

@@ -10,6 +10,7 @@ import {
 import { ArrowLeftRight, ArrowRight, Minus, Type } from 'lucide-react'
 import { memo, useState } from 'react'
 
+import { useT, type MessageKey } from '../i18n/i18n'
 import type { EdgeArrow } from './api'
 import { useBoardActions } from './context'
 import { ColorSwatches } from './ColorSwatches'
@@ -50,10 +51,10 @@ function side(node: InternalNode, point: Point) {
 
 const PRESSED = 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
 
-const ARROWS: { arrow: EdgeArrow; label: string; icon: typeof Minus }[] = [
-  { arrow: 'none', label: 'No arrow', icon: Minus },
-  { arrow: 'end', label: 'Arrow', icon: ArrowRight },
-  { arrow: 'both', label: 'Arrows both ways', icon: ArrowLeftRight },
+const ARROWS: { arrow: EdgeArrow; label: MessageKey; icon: typeof Minus }[] = [
+  { arrow: 'none', label: 'nodes.noArrow', icon: Minus },
+  { arrow: 'end', label: 'nodes.arrow', icon: ArrowRight },
+  { arrow: 'both', label: 'nodes.bothArrows', icon: ArrowLeftRight },
 ]
 
 /**
@@ -69,6 +70,7 @@ export const FloatingEdge = memo(function FloatingEdge({
   markerStart,
   markerEnd,
 }: EdgeProps<BoardEdge>) {
+  const t = useT()
   const from = useInternalNode(source)
   const to = useInternalNode(target)
   const { readOnly, updateEdge } = useBoardActions()
@@ -118,18 +120,18 @@ export const FloatingEdge = memo(function FloatingEdge({
                 <button
                   key={arrow}
                   type="button"
-                  aria-label={label}
+                  aria-label={t(label)}
                   aria-pressed={data.arrow === arrow}
                   className={`button-icon group/tip size-7 ${data.arrow === arrow ? PRESSED : ''}`}
                   onClick={() => updateEdge(id, { arrow })}
                 >
                   <Icon className="size-4" aria-hidden="true" />
-                  <span className="tooltip bottom-full mb-1">{label}</span>
+                  <span className="tooltip bottom-full mb-1">{t(label)}</span>
                 </button>
               ))}
               <button
                 type="button"
-                aria-label="Dashed"
+                aria-label={t('nodes.dashed')}
                 aria-pressed={data.stroke === 'dashed'}
                 className={`button-icon group/tip size-7 ${data.stroke === 'dashed' ? PRESSED : ''}`}
                 onClick={() =>
@@ -139,16 +141,16 @@ export const FloatingEdge = memo(function FloatingEdge({
                 <svg viewBox="0 0 16 16" className="size-4" aria-hidden="true">
                   <path d="M1 8h3M7 8h3M13 8h2" stroke="currentColor" strokeWidth="1.75" />
                 </svg>
-                <span className="tooltip bottom-full mb-1">Dashed</span>
+                <span className="tooltip bottom-full mb-1">{t('nodes.dashed')}</span>
               </button>
               <button
                 type="button"
-                aria-label="Label"
+                aria-label={t('nodes.label')}
                 className="button-icon group/tip size-7"
                 onClick={() => setEditing(true)}
               >
                 <Type className="size-4" aria-hidden="true" />
-                <span className="tooltip bottom-full mb-1">Label</span>
+                <span className="tooltip bottom-full mb-1">{t('nodes.label')}</span>
               </button>
               <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
               <ColorSwatches
@@ -161,7 +163,7 @@ export const FloatingEdge = memo(function FloatingEdge({
           {editing ? (
             <input
               autoFocus
-              aria-label="Edge label"
+              aria-label={t('nodes.edgeLabel')}
               defaultValue={data.label}
               className="input w-40 py-1 text-center text-xs"
               onBlur={(event) => rename(event.target.value.trim())}
