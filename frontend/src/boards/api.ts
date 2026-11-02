@@ -140,6 +140,24 @@ export function useCreateBoard() {
   })
 }
 
+/** Puts a board right after `after` (null: first). */
+export function useMoveBoard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, after }: { id: string; after: string | null }) =>
+      api<void>(`/boards/${id}/move/`, { method: 'POST', body: JSON.stringify({ after }) }),
+    onMutate: ({ id, after }) =>
+      queryClient.setQueryData(boardsKey, (data: BoardSummary[] | undefined) => {
+        const moving = data?.find((board) => board.id === id)
+        if (!data || !moving) return data
+        const rest = data.filter((board) => board !== moving)
+        rest.splice(after ? rest.findIndex((board) => board.id === after) + 1 : 0, 0, moving)
+        return rest
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: boardsKey, exact: true }),
+  })
+}
+
 export function useRenameBoard(id: string) {
   const queryClient = useQueryClient()
   return useMutation({

@@ -11,13 +11,26 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from apps.collab.documents import body_written
+from apps.events.changes import items_changed
+from apps.public.pages import default_image, default_title, excerpt, page_preview
+from apps.public.publishing import (
+    MAX_SLUG,
+    SlugTaken,
+    is_valid_slug,
+    publish,
+    save_page,
+    unpublish,
+)
+
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
-from .collection_images import make_collection_image
+from .collection_images import make_square_image
 from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
-from .note_images import MAX_PASTED_SIZE, sync_note_images
-from .note_links import sync_note_links
-from .ordering import move_in_collection, move_in_inbox
+from .note_images import MAX_PASTED_SIZE
+from .notes import sync_images
+from .ordering import move_collection, move_in_collection, move_in_inbox
+from .ranges import file_response
 from .search import find
 from .serializers import (
     ITEM_PREFETCH,
@@ -27,14 +40,15 @@ from .serializers import (
     NoteImageSerializer,
     OwnedPrimaryKeyRelatedField,
     TriageSerializer,
+    check_parent,
+    note_image_url,
 )
 from .tasks import (
     fetch_link_preview,
-    fetch_note_images,
-    fetch_note_links,
     generate_thumbnail,
     make_note_image_display,
 )
+from .titles import linkable_titles
 from .uploads import INLINE_TYPES, UploadTooLarge, has_thumbnail, inspect_upload
 
 
@@ -81,18 +95,59 @@ class MoveSerializer(serializers.Serializer):
     )
 
 
+class PageSerializer(serializers.Serializer):
+    """A published note's page settings; empty ones take their default."""
+
+    slug = serializers.CharField(max_length=MAX_SLUG, required=False)
+    title = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    description = serializers.CharField(
+        max_length=300, required=False, allow_blank=True
+    )
+    # The `src` of one of the note's images, or "none".
+    image = serializers.CharField(max_length=2048, required=False, allow_blank=True)
+
+    def validate_slug(self, value):
+        if not is_valid_slug(value):
+            raise serializers.ValidationError(
+                "Use lowercase letters, numbers and hyphens."
+            )
+        return value
+
+
+def page_settings(note):
+    """What the page settings show: the saved values, defaults and the preview."""
+    preview = page_preview(note)
+    default = default_image(note)
+    return {
+        "slug": note.public_slug,
+        "title": note.public_title,
+        "description": note.public_description,
+        "image": note.public_image,
+        "defaults": {
+            "title": default_title(note),
+            "description": excerpt(note.body),
+            "image": default.src if default else None,
+        },
+        "preview": {
+            "title": preview.title,
+            "description": preview.description,
+            "image_url": note_image_url(preview.image) if preview.image else None,
+        },
+    }
+
+
+class CollectionMoveSerializer(serializers.Serializer):
+    # Where it goes: inside this collection, or at the top when null.
+    parent = OwnedPrimaryKeyRelatedField(
+        queryset=Collection.objects.all(), allow_null=True
+    )
+    after = serializers.UUIDField(allow_null=True, required=False, default=None)
+
+
 def enqueue_preview(item):
     # After commit, so the worker never looks for a row it can't see yet.
     task = fetch_link_preview if item.kind == Item.Kind.LINK else generate_thumbnail
     transaction.on_commit(lambda: task.delay(str(item.id)))
-
-
-def sync_images(note):
-    """Images and link previews the note now shows, fetched in the background."""
-    if sync_note_images(note):
-        transaction.on_commit(lambda: fetch_note_images.delay(str(note.id)))
-    if sync_note_links(note):
-        transaction.on_commit(lambda: fetch_note_links.delay(str(note.id)))
 
 
 def create_upload_item(owner, file, upload):
@@ -142,6 +197,7 @@ def triage(items, action, collections=()):
     Returns how many were deleted, for `delete`.
     """
     Action = TriageSerializer.Action
+    items_changed(items)
     if action == Action.DELETE:
         # Per-object signals still run, so preview images are removed.
         _, deleted = items.delete()
@@ -183,6 +239,21 @@ def triage(items, action, collections=()):
     return 0
 
 
+def by_origin(items, origin=None, app=None):
+    """
+    `origin`: "mine" (only the user made and edited them) or "assistants" (an
+    app made or last edited them); `app`: that app did.
+    """
+    by_app = ~Q(created_by="") | ~Q(edited_by="")
+    if origin == "mine":
+        items = items.exclude(by_app)
+    elif origin == "assistants":
+        items = items.filter(by_app)
+    if app:
+        items = items.filter(Q(created_by=app) | Q(edited_by=app))
+    return items
+
+
 SEARCH_LIMIT = 20
 
 
@@ -198,7 +269,8 @@ class ItemViewSet(
     infers the type; everything else is reading and triage.
 
     Filters: `?status=inbox|organized|archived`, `?kind=note,link`,
-    `?collection=<id>`, `?q=<text>` (sorted by relevance).
+    `?collection=<id>`, `?q=<text>` (sorted by relevance), and who made or
+    last edited it: `?origin=mine|assistants` or `?app=<name>`.
     """
 
     serializer_class = ItemSerializer
@@ -216,6 +288,7 @@ class ItemViewSet(
             items = items.filter(status=item_status)
         if kinds := params.get("kind"):
             items = items.filter(kind__in=kinds.split(","))
+        items = by_origin(items, params.get("origin"), params.get("app"))
         searching = self.action == "list" and params.get("q", "").strip()
         if searching:
             items = find(items, searching).order_by("-rank", "-created_at")
@@ -250,6 +323,9 @@ class ItemViewSet(
         With `If-Match: "<version>"`, the save only applies if the title and
         body are still the ones the client started from; otherwise 412 with
         the current item, so the editor can show the conflict.
+
+        The app edits notes live (`apps.collab`) instead; this is for clients
+        without it, like an older app still cached on a device.
         """
         expected = request.headers.get("If-Match")
         with transaction.atomic():
@@ -270,6 +346,7 @@ class ItemViewSet(
         item = serializer.save()
         if item.kind == Item.Kind.NOTE and "body" in serializer.validated_data:
             sync_images(item)
+            body_written(item)
 
     @action(detail=False, methods=["post"])
     def capture(self, request):
@@ -290,6 +367,32 @@ class ItemViewSet(
                 request.user, data["text"], data.get("kind"), collection
             )
         return Response(self.get_serializer(item).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def apps(self, request):
+        """The names of the apps that made or edited items, to filter by."""
+        mine = Item.objects.filter(owner=request.user)
+        names = set(mine.values_list("created_by", flat=True).distinct())
+        names |= set(mine.values_list("edited_by", flat=True).distinct())
+        return Response({"apps": sorted(filter(None, names), key=str.lower)})
+
+    @action(detail=False, methods=["get"], url_path="note-titles")
+    def note_titles(self, request):
+        """
+        `[{"id", "title"}]`: the titles `[[Title]]` links find notes by, in the
+        order they are tried (see `linkable_titles`), archived notes included.
+        """
+        notes = (
+            Item.objects.filter(owner=request.user, kind=Item.Kind.NOTE)
+            .only("id", "title", "body")
+            .order_by("created_at")
+        )
+        return Response(
+            [
+                {"id": str(note_id), "title": title}
+                for note_id, title in linkable_titles(notes)
+            ]
+        )
 
     @action(detail=False, methods=["get"])
     def search(self, request):
@@ -407,6 +510,46 @@ class ItemViewSet(
             raise serializers.ValidationError({"after": "Not in the same list."})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["put", "delete"])
+    def publication(self, request, pk=None):
+        """
+        PUT makes the note public at `/p/<slug>` (the slug it had, or one made
+        from its title); DELETE makes it private again. Both return the note.
+        """
+        note = self._note()
+        if request.method == "DELETE":
+            unpublish(note)
+        else:
+            publish(note)
+        return Response(self.get_serializer(note).data)
+
+    @action(detail=True, methods=["get", "patch"])
+    def page(self, request, pk=None):
+        """
+        The settings of the note's public page: `slug`, and how it shows in
+        search results and shared links (`title`, `description`, `image`).
+        PATCH changes some of them; empty ones go back to their default.
+        """
+        note = self._note()
+        if request.method == "PATCH":
+            payload = PageSerializer(data=request.data)
+            payload.is_valid(raise_exception=True)
+            try:
+                save_page(note, payload.validated_data)
+            except SlugTaken:
+                raise serializers.ValidationError(
+                    {"slug": "Another note already has this address."}
+                ) from None
+        return Response(page_settings(note))
+
+    def _note(self):
+        note = self.get_object()
+        if note.kind != Item.Kind.NOTE:
+            raise serializers.ValidationError(
+                {"detail": "Only notes can be published."}
+            )
+        return note
+
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, pk=None):
         item = self.get_object()
@@ -437,18 +580,19 @@ class ItemViewSet(
         """
         The uploaded original. Only known raster images are shown inline;
         everything else is a download, so nothing uploaded can run as a page
-        on our origin.
+        on our origin. Players still play audio and video from it, in parts.
         """
         item = self.get_object()
         if not item.file:
             raise Http404
         mime = item.metadata.get("mime") or "application/octet-stream"
         inline = item.kind == Item.Kind.IMAGE and mime in INLINE_TYPES
-        response = FileResponse(
-            item.file.open("rb"),
+        response = file_response(
+            request,
+            item.file,
             content_type=mime,
-            as_attachment=not inline,
             filename=item.metadata.get("filename") or item.file.name,
+            as_attachment=not inline,
         )
         response["X-Content-Type-Options"] = "nosniff"
         response["Content-Security-Policy"] = "default-src 'none'; sandbox"
@@ -545,7 +689,7 @@ class CollectionDeleteSerializer(serializers.Serializer):
 
 
 class CollectionImageSerializer(serializers.Serializer):
-    # Checked by make_collection_image, size first.
+    # Checked by make_square_image, size first.
     file = serializers.FileField(allow_empty_file=False)
 
 
@@ -553,8 +697,13 @@ class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
 
     def get_queryset(self):
-        return Collection.objects.filter(owner=self.request.user).annotate(
-            item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
+        # Ordered here: Meta.ordering doesn't apply to an aggregate.
+        return (
+            Collection.objects.filter(owner=self.request.user)
+            .annotate(
+                item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
+            )
+            .order_by("-rank", "name")
         )
 
     def perform_create(self, serializer):
@@ -600,6 +749,26 @@ class CollectionViewSet(viewsets.ModelViewSet):
             collection.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["post"])
+    def move(self, request, pk=None):
+        """
+        Puts the collection inside `parent` (null: at the top), right after
+        `after` (a collection there, or null for the top of it).
+        """
+        collection = self.get_object()
+        payload = CollectionMoveSerializer(
+            data=request.data, context={"request": request}
+        )
+        payload.is_valid(raise_exception=True)
+        parent = payload.validated_data["parent"]
+        try:
+            check_parent(collection, parent)
+        except serializers.ValidationError as error:
+            raise serializers.ValidationError({"parent": error.detail}) from error
+        if not move_collection(collection, parent, payload.validated_data["after"]):
+            raise serializers.ValidationError({"after": "Not in the same collection."})
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=["get", "post", "delete"])
     def image(self, request, pk=None):
         """GET the image, POST a new one (multipart `file`), DELETE it."""
@@ -618,7 +787,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
         if request.method == "POST":
             upload = CollectionImageSerializer(data=request.data)
             upload.is_valid(raise_exception=True)
-            data = make_collection_image(upload.validated_data["file"])
+            data = make_square_image(upload.validated_data["file"])
             if data is None:
                 raise serializers.ValidationError(
                     {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}

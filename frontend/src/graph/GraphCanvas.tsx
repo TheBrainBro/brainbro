@@ -11,7 +11,8 @@ import {
 } from 'd3-force'
 import { useEffect, useRef } from 'react'
 
-import { useMediaQuery } from '../lib/dom'
+import { useT } from '../i18n/i18n'
+import { useDark } from '../theme/theme'
 import type { EdgeType, GraphEdge, GraphNode } from './api'
 import { neighbours, nodeColor, nodeRadius, type Visible } from './model'
 
@@ -60,9 +61,10 @@ export function GraphCanvas({
   visible: Visible
   onOpen: (node: GraphNode) => void
 }) {
+  const t = useT()
   const container = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
-  const dark = useMediaQuery('(prefers-color-scheme: dark)')
+  const dark = useDark()
   const state = useRef({
     nodes: [] as SimNode[],
     links: [] as SimLink[],
@@ -198,7 +200,7 @@ export function GraphCanvas({
       <canvas
         ref={canvas}
         role="img"
-        aria-label={`Graph of ${visible.nodes.length} items and collections, ${visible.edges.length} connections`}
+        aria-label={t('graph.canvas', { nodes: visible.nodes.length, edges: visible.edges.length })}
         className="size-full touch-none"
         onPointerDown={(event) => {
           const s = state.current
@@ -315,7 +317,7 @@ function paint(s: S, element: HTMLCanvasElement) {
     context.fill()
     if (node.node.type === 'collection') {
       context.lineWidth = 2 / view.k
-      context.strokeStyle = dark ? '#09090b' : '#ffffff'
+      context.strokeStyle = dark ? '#141218' : '#ffffff'
       context.stroke()
       const icon = node.node.icon
       // An emoji, not an icon name.

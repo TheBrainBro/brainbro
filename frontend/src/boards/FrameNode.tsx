@@ -2,6 +2,7 @@ import { NodeResizer, NodeToolbar, Position, type NodeProps } from '@xyflow/reac
 import { Ungroup } from 'lucide-react'
 import { memo, useState } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { ColorSwatches } from './ColorSwatches'
 import { useBoardActions } from './context'
 import { ConnectHandles } from './ConnectHandles'
@@ -14,6 +15,7 @@ export const FRAME_COLOR = '#a1a1aa'
  * border take the pointer, so a drag inside it still selects what it holds.
  */
 export const FrameNode = memo(function FrameNode({ id, data, selected }: NodeProps<FrameFlowNode>) {
+  const t = useT()
   const { readOnly, renameFrame, recolorFrame, ungroupFrame } = useBoardActions()
   const [editing, setEditing] = useState(false)
   const color = data.color || FRAME_COLOR
@@ -45,12 +47,12 @@ export const FrameNode = memo(function FrameNode({ id, data, selected }: NodePro
               <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
               <button
                 type="button"
-                aria-label="Ungroup"
+                aria-label={t('nodes.ungroup')}
                 className="button-icon group/tip size-7"
                 onClick={() => ungroupFrame(id)}
               >
                 <Ungroup className="size-4" aria-hidden="true" />
-                <span className="tooltip bottom-full mb-1">Ungroup (⇧⌘G)</span>
+                <span className="tooltip bottom-full mb-1">{t('nodes.ungroupKey')}</span>
               </button>
             </div>
           </NodeToolbar>
@@ -70,7 +72,7 @@ export const FrameNode = memo(function FrameNode({ id, data, selected }: NodePro
           {editing ? (
             <input
               autoFocus
-              aria-label="Group title"
+              aria-label={t('nodes.groupTitle')}
               defaultValue={data.title}
               className="nodrag input w-56 py-0.5 text-sm"
               onBlur={(event) => rename(event.target.value.trim())}
@@ -85,9 +87,9 @@ export const FrameNode = memo(function FrameNode({ id, data, selected }: NodePro
                 data.title ? '' : 'text-zinc-400 italic dark:text-zinc-500'
               }`}
               style={{ color: data.title ? color : undefined }}
-              title={readOnly ? undefined : 'Drag to move · double-click to rename'}
+              title={readOnly ? undefined : t('nodes.frameHint')}
             >
-              {data.title || 'Untitled group'}
+              {data.title || t('nodes.untitledGroup')}
             </span>
           )}
         </div>

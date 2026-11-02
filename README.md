@@ -1,10 +1,15 @@
-# Brain
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme-header-dark.png" />
+  <img src="docs/assets/readme-header-light.png" alt="BrainBro" />
+</picture>
+
+# BrainBro
 
 A self-hosted second brain: capture links, notes, images and files with zero friction, then organize them into boards (infinite canvas) and collections.
 
 > **Drop it now, sort it later.** Everything lands in the inbox; organizing is a separate step.
 
-Roadmap and pending work: [epic #1](https://github.com/CarlosLugones/brain/issues/1).
+Roadmap and pending work: [epic #1](https://github.com/TheBrainBro/brainbro/issues/1).
 
 ## Stack
 
@@ -22,6 +27,7 @@ frontend/   Vite + React
 docker/     image entrypoint
 scripts/    backup and restore
 docs/       documentation (deployment, etc.)
+site/       landing page (static, see docs/landing.md)
 ```
 
 ## Development
@@ -60,6 +66,7 @@ make help          # everything else
 
 - [Conventional Commits](https://www.conventionalcommits.org/): `feat(backend): ...`, `fix(frontend): ...`, `chore(infra): ...`
 - Git flow: `main` (releases), `develop` (integration), `feature/*`, `release/*`, `hotfix/*`.
+- Merging a `release/x.y.z` or `hotfix/x.y.z` PR into `main` tags `vx.y.z` and publishes its GitHub release, with notes built from the issues in the PR's `Ref` line (`.github/workflows/release.yml`). To redo one by hand: `scripts/release.sh <pr-number>`.
 - Issues, PRs, commits, code and docs in English.
 
 ## Production

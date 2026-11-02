@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 
+import { useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import type { Item } from './api'
 import { ItemThumb } from './ItemThumb'
+import { OriginMark } from './OriginMark'
 import { itemLabel, KIND_LABEL, plainLinks } from './label'
 
 type Props = {
@@ -22,10 +24,11 @@ function border(selected: boolean, focused: boolean) {
 }
 
 function Select({ selected, onToggle }: { selected: boolean; onToggle: () => void }) {
+  const t = useT()
   return (
     <input
       type="checkbox"
-      aria-label="Select"
+      aria-label={t('items.select')}
       className={`shrink-0 accent-accent-600 transition-opacity ${selected ? '' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
       checked={selected}
       onChange={onToggle}
@@ -36,6 +39,7 @@ function Select({ selected, onToggle }: { selected: boolean; onToggle: () => voi
 
 /** A tile in the grid: the item's picture (or a note's first lines) over its name. */
 export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, actions }: Props) {
+  const t = useT()
   return (
     <article
       aria-current={focused || undefined}
@@ -43,7 +47,7 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
     >
       <button
         type="button"
-        aria-label={`Open ${itemLabel(item)}`}
+        aria-label={t('items.open', { name: itemLabel(item) })}
         className="block aspect-[4/3] w-full overflow-hidden bg-zinc-100 text-left dark:bg-zinc-800"
         onClick={onOpen}
       >
@@ -57,8 +61,9 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-3">
         <p className="line-clamp-2 text-sm font-medium break-words">{itemLabel(item)}</p>
-        <p className="mt-auto text-xs text-zinc-500">
+        <p className="mt-auto flex items-center gap-1.5 text-xs text-zinc-500">
           {KIND_LABEL[item.kind]} · {timeAgo(item.created_at)}
+          <OriginMark item={item} />
         </p>
       </div>
       <div className="absolute top-2 left-2">
@@ -71,6 +76,7 @@ export function ItemTile({ item, selected, focused, onToggleSelect, onOpen, acti
 
 /** A row in the list: small picture, name, kind and age. */
 export function ItemRow({ item, selected, focused, onToggleSelect, onOpen, actions }: Props) {
+  useT()
   return (
     <article
       aria-current={focused || undefined}
@@ -85,8 +91,9 @@ export function ItemRow({ item, selected, focused, onToggleSelect, onOpen, actio
         <ItemThumb item={item} className="size-10" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{itemLabel(item)}</span>
-          <span className="block truncate text-xs text-zinc-500">
+          <span className="flex items-center gap-1.5 truncate text-xs text-zinc-500">
             {KIND_LABEL[item.kind]} · {timeAgo(item.created_at)}
+            <OriginMark item={item} />
           </span>
         </span>
       </button>

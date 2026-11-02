@@ -1,5 +1,5 @@
 """
-A collection's image: a small square, like an avatar. The browser crops and
+A collection's image or a profile photo: a small square. The browser crops and
 shrinks it before uploading, so re-encoding it here stays cheap; the limits
 below keep it that way.
 """
@@ -17,7 +17,7 @@ MAX_PIXELS = 4_000_000
 FORMATS = ("JPEG", "PNG", "GIF", "WEBP")
 
 
-def make_collection_image(file):
+def make_square_image(file):
     """WebP bytes of `file` cropped square at SIZE, or None if unusable."""
     if file.size > MAX_BYTES:
         return None
@@ -31,7 +31,7 @@ def make_collection_image(file):
                 image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
             square = ImageOps.fit(image, (SIZE, SIZE))
     except (OSError, ValueError, Image.DecompressionBombError) as exc:
-        logger.info("Unusable collection image: %s", exc)
+        logger.info("Unusable square image: %s", exc)
         return None
     output = io.BytesIO()
     square.save(output, format="WEBP", quality=85)

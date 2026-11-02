@@ -11,6 +11,7 @@ import {
   type LinkPreview,
   type LinkView,
 } from '../lib/linkPreviews'
+import { t } from '../i18n/i18n'
 import { imageKey } from '../lib/markdown'
 
 /*
@@ -68,12 +69,12 @@ function switcher(view: EditorView, link: LinkLine) {
   const bar = document.createElement('span')
   bar.className = 'cm-link-switch'
   bar.setAttribute('role', 'group')
-  bar.setAttribute('aria-label', 'Show link as')
+  bar.setAttribute('aria-label', t('editor.showLinkAs'))
   const choices: LinkView[] = embedSrc(link.url) ? ['link', 'card', 'embed'] : ['link', 'card']
   for (const choice of choices) {
     const button = document.createElement('button')
     button.type = 'button'
-    button.textContent = choice[0].toUpperCase() + choice.slice(1)
+    button.textContent = t(`editor.${choice}`)
     button.setAttribute('aria-pressed', String(choice === link.view))
     // Keep the cursor where it is: choosing isn't editing.
     button.addEventListener('mousedown', (event) => event.preventDefault())

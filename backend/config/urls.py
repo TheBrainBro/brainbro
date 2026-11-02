@@ -14,6 +14,9 @@ api_patterns = [
     path("", include("apps.imports.urls")),
     path("", include("apps.telegram.urls")),
     path("", include("apps.mcp.urls")),
+    path("", include("apps.events.urls")),
+    path("", include("apps.history.urls")),
+    path("", include("apps.public.urls")),
 ]
 
 urlpatterns = [
@@ -37,9 +40,10 @@ urlpatterns = [
         name="oauth-authorization-server",
     ),
     # Everything else is a frontend route. Excludes api/, admin/ and static/ so
-    # typos there return a real 404 instead of the SPA shell.
+    # typos there return a real 404 instead of the SPA shell, and `/admin`
+    # without its slash gets redirected to the admin (APPEND_SLASH).
     re_path(
-        r"^(?!api/|admin/|static/|media/)(?P<path>.*)$",
+        r"^(?!(?:api|admin|static|media)(?:/|$))(?P<path>.*)$",
         core_views.spa,
         name="spa",
     ),

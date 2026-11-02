@@ -4,6 +4,9 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
+from apps.events.changes import changed
+
+from .embeddings import embed_stale
 from .models import (
     Item,
     NoteImage,
@@ -80,6 +83,7 @@ def _store_preview(item, preview, image):
         default_storage.delete(item.preview_image.name)
     if title := preview.metadata.get("title"):
         items.filter(title="").update(title=title[:500])
+    changed(item.owner_id, items=[item.id])
 
 
 def _mark_failed(item, exc):
@@ -88,6 +92,7 @@ def _mark_failed(item, exc):
         preview_status=Item.PreviewStatus.FAILED,
         metadata={**item.metadata, "preview_error": str(exc)[:500]},
     )
+    changed(item.owner_id, items=[item.id])
 
 
 @shared_task
@@ -104,6 +109,7 @@ def generate_thumbnail(item_id):
     if thumbnail is None:
         logger.info("Could not make a thumbnail for item %s", item.id)
         Item.objects.filter(id=item.id).update(preview_status=Item.PreviewStatus.FAILED)
+        changed(item.owner_id, items=[item.id])
         return
 
     name = default_storage.save(preview_image_path(item, ""), ContentFile(thumbnail))
@@ -114,6 +120,7 @@ def generate_thumbnail(item_id):
         default_storage.delete(name)
     elif item.preview_image and item.preview_image.name != name:
         default_storage.delete(item.preview_image.name)
+    changed(item.owner_id, items=[item.id])
 
 
 @shared_task(bind=True, max_retries=len(RETRY_DELAYS))
@@ -161,6 +168,11 @@ def make_note_image_display(image_id):
 
 
 @shared_task
+def embed_items():
+    return embed_stale()
+
+
+@shared_task
 def delete_unused_note_images():
     return delete_unused_images()
 
@@ -174,10 +186,12 @@ def _store_note_image(image, data):
         default_storage.delete(name)
     elif image.image and image.image.name != name:
         default_storage.delete(image.image.name)
+    note_changed(image)
 
 
 def _note_image_failed(image):
     NoteImage.objects.filter(id=image.id).update(status=Item.PreviewStatus.FAILED)
+    note_changed(image)
 
 
 @shared_task(bind=True, max_retries=len(RETRY_DELAYS))
@@ -200,6 +214,7 @@ def fetch_note_links(self, note_id):
         except FetchError as exc:
             logger.info("Note link preview failed for %s: %s", link.url, exc)
             NoteLink.objects.filter(id=link.id).update(status=Item.PreviewStatus.FAILED)
+            note_changed(link)
             continue
         image = None
         if preview.image_url:
@@ -213,6 +228,7 @@ def fetch_note_links(self, note_id):
         for link in pending.all():
             logger.info("Note link unavailable: %s: %s", link.url, unavailable)
             NoteLink.objects.filter(id=link.id).update(status=Item.PreviewStatus.FAILED)
+            note_changed(link)
 
 
 def _store_note_link(link, preview, image):
@@ -224,3 +240,10 @@ def _store_note_link(link, preview, image):
     )
     if not updated and name:  # taken out of the note meanwhile
         default_storage.delete(name)
+    note_changed(link)
+
+
+def note_changed(part):
+    """A note's image or link preview is done (or failed): it shows now."""
+    if part.note_id:
+        changed(part.owner_id, items=[part.note_id])

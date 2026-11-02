@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 ENVIRONMENT = get_env_variable("ENVIRONMENT", "develop")
 
-APP_NAME = get_env_variable("APP_NAME", "Brain")
+APP_NAME = get_env_variable("APP_NAME", "BrainBro")
 
 # Application definition
 
@@ -44,6 +44,10 @@ LOCAL_APPS = [
     "apps.imports.apps.ImportsConfig",
     "apps.telegram.apps.TelegramConfig",
     "apps.mcp.apps.McpConfig",
+    "apps.events.apps.EventsConfig",
+    "apps.collab.apps.CollabConfig",
+    "apps.history.apps.HistoryConfig",
+    "apps.public.apps.PublicConfig",
 ]
 
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -55,6 +59,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.events.middleware.ChangesMiddleware",
+    "apps.items.origin.OriginMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -78,6 +84,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 # Database
 
@@ -138,7 +145,8 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
-# User uploads. Never served publicly: files go through authenticated views.
+# User uploads. Never served from here: files go through views that check who
+# asks (only the images of a published note are open to anyone, apps.public).
 MEDIA_ROOT = Path(get_env_variable("STORAGE_PATH", str(BASE_DIR / "storage")))
 MEDIA_URL = "/media/"
 
@@ -166,6 +174,10 @@ IMPORT_MAX_SIZE = int(get_env_variable("IMPORT_MAX_SIZE", str(100 * 1024 * 1024)
 TELEGRAM_BOT_TOKEN = get_env_variable("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = get_env_variable("TELEGRAM_BOT_USERNAME", "").lstrip("@")
 TELEGRAM_WEBHOOK_URL = get_env_variable("TELEGRAM_WEBHOOK_URL", "")
+
+# Semantic search (apps.items.embedder): the embedder container. Without it,
+# search goes by words alone.
+EMBEDDER_URL = get_env_variable("EMBEDDER_URL", "")
 
 # Link previews (apps.items.tasks.fetch_link_preview). Private, loopback and
 # link-local addresses are always refused unless explicitly allowed (tests).
@@ -196,9 +208,13 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
 }
 
+# Redis: the Celery broker, and how open tabs hear about changes (apps.events).
+
+REDIS_URL = get_env_variable("REDIS_URL", "redis://localhost:6389/0")
+
 # Celery
 
-CELERY_BROKER_URL = get_env_variable("REDIS_URL", "redis://localhost:6389/0")
+CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TIME_LIMIT = 10 * 60
@@ -213,9 +229,19 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.exports.tasks.delete_old_exports",
         "schedule": crontab(minute=30),
     },
+    "embed-items": {
+        "task": "apps.items.tasks.embed_items",
+        "schedule": 60.0,
+        # A run missed while the worker was busy is covered by the next one.
+        "options": {"expires": 50},
+    },
     "delete-unused-note-images": {
         "task": "apps.items.tasks.delete_unused_note_images",
         "schedule": crontab(hour=4, minute=30),
+    },
+    "delete-unused-oauth-clients": {
+        "task": "apps.accounts.tasks.delete_unused_oauth_clients",
+        "schedule": crontab(hour=5, minute=0),
     },
 }
 

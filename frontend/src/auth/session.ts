@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
+import type { LanguageChoice } from '../i18n/i18n'
+import type { Theme } from '../theme/theme'
 
 export type User = {
   id: number
@@ -15,6 +17,18 @@ export type Session = {
   limits?: { upload_max_size: number }
   /** Whether this user already closed the welcome tour, on any device. */
   welcome_seen?: boolean
+  /** The theme chosen, the same on every device. */
+  theme?: Theme
+  /** The language chosen, the same on every device; `system` follows the browser. */
+  language?: LanguageChoice
+  profile?: Profile
+}
+
+/** How the user shows: in the app, and as the author of their public notes. */
+export type Profile = {
+  /** Signs their public notes; empty, they show no author. Never the username. */
+  display_name: string
+  avatar_url: string | null
 }
 
 export const sessionKey = ['session']
@@ -65,5 +79,33 @@ export function useMarkWelcomeSeen() {
       queryClient.setQueryData<Session>(sessionKey, (session) =>
         session ? { ...session, welcome_seen: true } : session,
       ),
+  })
+}
+
+/** Puts the saved profile into the session, where the app reads it. */
+function useProfileMutation<T>(save: (value: T) => Promise<Profile>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: save,
+    onSuccess: (profile) =>
+      queryClient.setQueryData<Session>(sessionKey, (session) =>
+        session ? { ...session, profile } : session,
+      ),
+  })
+}
+
+export function useSaveDisplayName() {
+  return useProfileMutation((display_name: string) =>
+    api<Profile>('/auth/profile/', { method: 'PATCH', body: JSON.stringify({ display_name }) }),
+  )
+}
+
+/** A new profile photo (already cropped square), or null to remove it. */
+export function useSetAvatar() {
+  return useProfileMutation((image: Blob | null) => {
+    if (!image) return api<Profile>('/auth/profile/avatar/', { method: 'DELETE' })
+    const form = new FormData()
+    form.append('file', image, 'avatar.webp')
+    return api<Profile>('/auth/profile/avatar/', { method: 'POST', body: form })
   })
 }

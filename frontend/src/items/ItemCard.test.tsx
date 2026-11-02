@@ -21,6 +21,13 @@ function fileItem(metadata: Item['metadata']): Item {
     version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    created_by: '',
+    created_via: 'web',
+    edited_by: '',
+    edited_via: '',
+    edited_at: null,
+    public_slug: null,
+    published_at: null,
   }
 }
 
@@ -182,5 +189,22 @@ describe('ItemCard tasks', () => {
     await waitFor(() => expect(patches).toHaveLength(2))
     expect(patches[1].body).toBe(body.replace('2. [x] second', '2. [ ] second'))
     vi.unstubAllGlobals()
+  })
+})
+
+describe('ItemCard audio', () => {
+  it('plays a recording in the card, with its caption', () => {
+    const { container } = renderCard({
+      ...fileItem({ filename: 'Voice note.webm', mime: 'audio/webm', size: 4096 }),
+      kind: 'audio',
+      body: 'Ideas for the trip',
+    })
+    expect(screen.getByText('Voice note.webm')).toBeInTheDocument()
+    expect(screen.getByText('Ideas for the trip')).toBeInTheDocument()
+    expect(screen.getByText('4 KB')).toBeInTheDocument()
+    // On a board, using the player doesn't drag the card.
+    expect(container.querySelector('audio')).toHaveAttribute('src', '/api/items/f1/file/?v=a')
+    expect(container.querySelector('audio')!.parentElement).toHaveClass('nodrag')
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
   })
 })

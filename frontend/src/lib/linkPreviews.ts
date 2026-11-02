@@ -6,6 +6,8 @@
  * An embed does load the site, which is why it is chosen link by link.
  */
 
+import { t } from '../i18n/i18n'
+
 export type LinkView = 'link' | 'card' | 'embed'
 
 /** The preview the server keeps of a card or embed link (see items/api). */
@@ -70,7 +72,7 @@ export function linkCardHtml(url: string, label: string, preview?: LinkPreview |
   const status = preview?.status ?? 'pending'
   const title = preview?.title || (label && label !== url ? label : url)
   const description =
-    preview?.description || (status === 'pending' ? 'Fetching preview…' : '')
+    preview?.description || (status === 'pending' ? t('markdown.fetchingPreview') : '')
   const site = preview?.site_name || hostname(url)
   return (
     `<a class="link-card" data-status="${escape(status)}" href="${escape(url)}" target="_blank" rel="noopener noreferrer">` +

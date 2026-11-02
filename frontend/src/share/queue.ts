@@ -16,7 +16,7 @@ export type Share = {
   files: File[]
 }
 
-const DB_NAME = 'brain'
+const DB_NAME = 'brainbro'
 const STORE = 'shares'
 
 function openDb(): Promise<IDBDatabase> {

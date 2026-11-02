@@ -20,7 +20,7 @@ x-app: &app
   environment:
     ENVIRONMENT: production
     SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required (openssl rand -base64 48)}
-    APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brain.example.com}
+    APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brainbro.example.com}
     TIME_ZONE: ${TIME_ZONE:-UTC}
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
@@ -28,6 +28,7 @@ x-app: &app
     POSTGRES_USER: ${POSTGRES_USER:-brain}
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     REDIS_URL: redis://redis:6379/0
+    EMBEDDER_URL: http://embedder:8000
     BACKUP_RETENTION: ${BACKUP_RETENTION:-14}
     UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-52428800}
     IMPORT_MAX_SIZE: ${IMPORT_MAX_SIZE:-104857600}
@@ -69,6 +70,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Semantic search: turns text into vectors, with a model built into the
+  # image (nothing leaves the server). ~600 MB of memory. Without it, search
+  # still works by words.
+  embedder:
+    build:
+      context: docker/embedder
+    restart: unless-stopped
 
   # Umbrel only needs it: lets the stack's subnet through the host firewall,
   # otherwise containers can't reach each other. See docker/firewall/entrypoint.sh.

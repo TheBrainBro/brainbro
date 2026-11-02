@@ -1,8 +1,12 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
+
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 const backend = 'http://localhost:8000'
 // Keeps the browser's Host (localhost:5173), so the URLs Django builds from
@@ -15,6 +19,8 @@ const icon = (name: string) => `/static/icons/${name}`
 export default defineConfig(({ command }) => ({
   // In production Django serves the build as static files under /static/.
   base: command === 'build' ? '/static/' : '/',
+  // One version for the whole app: the backend ships in the same image.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
     tailwindcss(),
@@ -32,7 +38,7 @@ export default defineConfig(({ command }) => ({
         // ~100 language modes) are cached by src/sw.ts once first used.
         globPatterns: [
           'index.html',
-          'favicon.svg',
+          'favicon.{svg,ico}',
           'icons/*.png',
           'assets/{index,rolldown-runtime,markdown}-*.{js,css}',
         ],
@@ -41,14 +47,15 @@ export default defineConfig(({ command }) => ({
       },
       manifest: {
         id: '/',
-        name: 'Brain',
-        short_name: 'Brain',
+        name: 'BrainBro',
+        short_name: 'BrainBro',
         description: 'Drop it now, sort it later.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#fafafa',
-        theme_color: '#18181b',
+        background_color: '#fbf8f3',
+        // One color for every theme: the launch screen is light, like background_color.
+        theme_color: '#ffffff',
         icons: [
           { src: icon('pwa-192x192.png'), sizes: '192x192', type: 'image/png' },
           { src: icon('pwa-512x512.png'), sizes: '512x512', type: 'image/png' },
@@ -96,7 +103,8 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     proxy: {
-      '/api': sameHost,
+      // ws: live note editing (/api/live/notes/…).
+      '/api': { ...sameHost, ws: true },
       // OAuth discovery for AI assistants (MCP).
       '/.well-known': sameHost,
       '/admin': backend,

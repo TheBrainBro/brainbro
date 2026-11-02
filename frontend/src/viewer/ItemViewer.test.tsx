@@ -24,6 +24,13 @@ function item(id: string, fields: Partial<Item>): Item {
     version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    created_by: '',
+    created_via: 'web',
+    edited_by: '',
+    edited_via: '',
+    edited_at: null,
+    public_slug: null,
+    published_at: null,
     ...fields,
   }
 }
@@ -49,13 +56,13 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-function renderList() {
+function renderList(list = items) {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
         <FeedbackProvider>
           <ViewerProvider>
-            <ItemList items={items} />
+            <ItemList items={list} />
           </ViewerProvider>
         </FeedbackProvider>
       </MemoryRouter>
@@ -248,6 +255,23 @@ describe('ItemViewer', () => {
 
     fireEvent.keyDown(link, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('plays a recording, which can be renamed and captioned', async () => {
+    const recording = item('v', {
+      kind: 'audio',
+      title: 'Voice note.webm',
+      preview_image_url: null,
+      metadata: { filename: 'Voice note.webm', mime: 'audio/webm', size: 2048 },
+    })
+    renderList([recording])
+    fireEvent.click(screen.getByRole('button', { name: 'Voice note.webm' }))
+    const viewer = await screen.findByRole('dialog', { name: 'Voice note.webm' })
+
+    expect(viewer.querySelector('audio')).toHaveAttribute('src', '/file/v')
+    expect(within(viewer).getByLabelText('Name')).toHaveValue('Voice note.webm')
+    expect(within(viewer).getByLabelText('Caption')).toBeInTheDocument()
+    expect(within(viewer).getByText('2 KB · audio/webm')).toBeInTheDocument()
   })
 
   it("keeps the page's shortcuts from seeing its keys", async () => {

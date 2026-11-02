@@ -4,13 +4,15 @@ import { Navigate, useParams } from 'react-router'
 
 import { useLogout, useSession } from '../auth/session'
 import { useInvitationCheck, useJoin } from '../invitations/api'
+import { rich, useT } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
 
 /**
  * Where an invitation link opens: the invited person picks a username and
- * password, and lands in their new, empty Brain.
+ * password, and lands in their new, empty BrainBro.
  */
 export function JoinPage() {
+  const t = useT()
   const { token = '' } = useParams()
   const { data: session } = useSession()
   const check = useInvitationCheck(token)
@@ -26,22 +28,24 @@ export function JoinPage() {
       <div className="surface w-full max-w-sm space-y-4 rounded-2xl p-8 shadow-lg shadow-zinc-900/5 [animation:pop-in_200ms_ease-out]">
         <Logo className="size-10" />
         {check.isPending || !session ? (
-          <LoaderCircle className="size-5 animate-spin text-accent-500" aria-label="Loading" />
+          <LoaderCircle className="size-5 animate-spin text-accent-500" aria-label={t('common.loading')} />
         ) : check.isError ? (
           <>
-            <h1 className="text-xl font-semibold">Can't use this invitation</h1>
+            <h1 className="text-xl font-semibold">{t('auth.invitationUnusable')}</h1>
             <p role="alert" className="flex items-start gap-1.5 text-sm text-red-600 dark:text-red-400">
               <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               {check.error.message}
             </p>
-            <p className="text-sm text-zinc-500">Ask whoever invited you for a new link.</p>
+            <p className="text-sm text-zinc-500">{t('auth.askForNewLink')}</p>
           </>
         ) : session.authenticated ? (
           <>
-            <h1 className="text-xl font-semibold">You're signed in</h1>
+            <h1 className="text-xl font-semibold">{t('auth.alreadySignedIn')}</h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              You're signed in as <strong className="font-medium">{session.user?.username}</strong>.
-              Sign out to make a new account with this invitation.
+              {rich('auth.signedInAs', {
+                username: session.user?.username ?? '',
+                b: (chunk) => <strong className="font-medium">{chunk}</strong>,
+              })}
             </p>
             <button
               type="button"
@@ -49,7 +53,7 @@ export function JoinPage() {
               disabled={logout.isPending}
               onClick={() => logout.mutate()}
             >
-              Sign out
+              {t('auth.signOut')}
             </button>
           </>
         ) : (
@@ -61,14 +65,14 @@ export function JoinPage() {
             }}
           >
             <div>
-              <h1 className="text-xl font-semibold">Join Brain</h1>
+              <h1 className="text-xl font-semibold">{t('auth.join')}</h1>
               <p className="text-sm text-zinc-500">
-                You're invited. Pick a username and password to make your account.
+                {t('auth.invited')}
               </p>
             </div>
 
             <label className="block space-y-1">
-              <span className="text-sm font-medium">Username</span>
+              <span className="text-sm font-medium">{t('auth.username')}</span>
               <input
                 className="input"
                 autoComplete="username"
@@ -81,7 +85,7 @@ export function JoinPage() {
 
             <div className="space-y-1">
               <label className="block space-y-1">
-                <span className="text-sm font-medium">Password</span>
+                <span className="text-sm font-medium">{t('auth.password')}</span>
                 <input
                   className="input"
                   type="password"
@@ -92,7 +96,7 @@ export function JoinPage() {
                 />
               </label>
               <p id="password-hint" className="text-xs text-zinc-500">
-                At least 8 characters.
+                {t('auth.passwordHint')}
               </p>
             </div>
 
@@ -109,7 +113,7 @@ export function JoinPage() {
               className="button-primary flex w-full items-center justify-center gap-2"
             >
               {join.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-              {join.isPending ? 'Making your account…' : 'Make my account'}
+              {join.isPending ? t('auth.makingAccount') : t('auth.makeAccount')}
             </button>
           </form>
         )}

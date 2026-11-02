@@ -1,18 +1,38 @@
 import hashlib
 import secrets
+import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
 from apps.core.models import OwnedModel, TimestampedModel
 
 # Says what a token is when it turns up somewhere it shouldn't.
-TOKEN_PREFIX = "brain_"
+TOKEN_PREFIX = "brainbro_"
+
+
+def avatar_path(profile, filename):
+    # A fresh name per upload, so a new photo never hits a stale cache.
+    return f"avatars/{profile.user_id}/{uuid.uuid4().hex}.webp"
 
 
 class Profile(TimestampedModel):
     """What the app remembers about a user across devices."""
+
+    class Theme(models.TextChoices):
+        LIGHT = "light"
+        DARK = "dark"
+        # Follows the device's own setting.
+        SYSTEM = "system"
+
+    class Language(models.TextChoices):
+        ENGLISH = "en"
+        SPANISH = "es"
+        # Follows the browser's own language.
+        SYSTEM = "system"
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -21,17 +41,42 @@ class Profile(TimestampedModel):
     )
     # Set the first time the welcome tour is closed, on any device.
     welcome_seen_at = models.DateTimeField(null=True, blank=True)
+    theme = models.CharField(max_length=10, choices=Theme, default=Theme.SYSTEM)
+    language = models.CharField(
+        max_length=10,
+        choices=Language,
+        default=Language.SYSTEM,
+        db_default=Language.SYSTEM,
+    )
+    # How the user signs what they publish (apps.public); never the username,
+    # which is half of their login. Empty: published notes show no author.
+    display_name = models.CharField(
+        max_length=80, blank=True, default="", db_default=""
+    )
+    # A square WebP, made from an upload like a collection's image.
+    avatar = models.ImageField(upload_to=avatar_path, blank=True, db_default="")
 
     def __str__(self):
         return f"Profile of {self.user}"
+
+
+@receiver(post_delete, sender=Profile)
+def delete_avatar(sender, instance, **kwargs):
+    if instance.avatar:
+        instance.avatar.delete(save=False)
 
 
 class Invitation(TimestampedModel):
     """
     A link an admin sends so someone can join: whoever opens it picks a
     username and password. It works once and expires; revoking deletes it.
+    Used ones stay, as a record of who joined with which link.
     Only the hash of its token is stored, like `ApiToken`.
     """
+
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    EXPIRED = "expired"
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
@@ -55,6 +100,14 @@ class Invitation(TimestampedModel):
 
     def __str__(self):
         return self.note or f"Invitation {self.id}"
+
+    @property
+    def status(self):
+        if self.used_at is not None:
+            return self.ACCEPTED
+        if self.expires_at <= timezone.now():
+            return self.EXPIRED
+        return self.PENDING
 
     @classmethod
     def pending(cls):
@@ -80,7 +133,7 @@ class Invitation(TimestampedModel):
 
 class OAuthClient(TimestampedModel):
     """
-    An app that connects through "Sign in to Brain" (OAuth): ChatGPT, Claude,
+    An app that connects through "Sign in to BrainBro" (OAuth): ChatGPT, Claude,
     Grok… Apps register themselves (dynamic client registration), so nothing
     here is trusted: the user sees the name and where it sends them back
     before allowing it. Its `id` is the OAuth `client_id`.

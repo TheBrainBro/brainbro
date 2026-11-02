@@ -17,7 +17,7 @@ function exportOf(fields: Partial<Export>): Export {
     id: 'e1',
     status: 'pending',
     size: null,
-    filename: 'brain-export-2026-10-29.zip',
+    filename: 'brainbro-export-2026-10-29.zip',
     download_url: null,
     created_at: '2026-10-29T12:00:00Z',
     finished_at: null,
@@ -65,7 +65,7 @@ describe('ExportPanel', () => {
 
     const link = await screen.findByRole('link', { name: 'Download' })
     expect(link).toHaveAttribute('href', '/api/exports/e1/download/')
-    expect(screen.getByText('brain-export-2026-10-29.zip')).toBeInTheDocument()
+    expect(screen.getByText('brainbro-export-2026-10-29.zip')).toBeInTheDocument()
     expect(screen.getByText(/3 MB/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Make a new one' })).toBeInTheDocument()
   })

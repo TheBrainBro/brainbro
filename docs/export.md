@@ -4,7 +4,7 @@ Everything a user has, as a zip they can take anywhere: notes and links as
 Markdown, boards as JSON plus a readable outline, and uploads as the original
 files. It is not a backup of the app (that's the `pg_dump` in
 [deployment.md](deployment.md#backups)): it's for the user, and has to make
-sense without Brain.
+sense without BrainBro.
 
 ## The format
 
@@ -39,7 +39,7 @@ which serves the zips, and `worker`, which writes them. It lives outside
 ## Choices
 
 - **Not streamed in the request.** An export copies every upload and can be
-  gigabytes; built in the background it doesn't hold a gunicorn worker, and a
+  gigabytes; built in the background it doesn't hold a web worker, and a
   dropped download can be retried without rebuilding.
 - **Folders by kind**, not by collection or status: collections are
   many-to-many, so folders would duplicate files. Status and collections go in

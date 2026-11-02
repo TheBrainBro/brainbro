@@ -1,23 +1,26 @@
 import { ArrowRight, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
-import { Logo } from '../layout/Logo'
-import { CaptureScene, SortScene, ViewsScene } from './scenes'
+import { useT, type MessageKey } from '../i18n/i18n'
+import { Logo, Wordmark } from '../layout/Logo'
+import { AssistantsScene, CaptureScene, SortScene, ViewsScene } from './scenes'
 
-type Step = { Scene: ComponentType; title: string; line: string }
+type Step = { Scene: ComponentType; title: MessageKey; line: MessageKey }
 
 const steps: Step[] = [
   {
     Scene: CaptureScene,
-    title: 'Welcome to your second brain',
-    line: 'Drop it now, sort it later. Everything you capture lands in the inbox first.',
+    title: 'welcome.title',
+    line: 'welcome.line',
   },
-  { Scene: SortScene, title: 'Sort it later', line: 'File it into collections when you have a minute.' },
-  { Scene: ViewsScene, title: 'See it your way', line: 'The same items as a list, a board or a graph.' },
+  { Scene: SortScene, title: 'welcome.sortTitle', line: 'welcome.sortLine' },
+  { Scene: ViewsScene, title: 'welcome.viewsTitle', line: 'welcome.viewsLine' },
+  { Scene: AssistantsScene, title: 'welcome.assistantsTitle', line: 'welcome.assistantsLine' },
 ]
 
 /** A short animated tour of what the app does, shown on the first visit. */
 export function WelcomeDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const [index, setIndex] = useState(0)
   // The dialog takes focus, not a button: the arrows work without a ring on Next.
   const dialog = useRef<HTMLDivElement>(null)
@@ -46,8 +49,8 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
         >
           <div className="mb-3 flex items-center gap-2">
             <Logo className="size-6" />
-            <span className="mr-auto text-sm font-semibold tracking-tight">Brain</span>
-            <button type="button" aria-label="Close" className="button-icon size-8" onClick={onClose}>
+            <Wordmark className="mr-auto text-base" />
+            <button type="button" aria-label={t('common.close')} className="button-icon size-8" onClick={onClose}>
               <X className="size-4" aria-hidden="true" />
             </button>
           </div>
@@ -57,9 +60,9 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
 
           <div className="px-1 pt-4 pb-1">
             <h2 id="welcome-title" className="text-lg font-semibold">
-              {step.title}
+              {t(step.title)}
             </h2>
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{step.line}</p>
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{t(step.line)}</p>
           </div>
 
           <div className="mt-3 flex items-center gap-2 px-1">
@@ -68,7 +71,7 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
                 <button
                   key={each.title}
                   type="button"
-                  aria-label={`Go to step ${position + 1}`}
+                  aria-label={t('welcome.goTo', { step: position + 1 })}
                   aria-current={position === index ? 'step' : undefined}
                   className="size-2 rounded-full bg-zinc-300 transition-all aria-[current=step]:w-5 aria-[current=step]:bg-accent-500 dark:bg-zinc-700"
                   onClick={() => setIndex(position)}
@@ -77,7 +80,7 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
             </div>
             {!last && (
               <button type="button" className="button-secondary" onClick={onClose}>
-                Skip
+                {t('welcome.skip')}
               </button>
             )}
             <button
@@ -85,7 +88,7 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
               className="button-primary inline-flex items-center gap-1.5"
               onClick={() => (last ? onClose() : setIndex(index + 1))}
             >
-              {last ? 'Get started' : 'Next'}
+              {last ? t('welcome.start') : t('welcome.next')}
               {!last && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
           </div>

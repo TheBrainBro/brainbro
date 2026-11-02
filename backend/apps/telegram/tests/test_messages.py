@@ -1,9 +1,13 @@
+from pathlib import Path
+
 import pytest
 
 from apps.telegram import bot
 from apps.telegram.messages import Unsupported, save_message
 
 from .conftest import png
+
+VOICE = (Path(__file__).parents[2] / "items/tests/files/voice.ogg").read_bytes()
 
 
 def test_text_becomes_a_note_and_a_lone_url_a_link(user, fake_bot):
@@ -62,7 +66,7 @@ def test_the_largest_photo_with_its_caption(user, fake_bot):
 
 
 def test_files_are_detected_by_content(user, fake_bot):
-    fake_bot.files = {"doc": b"%PDF-1.4 x", "pic": png(), "voice": b"OggS\0data"}
+    fake_bot.files = {"doc": b"%PDF-1.4 x", "pic": png(), "voice": VOICE}
 
     pdf = save_message(user, {"document": {"file_id": "doc", "file_name": "paper.pdf"}})
     sent_as_file = save_message(
@@ -74,6 +78,7 @@ def test_files_are_detected_by_content(user, fake_bot):
 
     assert (pdf.kind, pdf.title) == ("file", "paper.pdf")
     assert sent_as_file.kind == "image"
+    assert voice.kind == "audio"
     assert voice.metadata["filename"] == "voice message.oga"
 
 

@@ -13,7 +13,9 @@ function renderApp() {
     if (url.includes('/auth/welcome/')) return new Response(null, { status: 204 })
     const body = url.includes('/auth/session/')
       ? { authenticated: true, user, welcome_seen: false }
-      : { results: [], next: null }
+      : url.includes('/items/note-titles/')
+        ? []
+        : { results: [], next: null }
     return new Response(JSON.stringify(body), {
       headers: { 'Content-Type': 'application/json' },
     })
@@ -43,6 +45,9 @@ describe('WelcomeDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to step 3' }))
     expect(screen.getByRole('heading', { name: 'See it your way' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('heading', { name: 'One memory for your AI' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(onClose).toHaveBeenCalled()

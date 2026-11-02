@@ -29,7 +29,7 @@ function renderAt(path: string, { authenticated = true, known = true } = {}) {
       }
       return known
         ? jsonResponse({ client_name: 'ChatGPT', redirect_host: 'chatgpt.com' })
-        : jsonResponse({ non_field_errors: ["This app isn't registered with Brain."] }, 400)
+        : jsonResponse({ non_field_errors: ["This app isn't registered with BrainBro."] }, 400)
     }
     return jsonResponse({})
   })

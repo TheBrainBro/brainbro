@@ -1,6 +1,7 @@
 import { LoaderCircle } from 'lucide-react'
 import { useRef, type ComponentType } from 'react'
 
+import { t, useT } from '../i18n/i18n'
 import { useLatestImport, useStartImport } from './api'
 import { summary } from './summary'
 
@@ -13,10 +14,11 @@ const sources: Source[] = [
 
 /** Brings notes in from other apps: one card per app, each with its own upload. */
 export function ImportPanel() {
+  useT()
   return (
     <div>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-        Bring your notes in from another app.
+        {t('imports.intro')}
       </p>
       <ul className="space-y-3">
         {sources.map(({ id, label, Logo, Import }) => (
@@ -48,6 +50,7 @@ function ObsidianLogo() {
 
 /** An Obsidian vault, uploaded as a zip and imported in the background. */
 function ObsidianImport() {
+  useT()
   const input = useRef<HTMLInputElement>(null)
   const { data: latest, isPending: loading } = useLatestImport()
   const start = useStartImport()
@@ -55,9 +58,7 @@ function ObsidianImport() {
   return (
     <div>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-        Zip your vault folder and upload it. Folders become collections, notes keep the images
-        they embed, other files become items and canvases become boards. What sits at the top of
-        the vault lands in your inbox.
+        {t('imports.obsidianIntro')}
       </p>
 
       {loading ? null : start.isPending ? (
@@ -66,7 +67,7 @@ function ObsidianImport() {
             className="size-4 shrink-0 animate-spin text-accent-500"
             aria-hidden="true"
           />
-          Uploading… {Math.round(start.progress * 100)}%
+          {t('imports.uploading', { percent: Math.round(start.progress * 100) })}
         </p>
       ) : latest?.status === 'pending' ? (
         <p role="status" className="flex items-center gap-2 text-sm">
@@ -74,7 +75,7 @@ function ObsidianImport() {
             className="size-4 shrink-0 animate-spin text-accent-500"
             aria-hidden="true"
           />
-          Importing {latest.filename}… You can close this, it keeps going.
+          {t('imports.importing', { filename: latest.filename })}
         </p>
       ) : (
         <div className="space-y-3">
@@ -85,7 +86,7 @@ function ObsidianImport() {
           )}
           {latest?.status === 'failed' && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {latest.error || 'The last import failed.'}
+              {latest.error || t('imports.failed')}
             </p>
           )}
           {start.isError && (
@@ -98,7 +99,7 @@ function ObsidianImport() {
             type="file"
             accept=".zip,application/zip"
             className="hidden"
-            aria-label="Vault zip"
+            aria-label={t('imports.vaultZip')}
             onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
@@ -107,10 +108,10 @@ function ObsidianImport() {
           />
           <button
             type="button"
-            className={latest?.status === 'ready' ? 'button-secondary' : 'button-primary'}
+            className="button-primary"
             onClick={() => input.current?.click()}
           >
-            {latest?.status === 'ready' ? 'Import another vault' : 'Choose vault zip'}
+            {latest?.status === 'ready' ? t('imports.another') : t('imports.choose')}
           </button>
         </div>
       )}

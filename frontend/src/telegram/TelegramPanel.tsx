@@ -1,9 +1,11 @@
 import { LoaderCircle, Send } from 'lucide-react'
 
+import { rich, useT } from '../i18n/i18n'
 import { useConnectTelegram, useDisconnectTelegram, useTelegramStatus } from './api'
 
 /** Connects a Telegram chat: what's sent or forwarded to the bot lands in the inbox. */
 export function TelegramPanel() {
+  const t = useT()
   const connect = useConnectTelegram()
   const disconnect = useDisconnectTelegram()
   const { data: status, isPending: loading } = useTelegramStatus(connect.isSuccess)
@@ -11,20 +13,19 @@ export function TelegramPanel() {
   return (
     <div>
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-        Send or forward anything to the bot and it lands in your inbox: text, links, photos and
-        files. Photos sent together become an album. The bot reacts with 👍 when it's saved.
+        {t('telegram.intro')}
       </p>
 
       {loading || !status ? null : !status.configured ? (
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          The bot isn't set up on this server yet: it needs <code>TELEGRAM_BOT_TOKEN</code> and{' '}
-          <code>TELEGRAM_BOT_USERNAME</code>.
+          {rich('telegram.notConfigured', { code: (chunk) => <code>{chunk}</code> })}
         </p>
       ) : status.linked ? (
         <div className="space-y-3">
           <p role="status" className="text-sm">
-            Connected{status.telegram_name && ` as ${status.telegram_name}`} to @
-            {status.bot_username}.
+            {status.telegram_name
+              ? t('telegram.connectedAs', { name: status.telegram_name, bot: status.bot_username })
+              : t('telegram.connected', { bot: status.bot_username })}
           </p>
           {disconnect.isError && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -33,14 +34,14 @@ export function TelegramPanel() {
           )}
           <button
             type="button"
-            className="button-secondary"
+            className="button-primary"
             disabled={disconnect.isPending}
             onClick={() => {
               connect.reset()
               disconnect.mutate()
             }}
           >
-            Disconnect
+            {t('telegram.disconnect')}
           </button>
         </div>
       ) : connect.data ? (
@@ -52,11 +53,11 @@ export function TelegramPanel() {
             className="button-primary inline-flex items-center gap-1.5"
           >
             <Send className="size-4" aria-hidden="true" />
-            Open @{status.bot_username} in Telegram
+            {t('telegram.open', { bot: status.bot_username })}
           </a>
           <p role="status" className="flex items-center gap-2 text-sm text-zinc-500">
             <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />
-            Press Start there. The link works for an hour.
+            {t('telegram.pressStart')}
           </p>
         </div>
       ) : (
@@ -72,7 +73,7 @@ export function TelegramPanel() {
             disabled={connect.isPending}
             onClick={() => connect.mutate()}
           >
-            Connect Telegram
+            {t('telegram.connect')}
           </button>
         </div>
       )}

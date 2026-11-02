@@ -3,9 +3,11 @@ import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router'
 
 import { useLogin, useSession } from '../auth/session'
-import { Logo } from '../layout/Logo'
+import { useT } from '../i18n/i18n'
+import { Logo, Wordmark } from '../layout/Logo'
 
 export function LoginPage() {
+  const t = useT()
   const { data: session } = useSession()
   const login = useLogin()
   const location = useLocation()
@@ -26,12 +28,14 @@ export function LoginPage() {
       >
         <div>
           <Logo className="mb-4 size-10" />
-          <h1 className="text-xl font-semibold">Brain</h1>
-          <p className="text-sm text-zinc-500">Sign in to your second brain</p>
+          <h1 className="text-2xl">
+            <Wordmark />
+          </h1>
+          <p className="text-sm text-zinc-500">{t('auth.tagline')}</p>
         </div>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Username</span>
+          <span className="text-sm font-medium">{t('auth.username')}</span>
           <input
             className="input"
             autoComplete="username"
@@ -42,7 +46,7 @@ export function LoginPage() {
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Password</span>
+          <span className="text-sm font-medium">{t('auth.password')}</span>
           <input
             className="input"
             type="password"
@@ -65,7 +69,7 @@ export function LoginPage() {
           className="button-primary flex w-full items-center justify-center gap-2"
         >
           {login.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-          {login.isPending ? 'Signing in…' : 'Sign in'}
+          {login.isPending ? t('auth.signingIn') : t('auth.signIn')}
         </button>
       </form>
     </div>

@@ -35,6 +35,13 @@ function makeItem(overrides: Partial<Item>): Item {
     version: 'v1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    created_by: '',
+    created_via: 'web',
+    edited_by: '',
+    edited_via: '',
+    edited_at: null,
+    public_slug: null,
+    published_at: null,
     ...overrides,
   }
 }
@@ -155,7 +162,12 @@ describe('InboxPage', () => {
     let calls = 0
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse(page([calls++ === 0 ? pending : ready]))),
+      vi.fn(async (url: string) =>
+        // Only the list counts: the filter asks for the apps once.
+        url.startsWith('/api/items/?')
+          ? jsonResponse(page([calls++ === 0 ? pending : ready]))
+          : jsonResponse(page([])),
+      ),
     )
     renderInbox()
 
@@ -224,5 +236,28 @@ describe('InboxPage', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'List' }))
     expect(screen.getAllByRole('button', { name: /First|Second/ })).toHaveLength(2)
     localStorage.clear()
+  })
+})
+
+describe('InboxPage origin filter', () => {
+  it('marks what assistants did and filters by who made it', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/items/apps/') return jsonResponse({ apps: ['Claude'] })
+      const claude = makeItem({ body: 'From Claude', created_by: 'Claude', created_via: 'mcp' })
+      const mine = makeItem({ body: 'Mine' })
+      return jsonResponse(page(url.includes('app=Claude') ? [claude] : [claude, mine]))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderInbox()
+
+    await screen.findByText('Mine')
+    expect(screen.getAllByText(/^Added by Claude/)).toHaveLength(2)
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Made by' }), {
+      target: { value: 'app:Claude' },
+    })
+
+    expect(await screen.findByText('From Claude')).toBeInTheDocument()
+    expect(screen.queryByText('Mine')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('app=Claude'), expect.anything())
   })
 })

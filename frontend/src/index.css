@@ -1,29 +1,43 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Headings and the wordmark. */
+  --font-display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  /* The brand's off-white and near-black at the ends of the neutral scale. */
+  --color-zinc-50: #fbf8f3;
+  --color-zinc-950: #141218;
 }
 
-/* Dark only on screens: paper is always light (see .print-root). */
+/* Dark only on screens: paper is always light (see .print-root). The theme
+   picked in settings sets data-theme on <html>; without it, the system decides. */
 @custom-variant dark {
-  @media screen and (prefers-color-scheme: dark) {
-    @slot;
+  @media screen {
+    &:where([data-theme='dark'], [data-theme='dark'] *) {
+      @slot;
+    }
+    @media (prefers-color-scheme: dark) {
+      &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
+        @slot;
+      }
+    }
   }
 }
 
-/* The accent: the logo's violet. Neutrals stay zinc. */
-@theme inline {
-  --color-accent-50: var(--color-violet-50);
-  --color-accent-100: var(--color-violet-100);
-  --color-accent-200: var(--color-violet-200);
-  --color-accent-300: var(--color-violet-300);
-  --color-accent-400: var(--color-violet-400);
-  --color-accent-500: var(--color-violet-500);
-  --color-accent-600: var(--color-violet-600);
-  --color-accent-700: var(--color-violet-700);
-  --color-accent-800: var(--color-violet-800);
-  --color-accent-900: var(--color-violet-900);
-  --color-accent-950: var(--color-violet-950);
+/* The accent: the brand's violets (deep #4b1fa8, bro #7c5bd6, lavender
+   #b9a2ee and its shade #9b80e0). Neutrals stay zinc. */
+@theme {
+  --color-accent-50: #f6f2fd;
+  --color-accent-100: #ede6fb;
+  --color-accent-200: #dccff7;
+  --color-accent-300: #b9a2ee;
+  --color-accent-400: #9b80e0;
+  --color-accent-500: #7c5bd6;
+  --color-accent-600: #6339c4;
+  --color-accent-700: #4b1fa8;
+  --color-accent-800: #3a1585;
+  --color-accent-900: #2b1063;
+  --color-accent-950: #1b0a3f;
 }
 
 :root {
@@ -33,6 +47,8 @@
   --md-rule: light-dark(var(--color-zinc-300), var(--color-zinc-700));
   --md-subtle: light-dark(var(--color-zinc-100), var(--color-zinc-800));
   --md-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
+  --md-link: light-dark(var(--color-sky-700), var(--color-sky-400));
+  --md-popover: light-dark(var(--color-white), var(--color-zinc-900));
   /* ==mark== and ::: containers in the editor (literal colors, see below). */
   --md-highlight: light-dark(#fde68a, #f59e0b4d);
   --box-info: #38bdf8;
@@ -52,6 +68,14 @@
   --code-type: light-dark(#be123c, #fda4af);
 }
 
+/* A theme picked in settings; light-dark() above follows it too. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -60,6 +84,12 @@ body,
 
 body {
   @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display;
 }
 
 @layer components {
@@ -198,6 +228,11 @@ body {
     }
     & a {
       @apply underline decoration-zinc-400 underline-offset-2 hover:decoration-current;
+    }
+    /* `[[Title]]`: a link to another note, or muted when no note has that title. */
+    & .wikilink-unresolved {
+      @apply underline decoration-dashed underline-offset-2;
+      color: var(--md-muted);
     }
     & :is(ul, ol) {
       @apply space-y-0.5 pl-5;

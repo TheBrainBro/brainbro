@@ -5,6 +5,7 @@ import { useTriage, type Collection, type Item, type TriagePayload } from '../it
 import { CollectionPicker } from '../items/CollectionPicker'
 import { OrganizeMenu } from '../items/OrganizeMenu'
 import { triageMessage, undoTriage, useUndoAction } from '../items/triage'
+import { useT } from '../i18n/i18n'
 import { useFeedback } from '../ui/feedback'
 
 /**
@@ -21,6 +22,7 @@ export function ViewerTriage({
   onChanged: (item: Item) => void
   onDeleted: () => void
 }) {
+  const t = useT()
   const triage = useTriage()
   const { toast, confirm } = useFeedback()
   const undoAction = useUndoAction()
@@ -65,9 +67,9 @@ export function ViewerTriage({
 
   async function remove() {
     const confirmed = await confirm({
-      title: 'Delete this item?',
-      message: "It can't be undone.",
-      confirm: 'Delete',
+      title: t('itemList.deleteOne'),
+      message: t('itemList.cantUndo'),
+      confirm: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
@@ -93,7 +95,7 @@ export function ViewerTriage({
         trigger={(props) => (
           <button type="button" className="viewer-button" {...props}>
             <FolderInput className="size-4" aria-hidden="true" />
-            Organize
+            {t('viewer.organize')}
           </button>
         )}
       />
@@ -103,11 +105,11 @@ export function ViewerTriage({
         ) : (
           <Archive className="size-4" aria-hidden="true" />
         )}
-        {archived ? 'To inbox' : 'Archive'}
+        {archived ? t('viewer.toInbox') : t('viewer.archive')}
       </button>
       <button type="button" className="viewer-button" onClick={remove}>
         <Trash2 className="size-4" aria-hidden="true" />
-        Delete
+        {t('common.delete')}
       </button>
       {organizing && (
         // Above the viewer, like the confirmation dialogs.

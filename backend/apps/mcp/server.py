@@ -25,12 +25,35 @@ METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
 
+# What every client gets in every conversation: how to use BrainBro well.
 INSTRUCTIONS = """\
-Brain is the user's second brain: notes (Markdown), links, images and files.
-Everything new lands in the inbox; organizing it into collections is a later
-step. Collections nest, and follow PARA (project, area, resource).
-Search before capturing, to avoid duplicates. Nothing here deletes: archive
-keeps an item but takes it out of the way."""
+BrainBro is the user's second brain: their notes (Markdown), links, images,
+recordings and files, and a memory they share across assistants. What you
+save here, other assistants and the user will read later, out of this
+conversation: write it so it stands on its own.
+
+How it is organized: everything new lands in the inbox, and sorting it is a
+later step the user owns. Collections nest, and follow PARA: project (a goal
+with an end), area (an ongoing responsibility), resource (a topic). Boards
+are canvases where items are laid out in space.
+
+- Search before capturing. If a note on the same thing exists, update it
+  with edit_note instead of saving a duplicate.
+- Give every note a short, specific title.
+- Say where things came from: the URL, or that it came from a conversation
+  with you, and when it matters, the date.
+- Prefer partial edits (replace, append, prepend) over rewriting a whole
+  note, and pass the version from get_item so you never overwrite the user.
+- Items say who made and last edited them (created_by, edited_by): "user",
+  or an assistant's name. Take extra care changing what the user wrote.
+- Every edit to a note is kept in its history (list_revisions), and the
+  user can bring back what was there before.
+- Leave what you capture in the inbox. Organize, archive, add to boards or
+  create collections only when the user asks for it.
+- Read in batches: get_items for several items, list_inbox and
+  list_collection_items with limit and offset.
+- Nothing here deletes: archive keeps an item but takes it out of the way.
+- A failed call says what went wrong and what to do; nothing was saved."""
 
 
 def handle(user, message):
@@ -69,7 +92,7 @@ def initialize(user, params):
     return {
         "protocolVersion": version,
         "capabilities": {"tools": {"listChanged": False}},
-        "serverInfo": {"name": "brain", "title": settings.APP_NAME, "version": "1"},
+        "serverInfo": {"name": "brainbro", "title": settings.APP_NAME, "version": "1"},
         "instructions": INSTRUCTIONS,
     }
 
