@@ -43,7 +43,7 @@ The required ones:
 
 | Variable | Value |
 |---|---|
-| `APP_HOSTNAMES` | The tunnel's public hostname, e.g. `brain.yourdomain.com` |
+| `APP_HOSTNAMES` | The tunnel's public hostname, e.g. `brainbro.yourdomain.com` |
 | `SECRET_KEY` | `openssl rand -base64 48` |
 | `POSTGRES_PASSWORD` | `openssl rand -base64 32` |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Your user, the admin. Only created if it does not exist. To add other people, create an invitation link in Settings → Invitations. |
@@ -68,10 +68,10 @@ In Portainer, **Pull and redeploy** with "Re-pull image and redeploy" checked. `
 
 ## Install on a phone (PWA)
 
-Brain is an installable web app. It needs HTTPS, which the Cloudflare Tunnel already gives it (on a plain `http://<umbrel-ip>` address there is no service worker, so no install and no share target).
+BrainBro is an installable web app. It needs HTTPS, which the Cloudflare Tunnel already gives it (on a plain `http://<umbrel-ip>` address there is no service worker, so no install and no share target).
 
-- **Android (Chrome):** open the hostname, sign in, then *Install app* from the menu. Brain then shows up in the share sheet of every app: text, links, photos and files go straight to the inbox.
-- **iOS (Safari):** *Share → Add to Home Screen*. iOS has no Web Share Target, so for photos and files use the **+** tab (the quick capture view). For links and text from other apps, make a Shortcut that shows in the share sheet, takes *URLs and Text*, runs *URL Encode* on the input and then *Open URL* with `https://<hostname>/share?text=<URL Encoded Text>`. Brain asks for a tap before saving. The Shortcut opens Safari, which on iOS doesn't share the installed app's sign-in, so sign in once in Safari too.
+- **Android (Chrome):** open the hostname, sign in, then *Install app* from the menu. BrainBro then shows up in the share sheet of every app: text, links, photos and files go straight to the inbox.
+- **iOS (Safari):** *Share → Add to Home Screen*. iOS has no Web Share Target, so for photos and files use the **+** tab (the quick capture view). For links and text from other apps, make a Shortcut that shows in the share sheet, takes *URLs and Text*, runs *URL Encode* on the input and then *Open URL* with `https://<hostname>/share?text=<URL Encoded Text>`. BrainBro asks for a tap before saving. The Shortcut opens Safari, which on iOS doesn't share the installed app's sign-in, so sign in once in Safari too.
 
 How it is served:
 
@@ -82,9 +82,9 @@ How it is served:
 | `POST /share` | The service worker | Android's share target. Stores the share in IndexedDB and opens the inbox, where the app sends it through the capture pipeline. If it ever reaches Django (no service worker yet), Django only redirects to `/share?lost=1`; it never creates items. |
 | `/static/…` | whitenoise | The build. The service worker precaches the shell and caches other hashed assets once loaded. |
 
-The service worker never touches `/api/`, `/admin/` or `/media/`: sessions, CSRF and uploaded files always come from the server. Shares made offline or signed out stay on the phone and are sent the next time Brain is open, signed in and online.
+The service worker never touches `/api/`, `/admin/` or `/media/`: sessions, CSRF and uploaded files always come from the server. Shares made offline or signed out stay on the phone and are sent the next time BrainBro is open, signed in and online.
 
-Cloudflare respects the `no-cache` header, so a deploy reaches installed apps on their next load; don't add a cache rule that overrides it for `/sw.js`. If you ever put Cloudflare Access in front of Brain, the manifest is fetched without cookies: add `crossorigin="use-credentials"` to its `<link>` in `frontend/index.html` or bypass Access for `/manifest.webmanifest`.
+Cloudflare respects the `no-cache` header, so a deploy reaches installed apps on their next load; don't add a cache rule that overrides it for `/sw.js`. If you ever put Cloudflare Access in front of BrainBro, the manifest is fetched without cookies: add `crossorigin="use-credentials"` to its `<link>` in `frontend/index.html` or bypass Access for `/manifest.webmanifest`.
 
 ## Backups
 
@@ -101,7 +101,7 @@ These restore the app. To take your data somewhere else, use **Export everything
 - **Restore the database** (stops `api` and `worker` meanwhile):
 
   ```bash
-  scripts/restore-db.sh backups/brain-db-YYYYMMDD-HHMMSS.dump
+  scripts/restore-db.sh backups/brainbro-db-YYYYMMDD-HHMMSS.dump
   ```
 
 For a stack with another name or env file: `COMPOSE="docker compose -p <name> --env-file <env> -f docker-compose.production.yml" scripts/...`

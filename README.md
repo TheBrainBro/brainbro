@@ -1,4 +1,9 @@
-# Brain
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme-header-dark.png" />
+  <img src="docs/assets/readme-header-light.png" alt="BrainBro" />
+</picture>
+
+# BrainBro
 
 A self-hosted second brain: capture links, notes, images and files with zero friction, then organize them into boards (infinite canvas) and collections.
 

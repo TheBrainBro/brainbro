@@ -1,59 +1,59 @@
 # AI assistants (MCP)
 
 AI assistants (Claude, ChatGPT, Grok, editors) can read from and write to
-your Brain through the [Model Context Protocol](https://modelcontextprotocol.io).
-They connect to `https://<your host>/api/mcp`, either by signing in to Brain
+your BrainBro through the [Model Context Protocol](https://modelcontextprotocol.io).
+They connect to `https://<your host>/api/mcp`, either by signing in to BrainBro
 (OAuth) or with a personal API token.
 
 Account menu → *Settings* → *AI assistants* has the URL, the steps for each
 app, and the list of connected apps and tokens.
 
 Claude, ChatGPT and Grok connect from their own servers, not from your
-computer, so Brain must be reachable from the internet over HTTPS (the
-Cloudflare Tunnel is). If Cloudflare Access ever sits in front of Brain,
+computer, so BrainBro must be reachable from the internet over HTTPS (the
+Cloudflare Tunnel is). If Cloudflare Access ever sits in front of BrainBro,
 bypass it for `/api/mcp`, `/api/auth/oauth/` and `/.well-known/`: the apps
-sign in through Brain itself.
+sign in through BrainBro itself.
 
 ## Connecting an app
 
 ### Claude (web, desktop and mobile)
 
 *Customize* → *Connectors* → *Add custom connector*, paste the URL, *Add*,
-then *Connect*: Brain opens and asks to allow it. Custom connectors are
+then *Connect*: BrainBro opens and asks to allow it. Custom connectors are
 available on every plan (one on Free).
 
 ### ChatGPT
 
 [chatgpt.com/plugins](https://chatgpt.com/plugins) → *+* → *Add custom MCP
 server*: a name, the URL, accept the risk warning and create it. ChatGPT
-then sends you to Brain to allow it. Which plans can add custom MCP servers
+then sends you to BrainBro to allow it. Which plans can add custom MCP servers
 is up to OpenAI.
 
 ### Grok
 
 [grok.com/connectors](https://grok.com/connectors) → *New Connector* →
-*Custom*, paste the URL and sign in to Brain when asked. On Grok Business and
+*Custom*, paste the URL and sign in to BrainBro when asked. On Grok Business and
 Enterprise, an admin adds the connector first.
 
 ### Grok Bot
 
 Ask a Bot in a chat to add an MCP server by URL, giving it the URL, and sign
-in to Brain if it asks. Bots add servers outside their catalog this way
+in to BrainBro if it asks. Bots add servers outside their catalog this way
 ([docs](https://docs.x.ai/grok-bot/computer-and-apps)); on a team, the Cursor
 connector policy decides which ones are allowed.
 
 ### Claude Code
 
 ```sh
-claude mcp add --transport http brain https://brain.example.com/api/mcp
+claude mcp add --transport http brainbro https://brainbro.example.com/api/mcp
 ```
 
-Then `/mcp` in Claude Code, choose *brain* and sign in. Or use a personal
+Then `/mcp` in Claude Code, choose *brainbro* and sign in. Or use a personal
 token instead:
 
 ```sh
-claude mcp add --transport http brain https://brain.example.com/api/mcp \
-  --header "Authorization: Bearer brain_..."
+claude mcp add --transport http brainbro https://brainbro.example.com/api/mcp \
+  --header "Authorization: Bearer brainbro_..."
 ```
 
 To share the setup in a project without the token, put it in `.mcp.json` and
@@ -62,10 +62,10 @@ keep the token in an environment variable:
 ```json
 {
   "mcpServers": {
-    "brain": {
+    "brainbro": {
       "type": "http",
-      "url": "https://brain.example.com/api/mcp",
-      "headers": { "Authorization": "Bearer ${BRAIN_TOKEN}" }
+      "url": "https://brainbro.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer ${BRAINBRO_TOKEN}" }
     }
   }
 }
@@ -73,18 +73,18 @@ keep the token in an environment variable:
 
 ### Grok API
 
-The xAI API can call Brain from a request with a [remote MCP
+The xAI API can call BrainBro from a request with a [remote MCP
 tool](https://docs.x.ai/developers/tools/remote-mcp): `server_url` is the URL
 and `authorization` a personal token.
 
 ## Signing in (OAuth)
 
-See `apps/accounts/oauth.py`. Brain is its own authorization server, as the
+See `apps/accounts/oauth.py`. BrainBro is its own authorization server, as the
 MCP authorization spec describes:
 
 1. The app calls `/api/mcp` without a token and gets a 401 whose
    `WWW-Authenticate` points at `/.well-known/oauth-protected-resource/api/mcp`.
-   That names Brain as the authorization server, and
+   That names BrainBro as the authorization server, and
    `/.well-known/oauth-authorization-server` lists its endpoints.
 2. The app registers itself (dynamic client registration,
    `/api/auth/oauth/register/`).
@@ -100,7 +100,7 @@ endpoint, not the rest of the API.
 
 ## Personal tokens
 
-*Create token* with a name (what it's for). The token is shown once; Brain
+*Create token* with a name (what it's for). The token is shown once; BrainBro
 only keeps a hash of it. It never expires: *Revoke* stops it.
 
 A personal token acts as you on the whole API, `Authorization: Bearer
@@ -109,7 +109,7 @@ list or revoke tokens: that only works signed in to the app. Scripts can use
 it too:
 
 ```sh
-curl -H "Authorization: Bearer $BRAIN_TOKEN" https://brain.example.com/api/items/?status=inbox
+curl -H "Authorization: Bearer $BRAINBRO_TOKEN" https://brainbro.example.com/api/items/?status=inbox
 ```
 
 ## Tools
