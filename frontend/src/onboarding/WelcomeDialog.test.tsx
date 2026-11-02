@@ -57,8 +57,10 @@ describe('WelcomeDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByRole('heading', { name: 'One memory for your AI' })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /Add sample content/ })).toBeInTheDocument()
+    const option = screen.getByRole('checkbox', { name: /Start with a few examples/ })
+    expect(option).toBeChecked()
     expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
+    fireEvent.click(option)
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(onClose).toHaveBeenCalled()
   })
@@ -79,16 +81,17 @@ describe('WelcomeDialog', () => {
 })
 
 describe('first visit', () => {
-  it('creates sample content only when the welcome option is selected', async () => {
+  it('starts with examples selected and creates them when the tour is finished', async () => {
     const fetch = renderApp()
     await screen.findByRole('heading', { name: 'Welcome to your second brain' })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    const option = screen.getByRole('checkbox', { name: /Add sample content/ })
-    expect(option).not.toBeChecked()
-    fireEvent.click(option)
+    const option = screen.getByRole('checkbox', { name: /Start with a few examples/ })
+    expect(option).toBeChecked()
+    expect(fetch).not.toHaveBeenCalledWith('/api/auth/sample-content/', expect.anything())
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
 
     await waitFor(() => {
       const request = fetch.mock.calls.find(([url]) => url === '/api/auth/sample-content/')

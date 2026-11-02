@@ -709,8 +709,8 @@ export const es: Messages = {
     skip: 'Saltar',
     start: 'Empezar',
     next: 'Siguiente',
-    sampleTitle: 'Añadir contenido de ejemplo para probar',
-    sampleHint: 'Algunos elementos en la bandeja, colecciones PARA y un tablero. Puedes quitarlo desde Ajustes.',
+    sampleTitle: 'Empezar con algunos ejemplos',
+    sampleHint: 'Explora BrainBro con algunas notas e ideas. Puedes quitarlos cuando quieras desde Ajustes.',
     sampleFailed: 'No se pudo añadir el contenido de ejemplo. Inténtalo de nuevo.',
   },
   sampleContent: {
