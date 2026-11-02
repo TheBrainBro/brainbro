@@ -29,11 +29,11 @@ function renderDialog(onClose = () => {}, { staff = false } = {}) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('SettingsDialog', () => {
-  it('opens on the import page and switches between pages', async () => {
+  it('opens on the profile page and switches between pages', async () => {
     renderDialog()
 
-    expect(screen.getByRole('heading', { name: 'Import' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Import' })).toHaveAttribute(
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Profile' })).toHaveAttribute(
       'aria-current',
       'page',
     )
