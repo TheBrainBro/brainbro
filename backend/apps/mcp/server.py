@@ -39,6 +39,8 @@ are canvases where items are laid out in space.
 
 - Search before capturing. If a note on the same thing exists, update it
   with edit_note instead of saving a duplicate.
+- Search results are candidates, not proof that an item is relevant. Ignore
+  loose matches, and do not mention or reveal unrelated items to the user.
 - Give every note a short, specific title.
 - Say where things came from: the URL, or that it came from a conversation
   with you, and when it matters, the date.

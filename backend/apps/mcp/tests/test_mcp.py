@@ -224,8 +224,23 @@ def test_the_instructions_say_how_to_use_brain(mcp):
     response = mcp({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
 
     instructions = response.json()["result"]["instructions"]
-    for advice in ("Search before capturing", "title", "partial edits", "inbox"):
+    for advice in (
+        "Search before capturing",
+        "title",
+        "partial edits",
+        "inbox",
+        "do not mention or reveal unrelated items",
+    ):
         assert advice in instructions
+
+
+def test_search_description_treats_semantic_matches_as_private_candidates(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+
+    tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
+    description = tools["search_items"]["description"]
+    assert "loose candidates" in description
+    assert "never mention unrelated results" in description
 
 
 # Reading
