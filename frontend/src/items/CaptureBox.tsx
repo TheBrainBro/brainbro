@@ -65,6 +65,7 @@ export function CaptureBox() {
         ref={textarea}
         className="input field-sizing-content max-h-64 min-h-11 resize-none"
         placeholder={t('items.capturePlaceholder')}
+        lang=""
         rows={1}
         value={text}
         onChange={(event) => setText(event.target.value)}
