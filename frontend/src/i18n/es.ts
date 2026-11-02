@@ -773,6 +773,8 @@ export const es: Messages = {
     linkPreview: 'Vista previa del enlace',
   },
   note: {
+    titleLabel: 'Título de la nota',
+    titlePlaceholder: 'Nota sin título',
     toInbox: 'Ir a la bandeja',
     gone: 'Esta nota ya no existe',
     goneHint: 'Se eliminó, quizá desde otro dispositivo.',

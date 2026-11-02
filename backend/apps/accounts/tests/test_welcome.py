@@ -60,6 +60,13 @@ def test_sample_content_can_be_created_and_removed_without_touching_real_data(
     assert response.status_code == 204
     assert Item.objects.filter(owner=user, is_sample=True).count() == 8
     assert Collection.objects.filter(owner=user, is_sample=True).count() == 4
+    inbox = client.get("/api/items/?status=inbox").json()["results"]
+    assert [item["title"] for item in inbox[:4]] == [
+        "Start here: your second brain",
+        "From a quick capture to a clear plan",
+        "Connect your AI",
+        "How BrainBro works with AI",
+    ]
     board = Board.objects.get(owner=user, is_sample=True)
     assert len(board.layout["nodes"]) == 5
     assert board.title == "From capture to clarity"
