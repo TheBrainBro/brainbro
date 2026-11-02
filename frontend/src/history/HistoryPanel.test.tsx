@@ -144,6 +144,19 @@ describe('NoteHistory', () => {
     expect(await screen.findByText('Buy flights', { selector: 'p' })).toBeInTheDocument()
     expect(screen.queryByText(/Book the hotel/)).not.toBeInTheDocument()
   })
+
+  it('explains that edits will appear here when the note only has one version', async () => {
+    revisions = [revision('r1', { item: 'n1', title: 'Plan', body: note.body })]
+
+    renderWith(new QueryClient(), <NoteHistory note={note} onRestored={() => {}} onClose={() => {}} />)
+
+    expect(await screen.findByRole('heading', { name: 'No changes yet, bro' })).toBeInTheDocument()
+    expect(screen.getByText('Every edit will show up here, and you can bring back any version.')).toBeInTheDocument()
+    expect(screen.queryByText('This is what the note holds now.')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'As it was' }))
+    expect(await screen.findByText(/Buy flights/, { selector: 'p' })).toHaveTextContent('Book the hotel')
+  })
 })
 
 const placed: Item = { ...note, id: 'i1', title: 'Hotels' }

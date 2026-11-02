@@ -629,6 +629,8 @@ export const en = {
     title: 'History',
     noteHistory: 'Note history',
     noteNow: 'This is what the note holds now.',
+    noChangesYet: 'No changes yet, bro',
+    noChangesHint: 'Every edit will show up here, and you can bring back any version.',
     nothingChanged: 'Nothing changed since this version.',
     titleChange: 'Title:',
     untitled: 'Untitled',
