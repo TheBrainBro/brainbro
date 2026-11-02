@@ -77,10 +77,10 @@ describe('language', () => {
     applyLanguage('es')
     expect(currentLanguage()).toBe('es')
     expect(document.documentElement.lang).toBe('es')
-    expect(localStorage.getItem('brain:language')).toBe('es')
+    expect(localStorage.getItem('brainbro:language')).toBe('es')
 
     applyLanguage('system')
-    expect(localStorage.getItem('brain:language')).toBeNull()
+    expect(localStorage.getItem('brainbro:language')).toBeNull()
   })
 })
 

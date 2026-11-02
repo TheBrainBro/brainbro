@@ -43,7 +43,7 @@ def test_admin_without_slash_redirects_to_the_admin(client, tmp_path):
 
 def test_pwa_files_are_served_from_the_root_uncached(client, tmp_path):
     (tmp_path / "sw.js").write_text("self.skipWaiting()")
-    (tmp_path / "manifest.webmanifest").write_text('{"name": "Brain"}')
+    (tmp_path / "manifest.webmanifest").write_text('{"name": "BrainBro"}')
     with override_settings(FRONTEND_DIST_DIR=tmp_path):
         worker = client.get("/sw.js")
         manifest = client.get("/manifest.webmanifest")
