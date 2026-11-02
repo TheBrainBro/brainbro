@@ -640,6 +640,8 @@ export const es: Messages = {
     title: 'Historial',
     noteHistory: 'Historial de la nota',
     noteNow: 'Esto es lo que tiene la nota ahora.',
+    noChangesYet: 'Aún no hay cambios, bro',
+    noChangesHint: 'Cada edición aparecerá aquí y podrás recuperar cualquier versión.',
     nothingChanged: 'Nada ha cambiado desde esta versión.',
     titleChange: 'Título:',
     untitled: 'Sin título',
