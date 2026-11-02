@@ -34,7 +34,7 @@ Volumes: `postgres_data`, `redis_data`, `storage` (uploaded files, `/data/storag
 
 In Portainer: **Stacks → Add stack → Repository**:
 
-- Repository URL: `https://github.com/CarlosLugones/brain`
+- Repository URL: `https://github.com/TheBrainBro/brainbro`
 - Reference: `refs/heads/main`
 - Compose path: `docker-compose.production.yml`
 - Environment variables: those in [`stack.env.example`](../stack.env.example)
