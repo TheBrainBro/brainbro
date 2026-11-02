@@ -16,6 +16,7 @@ import { ShareReceiver } from '../share/ShareReceiver'
 import { FeedbackProvider } from '../ui/FeedbackProvider'
 import { ShortcutsDialog } from '../ui/ShortcutsDialog'
 import { ViewerProvider } from '../viewer/ViewerProvider'
+import { AboutDialog } from './AboutDialog'
 import { TopBar } from './TopBar'
 
 /** The top bar over the page; on phones, a capture button within thumb's reach. */
@@ -27,6 +28,7 @@ export function AppLayout() {
   const [shortcuts, setShortcuts] = useState(false)
   const [searching, setSearching] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [about, setAbout] = useState(false)
   // The first visit opens on a short tour; the account menu brings it back.
   const { data: session } = useSession()
   const markWelcomeSeen = useMarkWelcomeSeen()
@@ -65,6 +67,7 @@ export function AppLayout() {
                 onShortcuts={() => setShortcuts(true)}
                 onWelcome={() => setWelcome(true)}
                 onSettings={() => setSettings(true)}
+                onAbout={() => setAbout(true)}
               />
               <main className="min-h-0 min-w-0 flex-1 overflow-auto">
                 <Outlet />
@@ -81,6 +84,7 @@ export function AppLayout() {
             </div>
             {searching && <SearchPalette onClose={() => setSearching(false)} />}
             {settings && <SettingsDialog onClose={() => setSettings(false)} />}
+            {about && <AboutDialog onClose={() => setAbout(false)} />}
             {welcome && (
               <WelcomeDialog
                 onClose={() => {
