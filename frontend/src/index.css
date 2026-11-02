@@ -1,7 +1,12 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Headings and the wordmark. */
+  --font-display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  /* The brand's off-white and near-black at the ends of the neutral scale. */
+  --color-zinc-50: #fbf8f3;
+  --color-zinc-950: #141218;
 }
 
 /* Dark only on screens: paper is always light (see .print-root). The theme
@@ -19,19 +24,20 @@
   }
 }
 
-/* The accent: the logo's violet. Neutrals stay zinc. */
-@theme inline {
-  --color-accent-50: var(--color-violet-50);
-  --color-accent-100: var(--color-violet-100);
-  --color-accent-200: var(--color-violet-200);
-  --color-accent-300: var(--color-violet-300);
-  --color-accent-400: var(--color-violet-400);
-  --color-accent-500: var(--color-violet-500);
-  --color-accent-600: var(--color-violet-600);
-  --color-accent-700: var(--color-violet-700);
-  --color-accent-800: var(--color-violet-800);
-  --color-accent-900: var(--color-violet-900);
-  --color-accent-950: var(--color-violet-950);
+/* The accent: the brand's violets (deep #4b1fa8, bro #7c5bd6, lavender
+   #b9a2ee and its shade #9b80e0). Neutrals stay zinc. */
+@theme {
+  --color-accent-50: #f6f2fd;
+  --color-accent-100: #ede6fb;
+  --color-accent-200: #dccff7;
+  --color-accent-300: #b9a2ee;
+  --color-accent-400: #9b80e0;
+  --color-accent-500: #7c5bd6;
+  --color-accent-600: #6339c4;
+  --color-accent-700: #4b1fa8;
+  --color-accent-800: #3a1585;
+  --color-accent-900: #2b1063;
+  --color-accent-950: #1b0a3f;
 }
 
 :root {
@@ -78,6 +84,12 @@ body,
 
 body {
   @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display;
 }
 
 @layer components {

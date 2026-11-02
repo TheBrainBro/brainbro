@@ -190,4 +190,4 @@ export class LayoutSaver {
 }
 
 /** Board layouts not saved yet, in localStorage by board id. */
-export const layoutDrafts = localDraftStore<LayoutDraft>('brain:board-draft:')
+export const layoutDrafts = localDraftStore<LayoutDraft>('brainbro:board-draft:')

@@ -13,7 +13,7 @@ export const MODE_WIDTH: Record<ViewMode, string> = {
   masonry: 'max-w-6xl',
 }
 
-const KEY = 'brain:view-mode:'
+const KEY = 'brainbro:view-mode:'
 
 /** The mode chosen for `view` (the inbox, collections), remembered on this device. */
 export function useViewMode(view: string) {

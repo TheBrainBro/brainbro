@@ -8,7 +8,7 @@ import { useApiTokens, useCreateApiToken, useRevokeApiToken, type NewApiToken } 
 
 /**
  * AI assistants (through MCP) and scripts: how to connect each one, and the
- * apps and personal tokens that can use Brain as you.
+ * apps and personal tokens that can use BrainBro as you.
  */
 export function TokensPanel() {
   useT()
@@ -76,7 +76,7 @@ function Setups() {
           <div className="mt-1.5">
             <CopyField
               label={t('tokens.claudeCodeCommand')}
-              value={`claude mcp add --transport http brain ${mcpUrl()}`}
+              value={`claude mcp add --transport http brainbro ${mcpUrl()}`}
             />
           </div>
         </li>
@@ -226,7 +226,7 @@ function NewTokenForm() {
 /** The token, shown this once, and how to connect Claude Code with it. */
 function NewToken({ token }: { token: NewApiToken }) {
   useT()
-  const command = `claude mcp add --transport http brain ${mcpUrl()} --header "Authorization: Bearer ${token.token}"`
+  const command = `claude mcp add --transport http brainbro ${mcpUrl()} --header "Authorization: Bearer ${token.token}"`
   return (
     <div className="space-y-3 rounded-xl border border-accent-300 bg-accent-50/50 p-3 dark:border-accent-800 dark:bg-accent-950/30">
       <p role="status" className="text-sm font-medium">

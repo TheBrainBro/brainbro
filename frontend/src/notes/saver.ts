@@ -116,4 +116,4 @@ export class NoteSaver<T extends SavedNote = SavedNote> {
 }
 
 /** Drafts in localStorage; quietly does nothing where storage is unavailable. */
-export const localDrafts: DraftStore = localDraftStore<Draft>('brain:note-draft:')
+export const localDrafts: DraftStore = localDraftStore<Draft>('brainbro:note-draft:')

@@ -272,7 +272,7 @@ export function dropSpots(point: { x: number; y: number }, widths: number[], nod
 }
 
 /** What an item dragged onto the canvas carries (from the Add items panel). */
-export const ITEM_DRAG_TYPE = 'application/x-brain-item'
+export const ITEM_DRAG_TYPE = 'application/x-brainbro-item'
 
 /** The size a node takes up, measured if it has been rendered. */
 export function size(node: Placed) {
