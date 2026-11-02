@@ -2109,6 +2109,71 @@ section[id] {
   scroll-margin-top: 72px;
 }
 
+/* The video under the hero: its poster, then YouTube's player in its place. */
+
+.demo {
+  max-width: 960px;
+  padding-block: 64px 0;
+}
+
+.demo .copy {
+  margin-bottom: 24px;
+}
+
+.video {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #120a24;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.video img,
+.video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+
+.video .play {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.92);
+  color: #3b0764;
+  box-shadow: 0 10px 30px -8px rgb(20 8 45 / 0.6);
+  transform: translate(-50%, -50%);
+  transition: transform 150ms;
+}
+
+.video .play svg {
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  fill: currentColor;
+}
+
+.video:hover .play {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.video:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
 /* Narrower screens */
 
 @media (max-width: 960px) {
