@@ -50,24 +50,30 @@ function Prompt() {
   const [copied, setCopied] = useState(false)
   return (
     <section aria-labelledby="assistant-prompt-title" className="space-y-2">
-      <h4 id="assistant-prompt-title" className="text-sm font-medium">
-        {t('tokens.promptTitle')}
-      </h4>
-      <button
-        type="button"
-        className="button-ghost inline-flex items-center gap-2"
-        onClick={() => {
-          void navigator.clipboard.writeText(prompt).then(() => setCopied(true))
-        }}
-      >
-        {copied ? (
-          <Check className="size-4" aria-hidden="true" />
-        ) : (
-          <Copy className="size-4" aria-hidden="true" />
-        )}
-        {copied ? t('tokens.promptCopied') : t('tokens.copyPrompt')}
-      </button>
-      {copied && <span role="status" className="sr-only">{t('tokens.promptCopied')}</span>}
+      <div className="flex items-center justify-between gap-3">
+        <h4 id="assistant-prompt-title" className="text-sm font-medium">
+          {t('tokens.promptTitle')}
+        </h4>
+        <button
+          type="button"
+          className="button-ghost inline-flex items-center gap-2"
+          onClick={() => {
+            void navigator.clipboard.writeText(prompt).then(() => setCopied(true))
+          }}
+        >
+          {copied ? (
+            <Check className="size-4" aria-hidden="true" />
+          ) : (
+            <Copy className="size-4" aria-hidden="true" />
+          )}
+          {copied ? t('tokens.promptCopied') : t('tokens.copyPrompt')}
+        </button>
+      </div>
+      {copied && (
+        <span role="status" className="sr-only">
+          {t('tokens.promptCopied')}
+        </span>
+      )}
     </section>
   )
 }

@@ -66,6 +66,8 @@ describe('TokensPanel', () => {
     renderPanel([])
 
     expect(screen.queryByDisplayValue(/I use BrainBro/)).not.toBeInTheDocument()
+    const title = screen.getByRole('heading', { name: 'Ready-to-paste prompt' })
+    expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy prompt' }))
     await screen.findByRole('status')
