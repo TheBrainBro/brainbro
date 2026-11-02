@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "brainbro-backend"
-version = "0.3.0"
+version = "0.7.0"
 description = "BrainBro: One memory for all your AI assistants"
 authors = ["Carlos Lugones <contact@carloslugones.com>"]
 readme = "../README.md"
