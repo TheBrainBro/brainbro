@@ -163,6 +163,34 @@ The server's instructions (`apps/mcp/server.py`) and the tool descriptions
 are what every assistant reads in every conversation: they say when to use
 each tool, and failed calls say what to do next.
 
+Search results are candidates. Semantic search deliberately favors recall and
+can include loose matches; assistants are told to ignore irrelevant ones and
+never mention unrelated items. This matters because a BrainBro can contain
+private material that has nothing to do with the current request.
+
+## Client validation
+
+After changing the instructions or tool descriptions, test them through a real
+client, not only with JSON-RPC tests. Use disposable notes or a local MCP probe,
+and check at least these behaviors:
+
+1. "Save this" searches first, gives a new note a title and source, and leaves
+   it in the inbox.
+2. New information about an existing note calls `get_item`, then `edit_note`
+   with that version and a partial edit; it does not capture a duplicate.
+3. A broad search does not make the assistant mention unrelated results.
+4. Sorting, archiving and board placement happen only when explicitly asked.
+5. A stale version or unknown id makes the assistant follow the recovery step
+   in the tool error instead of claiming that the change was saved.
+
+The v0.7.0 instructions were exercised with Claude Code 2.1.316 against the
+Streamable HTTP endpoint on 2026-11-02. It followed
+`search_items` → `get_item` → `edit_note`, passed the note version, used
+`replace`, and left the note in the inbox. That run also exposed the need for
+the unrelated-search-result rule above. ChatGPT and Cursor still require an
+interactive account with custom MCP access for the same end-to-end check; the
+protocol and schemas remain covered by the automated suite in the meantime.
+
 ## How it works
 
 `apps/mcp/views.py` speaks the Streamable HTTP transport, stateless: each POST
