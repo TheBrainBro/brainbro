@@ -44,7 +44,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase()
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
-  headers.set('X-Brain-Tab', TAB_ID)
+  headers.set('X-BrainBro-Tab', TAB_ID)
 
   if (init.body && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
@@ -85,7 +85,7 @@ export function upload<T>(
     request.open('POST', `/api${path}`)
     request.withCredentials = true
     request.setRequestHeader('Accept', 'application/json')
-    request.setRequestHeader('X-Brain-Tab', TAB_ID)
+    request.setRequestHeader('X-BrainBro-Tab', TAB_ID)
     const token = getCookie('csrftoken')
     if (token) request.setRequestHeader('X-CSRFToken', token)
 

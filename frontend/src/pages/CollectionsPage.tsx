@@ -61,7 +61,7 @@ const VIEWS: ModeOption<CollectionsView>[] = [
   { mode: 'grid', label: 'collections.grid', icon: LayoutGrid },
 ]
 
-const VIEW_KEY = 'brain:collections-view'
+const VIEW_KEY = 'brainbro:collections-view'
 
 /** Tree or grid, remembered on this device. */
 function useCollectionsView() {

@@ -4,7 +4,7 @@ import { currentLanguage, useT } from '../i18n/i18n'
 import { formatBytes } from '../lib/format'
 import { useLatestExport, useStartExport } from './api'
 
-/** Everything as a zip that works without Brain, built in the background. */
+/** Everything as a zip that works without BrainBro, built in the background. */
 export function ExportPanel() {
   const t = useT()
   const { data: latest, isPending: loading } = useLatestExport()

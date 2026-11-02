@@ -7,7 +7,7 @@ import { type Invitation, useCreateInvitation, useInvitations, useRevokeInvitati
 
 /**
  * Admins invite people with a link: whoever opens it makes their own
- * account, with a Brain of their own that nobody else can see.
+ * account, with a BrainBro of their own that nobody else can see.
  */
 export function InvitationsPanel() {
   useT()

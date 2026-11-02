@@ -9,7 +9,7 @@ import { Logo } from '../layout/Logo'
 
 /**
  * Where an invitation link opens: the invited person picks a username and
- * password, and lands in their new, empty Brain.
+ * password, and lands in their new, empty BrainBro.
  */
 export function JoinPage() {
   const t = useT()
