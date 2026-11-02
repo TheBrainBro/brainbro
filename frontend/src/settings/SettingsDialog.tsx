@@ -28,6 +28,14 @@ type Page = { id: string; label: MessageKey; icon: LucideIcon; Panel: ComponentT
 
 const groups: { label: MessageKey; pages: Page[] }[] = [
   {
+    label: 'settings.groups.app',
+    pages: [
+      { id: 'profile', label: 'settings.pages.profile', icon: UserRound, Panel: ProfilePanel },
+      { id: 'appearance', label: 'settings.pages.appearance', icon: Palette, Panel: AppearancePanel },
+      { id: 'language', label: 'settings.pages.language', icon: Languages, Panel: LanguagePanel },
+    ],
+  },
+  {
     label: 'settings.groups.data',
     pages: [
       { id: 'import', label: 'settings.pages.import', icon: FolderInput, Panel: ImportPanel },
@@ -39,14 +47,6 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
     pages: [
       { id: 'telegram', label: 'settings.pages.telegram', icon: Send, Panel: TelegramPanel },
       { id: 'assistants', label: 'settings.pages.assistants', icon: Bot, Panel: TokensPanel },
-    ],
-  },
-  {
-    label: 'settings.groups.app',
-    pages: [
-      { id: 'profile', label: 'settings.pages.profile', icon: UserRound, Panel: ProfilePanel },
-      { id: 'appearance', label: 'settings.pages.appearance', icon: Palette, Panel: AppearancePanel },
-      { id: 'language', label: 'settings.pages.language', icon: Languages, Panel: LanguagePanel },
     ],
   },
 ]
