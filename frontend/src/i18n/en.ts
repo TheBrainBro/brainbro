@@ -762,6 +762,8 @@ export const en = {
     linkPreview: 'Link preview',
   },
   note: {
+    titleLabel: 'Note title',
+    titlePlaceholder: 'Untitled note',
     toInbox: 'Go to the inbox',
     gone: 'This note no longer exists',
     goneHint: 'It was deleted, maybe from another device.',

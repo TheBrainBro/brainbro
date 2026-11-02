@@ -19,7 +19,13 @@ import { NoteHistoryDialog } from '../history/HistoryPanel'
 import { useT } from '../i18n/i18n'
 import { CollectionPicker } from '../items/CollectionPicker'
 import { OrganizeMenu, type OrganizeTriggerProps } from '../items/OrganizeMenu'
-import { uploadNoteImage, useItem, useTriage, type Item } from '../items/api'
+import {
+  uploadNoteImage,
+  useItem,
+  useSaveNoteTitle,
+  useTriage,
+  type Item,
+} from '../items/api'
 import { undoTriage, useUndoAction } from '../items/triage'
 import { ApiError } from '../lib/api'
 import { NoteEditor } from '../notes/NoteEditor'
@@ -333,6 +339,7 @@ function NoteWorkspace({
           onDone={() => setPrinting(false)}
         />
       )}
+      {current && <NoteTitleInput item={current} onError={failed} />}
       {live ? (
         <LiveNoteEditor
           live={live}
@@ -353,6 +360,51 @@ function NoteWorkspace({
         <EditorSkeleton />
       )}
     </Frame>
+  )
+}
+
+function NoteTitleInput({ item, onError }: { item: Item; onError: (error: Error) => void }) {
+  const t = useT()
+  const save = useSaveNoteTitle()
+  const [draft, setDraft] = useState({ version: item.version, title: item.title })
+  const title = draft.version === item.version ? draft.title : item.title
+
+  function commit() {
+    const next = title.trim()
+    if (next === item.title) {
+      setDraft({ version: item.version, title: item.title })
+      return
+    }
+    save.mutate(
+      { item, title: next },
+      {
+        onSuccess: (saved) => setDraft({ version: saved.version, title: saved.title }),
+        onError: (error) => {
+          setDraft({ version: item.version, title: item.title })
+          onError(error)
+        },
+      },
+    )
+  }
+
+  return (
+    <input
+      aria-label={t('note.titleLabel')}
+      className="mb-2 w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl font-semibold outline-none placeholder:text-zinc-400 focus:border-zinc-300 dark:focus:border-zinc-700"
+      maxLength={500}
+      placeholder={t('note.titlePlaceholder')}
+      value={title}
+      disabled={save.isPending}
+      onChange={(event) => setDraft({ version: item.version, title: event.target.value })}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur()
+        if (event.key === 'Escape') {
+          setDraft({ version: item.version, title: item.title })
+          event.currentTarget.blur()
+        }
+      }}
+    />
   )
 }
 

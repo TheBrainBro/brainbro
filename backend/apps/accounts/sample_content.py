@@ -126,6 +126,7 @@ def create_sample_content(user, mcp_url):
             item=guide, collection=collection, rank=rank_now()
         )
 
+    inbox_order = rank_now()
     note = Item.objects.create(
         owner=user,
         kind=Item.Kind.NOTE,
@@ -146,6 +147,7 @@ def create_sample_content(user, mcp_url):
             "Try it: move this note into Projects, add a next step, then "
             "archive it when you are done."
         ),
+        inbox_rank=inbox_order + 4,
         is_sample=True,
     )
     link = Item.objects.create(
@@ -159,6 +161,7 @@ def create_sample_content(user, mcp_url):
                 "Learn how assistants can search and update your notes with MCP."
             ),
         },
+        inbox_rank=inbox_order + 1,
         is_sample=True,
     )
     picture = Item(
@@ -170,6 +173,7 @@ def create_sample_content(user, mcp_url):
             "when you need them."
         ),
         metadata={"filename": "brainbro-inbox-to-collections.png", "mime": "image/png"},
+        inbox_rank=inbox_order + 3,
         is_sample=True,
     )
     image_data = _starter_illustration()
@@ -221,6 +225,7 @@ def create_sample_content(user, mcp_url):
             "about my notes or plans. Save things only when I ask you to "
             "remember them, and read a note before editing it."
         ),
+        inbox_rank=inbox_order + 2,
         is_sample=True,
     )
     # They remain clearly visible in the inbox while the collections are ready to try.

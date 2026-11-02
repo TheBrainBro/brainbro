@@ -11,7 +11,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type ComponentType } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 
 import { useSession } from '../auth/session'
 import { SampleContentPanel } from './SampleContentPanel'
@@ -67,9 +67,20 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])
   const { data: session } = useSession()
-  const shown = session?.user?.is_staff ? [...groups, adminGroup] : groups
+  const shown = useMemo(() => {
+    const visibleGroups = groups
+      .map((group) => ({
+        ...group,
+        pages: group.pages.filter(
+          (page) => page.id !== 'sample-content' || session?.has_sample_content,
+        ),
+      }))
+      .filter((group) => group.pages.length > 0)
+    return session?.user?.is_staff ? [...visibleGroups, adminGroup] : visibleGroups
+  }, [session?.has_sample_content, session?.user?.is_staff])
   const [openId, setOpenId] = useState(groups[0].pages[0].id)
-  const page = shown.flatMap((group) => group.pages).find((page) => page.id === openId)!
+  const pages = useMemo(() => shown.flatMap((group) => group.pages), [shown])
+  const page = pages.find((page) => page.id === openId) ?? pages[0]
 
   return (
     <>
@@ -116,7 +127,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     <button
                       key={id}
                       type="button"
-                      aria-current={id === openId ? 'page' : undefined}
+                      aria-current={id === page.id ? 'page' : undefined}
                       className="menu-item shrink-0 whitespace-nowrap aria-[current=page]:bg-zinc-100 aria-[current=page]:font-medium aria-[current=page]:text-zinc-900 dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-zinc-100"
                       onClick={() => setOpenId(id)}
                     >

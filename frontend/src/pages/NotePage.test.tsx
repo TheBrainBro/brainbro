@@ -46,7 +46,7 @@ function makeItem(overrides: Partial<Item>): Item {
 }
 
 let items: Item[]
-let patches: { id: string; body: string }[]
+let patches: { id: string; body?: string; title?: string }[]
 let captures: unknown[]
 let triages: { ids: string[]; action: string }[]
 let server: FakeLiveServer
@@ -107,9 +107,11 @@ function setUp() {
       const item = items.find((candidate) => candidate.id === detail[1])
       if (!item) return jsonResponse({ detail: 'Not found.' }, 404)
       if (method === 'PATCH') {
-        const { body } = JSON.parse(String(init?.body))
-        patches.push({ id: item.id, body })
-        Object.assign(item, { body, version: `v-${body}` })
+        const changes = JSON.parse(String(init?.body)) as { body?: string; title?: string }
+        patches.push({ id: item.id, ...changes })
+        Object.assign(item, changes, {
+          version: `v-${changes.body ?? changes.title}`,
+        })
       }
       return jsonResponse(item)
     }
@@ -172,6 +174,21 @@ describe('NotePage', () => {
 
     expect(view.contentDOM).toHaveAttribute('spellcheck', 'true')
     expect(view.contentDOM).toHaveAttribute('lang', '')
+  })
+
+  it('lets people update a note title separately from its body', async () => {
+    items = [makeItem({ id: 'n1', title: 'Start here: your second brain', body: 'The note body.' })]
+    renderAt('/notes/n1')
+    await editor()
+
+    const title = await screen.findByRole('textbox', { name: 'Note title' })
+    expect(title).toHaveValue('Start here: your second brain')
+    fireEvent.change(title, { target: { value: 'A clearer title' } })
+    fireEvent.blur(title)
+
+    await waitFor(() => expect(patches).toEqual([{ id: 'n1', title: 'A clearer title' }]))
+    expect(title).toHaveValue('A clearer title')
+    expect(server.text('n1')).toBe('The note body.')
   })
 
   it('edits live: typing reaches the server, and edits made elsewhere show up in place', async () => {
