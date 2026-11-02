@@ -57,6 +57,23 @@ describe('TokensPanel', () => {
     )
   })
 
+  it('provides a ready-to-paste prompt with this installation’s MCP URL', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    renderPanel([])
+
+    const prompt = screen.getByRole('textbox', { name: 'Ready-to-paste prompt' })
+    const promptText = (prompt as HTMLTextAreaElement).value
+    expect(promptText).toContain(`${window.location.origin}/api/mcp`)
+    expect(promptText).toContain('list my inbox to check it works')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy ready-to-paste prompt' }))
+    expect(writeText).toHaveBeenCalledWith(promptText)
+  })
+
   it('warns that a local address is no use to apps on the internet', () => {
     renderPanel([])
     expect(screen.getByText(/only works on this computer/)).toBeInTheDocument()
