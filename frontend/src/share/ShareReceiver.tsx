@@ -5,7 +5,7 @@ import { whenReachable } from '../lib/network'
 import { remainingShare, shareToCaptureInputs } from './inputs'
 import { deleteShare, listShares, saveShare } from './queue'
 
-const LOCK = 'brain-share-queue'
+const LOCK = 'brainbro-share-queue'
 
 let draining: Promise<void> | null = null
 

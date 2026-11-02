@@ -10,7 +10,7 @@ from apps.exports.archive import write_export
 from apps.items.models import Collection, Item, NoteImage
 
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=UTC)
-ROOT = "brain-export-2026-10-29/"
+ROOT = "brainbro-export-2026-10-29/"
 
 
 @pytest.fixture(autouse=True)
@@ -313,7 +313,7 @@ def test_only_the_owners_data_and_the_readme(user, other_user, tmp_path):
     archive, names = export(user, tmp_path)
 
     assert names == {"README.md", "items.json", "collections.json"}
-    assert "# Brain export" in read(archive, "README.md")
+    assert "# BrainBro export" in read(archive, "README.md")
     data = json.loads(read(archive, "items.json"))
     assert (data["export_version"], data["items"]) == (1, [])
     assert json.loads(read(archive, "collections.json")) == []

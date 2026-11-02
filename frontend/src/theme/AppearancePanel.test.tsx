@@ -43,7 +43,7 @@ describe('AppearancePanel', () => {
 
     expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true')
     expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
-    expect(localStorage.getItem('brain:theme')).toBe('dark')
+    expect(localStorage.getItem('brainbro:theme')).toBe('dark')
     expect(queryClient.getQueryData<Session>(sessionKey)?.theme).toBe('dark')
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
@@ -60,7 +60,7 @@ describe('AppearancePanel', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'System' }))
 
     expect(document.documentElement).not.toHaveAttribute('data-theme')
-    expect(localStorage.getItem('brain:theme')).toBeNull()
+    expect(localStorage.getItem('brainbro:theme')).toBeNull()
   })
 
   it('goes back to the previous theme when saving fails', async () => {

@@ -2,7 +2,7 @@ import { ArrowRight, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { useT, type MessageKey } from '../i18n/i18n'
-import { Logo } from '../layout/Logo'
+import { Logo, Wordmark } from '../layout/Logo'
 import { CaptureScene, SortScene, ViewsScene } from './scenes'
 
 type Step = { Scene: ComponentType; title: MessageKey; line: MessageKey }
@@ -48,7 +48,7 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
         >
           <div className="mb-3 flex items-center gap-2">
             <Logo className="size-6" />
-            <span className="mr-auto text-sm font-semibold tracking-tight">Brain</span>
+            <Wordmark className="mr-auto text-base" />
             <button type="button" aria-label={t('common.close')} className="button-icon size-8" onClick={onClose}>
               <X className="size-4" aria-hidden="true" />
             </button>

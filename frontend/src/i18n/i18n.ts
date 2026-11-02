@@ -16,7 +16,7 @@ export type LanguageChoice = Language | 'system'
 /** Each language by its own name: someone lost in a language they don't read still finds theirs. */
 export const LANGUAGE_NAMES: Record<Language, string> = { en: 'English', es: 'Español' }
 
-const KEY = 'brain:language'
+const KEY = 'brainbro:language'
 
 const listeners = new Set<() => void>()
 

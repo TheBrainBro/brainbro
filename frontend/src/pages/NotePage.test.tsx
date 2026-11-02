@@ -229,7 +229,7 @@ describe('NotePage', () => {
   })
 
   it('restores the draft of a new note after a reload', async () => {
-    localStorage.setItem('brain:note-draft:new', JSON.stringify({ body: 'from before' }))
+    localStorage.setItem('brainbro:note-draft:new', JSON.stringify({ body: 'from before' }))
     renderAt('/notes/new')
     expect((await editor()).state.doc.toString()).toBe('from before')
     await waitFor(() => expect(captures).toEqual([{ text: 'from before', kind: 'note' }]), {

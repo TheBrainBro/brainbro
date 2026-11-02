@@ -29,7 +29,7 @@ def process_update(update):
 @shared_task
 def group_media(owner_id, group_id):
     """
-    Puts the images of a Telegram album into one Brain album, in the order
+    Puts the images of a Telegram album into one BrainBro album, in the order
     they were sent, with their captions as its text. Runs once per image, so
     a late one joins the album the others made.
     """

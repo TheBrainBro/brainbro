@@ -26,7 +26,7 @@ TAB_MAX_LENGTH = 64
 
 
 def channel(owner_id):
-    return f"brain:changes:{owner_id}"
+    return f"brainbro:changes:{owner_id}"
 
 
 @cache

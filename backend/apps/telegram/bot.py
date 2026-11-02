@@ -1,6 +1,6 @@
 """
 A thin client for the Telegram Bot API (https://core.telegram.org/bots/api):
-only the methods Brain uses.
+only the methods BrainBro uses.
 """
 
 import hashlib

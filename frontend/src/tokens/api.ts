@@ -39,7 +39,7 @@ export function useRevokeApiToken() {
   })
 }
 
-/** Who asks to connect through "Sign in to Brain", for the authorize page. */
+/** Who asks to connect through "Sign in to BrainBro", for the authorize page. */
 export type AuthorizationAsk = { client_name: string; redirect_host: string }
 
 /** The app's query, checked: an unknown app or return address is an error. */

@@ -11,10 +11,10 @@ export type Theme = 'light' | 'dark' | 'system'
 export const THEMES: Theme[] = ['light', 'dark', 'system']
 
 // Also read by the script in index.html, so the first paint is already right.
-const KEY = 'brain:theme'
+const KEY = 'brainbro:theme'
 
 // The browser bar (theme-color) matches the top bar: white, or zinc-950.
-const BAR_COLORS = { light: '#ffffff', dark: '#09090b' }
+const BAR_COLORS = { light: '#ffffff', dark: '#141218' }
 
 const listeners = new Set<() => void>()
 

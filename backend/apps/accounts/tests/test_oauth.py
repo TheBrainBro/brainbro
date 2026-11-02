@@ -27,7 +27,7 @@ def anonymous():
 
 @pytest.fixture
 def browser(user):
-    """The user's browser, signed in to Brain."""
+    """The user's browser, signed in to BrainBro."""
     client = Client()
     client.force_login(user)
     return client
@@ -53,7 +53,7 @@ def authorization(client_id, **params):
         "code_challenge_method": "S256",
         "state": "xyz",
         "resource": "http://testserver/api/mcp",
-        "scope": "brain",
+        "scope": "brainbro",
     } | params
 
 

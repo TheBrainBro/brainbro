@@ -33,7 +33,7 @@ def test_an_export_is_built_and_downloaded(
     export = api.get(f"/api/exports/{response.json()['id']}/").json()
     assert export["status"] == "ready"
     assert export["size"] > 0
-    assert export["filename"].startswith("brain-export-")
+    assert export["filename"].startswith("brainbro-export-")
     assert api.get("/api/exports/").json()["results"][0]["id"] == export["id"]
 
     download = api.get(export["download_url"])

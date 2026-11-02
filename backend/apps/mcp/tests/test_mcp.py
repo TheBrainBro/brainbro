@@ -91,7 +91,7 @@ def test_initialize_agrees_on_the_client_s_version(mcp):
     assert response.json()["id"] == 1
     assert result["protocolVersion"] == "2025-06-18"
     assert result["capabilities"] == {"tools": {"listChanged": False}}
-    assert result["serverInfo"]["name"] == "brain"
+    assert result["serverInfo"]["name"] == "brainbro"
 
 
 def test_initialize_offers_the_newest_version_otherwise(mcp):
@@ -173,10 +173,10 @@ def test_it_needs_a_token():
         content_type="application/json",
     )
     assert response.status_code == 401
-    # Where "Sign in to Brain" starts (see apps.accounts.oauth).
+    # Where "Sign in to BrainBro" starts (see apps.accounts.oauth).
     assert response["WWW-Authenticate"] == (
         'Bearer resource_metadata="http://testserver/.well-known/'
-        'oauth-protected-resource/api/mcp", scope="brain"'
+        'oauth-protected-resource/api/mcp", scope="brainbro"'
     )
 
 

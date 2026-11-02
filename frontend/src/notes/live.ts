@@ -33,7 +33,7 @@ function liveUrl() {
 }
 
 function storageName(id: string) {
-  return `brain:note:${id}`
+  return `brainbro:note:${id}`
 }
 
 /** Drops what this device keeps of a note, once it is deleted. */

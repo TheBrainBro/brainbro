@@ -26,10 +26,10 @@ export const es: Messages = {
     shortcuts: 'Atajos de teclado',
     welcomeTour: 'Tour de bienvenida',
     signOut: 'Cerrar sesión',
-    unreachable: 'No se pudo conectar con Brain',
+    unreachable: 'No se pudo conectar con BrainBro',
     offline: 'Estás sin conexión',
     offlineHint:
-      'Lo que compartas se guarda en este dispositivo y se envía cuando Brain vuelva a estar disponible. Esta página lo reintenta sola.',
+      'Lo que compartas se guarda en este dispositivo y se envía cuando BrainBro vuelva a estar disponible. Esta página lo reintenta sola.',
   },
   ui: {
     copy: 'Copiar {what}',
@@ -104,7 +104,7 @@ export const es: Messages = {
     alreadySignedIn: 'Ya has iniciado sesión',
     signedInAs:
       'Has iniciado sesión como <b>{username}</b>. Cierra sesión para crear una cuenta nueva con esta invitación.',
-    join: 'Únete a Brain',
+    join: 'Únete a BrainBro',
     invited: 'Te han invitado. Elige un usuario y una contraseña para crear tu cuenta.',
     passwordHint: 'Al menos 8 caracteres.',
     makingAccount: 'Creando tu cuenta…',
@@ -114,7 +114,7 @@ export const es: Messages = {
     connectApp: '¿Conectar {app}?',
     goesBackTo: 'Volverá a <b>{host}</b>',
     appCan:
-      'Podrá buscar y leer todo lo que hay en tu Brain, capturar notas y enlaces, editar notas, organizar elementos en colecciones y archivarlos. No puede eliminar nada.',
+      'Podrá buscar y leer todo lo que hay en tu BrainBro, capturar notas y enlaces, editar notas, organizar elementos en colecciones y archivarlos. No puede eliminar nada.',
     onlyAllow:
       'Permítelo solo si empezaste esto desde {app}. Puedes desconectarla cuando quieras en Ajustes → Asistentes de IA.',
     allow: 'Permitir',
@@ -128,25 +128,25 @@ export const es: Messages = {
   },
   tokens: {
     intro:
-      'Deja que un asistente de IA busque, lea y añada cosas a tu Brain. Añade Brain al asistente con esta dirección, luego inicia sesión aquí y permítelo. No puede eliminar nada.',
+      'Deja que un asistente de IA busque, lea y añada cosas a tu BrainBro. Añade BrainBro al asistente con esta dirección, luego inicia sesión aquí y permítelo. No puede eliminar nada.',
     mcpUrl: 'URL del servidor MCP',
     localOnly:
-      'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: usa la dirección pública de Brain.',
+      'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: usa la dirección pública de BrainBro.',
     claudeDetail: 'Web, escritorio y móvil',
     claudeStep1: 'En Claude, abre <b>Customize → Connectors</b> y elige <b>Add custom connector</b>.',
     claudeStep2: 'Pega la URL y pulsa <b>Add</b>.',
-    claudeStep3: 'Pulsa <b>Connect</b> y luego permítelo aquí en Brain.',
+    claudeStep3: 'Pulsa <b>Connect</b> y luego permítelo aquí en BrainBro.',
     chatgptDetail: 'Depende de tu plan de ChatGPT',
     chatgptStep1: 'Abre {link}, pulsa <b>+</b> y elige <b>Add custom MCP server</b>.',
     chatgptStep2: 'Ponle un nombre, pega la URL, acepta el aviso y créalo.',
-    chatgptStep3: 'Cuando ChatGPT te pida iniciar sesión, permítelo aquí en Brain.',
+    chatgptStep3: 'Cuando ChatGPT te pida iniciar sesión, permítelo aquí en BrainBro.',
     grokStep1: 'Abre {link}, elige <b>New Connector</b> y luego <b>Custom</b>.',
     grokStep2: 'Pega la URL.',
-    grokStep3: 'Inicia sesión en Brain cuando te lo pida y permítelo.',
+    grokStep3: 'Inicia sesión en BrainBro cuando te lo pida y permítelo.',
     claudeCodeStep1: 'Ejecuta esto en una terminal:',
     claudeCodeCommand: 'Comando de Claude Code',
     claudeCodeStep2:
-      'En Claude Code, ejecuta <code>/mcp</code>, elige <b>brain</b> e inicia sesión. O usa un token personal de los de abajo.',
+      'En Claude Code, ejecuta <code>/mcp</code>, elige <b>brainbro</b> e inicia sesión. O usa un token personal de los de abajo.',
     connections: 'Apps conectadas y tokens',
     connectedApp: 'App conectada',
     allowed: 'permitida {when}',
@@ -183,7 +183,7 @@ export const es: Messages = {
   },
   invitations: {
     intro:
-      'Invita a alguien a tener su propio Brain en este servidor. Abre el enlace y elige un usuario y una contraseña. Cada enlace funciona una vez y caduca a los 7 días. Nadie puede ver las cosas de los demás.',
+      'Invita a alguien a tener su propio BrainBro en este servidor. Abre el enlace y elige un usuario y una contraseña. Cada enlace funciona una vez y caduca a los 7 días. Nadie puede ver las cosas de los demás.',
     whoFor: 'Para quién es',
     whoForOptional: 'Para quién es (opcional)',
     create: 'Crear enlace',
@@ -230,7 +230,7 @@ export const es: Messages = {
   },
   exports: {
     intro:
-      'Un zip con tus notas y enlaces en Markdown, tus tableros y tus imágenes y archivos tal como los subiste, también los archivados. Funciona sin Brain: un README dentro explica el formato.',
+      'Un zip con tus notas y enlaces en Markdown, tus tableros y tus imágenes y archivos tal como los subiste, también los archivados. Funciona sin BrainBro: un README dentro explica el formato.',
     preparing: 'Preparando tu exportación… Puedes cerrar esto, sigue en marcha.',
     keptForADay: 'se guarda un día',
     download: 'Descargar',
@@ -266,13 +266,13 @@ export const es: Messages = {
     light: 'Claro',
     dark: 'Oscuro',
     system: 'Sistema',
-    systemHint: 'Sistema sigue el ajuste de cada dispositivo en el que usas Brain.',
+    systemHint: 'Sistema sigue el ajuste de cada dispositivo en el que usas BrainBro.',
     theme: 'Tema',
     saveFailed: 'No se pudo guardar el tema. Inténtalo de nuevo.',
   },
   language: {
     system: 'Navegador',
-    systemHint: 'Navegador sigue el idioma de cada navegador en el que usas Brain.',
+    systemHint: 'Navegador sigue el idioma de cada navegador en el que usas BrainBro.',
     label: 'Idioma',
     saveFailed: 'No se pudo guardar el idioma. Inténtalo de nuevo.',
   },
@@ -533,7 +533,7 @@ export const es: Messages = {
   share: {
     lost: 'Eso que compartiste no llegó',
     lostHint:
-      'Brain no estaba listo para recibirlo en este dispositivo. Abre la app una vez y vuelve a compartirlo.',
+      'BrainBro no estaba listo para recibirlo en este dispositivo. Abre la app una vez y vuelve a compartirlo.',
     toInbox: 'Ir a la bandeja',
     save: '¿Guardar en la bandeja?',
   },

@@ -17,7 +17,7 @@ import { useLogout, useSession } from '../auth/session'
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Avatar } from '../settings/Avatar'
 import { combo } from '../lib/keys'
-import { Logo } from './Logo'
+import { Logo, Wordmark } from './Logo'
 
 type Section = { to: string; label: MessageKey; icon: LucideIcon; end?: boolean }
 
@@ -45,11 +45,11 @@ export function TopBar({
     <header className="relative z-30 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200/80 bg-white/80 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4 dark:border-zinc-800/80 dark:bg-zinc-950/80">
       <Link
         to="/"
-        aria-label="Brain"
-        className="flex items-center gap-2 justify-self-start rounded-lg p-1 font-semibold tracking-tight"
+        aria-label="BrainBro"
+        className="flex items-center gap-2 justify-self-start rounded-lg p-1"
       >
         <Logo />
-        <span className="hidden sm:inline">Brain</span>
+        <Wordmark className="hidden text-lg sm:inline" />
       </Link>
 
       <nav

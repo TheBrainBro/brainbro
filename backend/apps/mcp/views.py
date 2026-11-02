@@ -15,7 +15,7 @@ from . import server
 class McpView(APIView):
     """
     The Model Context Protocol endpoint (Streamable HTTP transport), so AI
-    assistants can read and write the token owner's Brain.
+    assistants can read and write the token owner's BrainBro.
 
     Stateless and without streams: each POST carries one JSON-RPC message and
     a request gets its response back as plain JSON. There is no session and

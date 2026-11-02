@@ -4,7 +4,7 @@ import { Navigate, useLocation } from 'react-router'
 
 import { useLogin, useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
-import { Logo } from '../layout/Logo'
+import { Logo, Wordmark } from '../layout/Logo'
 
 export function LoginPage() {
   const t = useT()
@@ -28,7 +28,9 @@ export function LoginPage() {
       >
         <div>
           <Logo className="mb-4 size-10" />
-          <h1 className="text-xl font-semibold">Brain</h1>
+          <h1 className="text-2xl">
+            <Wordmark />
+          </h1>
           <p className="text-sm text-zinc-500">{t('auth.tagline')}</p>
         </div>
 
