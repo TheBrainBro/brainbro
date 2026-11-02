@@ -64,10 +64,12 @@ make help          # everything else
 
 ## Contributing
 
-- [Conventional Commits](https://www.conventionalcommits.org/): `feat(backend): ...`, `fix(frontend): ...`, `chore(infra): ...`
-- Git flow: `main` (releases), `develop` (integration), `feature/*`, `release/*`, `hotfix/*`.
-- Merging a `release/x.y.z` or `hotfix/x.y.z` PR into `main` tags `vx.y.z` and publishes its GitHub release, with notes built from the issues in the PR's `Ref` line (`.github/workflows/release.yml`). To redo one by hand: `scripts/release.sh <pr-number>`.
-- Issues, PRs, commits, code and docs in English.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the issue workflow, pull request conventions,
+development checks and Git flow.
+
+Merging a `release/x.y.z` or `hotfix/x.y.z` PR into `main` tags `vx.y.z` and publishes
+its GitHub release, with notes built from the issues in the PR's `Ref` line
+(`.github/workflows/release.yml`). To redo one by hand: `scripts/release.sh <pr-number>`.
 
 ## Production
 
