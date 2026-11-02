@@ -269,6 +269,20 @@ footer {
   opacity: 1;
 }
 
+.topbar nav .topbar-cta {
+  margin: -6px 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fff;
+  color: #3b0764;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.topbar nav .topbar-cta:hover {
+  background: #f5f3ff;
+}
+
 .hero-inner {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
@@ -298,6 +312,13 @@ h1 {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 32px;
+}
+
+/* Under the hero's "Join the beta". */
+.beta-note {
+  margin: 12px 0 0;
+  color: rgb(255 255 255 / 0.78);
+  font-size: 14px;
 }
 
 .works-with {
@@ -2037,15 +2058,50 @@ footer {
   color: #fff;
 }
 
-.dock-links .dock-install {
+.dock-links .dock-cta {
   background: #fff;
   color: #3b0764;
   font-weight: 600;
 }
 
-.dock-links .dock-install:hover {
+.dock-links .dock-cta:hover {
   background: #f5f3ff;
   color: #3b0764;
+}
+
+/* "Open sourcing soon", over the page. */
+.soon {
+  width: min(420px, 100% - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+/* The padding sits inside, so a click on the dialog itself is the backdrop. */
+.soon-body {
+  padding: 28px;
+}
+
+.soon::backdrop {
+  background: rgb(18 10 36 / 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.soon h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.soon p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.soon .actions {
+  margin-top: 24px;
 }
 
 /* Sections that the dock links to stop below it. */
@@ -2148,6 +2204,11 @@ section[id] {
 
   .dock-links a {
     padding: 7px 9px;
+  }
+
+  /* Install stays in the hero, so the rest fit. */
+  .dock-links .dock-install {
+    display: none;
   }
 }
 

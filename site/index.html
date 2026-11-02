@@ -30,6 +30,8 @@
     <script src="js/dock.js" defer></script>
     <script src="js/scenes.js" defer></script>
     <script src="js/connect.js" defer></script>
+    <script async src="https://tally.so/widgets/embed.js"></script>
+    <script src="js/beta.js" defer></script>
     <script type="importmap">
       {
         "imports": {
@@ -89,6 +91,7 @@
         <img class="wordmark" src="brand/wordmark-on-dark.svg" alt="" width="85" height="28" />
       </a>
       <div class="dock-links">
+        <a class="dock-cta" href="https://tally.so/r/xVrPeE" data-beta>Join the beta</a>
         <a class="dock-install" href="#install">Install</a>
         <a href="#connect">Connect AI</a>
         <a href="https://github.com/TheBrainBro/brainbro/tree/main/docs">Docs</a>
@@ -106,6 +109,7 @@
         <nav>
           <a href="https://github.com/TheBrainBro/brainbro/tree/main/docs">Docs</a>
           <a href="https://github.com/TheBrainBro/brainbro">GitHub</a>
+          <a class="topbar-cta" href="https://tally.so/r/xVrPeE" data-beta>Join the beta</a>
         </nav>
       </header>
       <div class="hero-inner wrap">
@@ -113,9 +117,11 @@
           <h1>One memory for all your AI assistants.</h1>
           <p class="tagline">A notes app for you, a shared brain for them.</p>
           <div class="actions">
-            <a class="button light" href="#install">Install</a>
+            <a class="button light" href="https://tally.so/r/xVrPeE" data-beta>Join the beta</a>
+            <a class="button glass" href="#install">Install</a>
             <a class="button glass" href="#connect">Connect an assistant</a>
           </div>
+          <p class="beta-note">Free during the beta · Open sourcing soon</p>
           <p class="works-with">
             Works with
             <svg class="logo" role="img" aria-label="Claude"><use href="#l-claude" /></svg>
@@ -509,5 +515,17 @@ make prod-up</pre>
         <p>Notes for you. Memory for your AI.</p>
       </div>
     </footer>
+
+    <!-- Opened by the links to the repository and docs, still private. -->
+    <dialog class="soon" aria-labelledby="soon-title">
+      <div class="soon-body">
+        <h2 id="soon-title">Open sourcing soon</h2>
+        <p>The code and the docs go public soon. Join the beta and we'll let you know when they do.</p>
+        <div class="actions">
+          <a class="button primary" href="https://tally.so/r/xVrPeE" data-beta>Join the beta</a>
+          <button class="button outline" type="button" data-close>Close</button>
+        </div>
+      </div>
+    </dialog>
   </body>
 </html>
