@@ -44,3 +44,129 @@ def test_marking_it_again_keeps_the_first_time(client, user):
 @pytest.mark.django_db
 def test_marking_it_requires_a_session():
     assert Client().post("/api/auth/welcome/").status_code == 403
+
+
+def test_sample_content_can_be_created_and_removed_without_touching_real_data(
+    client, user
+):
+    from apps.boards.models import Board
+    from apps.items.models import Collection, Item
+
+    real = Item.objects.create(owner=user, kind="note", title="Mine", body="Keep this")
+    payload = {"mcp_url": "https://brain.example.com/api/mcp"}
+    response = client.post(
+        "/api/auth/sample-content/", payload, content_type="application/json"
+    )
+    assert response.status_code == 204
+    assert Item.objects.filter(owner=user, is_sample=True).count() == 8
+    assert Collection.objects.filter(owner=user, is_sample=True).count() == 4
+    board = Board.objects.get(owner=user, is_sample=True)
+    assert len(board.layout["nodes"]) == 3
+    picture = Item.objects.get(owner=user, title="A sample image")
+    assert picture.file and picture.preview_image
+    prompt = Item.objects.get(owner=user, title="Connect your AI")
+    assert "https://brain.example.com/api/mcp" in prompt.body
+    assert client.get("/api/auth/session/").json()["has_sample_content"] is True
+
+    # A retry is safe and never makes a second starter.
+    client.post("/api/auth/sample-content/", payload, content_type="application/json")
+    assert Item.objects.filter(owner=user, is_sample=True).count() == 8
+
+    response = client.delete("/api/auth/sample-content/")
+    assert response.status_code == 204
+    assert list(Item.objects.filter(owner=user)) == [real]
+    assert not Collection.objects.filter(owner=user, is_sample=True).exists()
+    assert not Board.objects.filter(owner=user, is_sample=True).exists()
+    assert client.get("/api/auth/session/").json()["has_sample_content"] is False
+
+
+def test_removing_samples_keeps_user_items_and_cleans_only_sample_board_nodes(
+    client, user
+):
+    from apps.boards.layout import empty_layout
+    from apps.boards.models import Board
+    from apps.items.models import Collection, Item
+
+    client.post(
+        "/api/auth/sample-content/",
+        {"mcp_url": "https://brain.example.com/api/mcp"},
+        content_type="application/json",
+    )
+    sample_note = Item.objects.get(owner=user, title="A note to try")
+    board = Board.objects.get(owner=user, is_sample=True)
+    on_sample_board = Item.objects.create(
+        owner=user, kind="note", body="Keep from board"
+    )
+    board.items.add(on_sample_board)
+    board.layout["nodes"].append(
+        {
+            "id": "user-note",
+            "type": "item",
+            "item": str(on_sample_board.id),
+            "x": 0,
+            "y": 500,
+            "w": 280,
+            "h": None,
+            "parent": None,
+        }
+    )
+    board.save(update_fields=["layout", "updated_at"])
+
+    real_board_note = Item.objects.create(owner=user, kind="note", body="Keep on board")
+    normal_board = Board.objects.create(
+        owner=user,
+        title="My board",
+        layout={
+            **empty_layout(),
+            "nodes": [
+                {
+                    "id": "sample-note",
+                    "type": "item",
+                    "item": str(sample_note.id),
+                    "x": 0,
+                    "y": 0,
+                    "w": 280,
+                    "h": None,
+                    "parent": None,
+                },
+                {
+                    "id": "real-note",
+                    "type": "item",
+                    "item": str(real_board_note.id),
+                    "x": 0,
+                    "y": 300,
+                    "w": 280,
+                    "h": None,
+                    "parent": None,
+                },
+            ],
+        },
+    )
+    normal_board.items.add(sample_note, real_board_note)
+
+    collection_note = Item.objects.create(
+        owner=user,
+        kind="note",
+        body="Keep from collection",
+        status=Item.Status.ORGANIZED,
+    )
+    Collection.objects.get(owner=user, name="Projects").items.add(collection_note)
+
+    assert client.delete("/api/auth/sample-content/").status_code == 204
+
+    on_sample_board.refresh_from_db()
+    collection_note.refresh_from_db()
+    normal_board.refresh_from_db()
+    assert on_sample_board.status == Item.Status.INBOX
+    assert collection_note.status == Item.Status.INBOX
+    assert list(normal_board.items.all()) == [real_board_note]
+    assert [node["item"] for node in normal_board.layout["nodes"]] == [
+        str(real_board_note.id)
+    ]
+    assert Item.objects.filter(id=real_board_note.id, body="Keep on board").exists()
+
+
+def test_sample_content_endpoints_require_a_session():
+    client = Client()
+    assert client.post("/api/auth/sample-content/").status_code == 403
+    assert client.delete("/api/auth/sample-content/").status_code == 403
