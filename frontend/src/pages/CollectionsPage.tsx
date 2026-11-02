@@ -367,11 +367,6 @@ function CollectionNode({
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
               <span className="truncate font-medium">{collection.name}</span>
-              {collection.is_sample && (
-                <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[10px] text-accent-700 dark:bg-accent-950 dark:text-accent-300">
-                  {t('sampleContent.badge')}
-                </span>
-              )}
             </span>
             <span className="block truncate text-xs text-zinc-500">
               {collectionSummary(collections, collection)}

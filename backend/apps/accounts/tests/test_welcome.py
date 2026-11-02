@@ -61,9 +61,22 @@ def test_sample_content_can_be_created_and_removed_without_touching_real_data(
     assert Item.objects.filter(owner=user, is_sample=True).count() == 8
     assert Collection.objects.filter(owner=user, is_sample=True).count() == 4
     board = Board.objects.get(owner=user, is_sample=True)
-    assert len(board.layout["nodes"]) == 3
-    picture = Item.objects.get(owner=user, title="A sample image")
+    assert len(board.layout["nodes"]) == 5
+    assert board.title == "From capture to clarity"
+    assert (
+        "private, self-hosted"
+        in Item.objects.get(owner=user, title="Start here: your second brain").body
+    )
+    picture = Item.objects.get(owner=user, title="From a quick capture to a clear plan")
     assert picture.file and picture.preview_image
+    assert picture.metadata["width"] == 1200
+    assert picture.metadata["height"] == 720
+    assert picture.preview_status == Item.PreviewStatus.READY
+    from PIL import Image
+
+    with Image.open(picture.preview_image) as thumbnail:
+        assert thumbnail.width > 1 and thumbnail.height > 1
+        assert thumbnail.convert("RGB").getbbox() is not None
     prompt = Item.objects.get(owner=user, title="Connect your AI")
     assert "https://brain.example.com/api/mcp" in prompt.body
     assert client.get("/api/auth/session/").json()["has_sample_content"] is True
@@ -92,7 +105,7 @@ def test_removing_samples_keeps_user_items_and_cleans_only_sample_board_nodes(
         {"mcp_url": "https://brain.example.com/api/mcp"},
         content_type="application/json",
     )
-    sample_note = Item.objects.get(owner=user, title="A note to try")
+    sample_note = Item.objects.get(owner=user, title="Start here: your second brain")
     board = Board.objects.get(owner=user, is_sample=True)
     on_sample_board = Item.objects.create(
         owner=user, kind="note", body="Keep from board"

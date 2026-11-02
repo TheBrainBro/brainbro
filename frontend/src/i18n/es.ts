@@ -714,8 +714,6 @@ export const es: Messages = {
     sampleFailed: 'No se pudo añadir el contenido de ejemplo. Inténtalo de nuevo.',
   },
   sampleContent: {
-    badge: 'Ejemplo',
-    title: 'Contenido de ejemplo',
     description: 'Elementos, colecciones y tableros de ejemplo añadidos desde el tour de bienvenida.',
     remove: 'Quitar contenido de ejemplo',
     removeTitle: '¿Quitar el contenido de ejemplo?',

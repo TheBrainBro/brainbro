@@ -97,11 +97,6 @@ export function BoardsPage() {
                   aria-hidden="true"
                 />
                 <span className="line-clamp-2 font-medium">{board.title}</span>
-                {board.is_sample && (
-                  <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-xs text-accent-700 dark:bg-accent-950 dark:text-accent-300">
-                    {t('sampleContent.badge')}
-                  </span>
-                )}
               </span>
               <span className="text-xs text-zinc-500">
                 {t('counts.items', { count: board.item_count })} ·{' '}

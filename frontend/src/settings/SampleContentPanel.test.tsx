@@ -34,6 +34,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe('SampleContentPanel', () => {
   it('removes sample content only after confirmation', async () => {
     const fetch = renderPanel()
+    expect(screen.queryByRole('heading', { name: 'Sample content' })).not.toBeInTheDocument()
     const remove = await screen.findByRole('button', { name: 'Remove sample content' })
     fireEvent.click(remove)
     expect(fetch).not.toHaveBeenCalledWith('/api/auth/sample-content/', expect.objectContaining({ method: 'DELETE' }))

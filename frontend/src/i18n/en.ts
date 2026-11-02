@@ -703,8 +703,6 @@ export const en = {
     sampleFailed: "Couldn't add sample content. Try again.",
   },
   sampleContent: {
-    badge: 'Sample',
-    title: 'Sample content',
     description: 'Example items, collections and boards made from the welcome tour.',
     remove: 'Remove sample content',
     removeTitle: 'Remove sample content?',

@@ -30,7 +30,6 @@ export function SampleContentPanel() {
 
   return (
     <div className="max-w-lg">
-      <h3 className="font-semibold">{t('sampleContent.title')}</h3>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('sampleContent.description')}</p>
       {session?.has_sample_content ? (
         <button type="button" className="button-danger mt-4" disabled={remove.isPending} onClick={removeSamples}>

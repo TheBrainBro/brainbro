@@ -462,11 +462,6 @@ export function ItemCard({
         />
       )}
       <div className="min-w-0 flex-1">
-        {item.is_sample && (
-          <span className="mb-2 inline-flex rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700 dark:bg-accent-950 dark:text-accent-300">
-            {t('sampleContent.badge')}
-          </span>
-        )}
         <ItemContent item={item} actions={actions} onOpen={onOpen} onView={onView} />
       </div>
     </article>
