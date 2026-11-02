@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Logo, Wordmark } from '../layout/Logo'
+import { useCreateSampleContent } from '../auth/session'
 import { AssistantsScene, CaptureScene, SortScene, ViewsScene } from './scenes'
 
 type Step = { Scene: ComponentType; title: MessageKey; line: MessageKey }
@@ -21,6 +22,7 @@ const steps: Step[] = [
 /** A short animated tour of what the app does, shown on the first visit. */
 export function WelcomeDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
+  const createSample = useCreateSampleContent()
   const [index, setIndex] = useState(0)
   // The dialog takes focus, not a button: the arrows work without a ring on Next.
   const dialog = useRef<HTMLDivElement>(null)
@@ -92,6 +94,31 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
               {!last && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
           </div>
+          {last && (
+            <div className="mt-3 flex items-start gap-2 border-t border-zinc-200 px-1 pt-3 text-sm dark:border-zinc-800">
+              <input
+                id="welcome-sample-content"
+                type="checkbox"
+                className="mt-1 accent-accent-600"
+                checked={createSample.isSuccess}
+                disabled={createSample.isPending || createSample.isSuccess}
+                onChange={(event) => {
+                  if (event.target.checked) {
+                    createSample.mutate(`${window.location.origin}/api/mcp`)
+                  }
+                }}
+              />
+              <label htmlFor="welcome-sample-content" className="cursor-pointer">
+                <span className="block font-medium">{t('welcome.sampleTitle')}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{t('welcome.sampleHint')}</span>
+              </label>
+            </div>
+          )}
+          {last && createSample.isError && (
+            <p role="alert" className="mt-2 px-1 text-sm text-red-600 dark:text-red-400">
+              {t('welcome.sampleFailed')}
+            </p>
+          )}
         </div>
       </div>
     </>

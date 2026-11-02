@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { useSession } from '../auth/session'
+import { SampleContentPanel } from './SampleContentPanel'
 import { ExportPanel } from '../exports/ExportPanel'
 import { useT, type MessageKey } from '../i18n/i18n'
 import { ImportPanel } from '../imports/ImportPanel'
@@ -33,6 +34,7 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
       { id: 'profile', label: 'settings.pages.profile', icon: UserRound, Panel: ProfilePanel },
       { id: 'appearance', label: 'settings.pages.appearance', icon: Palette, Panel: AppearancePanel },
       { id: 'language', label: 'settings.pages.language', icon: Languages, Panel: LanguagePanel },
+      { id: 'sample-content', label: 'settings.pages.sampleContent', icon: PackageOpen, Panel: SampleContentPanel },
     ],
   },
   {

@@ -17,6 +17,8 @@ export type Session = {
   limits?: { upload_max_size: number }
   /** Whether this user already closed the welcome tour, on any device. */
   welcome_seen?: boolean
+  /** Whether this account has sample content that can be removed. */
+  has_sample_content?: boolean
   /** The theme chosen, the same on every device. */
   theme?: Theme
   /** The language chosen, the same on every device; `system` follows the browser. */
@@ -79,6 +81,35 @@ export function useMarkWelcomeSeen() {
       queryClient.setQueryData<Session>(sessionKey, (session) =>
         session ? { ...session, welcome_seen: true } : session,
       ),
+  })
+}
+
+/** Makes the BrainBro starter content once, or returns it if it already exists. */
+export function useCreateSampleContent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (url: string) =>
+      api<void>('/auth/sample-content/', {
+        method: 'POST',
+        body: JSON.stringify({ mcp_url: url }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries()
+    },
+  })
+}
+
+/** Removes only the content marked as sample, after the caller confirms. */
+export function useRemoveSampleContent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<void>('/auth/sample-content/', { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.setQueryData<Session>(sessionKey, (session) =>
+        session ? { ...session, has_sample_content: false } : session,
+      )
+      queryClient.invalidateQueries()
+    },
   })
 }
 

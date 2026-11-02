@@ -35,9 +35,18 @@ function renderApp() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('WelcomeDialog', () => {
+  function renderDialog(onClose: () => void) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WelcomeDialog onClose={onClose} />
+      </QueryClientProvider>,
+    )
+  }
+
   it('walks through the steps and closes on the last one', () => {
     const onClose = vi.fn()
-    render(<WelcomeDialog onClose={onClose} />)
+    renderDialog(onClose)
 
     expect(screen.getByRole('heading', { name: 'Welcome to your second brain' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
@@ -48,6 +57,7 @@ describe('WelcomeDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByRole('heading', { name: 'One memory for your AI' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Add sample content/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(onClose).toHaveBeenCalled()
@@ -55,7 +65,7 @@ describe('WelcomeDialog', () => {
 
   it('moves with the arrow keys and closes on Escape', () => {
     const onClose = vi.fn()
-    render(<WelcomeDialog onClose={onClose} />)
+    renderDialog(onClose)
     const dialog = screen.getByRole('dialog')
 
     fireEvent.keyDown(dialog, { key: 'ArrowRight' })
@@ -69,6 +79,25 @@ describe('WelcomeDialog', () => {
 })
 
 describe('first visit', () => {
+  it('creates sample content only when the welcome option is selected', async () => {
+    const fetch = renderApp()
+    await screen.findByRole('heading', { name: 'Welcome to your second brain' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    const option = screen.getByRole('checkbox', { name: /Add sample content/ })
+    expect(option).not.toBeChecked()
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      const request = fetch.mock.calls.find(([url]) => url === '/api/auth/sample-content/')
+      expect(request?.[1]?.body).toBe(
+        JSON.stringify({ mcp_url: `${window.location.origin}/api/mcp` }),
+      )
+    })
+  })
+
   it('shows the tour once, and the account menu brings it back', async () => {
     const fetch = renderApp()
 

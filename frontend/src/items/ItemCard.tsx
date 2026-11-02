@@ -58,7 +58,7 @@ function LinkPreview({
   actions?: ReactNode
   onView?: () => void
 }) {
-  useT()
+  const t = useT()
   const { metadata } = item
   const title = item.title || metadata.title || item.url
 
@@ -440,7 +440,7 @@ export function ItemCard({
   /** Open the item in the viewer (images, files, link previews). */
   onView?: () => void
 }) {
-  useT()
+  const t = useT()
   // The same selection and focus look as tiles and rows (ItemTile).
   const ring = selected
     ? 'border-accent-500 ring-2 ring-accent-500/30'
@@ -462,6 +462,11 @@ export function ItemCard({
         />
       )}
       <div className="min-w-0 flex-1">
+        {item.is_sample && (
+          <span className="mb-2 inline-flex rounded-full bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700 dark:bg-accent-950 dark:text-accent-300">
+            {t('sampleContent.badge')}
+          </span>
+        )}
         <ItemContent item={item} actions={actions} onOpen={onOpen} onView={onView} />
       </div>
     </article>

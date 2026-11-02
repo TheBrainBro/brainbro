@@ -38,6 +38,7 @@ export type ItemMetadata = {
 export type Item = {
   id: string
   kind: ItemKind
+  is_sample?: boolean
   status: ItemStatus
   title: string
   body: string
@@ -377,6 +378,7 @@ export type CollectionKind = 'project' | 'area' | 'resource'
 export type Collection = {
   id: string
   name: string
+  is_sample?: boolean
   kind: CollectionKind
   /** Hex color behind the emoji, optional. */
   color: string
