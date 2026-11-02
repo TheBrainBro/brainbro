@@ -658,7 +658,13 @@ export function CollectionPage() {
                 ))}
               </ul>
             )}
-            <ItemList items={all} backToInbox mode={mode} sortable={{ collection: id }} />
+            <ItemList
+              items={all}
+              backToInbox
+              mode={mode}
+              sortable={{ collection: id }}
+              animatePresence={items.isSuccess}
+            />
             {items.hasNextPage && (
               <LoadMore loading={items.isFetchingNextPage} onClick={() => items.fetchNextPage()} />
             )}
