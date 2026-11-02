@@ -523,10 +523,15 @@
 
   // --- Sections reached -----------------------------------------------------
 
-  // Every section lights up its title when it comes into view (by scrolling
-  // or from the hero's buttons).
-  for (const section of document.querySelectorAll('main section')) {
+  // Every section swings in, from alternating sides, the first time it comes
+  // into view, and lights up its title each time (by scrolling or from the
+  // hero's buttons).
+  document.querySelectorAll('main section').forEach((section, i) => {
     const title = section.querySelector('h2');
+    if (!reduceMotion) {
+      section.classList.add('reveal', i % 2 ? 'from-right' : 'from-left');
+      onScreen(section, () => section.classList.add('shown'), null, 0.1);
+    }
     onScreen(section, () => replay(title, 'glow'), null, 0.5);
-  }
+  });
 })();

@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Brain: drop it now, sort it later</title>
+    <title>Brain: one memory for all your AI assistants</title>
     <meta
       name="description"
-      content="A self-hosted second brain. Capture anything in a second, sort it later, and give every AI assistant you use the same memory."
+      content="One memory for all your AI assistants, on your own server. Capture anything in a second, sort it later."
     />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#4c1d95" />
-    <meta property="og:title" content="Brain: drop it now, sort it later" />
+    <meta property="og:title" content="Brain: one memory for all your AI assistants" />
     <meta
       property="og:description"
-      content="A self-hosted second brain, shared memory for every AI assistant you use."
+      content="Self-hosted shared memory for Claude, ChatGPT, Grok and any assistant with MCP. Drop it now, sort it later."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
@@ -72,12 +72,8 @@
       </header>
       <div class="hero-inner wrap">
         <div class="hero-copy">
-          <p class="eyebrow">Self-hosted second brain</p>
-          <h1>Drop it now,<br />sort it later.</h1>
-          <p class="lead">
-            Capture anything in a second, organize it when you have time, and
-            give every AI assistant you use the same memory.
-          </p>
+          <h1>One memory for all your AI assistants.</h1>
+          <p class="tagline">Drop it now, sort it later.</p>
           <div class="actions">
             <a class="button light" href="#install">Install</a>
             <a class="button glass" href="#connect">Connect an assistant</a>
@@ -407,6 +403,36 @@
         </div>
       </section>
 
+      <section id="faq" class="panel wrap" aria-labelledby="faq-title">
+        <div class="copy">
+          <h2 id="faq-title">Questions</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Do I need a server?</summary>
+            <p>
+              Yes, for now: any machine that runs Docker, like an Umbrel, a
+              home server or a small VPS. There is no hosted version yet.
+            </p>
+          </details>
+          <details>
+            <summary>What happens to my data?</summary>
+            <p>
+              It stays in the database on your server. Brain sends no
+              telemetry, and search by meaning runs there too. An assistant
+              only gets in when you approve it, and you can revoke it any time.
+            </p>
+          </details>
+          <details>
+            <summary>Does it work without AI?</summary>
+            <p>
+              Yes. Capturing, the inbox, boards, collections, search and the
+              rest work on their own. Assistants are optional.
+            </p>
+          </details>
+        </div>
+      </section>
+
       <section id="install" class="panel wrap" aria-labelledby="install-title">
         <div class="copy">
           <h2 id="install-title">Install it on your server</h2>
@@ -423,7 +449,8 @@ make prod-up</pre>
           <article class="install">
             <h3><svg class="logo umbrel"><use href="#l-umbrel" /></svg>Umbrel</h3>
             <p>
-              In Portainer, add a stack from the repository with
+              Not in the Umbrel App Store yet. In Portainer, add a stack from
+              the repository with
               <code>docker-compose.production.yml</code> and the variables in
               <code>stack.env.example</code>. A Cloudflare Tunnel gives it HTTPS.
             </p>
