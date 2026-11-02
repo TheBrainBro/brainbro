@@ -20,7 +20,9 @@ from rest_framework.decorators import (
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
+from apps.boards.models import Board
 from apps.items.collection_images import make_square_image
+from apps.items.models import Collection, Item
 
 from .models import ApiToken, Invitation, Profile
 
@@ -38,6 +40,10 @@ class UserSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(trim_whitespace=False)
+
+
+class SampleContentSerializer(serializers.Serializer):
+    mcp_url = serializers.URLField(max_length=2048)
 
 
 def profile_data(profile):
@@ -60,6 +66,15 @@ def signed_in(user):
         "user": UserSerializer(user).data,
         # The first visit opens on the welcome tour, once per user.
         "welcome_seen": bool(profile and profile.welcome_seen_at),
+        "has_sample_content": bool(
+            profile
+            and profile.sample_content_created_at
+            and (
+                Item.objects.filter(owner=user, is_sample=True).exists()
+                or Collection.objects.filter(owner=user, is_sample=True).exists()
+                or Board.objects.filter(owner=user, is_sample=True).exists()
+            )
+        ),
         "theme": profile.theme if profile else Profile.Theme.SYSTEM,
         "language": profile.language if profile else Profile.Language.SYSTEM,
         "profile": profile_data(profile),
@@ -112,6 +127,20 @@ def welcome_view(request):
     if profile.welcome_seen_at is None:
         profile.welcome_seen_at = timezone.now()
         profile.save(update_fields=["welcome_seen_at", "updated_at"])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST", "DELETE"])
+def sample_content_view(request):
+    """Create the starter once, or remove only its explicitly marked records."""
+    from .sample_content import create_sample_content, remove_sample_content
+
+    if request.method == "POST":
+        payload = SampleContentSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        create_sample_content(request.user, payload.validated_data["mcp_url"])
+    else:
+        remove_sample_content(request.user)
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -47,6 +47,9 @@ def test_note_titles_lists_the_user_s_notes_in_lookup_order(api, user, other_use
     shown = Item.objects.create(owner=user, kind="note", body="# Trip\nmore")
     saved = Item.objects.create(owner=user, kind="note", title="Ideas", body="x")
     Item.objects.create(owner=user, kind="link", url="https://example.com")
+    sample = Item.objects.create(
+        owner=user, kind="note", title="Sample", body="Not linkable", is_sample=True
+    )
     Item.objects.create(owner=other_user, kind="note", title="Theirs")
 
     response = api.get("/api/items/note-titles/")
@@ -54,5 +57,6 @@ def test_note_titles_lists_the_user_s_notes_in_lookup_order(api, user, other_use
     assert response.status_code == 200
     assert response.json() == [
         {"id": str(saved.id), "title": "Ideas"},
+        {"id": str(sample.id), "title": "Sample"},
         {"id": str(shown.id), "title": "Trip"},
     ]

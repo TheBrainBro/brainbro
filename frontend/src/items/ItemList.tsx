@@ -2,6 +2,7 @@ import { Archive, FolderInput, Images, Inbox, Pencil, Trash2, X, type LucideIcon
 import {
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useRef,
   useState,
   type DragEvent,
@@ -40,6 +41,8 @@ const LAYOUT: Record<ViewMode, string> = {
 
 /** The order shown while dragging, for the list it was taken from. */
 type Preview = { base: Item[]; ids: string[] }
+type Box = { left: number; top: number; width: number; height: number }
+type Departure = { item: Item; box: Box }
 
 /**
  * Items with triage: per-card actions, multi-select and keyboard shortcuts
@@ -53,12 +56,15 @@ export function ItemList({
   archived = false,
   mode = 'cards',
   sortable,
+  animatePresence = true,
 }: {
   items: Item[]
   backToInbox?: boolean
   /** Archived items: they can go back to the inbox, not be archived again. */
   archived?: boolean
   mode?: ViewMode
+  /** Avoid animating the first response while a page is loading. */
+  animatePresence?: boolean
   /** The hand-sorted list these items are: the inbox, or a collection. */
   sortable?: MoveTarget
 }) {
@@ -78,21 +84,214 @@ export function ItemList({
   const [dragging, setDragging] = useState<string | null>(null)
   // Kept until the list itself has the new order (or changes otherwise).
   const [preview, setPreview] = useState<Preview | null>(null)
+  const [departing, setDeparting] = useState<Map<string, Departure>>(new Map())
+  const [entering, setEntering] = useState<Set<string>>(new Set())
+  const previous = useRef<{
+    ready: boolean
+    items: Map<string, Item>
+    boxes: Map<string, Box>
+  }>({ ready: false, items: new Map(), boxes: new Map() })
   const byId = new Map(items.map((item) => [item.id, item]))
   const shown =
     preview?.base === items
       ? preview.ids.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item))
       : items
   const list = useRef<HTMLUListElement>(null)
+  const visibleItems = shown.filter((item) => !departing.has(item.id))
 
   // Items that change place glide there.
-  useFlip(shown.map((item) => item.id), cards, list)
+  useFlip(visibleItems.map((item) => item.id), cards, list)
+
+  // Keep an exiting item as an overlay for one short animation while the
+  // remaining entries glide into its place. First page data is a baseline.
+  useLayoutEffect(() => {
+    const listRect = list.current?.getBoundingClientRect()
+    const currentItems = new Map(items.map((item) => [item.id, item]))
+    const currentBoxes = new Map<string, Box>()
+    if (listRect) {
+      for (const [id, element] of cards.current) {
+        if (!currentItems.has(id)) continue
+        const rect = element.getBoundingClientRect()
+        currentBoxes.set(id, {
+          left: rect.left - listRect.left,
+          top: rect.top - listRect.top,
+          width: rect.width,
+          height: rect.height,
+        })
+      }
+    }
+
+    if (!animatePresence) {
+      previous.current = { ready: false, items: currentItems, boxes: currentBoxes }
+      return
+    }
+    if (!previous.current.ready) {
+      previous.current = { ready: true, items: currentItems, boxes: currentBoxes }
+      return
+    }
+
+    const old = previous.current
+    const added = [...currentItems.keys()].filter((id) => !old.items.has(id))
+    const removed = [...old.items]
+      .filter(([id]) => !currentItems.has(id) && !departing.has(id))
+      .map(([id, item]) => ({ id, item, box: old.boxes.get(id) }))
+      .filter((entry): entry is { id: string; item: Item; box: Box } => Boolean(entry.box))
+
+    if (removed.length) {
+      setDeparting((current) => {
+        const next = new Map(current)
+        for (const { id, item, box } of removed) next.set(id, { item, box })
+        return next
+      })
+    }
+    if (added.length) {
+      setDeparting((current) => {
+        const next = new Map(current)
+        for (const id of added) next.delete(id)
+        return next
+      })
+      setEntering((current) => new Set([...current, ...added]))
+    }
+    previous.current = { ready: true, items: currentItems, boxes: currentBoxes }
+  }, [animatePresence, departing, items])
 
   // Forget selections of items that left this list (triaged elsewhere).
   const visibleSelection = items.filter((item) => selected.has(item.id)).map((item) => item.id)
 
   function failed(error: Error) {
     toast({ message: error.message, tone: 'error' })
+  }
+
+  function leave(ids: string[]) {
+    if (!animatePresence || !list.current) return
+    const origin = list.current.getBoundingClientRect()
+    const next = new Map<string, Departure>()
+    for (const id of ids) {
+      const item = byId.get(id)
+      const element = cards.current.get(id)
+      if (!item || !element) continue
+      const rect = element.getBoundingClientRect()
+      next.set(id, {
+        item,
+        box: {
+          left: rect.left - origin.left,
+          top: rect.top - origin.top,
+          width: rect.width,
+          height: rect.height,
+        },
+      })
+    }
+    setDeparting((current) => new Map([...current, ...next]))
+    setEntering((current) => new Set([...current].filter((id) => !ids.includes(id))))
+  }
+
+  function cancelLeave(ids: string[]) {
+    setDeparting((current) => {
+      const next = new Map(current)
+      for (const id of ids) next.delete(id)
+      return next
+    })
+    setEntering((current) => new Set([...current, ...ids]))
+  }
+
+  function finishDeparture(id: string) {
+    setDeparting((current) => {
+      if (!current.has(id)) return current
+      const next = new Map(current)
+      next.delete(id)
+      return next
+    })
+  }
+
+  function finishEntrance(id: string) {
+    setEntering((current) => {
+      if (!current.has(id)) return current
+      const next = new Set(current)
+      next.delete(id)
+      return next
+    })
+  }
+
+  function renderEntry(item: Item, departure?: Departure) {
+    const leaving = Boolean(departure)
+    const note = item.kind === 'note' ? item : undefined
+    const shared = {
+      item,
+      selected: selected.has(item.id),
+      focused: focused === item.id,
+      onToggleSelect: () => toggle(item.id),
+    }
+    const icons = (
+      <div className="popover flex gap-0.5 p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        {actionsFor([item.id], note, true)}
+      </div>
+    )
+    return (
+      <li
+        key={leaving ? `${item.id}-leaving` : item.id}
+        aria-hidden={leaving || undefined}
+        className={`relative ${mode === 'masonry' ? 'mb-4 break-inside-avoid' : ''} ${
+          sortable && !leaving ? 'cursor-grab active:cursor-grabbing' : ''
+        } ${dragging === item.id && !leaving ? 'opacity-40' : ''} ${
+          leaving ? 'item-departing pointer-events-none z-10' : entering.has(item.id) ? 'item-entering' : ''
+        }`}
+        style={
+          departure
+            ? {
+                position: 'absolute',
+                left: departure.box.left,
+                top: departure.box.top,
+                width: departure.box.width,
+                height: departure.box.height,
+              }
+            : undefined
+        }
+        ref={
+          leaving
+            ? undefined
+            : (element) => {
+                if (element) cards.current.set(item.id, element)
+                else cards.current.delete(item.id)
+              }
+        }
+        onAnimationEnd={(event) => {
+          if (event.target !== event.currentTarget) return
+          if (leaving) finishDeparture(item.id)
+          else finishEntrance(item.id)
+        }}
+        onMouseDown={() => !leaving && setFocused(item.id)}
+        draggable={Boolean(sortable) && !leaving}
+        onDragStart={(event) => {
+          if (!sortable || leaving) return
+          setDragging(item.id)
+          event.dataTransfer.effectAllowed = 'move'
+        }}
+        onDragOver={(event) => !leaving && dragOver(event, item)}
+        onDragEnd={() => {
+          if (leaving) return
+          // Let go outside the list: everything goes back.
+          if (dragging) setPreview(null)
+          setDragging(null)
+        }}
+      >
+        {mode === 'grid' ? (
+          <ItemTile {...shared} onOpen={() => open(item)} actions={icons} />
+        ) : mode === 'list' ? (
+          <ItemRow {...shared} onOpen={() => open(item)} actions={icons} />
+        ) : (
+          <ItemCard
+            {...shared}
+            onOpen={note ? () => open(item) : undefined}
+            onView={() => open(item)}
+            actions={
+              <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                {actionsFor([item.id], note, mode === 'masonry')}
+              </div>
+            }
+          />
+        )}
+      </li>
+    )
   }
 
   async function run(ids: string[], action: TriageAction) {
@@ -115,6 +314,7 @@ export function ItemList({
       action,
       items.filter((item) => ids.includes(item.id)),
     )
+    leave(ids)
     triage.mutate(
       { ids, action },
       {
@@ -125,13 +325,17 @@ export function ItemList({
             actions: undoAction(undo),
           })
         },
-        onError: failed,
+        onError: (error) => {
+          cancelLeave(ids)
+          failed(error)
+        },
       },
     )
   }
 
   /** One click from the organize menu. */
   function organizeInto(ids: string[], collection: Collection) {
+    leave(ids)
     triage.mutate(
       { ids, action: 'organize', collections: [collection.id] },
       {
@@ -139,13 +343,17 @@ export function ItemList({
           setSelected(new Set())
           toast({ message: triageMessage('organize', ids.length, collection.name) })
         },
-        onError: failed,
+        onError: (error) => {
+          cancelLeave(ids)
+          failed(error)
+        },
       },
     )
   }
 
   /** Unticked in the organize menu; undo puts it back in. */
   function takeOutOf(ids: string[], collection: Collection) {
+    leave(ids)
     triage.mutate(
       { ids, action: 'unorganize', collections: [collection.id] },
       {
@@ -156,7 +364,10 @@ export function ItemList({
             actions: undoAction([{ ids, action: 'organize', collections: [collection.id] }]),
           })
         },
-        onError: failed,
+        onError: (error) => {
+          cancelLeave(ids)
+          failed(error)
+        },
       },
     )
   }
@@ -389,7 +600,7 @@ export function ItemList({
 
       <ul
         ref={list}
-        className={LAYOUT[mode]}
+        className={`${LAYOUT[mode]} relative`}
         // Dropped anywhere on the list, gaps included: where it is shown now.
         onDragOver={(event) => {
           // Only our own drags; files from outside are captures.
@@ -403,70 +614,16 @@ export function ItemList({
           dropped()
         }}
       >
-        {shown.map((item) => {
-          const note = item.kind === 'note' ? item : undefined
-          const shared = {
-            item,
-            selected: selected.has(item.id),
-            focused: focused === item.id,
-            onToggleSelect: () => toggle(item.id),
-          }
-          const icons = (
-            <div className="popover flex gap-0.5 p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-              {actionsFor([item.id], note, true)}
-            </div>
-          )
-          return (
-            <li
-              key={item.id}
-              className={`relative transition-opacity ${mode === 'masonry' ? 'mb-4 break-inside-avoid' : ''} ${
-                sortable ? 'cursor-grab active:cursor-grabbing' : ''
-              } ${dragging === item.id ? 'opacity-40' : ''}`}
-              ref={(element) => {
-                if (element) cards.current.set(item.id, element)
-                else cards.current.delete(item.id)
-              }}
-              onMouseDown={() => setFocused(item.id)}
-              draggable={Boolean(sortable)}
-              onDragStart={(event) => {
-                if (!sortable) return
-                setDragging(item.id)
-                event.dataTransfer.effectAllowed = 'move'
-              }}
-              onDragOver={(event) => dragOver(event, item)}
-              onDragEnd={() => {
-                // Let go outside the list: everything goes back.
-                if (dragging) setPreview(null)
-                setDragging(null)
-              }}
-            >
-              {mode === 'grid' ? (
-                <ItemTile {...shared} onOpen={() => open(item)} actions={icons} />
-              ) : mode === 'list' ? (
-                <ItemRow {...shared} onOpen={() => open(item)} actions={icons} />
-              ) : (
-                <ItemCard
-                  {...shared}
-                  onOpen={note ? () => open(item) : undefined}
-                  onView={() => open(item)}
-                  actions={
-                    // Masonry columns are too narrow for the actions in words.
-                    <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                      {actionsFor([item.id], note, mode === 'masonry')}
-                    </div>
-                  }
-                />
-              )}
-            </li>
-          )
-        })}
+        {visibleItems.map((item) => renderEntry(item))}
+        {[...departing.values()].map(({ item, box }) => renderEntry(item, { item, box }))}
       </ul>
 
       {organizing && (
         <CollectionPicker
           count={organizing.length}
           onClose={() => setOrganizing(null)}
-          onConfirm={(collections, names) =>
+          onConfirm={(collections, names) => {
+            leave(organizing)
             triage.mutate(
               { ids: organizing, action: 'organize', collections },
               {
@@ -475,10 +632,13 @@ export function ItemList({
                   setOrganizing(null)
                   setSelected(new Set())
                 },
-                onError: failed,
+                onError: (error) => {
+                  cancelLeave(organizing)
+                  failed(error)
+                },
               },
             )
-          }
+          }}
         />
       )}
     </>

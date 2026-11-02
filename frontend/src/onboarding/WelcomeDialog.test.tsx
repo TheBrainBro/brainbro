@@ -35,9 +35,18 @@ function renderApp() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('WelcomeDialog', () => {
+  function renderDialog(onClose: () => void) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WelcomeDialog onClose={onClose} />
+      </QueryClientProvider>,
+    )
+  }
+
   it('walks through the steps and closes on the last one', () => {
     const onClose = vi.fn()
-    render(<WelcomeDialog onClose={onClose} />)
+    renderDialog(onClose)
 
     expect(screen.getByRole('heading', { name: 'Welcome to your second brain' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
@@ -48,14 +57,17 @@ describe('WelcomeDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByRole('heading', { name: 'One memory for your AI' })).toBeInTheDocument()
+    const option = screen.getByRole('checkbox', { name: /Start with a few examples/ })
+    expect(option).toBeChecked()
     expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
+    fireEvent.click(option)
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(onClose).toHaveBeenCalled()
   })
 
   it('moves with the arrow keys and closes on Escape', () => {
     const onClose = vi.fn()
-    render(<WelcomeDialog onClose={onClose} />)
+    renderDialog(onClose)
     const dialog = screen.getByRole('dialog')
 
     fireEvent.keyDown(dialog, { key: 'ArrowRight' })
@@ -69,6 +81,26 @@ describe('WelcomeDialog', () => {
 })
 
 describe('first visit', () => {
+  it('starts with examples selected and creates them when the tour is finished', async () => {
+    const fetch = renderApp()
+    await screen.findByRole('heading', { name: 'Welcome to your second brain' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    const option = screen.getByRole('checkbox', { name: /Start with a few examples/ })
+    expect(option).toBeChecked()
+    expect(fetch).not.toHaveBeenCalledWith('/api/auth/sample-content/', expect.anything())
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
+
+    await waitFor(() => {
+      const request = fetch.mock.calls.find(([url]) => url === '/api/auth/sample-content/')
+      expect(request?.[1]?.body).toBe(
+        JSON.stringify({ mcp_url: `${window.location.origin}/api/mcp` }),
+      )
+    })
+  })
+
   it('shows the tour once, and the account menu brings it back', async () => {
     const fetch = renderApp()
 

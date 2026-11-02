@@ -16,6 +16,7 @@ class Board(OwnedModel):
     """
 
     title = models.CharField(max_length=200)
+    is_sample = models.BooleanField(default=False, db_default=False)
     layout = models.JSONField(default=empty_layout)
     # Bumped on every layout save. Saves send it back (If-Match), so one tab
     # can't silently overwrite another's layout.

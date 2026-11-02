@@ -41,6 +41,7 @@ class Profile(TimestampedModel):
     )
     # Set the first time the welcome tour is closed, on any device.
     welcome_seen_at = models.DateTimeField(null=True, blank=True)
+    sample_content_created_at = models.DateTimeField(null=True, blank=True)
     theme = models.CharField(max_length=10, choices=Theme, default=Theme.SYSTEM)
     language = models.CharField(
         max_length=10,

@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
-import { useT } from '../i18n/i18n'
 import { useFeedback } from '../ui/feedback'
 import { useSortable } from '../ui/sortable'
 import { useMoveCollection, type Collection } from './api'
@@ -21,7 +20,6 @@ export function CollectionGrid({
   parent: string | null
   label: string
 }) {
-  useT()
   const move = useMoveCollection()
   const { toast } = useFeedback()
   // The same list until the collections change: dragging keeps its order for it.

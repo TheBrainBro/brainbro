@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ComponentType } from 'react'
 
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Logo, Wordmark } from '../layout/Logo'
+import { useCreateSampleContent } from '../auth/session'
 import { AssistantsScene, CaptureScene, SortScene, ViewsScene } from './scenes'
 
 type Step = { Scene: ComponentType; title: MessageKey; line: MessageKey }
@@ -21,12 +22,21 @@ const steps: Step[] = [
 /** A short animated tour of what the app does, shown on the first visit. */
 export function WelcomeDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
+  const createSample = useCreateSampleContent()
   const [index, setIndex] = useState(0)
+  const [includeSampleContent, setIncludeSampleContent] = useState(true)
   // The dialog takes focus, not a button: the arrows work without a ring on Next.
   const dialog = useRef<HTMLDivElement>(null)
   useEffect(() => dialog.current?.focus(), [])
   const step = steps[index]
   const last = index === steps.length - 1
+  const start = () => {
+    if (includeSampleContent) {
+      createSample.mutate(`${window.location.origin}/api/mcp`, { onSuccess: onClose })
+    } else {
+      onClose()
+    }
+  }
 
   return (
     <>
@@ -65,6 +75,23 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
             <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{t(step.line)}</p>
           </div>
 
+          {last && (
+            <div className="mt-3 flex items-start gap-2 border-t border-zinc-200 px-1 pt-3 text-sm dark:border-zinc-800">
+              <input
+                id="welcome-sample-content"
+                type="checkbox"
+                className="mt-1 accent-accent-600"
+                checked={includeSampleContent}
+                disabled={createSample.isPending}
+                onChange={(event) => setIncludeSampleContent(event.target.checked)}
+              />
+              <label htmlFor="welcome-sample-content" className="cursor-pointer">
+                <span className="block font-medium">{t('welcome.sampleTitle')}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{t('welcome.sampleHint')}</span>
+              </label>
+            </div>
+          )}
+
           <div className="mt-3 flex items-center gap-2 px-1">
             <div className="mr-auto flex gap-1.5">
               {steps.map((each, position) => (
@@ -86,12 +113,18 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               className="button-primary inline-flex items-center gap-1.5"
-              onClick={() => (last ? onClose() : setIndex(index + 1))}
+              onClick={() => (last ? start() : setIndex(index + 1))}
+              disabled={last && createSample.isPending}
             >
               {last ? t('welcome.start') : t('welcome.next')}
               {!last && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
           </div>
+          {last && createSample.isError && (
+            <p role="alert" className="mt-2 px-1 text-sm text-red-600 dark:text-red-400">
+              {t('welcome.sampleFailed')}
+            </p>
+          )}
         </div>
       </div>
     </>

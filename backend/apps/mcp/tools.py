@@ -146,7 +146,9 @@ def item_details(item):
 
 
 def owned_items(user):
-    return Item.objects.filter(owner=user).prefetch_related("collections")
+    return Item.objects.filter(owner=user, is_sample=False).prefetch_related(
+        "collections"
+    )
 
 
 # What to do about an id that isn't there, said with every "not found".
@@ -160,7 +162,9 @@ def no_item(ids):
 
 
 def owned_collection(user, collection_id):
-    collection = Collection.objects.filter(owner=user, id=collection_id).first()
+    collection = Collection.objects.filter(
+        owner=user, id=collection_id, is_sample=False
+    ).first()
     if collection is None:
         raise ToolError(f"No collection with id {collection_id}. {FIND_COLLECTIONS}")
     return collection
@@ -275,7 +279,7 @@ def collection_summary(collection, item_count):
 def list_collections(user, data):
     # In the order they were sorted by hand, as the app shows.
     collections = (
-        Collection.objects.filter(owner=user)
+        Collection.objects.filter(owner=user, is_sample=False)
         .annotate(
             item_count=Count("items", filter=Q(items__status=Item.Status.ORGANIZED))
         )
@@ -576,7 +580,7 @@ def archive(user, data):
 
 
 def owned_board(user, board_id):
-    board = Board.objects.filter(owner=user, id=board_id).first()
+    board = Board.objects.filter(owner=user, id=board_id, is_sample=False).first()
     if board is None:
         raise ToolError(f"No board with id {board_id}. {FIND_BOARDS}")
     return board
@@ -585,7 +589,7 @@ def owned_board(user, board_id):
 def list_boards(user, data):
     # In the order the app lists them.
     boards = (
-        Board.objects.filter(owner=user)
+        Board.objects.filter(owner=user, is_sample=False)
         .annotate(item_count=Count("items"))
         .order_by("-rank", "-updated_at")
     )
