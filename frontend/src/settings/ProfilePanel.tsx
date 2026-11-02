@@ -41,7 +41,7 @@ export function ProfilePanel() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="button-secondary"
+            className="button-outline"
             disabled={setAvatar.isPending}
             onClick={() => fileInput.current?.click()}
           >
@@ -51,7 +51,7 @@ export function ProfilePanel() {
           {profile.avatar_url && (
             <button
               type="button"
-              className="button-ghost"
+              className="button-secondary inline-flex items-center gap-2"
               disabled={setAvatar.isPending}
               onClick={() =>
                 setAvatar.mutate(null, { onError: (failure) => setError(failure.message) })
@@ -97,7 +97,7 @@ export function ProfilePanel() {
           />
           <button
             type="submit"
-            className="button-secondary shrink-0"
+            className="button-primary shrink-0"
             disabled={name.trim() === profile.display_name || saveName.isPending}
           >
             {t('common.save')}
