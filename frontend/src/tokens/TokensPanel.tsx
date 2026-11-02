@@ -26,6 +26,7 @@ export function TokensPanel() {
           </p>
         )}
       </div>
+      <Prompt />
       <Setups />
       <Connections />
       <NewTokenForm />
@@ -40,6 +41,23 @@ function mcpUrl() {
 
 function isLocal() {
   return ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
+}
+
+/** A ready-to-paste prompt tailored to this BrainBro installation. */
+function Prompt() {
+  const url = mcpUrl()
+  const prompt = t('tokens.prompt', { url })
+  return (
+    <section aria-labelledby="assistant-prompt-title" className="space-y-2">
+      <h4 id="assistant-prompt-title" className="text-sm font-medium">
+        {t('tokens.promptTitle')}
+      </h4>
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        {t('tokens.promptIntro')}
+      </p>
+      <CopyField label={t('tokens.promptTitle')} value={prompt} multiline />
+    </section>
+  )
 }
 
 function Setups() {

@@ -133,6 +133,10 @@ export const en = {
     mcpUrl: 'MCP server URL',
     localOnly:
       "This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: use BrainBro's public address.",
+    promptTitle: 'Ready-to-paste prompt',
+    promptIntro: 'Paste this into the assistant you want to connect.',
+    prompt:
+      'I use BrainBro, a self-hosted second brain, as shared memory across my AI assistants. Help me connect you to it.\n\n1. Read how BrainBro works with assistants: https://github.com/TheBrainBro/brainbro/blob/main/docs/mcp.md\n2. Its MCP server is {url}.\n3. Walk me through adding it as a custom connector in the app we are using now, one step at a time. I sign in to BrainBro to allow it.\n4. Once connected, list my inbox to check it works.\n\nFrom then on: search BrainBro before answering about my notes or plans, save what I ask you to remember, and read a note before editing it.',
     claudeDetail: 'Web, desktop and mobile',
     claudeStep1: 'In Claude, open <b>Customize → Connectors</b> and choose <b>Add custom connector</b>.',
     claudeStep2: 'Paste the URL and press <b>Add</b>.',
