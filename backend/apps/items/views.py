@@ -291,6 +291,8 @@ class ItemViewSet(
         items = by_origin(items, params.get("origin"), params.get("app"))
         searching = self.action == "list" and params.get("q", "").strip()
         if searching:
+            # Sample content is for the person using the app, not search results.
+            items = items.filter(is_sample=False)
             items = find(items, searching).order_by("-rank", "-created_at")
         if collection := params.get("collection"):
             try:
@@ -371,7 +373,7 @@ class ItemViewSet(
     @action(detail=False, methods=["get"])
     def apps(self, request):
         """The names of the apps that made or edited items, to filter by."""
-        mine = Item.objects.filter(owner=request.user)
+        mine = Item.objects.filter(owner=request.user, is_sample=False)
         names = set(mine.values_list("created_by", flat=True).distinct())
         names |= set(mine.values_list("edited_by", flat=True).distinct())
         return Response({"apps": sorted(filter(None, names), key=str.lower)})
@@ -404,7 +406,7 @@ class ItemViewSet(
         text = request.query_params.get("q", "").strip()
         if not text:
             return Response([])
-        mine = Item.objects.filter(owner=request.user)
+        mine = Item.objects.filter(owner=request.user, is_sample=False)
         matches = find(mine, text).order_by("-rank", "-created_at")
         found = {}
         # More rows than needed: several images of one album take one place.

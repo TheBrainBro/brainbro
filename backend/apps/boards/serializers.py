@@ -13,8 +13,16 @@ class BoardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Board
-        fields = ["id", "title", "item_count", "revision", "created_at", "updated_at"]
-        read_only_fields = ["revision", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "title",
+            "is_sample",
+            "item_count",
+            "revision",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["is_sample", "revision", "created_at", "updated_at"]
 
 
 class BoardDetailSerializer(BoardSerializer):

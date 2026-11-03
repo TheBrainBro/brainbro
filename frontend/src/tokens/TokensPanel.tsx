@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { Check, Copy, TriangleAlert } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { rich, t, useT } from '../i18n/i18n'
@@ -26,6 +26,7 @@ export function TokensPanel() {
           </p>
         )}
       </div>
+      <Prompt />
       <Setups />
       <Connections />
       <NewTokenForm />
@@ -40,6 +41,41 @@ function mcpUrl() {
 
 function isLocal() {
   return ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
+}
+
+/** A ready-to-paste prompt tailored to this BrainBro installation. */
+function Prompt() {
+  const url = mcpUrl()
+  const prompt = t('tokens.prompt', { url })
+  const [copied, setCopied] = useState(false)
+  return (
+    <section aria-labelledby="assistant-prompt-title" className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <h4 id="assistant-prompt-title" className="text-sm font-medium">
+          {t('tokens.promptTitle')}
+        </h4>
+        <button
+          type="button"
+          className="button-ghost inline-flex items-center gap-2"
+          onClick={() => {
+            void navigator.clipboard.writeText(prompt).then(() => setCopied(true))
+          }}
+        >
+          {copied ? (
+            <Check className="size-4" aria-hidden="true" />
+          ) : (
+            <Copy className="size-4" aria-hidden="true" />
+          )}
+          {copied ? t('tokens.promptCopied') : t('tokens.copyPrompt')}
+        </button>
+      </div>
+      {copied && (
+        <span role="status" className="sr-only">
+          {t('tokens.promptCopied')}
+        </span>
+      )}
+    </section>
+  )
 }
 
 function Setups() {

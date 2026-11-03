@@ -43,6 +43,19 @@ def test_finds_titles_bodies_urls_and_preview_metadata(api, user, link):
     assert ids(search(api, "example.com/po")) == [str(link.id)]
 
 
+def test_sample_items_are_excluded_from_app_search(api, user):
+    Item.objects.create(owner=user, kind="note", body="Starter secret", is_sample=True)
+    real = Item.objects.create(
+        owner=user, kind="note", body="Starter notes", is_sample=False
+    )
+    assert ids(search(api, "starter")) == [str(real.id)]
+    inbox = api.get("/api/items/", {"status": "inbox"}).json()["results"]
+    assert {item["id"] for item in inbox} == {
+        str(real.id),
+        str(Item.objects.get(is_sample=True).id),
+    }
+
+
 def test_tolerates_typos_in_longer_words(api, link):
     assert ids(search(api, "kubernets")) == [str(link.id)]
     assert ids(search(api, "deploing kubernets")) == [str(link.id)]

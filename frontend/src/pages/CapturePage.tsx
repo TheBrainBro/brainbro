@@ -53,6 +53,7 @@ export function CapturePage() {
         id="quick-capture"
         className="input field-sizing-content max-h-[50vh] min-h-40 resize-none text-base"
         placeholder={t('capture.placeholder')}
+        lang=""
         autoFocus
         value={text}
         onChange={(event) => setText(event.target.value)}

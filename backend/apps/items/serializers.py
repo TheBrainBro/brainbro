@@ -47,6 +47,7 @@ class CollectionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "is_sample",
             "kind",
             "color",
             "icon",
@@ -56,7 +57,7 @@ class CollectionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["is_sample", "created_at", "updated_at"]
 
     def get_image_url(self, collection):
         if not collection.image:
@@ -167,6 +168,7 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "kind",
+            "is_sample",
             "status",
             "title",
             "body",
@@ -198,6 +200,7 @@ class ItemSerializer(serializers.ModelSerializer):
         # Kind, URL and previews come from capture and the preview task.
         read_only_fields = [
             "kind",
+            "is_sample",
             "url",
             "metadata",
             "preview_status",

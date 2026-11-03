@@ -224,8 +224,23 @@ def test_the_instructions_say_how_to_use_brain(mcp):
     response = mcp({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
 
     instructions = response.json()["result"]["instructions"]
-    for advice in ("Search before capturing", "title", "partial edits", "inbox"):
+    for advice in (
+        "Search before capturing",
+        "title",
+        "partial edits",
+        "inbox",
+        "do not mention or reveal unrelated items",
+    ):
         assert advice in instructions
+
+
+def test_search_description_treats_semantic_matches_as_private_candidates(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+
+    tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
+    description = tools["search_items"]["description"]
+    assert "loose candidates" in description
+    assert "never mention unrelated results" in description
 
 
 # Reading
@@ -238,6 +253,32 @@ def test_search_finds_the_owner_s_items_only(call, user, other_user):
     found = structured(call("search_items", query="gardening"))["items"]
 
     assert [item["excerpt"] for item in found] == ["Ideas about gardening"]
+
+
+def test_assistant_search_and_reads_exclude_sample_items(call, user):
+    sample = note(user, "Starter gardening notes")
+    sample.is_sample = True
+    sample.save(update_fields=["is_sample"])
+
+    assert structured(call("search_items", query="gardening"))["items"] == []
+    result = call("get_item", id=str(sample.id))
+    assert str(sample.id) in failure(result)
+
+
+def test_assistant_lists_exclude_sample_collections_and_boards(call, user):
+    from apps.boards.models import Board
+
+    Collection.objects.create(owner=user, name="Starter collection", is_sample=True)
+    Collection.objects.create(owner=user, name="My collection")
+    Board.objects.create(owner=user, title="Starter board", is_sample=True)
+    Board.objects.create(owner=user, title="My board")
+
+    assert [c["name"] for c in structured(call("list_collections"))["collections"]] == [
+        "My collection"
+    ]
+    assert [b["title"] for b in structured(call("list_boards"))["boards"]] == [
+        "My board"
+    ]
 
 
 def test_untitled_notes_are_named_after_their_body(call, user):
