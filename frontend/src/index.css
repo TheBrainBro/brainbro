@@ -1,15 +1,46 @@
 @import 'tailwindcss';
 
-@keyframes tutorial-mascot-bob {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50% { transform: translateY(-7px) rotate(2deg); }
+@keyframes tutorial-demo-hand {
+  0%, 10% {
+    transform: translate(calc(var(--tutorial-start-x) + 1.75rem), calc(var(--tutorial-start-y) + 1rem)) rotate(-18deg);
+    opacity: 0;
+  }
+  18%, 28% {
+    transform: translate(var(--tutorial-start-x), var(--tutorial-start-y)) rotate(-18deg);
+    opacity: 1;
+  }
+  72%, 82% {
+    transform: translate(var(--tutorial-end-x), var(--tutorial-end-y)) rotate(-18deg);
+    opacity: 1;
+  }
+  90%, 100% {
+    transform: translate(calc(var(--tutorial-end-x) + 2rem), calc(var(--tutorial-end-y) + 1rem)) rotate(-18deg);
+    opacity: 0;
+  }
 }
 
-@keyframes tutorial-drag-hand {
-  0%, 20% { transform: translate(0, 0); opacity: 0; }
-  30% { opacity: 1; }
-  75% { transform: translate(-9rem, -1.5rem); opacity: 1; }
-  90%, 100% { transform: translate(-9rem, -1.5rem); opacity: 0; }
+@keyframes tutorial-demo-file {
+  0%, 20% {
+    transform: translate(var(--tutorial-start-x), var(--tutorial-start-y)) translate(-50%, -50%) scale(.72);
+    opacity: 0;
+  }
+  28% {
+    transform: translate(var(--tutorial-start-x), var(--tutorial-start-y)) translate(-50%, -50%) scale(.9);
+    opacity: 1;
+  }
+  72%, 82% {
+    transform: translate(var(--tutorial-end-x), var(--tutorial-end-y)) translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  92%, 100% {
+    transform: translate(var(--tutorial-end-x), var(--tutorial-end-y)) translate(-50%, -50%) scale(.94);
+    opacity: 0;
+  }
+}
+
+@keyframes tutorial-folder-arrive {
+  from { transform: translateY(.75rem) scale(.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes tutorial-celebrate {
@@ -17,13 +48,15 @@
   50% { transform: rotate(12deg) scale(1.2); }
 }
 
-.tutorial-mascot-bob { animation: tutorial-mascot-bob 2.4s ease-in-out infinite; }
-.tutorial-drag-hand { animation: tutorial-drag-hand 2.8s ease-in-out infinite; }
+.tutorial-demo-hand { animation: tutorial-demo-hand 4s ease-in-out infinite; }
+.tutorial-demo-file { animation: tutorial-demo-file 4s ease-in-out infinite; }
+.tutorial-folder-arrive { animation: tutorial-folder-arrive .3s ease-out .65s both; }
 .tutorial-celebrate { animation: tutorial-celebrate .7s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .tutorial-mascot-bob,
-  .tutorial-drag-hand,
+  .tutorial-demo-hand,
+  .tutorial-demo-file,
+  .tutorial-folder-arrive,
   .tutorial-celebrate { animation: none; }
 }
 

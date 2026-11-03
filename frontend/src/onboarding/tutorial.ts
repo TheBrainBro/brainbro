@@ -1,7 +1,26 @@
 import { createContext, useContext } from 'react'
 
-export type TutorialStep = 'capture' | 'file' | 'collection' | 'board' | 'complete'
-export type TutorialAction = Exclude<TutorialStep, 'complete'>
+export type TutorialStep =
+  | 'capture'
+  | 'noteSaved'
+  | 'file'
+  | 'voice'
+  | 'newNoteNav'
+  | 'newNoteWrite'
+  | 'collectionsNav'
+  | 'collectionCreate'
+  | 'collectionName'
+  | 'collectionSubmit'
+  | 'boardsNav'
+  | 'boardName'
+  | 'boardSubmit'
+  | 'boardAddOpen'
+  | 'boardAddFirst'
+  | 'boardAddSecond'
+  | 'boardConnect'
+  | 'accountNav'
+  | 'accountMenu'
+export type TutorialAction = Exclude<TutorialStep, 'accountMenu'>
 
 export type Tutorial = {
   step: TutorialStep | null

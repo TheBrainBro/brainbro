@@ -1,10 +1,12 @@
-import { FileImage, FileText, Hand, PartyPopper, X } from 'lucide-react'
+import { FileImage, FileText, FolderOpen, Hand, PartyPopper, X } from 'lucide-react'
 import {
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
@@ -18,35 +20,64 @@ type SampleFile = 'pdf' | 'image' | 'text'
 
 const COPY: Record<TutorialStep, { title: MessageKey; line: MessageKey }> = {
   capture: { title: 'tutorial.captureTitle', line: 'tutorial.captureLine' },
+  noteSaved: { title: 'tutorial.noteSavedTitle', line: 'tutorial.noteSavedLine' },
   file: { title: 'tutorial.fileTitle', line: 'tutorial.fileLine' },
-  collection: { title: 'tutorial.collectionTitle', line: 'tutorial.collectionLine' },
-  board: { title: 'tutorial.boardTitle', line: 'tutorial.boardLine' },
-  complete: { title: 'tutorial.completeTitle', line: 'tutorial.completeLine' },
+  voice: { title: 'tutorial.voiceTitle', line: 'tutorial.voiceLine' },
+  newNoteNav: { title: 'tutorial.newNoteNavTitle', line: 'tutorial.newNoteNavLine' },
+  newNoteWrite: { title: 'tutorial.newNoteWriteTitle', line: 'tutorial.newNoteWriteLine' },
+  collectionsNav: { title: 'tutorial.collectionsNavTitle', line: 'tutorial.collectionsNavLine' },
+  collectionCreate: { title: 'tutorial.collectionCreateTitle', line: 'tutorial.collectionCreateLine' },
+  collectionName: { title: 'tutorial.collectionNameTitle', line: 'tutorial.collectionNameLine' },
+  collectionSubmit: { title: 'tutorial.collectionSubmitTitle', line: 'tutorial.collectionSubmitLine' },
+  boardsNav: { title: 'tutorial.boardsNavTitle', line: 'tutorial.boardsNavLine' },
+  boardName: { title: 'tutorial.boardNameTitle', line: 'tutorial.boardNameLine' },
+  boardSubmit: { title: 'tutorial.boardSubmitTitle', line: 'tutorial.boardSubmitLine' },
+  boardAddOpen: { title: 'tutorial.boardAddOpenTitle', line: 'tutorial.boardAddOpenLine' },
+  boardAddFirst: { title: 'tutorial.boardAddFirstTitle', line: 'tutorial.boardAddFirstLine' },
+  boardAddSecond: { title: 'tutorial.boardAddSecondTitle', line: 'tutorial.boardAddSecondLine' },
+  boardConnect: { title: 'tutorial.boardConnectTitle', line: 'tutorial.boardConnectLine' },
+  accountNav: { title: 'tutorial.accountNavTitle', line: 'tutorial.accountNavLine' },
+  accountMenu: { title: 'tutorial.accountMenuTitle', line: 'tutorial.accountMenuLine' },
 }
 
-function selectorFor(step: TutorialStep) {
-  if (step === 'capture' || step === 'file') return '[data-tutorial="capture"]'
-  if (step === 'collection') return '[data-tutorial="collection-create"]'
-  if (step === 'board') return '[data-tutorial="board-title"]'
-  return null
+const SELECTORS: Record<TutorialStep, string> = {
+  capture: '[data-tutorial="capture"]',
+  noteSaved: '[data-tutorial="inbox-item"]',
+  file: '[data-tutorial="capture"]',
+  voice: '[data-tutorial="voice"]',
+  newNoteNav: '[data-tutorial="new-note"]',
+  newNoteWrite: '[data-tutorial="note-editor"]',
+  collectionsNav: '[data-tutorial="nav-collections"]',
+  collectionCreate: '[data-tutorial="collection-create"]',
+  collectionName: '[data-tutorial="collection-name"]',
+  collectionSubmit: '[data-tutorial="collection-submit"]',
+  boardsNav: '[data-tutorial="nav-boards"]',
+  boardName: '[data-tutorial="board-title"]',
+  boardSubmit: '[data-tutorial="board-submit"]',
+  boardAddOpen: '[data-tutorial="board-add"]',
+  boardAddFirst: '[data-tutorial="board-item-add"]',
+  boardAddSecond: '[data-tutorial="board-item-add"]',
+  boardConnect: '[data-tutorial="board-node"]',
+  accountNav: '[data-tutorial="account"]',
+  accountMenu: '[data-tutorial="account-settings"]',
 }
 
 function findTarget(step: TutorialStep) {
-  if (step === 'collection') {
-    return (
-      document.querySelector<HTMLElement>('[data-tutorial="collection-name"]') ??
-      document.querySelector<HTMLElement>('[data-tutorial="collection-create"]')
-    )
-  }
-  const selector = selectorFor(step)
-  return selector ? document.querySelector<HTMLElement>(selector) : null
+  return document.querySelector<HTMLElement>(SELECTORS[step])
 }
 
 function pathFor(step: TutorialStep) {
-  if (step === 'capture' || step === 'file') return '/'
-  if (step === 'collection') return '/collections'
-  if (step === 'board') return '/boards'
+  if (['capture', 'noteSaved', 'file', 'voice', 'newNoteNav'].includes(step)) return '/'
+  if (['collectionCreate', 'collectionName', 'collectionSubmit'].includes(step)) return '/collections'
+  if (['boardName', 'boardSubmit'].includes(step)) return '/boards'
   return null
+}
+
+function phaseFor(step: TutorialStep) {
+  if (step.startsWith('collection') || step === 'collectionsNav') return 2
+  if (step.startsWith('board') || step === 'boardsNav') return 3
+  if (step.startsWith('account')) return 4
+  return 1
 }
 
 function sampleFile(kind: SampleFile) {
@@ -78,6 +109,8 @@ export function TutorialGuide() {
   const [drag, setDrag] = useState<{ kind: SampleFile; x: number; y: number } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [demoOrigin, setDemoOrigin] = useState<DOMRect | null>(null)
+  const demoTile = useRef<HTMLButtonElement>(null)
   const step = tutorial.step
 
   useEffect(() => {
@@ -90,6 +123,7 @@ export function TutorialGuide() {
     if (!step) return setTarget(null)
     const element = findTarget(step)
     setTarget(element ? { element, rect: element.getBoundingClientRect() } : null)
+    setDemoOrigin(step === 'file' && demoTile.current ? demoTile.current.getBoundingClientRect() : null)
   })
 
   useEffect(() => {
@@ -101,12 +135,16 @@ export function TutorialGuide() {
     const element = findTarget(step)
     if (element) resizeObserver.observe(element)
     const frame = requestAnimationFrame(measure)
+    // React Flow pans and zooms with CSS transforms, which do not trigger a
+    // resize or scroll event. Keep the spotlight attached while it moves.
+    const tracking = window.setInterval(measure, 200)
     window.addEventListener('resize', measure)
     window.addEventListener('scroll', measure, true)
     return () => {
       observer.disconnect()
       resizeObserver.disconnect()
       cancelAnimationFrame(frame)
+      window.clearInterval(tracking)
       window.removeEventListener('resize', measure)
       window.removeEventListener('scroll', measure, true)
     }
@@ -114,7 +152,7 @@ export function TutorialGuide() {
 
   if (!step) return null
   const copy = COPY[step]
-  const placement = placeGuide(target)
+  const placement = placeGuide(target, step)
 
   async function uploadSample(kind: SampleFile) {
     if (uploading) return
@@ -151,9 +189,9 @@ export function TutorialGuide() {
         />
       )}
 
-      <div className="absolute w-[min(21rem,calc(100vw-2rem))] transition-[left,top] duration-500 ease-out" style={placement}>
+      <div className="absolute w-[min(22rem,calc(100vw-2rem))] transition-[left,top] duration-700 ease-out" style={placement}>
         <div className="pointer-events-auto relative rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="absolute -left-14 top-2 tutorial-mascot-bob">
+          <div className="absolute -left-14 top-2">
             <div className="flex size-12 items-center justify-center rounded-full bg-accent-100 shadow-lg ring-2 ring-white dark:bg-accent-950 dark:ring-zinc-900">
               <Logo className="size-8" />
             </div>
@@ -171,6 +209,7 @@ export function TutorialGuide() {
 
           {step === 'file' && (
             <SampleFolder
+              demoRef={demoTile}
               drag={drag}
               uploading={uploading}
               onDrag={(kind, event) => setDrag({ kind, x: event.clientX, y: event.clientY })}
@@ -181,19 +220,31 @@ export function TutorialGuide() {
 
           {failed && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">{t('tutorial.fileFailed')}</p>}
 
-          {step === 'complete' ? (
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <PartyPopper className="size-6 text-amber-500 tutorial-celebrate" aria-hidden="true" />
-              <button type="button" className="button-primary" onClick={tutorial.stop}>{t('tutorial.finish')}</button>
-            </div>
-          ) : (
-            <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
-              <span>{t('tutorial.step', { current: ['capture', 'file', 'collection', 'board'].indexOf(step) + 1, total: 4 })}</span>
+          <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
+            <span>{t('tutorial.step', { current: phaseFor(step), total: 4 })}</span>
+            {step === 'noteSaved' && (
+              <button type="button" className="ml-auto button-primary" onClick={() => tutorial.complete('noteSaved')}>
+                {t('tutorial.continue')}
+              </button>
+            )}
+            {step === 'voice' && (
+              <button type="button" className="ml-auto button-ghost" onClick={() => tutorial.complete('voice')}>
+                {t('tutorial.notNow')}
+              </button>
+            )}
+            {step === 'accountMenu' ? (
+              <button type="button" className="ml-auto button-primary" onClick={tutorial.stop}>
+                <PartyPopper className="size-4 tutorial-celebrate" aria-hidden="true" />
+                {t('tutorial.finish')}
+              </button>
+            ) : step !== 'noteSaved' && step !== 'voice' ? (
               <button type="button" className="ml-auto button-ghost" onClick={tutorial.stop}>{t('tutorial.skip')}</button>
-            </div>
-          )}
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {step === 'file' && demoOrigin && !drag && !uploading && <FileDragDemo origin={demoOrigin} />}
 
       {drag && (
         <div className="absolute flex items-center gap-2 rounded-lg border border-accent-300 bg-white px-3 py-2 text-sm shadow-xl dark:border-accent-700 dark:bg-zinc-800" style={{ left: drag.x + 12, top: drag.y + 12 }}>
@@ -205,27 +256,35 @@ export function TutorialGuide() {
   )
 }
 
-function placeGuide(target: Target | null): CSSProperties {
+function placeGuide(target: Target | null, step: TutorialStep): CSSProperties {
+  const width = Math.min(352, window.innerWidth - 32)
+  if (step === 'file') {
+    return {
+      left: Math.max(72, window.innerWidth - width - 32),
+      top: Math.max(88, window.innerHeight - 410),
+    }
+  }
   if (!target) return { left: 'max(4.5rem, calc(50vw - 9rem))', top: '7rem' }
   const { rect, element } = target
-  const width = Math.min(336, window.innerWidth - 32)
   if (element.closest('[role="dialog"]') && window.innerWidth >= 900) {
     const right = rect.right + 72
     const left = right + width <= window.innerWidth - 16 ? right : Math.max(72, rect.left - width - 72)
-    return { left, top: Math.max(72, rect.top - 20) }
+    return { left, top: Math.max(72, Math.min(window.innerHeight - 260, rect.top - 20)) }
   }
   const left = Math.max(72, Math.min(window.innerWidth - width - 16, rect.left + rect.width / 2 - width / 2))
-  const top = rect.bottom + 200 < window.innerHeight ? rect.bottom + 22 : Math.max(16, rect.top - 230)
+  const top = rect.bottom + 220 < window.innerHeight ? rect.bottom + 22 : Math.max(72, rect.top - 245)
   return { left, top }
 }
 
 function SampleFolder({
+  demoRef,
   drag,
   uploading,
   onDrag,
   onDrop,
   onKeyboardDrop,
 }: {
+  demoRef: RefObject<HTMLButtonElement | null>
   drag: { kind: SampleFile; x: number; y: number } | null
   uploading: boolean
   onDrag: (kind: SampleFile, event: ReactPointerEvent) => void
@@ -234,40 +293,61 @@ function SampleFolder({
 }) {
   const t = useT()
   return (
-    <div className="relative mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-950">
-      <p className="px-1 pb-1.5 text-xs font-semibold text-zinc-500">{t('tutorial.folder')}</p>
-      <div className="space-y-1">
-        {(['pdf', 'image', 'text'] as const).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            disabled={uploading}
-            className="flex w-full touch-none items-center gap-2 rounded-lg bg-white px-2.5 py-2 text-left text-sm shadow-sm transition hover:bg-accent-50 active:cursor-grabbing dark:bg-zinc-800 dark:hover:bg-accent-950"
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId)
-              onDrag(kind, event)
-            }}
-            onPointerMove={(event) => drag?.kind === kind && onDrag(kind, event)}
-            onPointerUp={(event) => drag?.kind === kind && onDrop(event, kind)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') onKeyboardDrop(kind)
-            }}
-          >
-            <SampleIcon kind={kind} />
-            {t(`tutorial.${kind}File` as MessageKey)}
-          </button>
-        ))}
-      </div>
-      {!drag && !uploading && (
-        <div className="pointer-events-none absolute right-5 bottom-3 tutorial-drag-hand text-accent-600">
-          <Hand className="size-6 fill-white dark:fill-zinc-900" aria-hidden="true" />
+    <div className="tutorial-folder-arrive relative mt-5 pt-3">
+      <div className="absolute top-0 left-0 h-7 w-32 rounded-t-xl border border-b-0 border-amber-300 bg-amber-200 dark:border-amber-700 dark:bg-amber-800" />
+      <div className="relative rounded-xl rounded-tl-none border border-amber-300 bg-amber-100 p-3 shadow-inner dark:border-amber-700 dark:bg-amber-950">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
+          <FolderOpen className="size-5" aria-hidden="true" />
+          {t('tutorial.folder')}
         </div>
-      )}
+        <div className="grid grid-cols-3 gap-2">
+          {(['pdf', 'image', 'text'] as const).map((kind) => (
+            <button
+              key={kind}
+              ref={kind === 'image' ? demoRef : undefined}
+              type="button"
+              disabled={uploading}
+              className="flex min-w-0 touch-none flex-col items-center gap-1.5 rounded-lg border border-white/80 bg-white p-2 text-center text-[11px] leading-tight shadow-sm transition hover:-translate-y-0.5 hover:border-accent-300 active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-800"
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                onDrag(kind, event)
+              }}
+              onPointerMove={(event) => drag?.kind === kind && onDrag(kind, event)}
+              onPointerUp={(event) => drag?.kind === kind && onDrop(event, kind)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') onKeyboardDrop(kind)
+              }}
+            >
+              <SampleIcon kind={kind} large />
+              <span className="w-full truncate">{t(`tutorial.${kind}File` as MessageKey)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
 
-function SampleIcon({ kind }: { kind: SampleFile }) {
-  if (kind === 'image') return <FileImage className="size-4 shrink-0 text-sky-500" aria-hidden="true" />
-  return <FileText className={`size-4 shrink-0 ${kind === 'pdf' ? 'text-red-500' : 'text-zinc-500'}`} aria-hidden="true" />
+function FileDragDemo({ origin }: { origin: DOMRect }) {
+  const style = {
+    '--tutorial-start-x': `${origin.left + origin.width / 2}px`,
+    '--tutorial-start-y': `${origin.top + origin.height / 2}px`,
+    '--tutorial-end-x': `${window.innerWidth / 2}px`,
+    '--tutorial-end-y': `${window.innerHeight / 2}px`,
+  } as CSSProperties
+  return (
+    <div style={style} aria-hidden="true">
+      <div className="tutorial-demo-file fixed left-0 top-0 flex items-center gap-2 rounded-lg border border-sky-300 bg-white px-3 py-2 text-sm shadow-xl dark:border-sky-700 dark:bg-zinc-800">
+        <FileImage className="size-5 text-sky-500" />
+        weekend-view.svg
+      </div>
+      <Hand className="tutorial-demo-hand fixed left-0 top-0 size-8 fill-white text-accent-600 drop-shadow-lg dark:fill-zinc-900" />
+    </div>
+  )
+}
+
+function SampleIcon({ kind, large = false }: { kind: SampleFile; large?: boolean }) {
+  const size = large ? 'size-8' : 'size-4'
+  if (kind === 'image') return <FileImage className={`${size} shrink-0 text-sky-500`} aria-hidden="true" />
+  return <FileText className={`${size} shrink-0 ${kind === 'pdf' ? 'text-red-500' : 'text-zinc-500'}`} aria-hidden="true" />
 }

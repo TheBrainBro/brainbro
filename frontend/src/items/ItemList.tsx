@@ -229,6 +229,7 @@ export function ItemList({
     return (
       <li
         key={leaving ? `${item.id}-leaving` : item.id}
+        data-tutorial={leaving ? undefined : 'inbox-item'}
         aria-hidden={leaving || undefined}
         className={`relative ${mode === 'masonry' ? 'mb-4 break-inside-avoid' : ''} ${
           sortable && !leaving ? 'cursor-grab active:cursor-grabbing' : ''

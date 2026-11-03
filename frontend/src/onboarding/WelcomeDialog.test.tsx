@@ -109,6 +109,8 @@ describe('first visit', () => {
     const capture = await screen.findByRole('textbox', { name: 'Capture' })
     fireEvent.change(capture, { target: { value: 'Plan a weekend trip' } })
     fireEvent.keyDown(capture, { key: 'Enter' })
+    expect(await screen.findByText('Noted, bro! This is now in your Inbox.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText('Now bring in a file')).toBeInTheDocument()
   })
 
