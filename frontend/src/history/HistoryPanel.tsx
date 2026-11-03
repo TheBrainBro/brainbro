@@ -11,6 +11,7 @@ import { LoadMore } from '../items/LoadMore'
 import { Markdown } from '../items/Markdown'
 import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
+import { EmptyState } from '../ui/states'
 import {
   restoreBoard,
   restoreNote,
@@ -233,6 +234,7 @@ export function NoteHistory({
                 before={shown.data}
                 after={now.data}
                 isCurrent={selected === current}
+                isOnlyVersion={history.all.length === 1}
               />
             )
           ) : shown.isError || now.isError ? (
@@ -308,12 +310,21 @@ function NoteChanges({
   before,
   after,
   isCurrent,
+  isOnlyVersion,
 }: {
   before: { title: string; body: string }
   after: { title: string; body: string }
   isCurrent: boolean
+  isOnlyVersion: boolean
 }) {
   useT()
+  if (isOnlyVersion) {
+    return (
+      <EmptyState icon={History} title={t('history.noChangesYet')}>
+        {t('history.noChangesHint')}
+      </EmptyState>
+    )
+  }
   if (isCurrent) return <p className="text-sm text-zinc-500">{t('history.noteNow')}</p>
   const lines = aroundChanges(textDiff(before.body, after.body))
   const renamed = before.title !== after.title

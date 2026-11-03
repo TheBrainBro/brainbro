@@ -103,6 +103,11 @@ describe('ItemCard notes', () => {
     expect(screen.getByText('code').tagName).toBe('CODE')
   })
 
+  it('keeps sample status out of the card UI', () => {
+    renderCard({ ...note('Try this'), is_sample: true })
+    expect(screen.queryByText('Sample')).not.toBeInTheDocument()
+  })
+
   it('shows raw HTML as text, never as markup', () => {
     const { container } = renderCard(
       note(

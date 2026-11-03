@@ -66,6 +66,7 @@ export type LayoutEdge = {
 export type BoardSummary = {
   id: string
   title: string
+  is_sample?: boolean
   item_count: number
   revision: number
   created_at: string

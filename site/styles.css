@@ -43,36 +43,22 @@
 }
 
 :root {
-  color-scheme: light dark;
-  --bg: #fbf8f3;
-  --surface: #ffffff;
-  --subtle: #f4f4f5;
-  --border: #e4e4e7;
-  --text: #141218;
-  --muted: #71717a;
+  /* Always dark, whatever the device's appearance. */
+  color-scheme: dark;
+  --bg: #141218;
+  --surface: #18181b;
+  --subtle: #27272a;
+  --border: #27272a;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
   --accent: #7c5bd6;
   --accent-hover: #9b80e0;
-  --accent-soft: #ede6fb;
-  --accent-text: #4b1fa8;
-  --link-line: #b9a2ee;
-  --shadow: 0 1px 2px rgb(24 24 27 / 0.05), 0 8px 24px rgb(24 24 27 / 0.06);
+  --accent-soft: #2b1063;
+  --accent-text: #b9a2ee;
+  --link-line: #4b1fa8;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3);
   --radius: 14px;
   font-family: Nunito, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141218;
-    --surface: #18181b;
-    --subtle: #27272a;
-    --border: #27272a;
-    --text: #f4f4f5;
-    --muted: #a1a1aa;
-    --accent-soft: #2b1063;
-    --accent-text: #b9a2ee;
-    --link-line: #4b1fa8;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3);
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -269,6 +255,20 @@ footer {
   opacity: 1;
 }
 
+.topbar nav .topbar-cta {
+  margin: -6px 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fff;
+  color: #3b0764;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.topbar nav .topbar-cta:hover {
+  background: #f5f3ff;
+}
+
 .hero-inner {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
@@ -298,6 +298,13 @@ h1 {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 32px;
+}
+
+/* Under the hero's "Join the beta". */
+.beta-note {
+  margin: 12px 0 0;
+  color: rgb(255 255 255 / 0.78);
+  font-size: 14px;
 }
 
 .works-with {
@@ -2037,20 +2044,120 @@ footer {
   color: #fff;
 }
 
-.dock-links .dock-install {
+.dock-links .dock-cta {
   background: #fff;
   color: #3b0764;
   font-weight: 600;
 }
 
-.dock-links .dock-install:hover {
+.dock-links .dock-cta:hover {
   background: #f5f3ff;
   color: #3b0764;
+}
+
+/* "Open sourcing soon", over the page. */
+.soon {
+  width: min(420px, 100% - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+/* The padding sits inside, so a click on the dialog itself is the backdrop. */
+.soon-body {
+  padding: 28px;
+}
+
+.soon::backdrop {
+  background: rgb(18 10 36 / 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.soon h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.soon p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.soon .actions {
+  margin-top: 24px;
 }
 
 /* Sections that the dock links to stop below it. */
 section[id] {
   scroll-margin-top: 72px;
+}
+
+/* The video under the hero: its poster, then YouTube's player in its place. */
+
+.demo {
+  max-width: 960px;
+  padding-block: 64px 0;
+}
+
+.demo .copy {
+  margin-bottom: 24px;
+}
+
+.video {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #120a24;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.video img,
+.video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+
+.video .play {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.92);
+  color: #3b0764;
+  box-shadow: 0 10px 30px -8px rgb(20 8 45 / 0.6);
+  transform: translate(-50%, -50%);
+  transition: transform 150ms;
+}
+
+.video .play svg {
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  fill: currentColor;
+}
+
+.video:hover .play {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.video:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
 }
 
 /* Narrower screens */
@@ -2148,6 +2255,11 @@ section[id] {
 
   .dock-links a {
     padding: 7px 9px;
+  }
+
+  /* Install stays in the hero, so the rest fit. */
+  .dock-links .dock-install {
+    display: none;
   }
 }
 

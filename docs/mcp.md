@@ -6,7 +6,8 @@ They connect to `https://<your host>/api/mcp`, either by signing in to BrainBro
 (OAuth) or with a personal API token.
 
 Account menu → *Settings* → *AI assistants* has the URL, the steps for each
-app, and the list of connected apps and tokens.
+app, and the list of connected apps and tokens. For a short description for
+AI agents, see [`llms.txt`](https://github.com/TheBrainBro/brainbro/blob/main/site/llms.txt).
 
 Claude, ChatGPT and Grok connect from their own servers, not from your
 computer, so BrainBro must be reachable from the internet over HTTPS (the
@@ -19,17 +20,69 @@ sign in through BrainBro itself.
 ### Claude (web, desktop and mobile)
 
 *Customize* → *Connectors* → *Add custom connector*, paste the URL, *Add*,
-then *Connect*: BrainBro opens and asks to allow it. Custom connectors are
-available on every plan (one on Free).
+then *Connect*: BrainBro opens and asks to allow it. Claude Desktop uses the
+same connectors configured in Claude web; add a remote server there rather
+than in `claude_desktop_config.json`. Mobile can use a connector already added
+on web but cannot add one itself. Custom remote MCP connectors are available
+on Pro, Max, Team and Enterprise plans; on Team and Enterprise, an owner must
+enable an organization connector first. See [Anthropic's setup
+guide](https://support.anthropic.com/en/articles/11175166-about-custom-integrations-using-remote-mcp).
 
-### ChatGPT
+### ChatGPT (web)
 
 [chatgpt.com/plugins](https://chatgpt.com/plugins) → *+* → *Add custom MCP
-server*: a name, the URL, accept the risk warning and create it. ChatGPT
-then sends you to BrainBro to allow it. Which plans can add custom MCP servers
-is up to OpenAI.
+server*: enter a name and the URL, choose OAuth when asked, accept the risk
+warning, and create it. ChatGPT then sends you to BrainBro to allow it. Custom
+MCP access depends on plan and workspace permissions: full tool support is
+available on Business and Enterprise/Edu; Pro can connect with read/fetch
+permissions. Connections are made on the web. See [OpenAI's current
+guide](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt).
 
-### Grok
+### Cursor
+
+In Cursor, open *Settings* → *Tools & MCP* and add a server, or create
+`.cursor/mcp.json` in the project. For a remote server, configure BrainBro's
+Streamable HTTP URL:
+
+```json
+{
+  "mcpServers": {
+    "brainbro": {
+      "url": "https://brainbro.example.com/api/mcp"
+    }
+  }
+}
+```
+
+Cursor supports OAuth for remote Streamable HTTP servers. Open the MCP panel
+and sign in to BrainBro if prompted. In a team, an admin may control which
+connectors are allowed. See [Cursor's MCP guide](https://docs.cursor.com/context/model-context-protocol).
+
+### Gemini CLI
+
+Gemini CLI supports remote MCP servers over Streamable HTTP. Add BrainBro to
+`~/.gemini/settings.json` (or the project's `.gemini/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "brainbro": {
+      "httpUrl": "https://brainbro.example.com/api/mcp"
+    }
+  }
+}
+```
+
+Start the CLI and use `/mcp` to inspect the connection. If it asks you to
+authenticate, use `/mcp auth brainbro` and finish sign-in in the browser.
+Gemini CLI documents remote HTTP and OAuth discovery; this setup has not yet
+been verified against a live BrainBro server. See [Gemini CLI's MCP
+guide](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md).
+
+The Gemini consumer app and Gemini Enterprise are not covered here: their
+support for connecting to this server's OAuth flow is not confirmed.
+
+### Grok (web)
 
 [grok.com/connectors](https://grok.com/connectors) → *New Connector* →
 *Custom*, paste the URL and sign in to BrainBro when asked. On Grok Business and
@@ -71,11 +124,23 @@ keep the token in an environment variable:
 }
 ```
 
+Claude Code supports OAuth for remote HTTP MCP servers. If automatic sign-in
+does not start, run `/mcp`, choose *brainbro*, then select *Authenticate*.
+
 ### Grok API
 
 The xAI API can call BrainBro from a request with a [remote MCP
 tool](https://docs.x.ai/developers/tools/remote-mcp): `server_url` is the URL
 and `authorization` a personal token.
+
+### Other MCP clients
+
+Any client that supports remote Streamable HTTP and BrainBro's OAuth discovery
+can connect to `https://<your host>/api/mcp`. If it only accepts bearer
+headers, create a personal token in *Settings* → *AI assistants* and configure
+`Authorization: Bearer <token>` in that client. Keep personal tokens secret:
+unlike an OAuth connection, a personal token can access the full REST API as
+you. Revoke it from the same settings page when it is no longer needed.
 
 ## Signing in (OAuth)
 
@@ -162,6 +227,34 @@ can't move cards, connect them or edit the layout.
 The server's instructions (`apps/mcp/server.py`) and the tool descriptions
 are what every assistant reads in every conversation: they say when to use
 each tool, and failed calls say what to do next.
+
+Search results are candidates. Semantic search deliberately favors recall and
+can include loose matches; assistants are told to ignore irrelevant ones and
+never mention unrelated items. This matters because a BrainBro can contain
+private material that has nothing to do with the current request.
+
+## Client validation
+
+After changing the instructions or tool descriptions, test them through a real
+client, not only with JSON-RPC tests. Use disposable notes or a local MCP probe,
+and check at least these behaviors:
+
+1. "Save this" searches first, gives a new note a title and source, and leaves
+   it in the inbox.
+2. New information about an existing note calls `get_item`, then `edit_note`
+   with that version and a partial edit; it does not capture a duplicate.
+3. A broad search does not make the assistant mention unrelated results.
+4. Sorting, archiving and board placement happen only when explicitly asked.
+5. A stale version or unknown id makes the assistant follow the recovery step
+   in the tool error instead of claiming that the change was saved.
+
+The v0.7.0 instructions were exercised with Claude Code 2.1.316 against the
+Streamable HTTP endpoint on 2026-11-02. It followed
+`search_items` → `get_item` → `edit_note`, passed the note version, used
+`replace`, and left the note in the inbox. That run also exposed the need for
+the unrelated-search-result rule above. ChatGPT and Cursor still require an
+interactive account with custom MCP access for the same end-to-end check; the
+protocol and schemas remain covered by the automated suite in the meantime.
 
 ## How it works
 

@@ -38,6 +38,7 @@ export type ItemMetadata = {
 export type Item = {
   id: string
   kind: ItemKind
+  is_sample?: boolean
   status: ItemStatus
   title: string
   body: string
@@ -215,6 +216,15 @@ export function updateNoteBody(
   })
 }
 
+/** Saves a note's separate title, rejecting a stale version just like its body. */
+export function updateNoteTitle(item: Item, title: string) {
+  return api<Item>(`/items/${item.id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
+    headers: { 'If-Match': `"${item.version}"` },
+  })
+}
+
 /** A file's or image's new name; without an extension it keeps the old one. */
 export function renameItem(id: string, filename: string) {
   return api<Item>(`/items/${id}/`, { method: 'PATCH', body: JSON.stringify({ filename }) })
@@ -234,6 +244,17 @@ function patchCachedItem(queryClient: QueryClient, item: Item) {
       }
     }
     return (data as Item | undefined)?.id === item.id ? item : data
+  })
+}
+
+/** Saves the separate title field shown above a note's Markdown editor. */
+export function useSaveNoteTitle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ item, title }: { item: Item; title: string }) =>
+      updateNoteTitle(item, title),
+    onSuccess: (item) => patchCachedItem(queryClient, item),
+    onError: () => queryClient.invalidateQueries({ queryKey: itemsKey }),
   })
 }
 
@@ -377,6 +398,7 @@ export type CollectionKind = 'project' | 'area' | 'resource'
 export type Collection = {
   id: string
   name: string
+  is_sample?: boolean
   kind: CollectionKind
   /** Hex color behind the emoji, optional. */
   color: string

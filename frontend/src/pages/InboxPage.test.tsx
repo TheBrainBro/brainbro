@@ -106,6 +106,13 @@ describe('InboxPage', () => {
     expect(JSON.parse(String(init?.body))).toEqual({ text: 'Remember the milk' })
   })
 
+  it("spellchecks the capture box with the browser's own language, not the UI's", async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(page([]))))
+    renderInbox()
+
+    expect(await screen.findByLabelText('Capture')).toHaveAttribute('lang', '')
+  })
+
   it('captures a paste outside the box right away', async () => {
     let items: Item[] = []
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {

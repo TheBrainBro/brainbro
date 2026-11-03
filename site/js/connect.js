@@ -2,6 +2,7 @@
 // filled into the prompts, the MCP URL and the Claude Code command.
 (() => {
   const DOCS = 'https://github.com/TheBrainBro/brainbro/blob/main/docs/mcp.md';
+  const LLMS = 'https://github.com/TheBrainBro/brainbro/blob/main/site/llms.txt';
   const EXAMPLE = 'https://brainbro.example.com';
   const STORAGE_KEY = 'brainbro-address';
 
@@ -23,9 +24,10 @@
     return `I use BrainBro, a self-hosted second brain, as shared memory across my AI assistants. Help me connect you to it.
 
 1. Read how BrainBro works with assistants: ${DOCS}
-2. ${where}
-3. Walk me through adding it as a custom connector in the app we are using now, one step at a time. I sign in to BrainBro to allow it.
-4. Once connected, list my inbox to check it works.
+2. Read the short agent guide: ${LLMS}
+3. ${where}
+4. Walk me through adding it as a custom connector in the app we are using now, one step at a time. I sign in to BrainBro to allow it.
+5. Once connected, list my inbox to check it works.
 
 From then on: search BrainBro before answering about my notes or plans, save what I ask you to remember, and read a note before editing it.`;
   }
