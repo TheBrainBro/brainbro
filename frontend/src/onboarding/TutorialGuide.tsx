@@ -1,4 +1,4 @@
-import { FileImage, FileText, FolderOpen, Hand, PartyPopper, X } from 'lucide-react'
+import { FileImage, FileText, FolderOpen, Hand, X } from 'lucide-react'
 import {
   useEffect,
   useEffectEvent,
@@ -8,8 +8,10 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 
+import { DropOverlay } from '../capture/CaptureProvider'
 import { useCapturePipeline } from '../capture/context'
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
@@ -17,6 +19,7 @@ import { useTutorial, type TutorialStep } from './tutorial'
 
 type Target = { rect: DOMRect; element: HTMLElement }
 type SampleFile = 'pdf' | 'image' | 'text'
+type SampleDrag = { kind: SampleFile; x: number; y: number; startX: number; startY: number }
 
 const COPY: Record<TutorialStep, { title: MessageKey; line: MessageKey }> = {
   capture: { title: 'tutorial.captureTitle', line: 'tutorial.captureLine' },
@@ -29,6 +32,8 @@ const COPY: Record<TutorialStep, { title: MessageKey; line: MessageKey }> = {
   collectionCreate: { title: 'tutorial.collectionCreateTitle', line: 'tutorial.collectionCreateLine' },
   collectionName: { title: 'tutorial.collectionNameTitle', line: 'tutorial.collectionNameLine' },
   collectionSubmit: { title: 'tutorial.collectionSubmitTitle', line: 'tutorial.collectionSubmitLine' },
+  collectionOpen: { title: 'tutorial.collectionOpenTitle', line: 'tutorial.collectionOpenLine' },
+  collectionAdd: { title: 'tutorial.collectionAddTitle', line: 'tutorial.collectionAddLine' },
   boardsNav: { title: 'tutorial.boardsNavTitle', line: 'tutorial.boardsNavLine' },
   boardName: { title: 'tutorial.boardNameTitle', line: 'tutorial.boardNameLine' },
   boardSubmit: { title: 'tutorial.boardSubmitTitle', line: 'tutorial.boardSubmitLine' },
@@ -36,6 +41,8 @@ const COPY: Record<TutorialStep, { title: MessageKey; line: MessageKey }> = {
   boardAddFirst: { title: 'tutorial.boardAddFirstTitle', line: 'tutorial.boardAddFirstLine' },
   boardAddSecond: { title: 'tutorial.boardAddSecondTitle', line: 'tutorial.boardAddSecondLine' },
   boardConnect: { title: 'tutorial.boardConnectTitle', line: 'tutorial.boardConnectLine' },
+  graphNav: { title: 'tutorial.graphNavTitle', line: 'tutorial.graphNavLine' },
+  graphIntro: { title: 'tutorial.graphIntroTitle', line: 'tutorial.graphIntroLine' },
   accountNav: { title: 'tutorial.accountNavTitle', line: 'tutorial.accountNavLine' },
   accountMenu: { title: 'tutorial.accountMenuTitle', line: 'tutorial.accountMenuLine' },
 }
@@ -43,7 +50,7 @@ const COPY: Record<TutorialStep, { title: MessageKey; line: MessageKey }> = {
 const SELECTORS: Record<TutorialStep, string> = {
   capture: '[data-tutorial="capture"]',
   noteSaved: '[data-tutorial="inbox-item"]',
-  file: '[data-tutorial="capture"]',
+  file: '[data-tutorial="file-drop-anywhere"]',
   voice: '[data-tutorial="voice"]',
   newNoteNav: '[data-tutorial="new-note"]',
   newNoteWrite: '[data-tutorial="note-editor"]',
@@ -51,6 +58,8 @@ const SELECTORS: Record<TutorialStep, string> = {
   collectionCreate: '[data-tutorial="collection-create"]',
   collectionName: '[data-tutorial="collection-name"]',
   collectionSubmit: '[data-tutorial="collection-submit"]',
+  collectionOpen: '[data-tutorial="collection-open"]',
+  collectionAdd: '[data-tutorial="collection-add"]',
   boardsNav: '[data-tutorial="nav-boards"]',
   boardName: '[data-tutorial="board-title"]',
   boardSubmit: '[data-tutorial="board-submit"]',
@@ -58,6 +67,8 @@ const SELECTORS: Record<TutorialStep, string> = {
   boardAddFirst: '[data-tutorial="board-item-add"]',
   boardAddSecond: '[data-tutorial="board-item-add"]',
   boardConnect: '[data-tutorial="board-node"]',
+  graphNav: '[data-tutorial="nav-graph"]',
+  graphIntro: '[data-tutorial="graph"]',
   accountNav: '[data-tutorial="account"]',
   accountMenu: '[data-tutorial="account-settings"]',
 }
@@ -68,15 +79,17 @@ function findTarget(step: TutorialStep) {
 
 function pathFor(step: TutorialStep) {
   if (['capture', 'noteSaved', 'file', 'voice', 'newNoteNav'].includes(step)) return '/'
-  if (['collectionCreate', 'collectionName', 'collectionSubmit'].includes(step)) return '/collections'
+  if (['collectionCreate', 'collectionName', 'collectionSubmit', 'collectionOpen'].includes(step)) return '/collections'
   if (['boardName', 'boardSubmit'].includes(step)) return '/boards'
+  if (step === 'graphIntro') return '/graph'
   return null
 }
 
 function phaseFor(step: TutorialStep) {
   if (step.startsWith('collection') || step === 'collectionsNav') return 2
   if (step.startsWith('board') || step === 'boardsNav') return 3
-  if (step.startsWith('account')) return 4
+  if (step.startsWith('graph')) return 4
+  if (step.startsWith('account')) return 5
   return 1
 }
 
@@ -106,7 +119,7 @@ export function TutorialGuide() {
   const navigate = useNavigate()
   const location = useLocation()
   const [target, setTarget] = useState<Target | null>(null)
-  const [drag, setDrag] = useState<{ kind: SampleFile; x: number; y: number } | null>(null)
+  const [drag, setDrag] = useState<SampleDrag | null>(null)
   const [uploading, setUploading] = useState(false)
   const [failed, setFailed] = useState(false)
   const [demoOrigin, setDemoOrigin] = useState<DOMRect | null>(null)
@@ -164,19 +177,16 @@ export function TutorialGuide() {
     else setFailed(true)
   }
 
-  function dropSample(event: ReactPointerEvent, kind: SampleFile) {
-    if (!target?.rect || uploading) return
+  function dropSample(_event: ReactPointerEvent, kind: SampleFile) {
+    if (uploading) return
+    const moved = drag && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) >= 8
     setDrag(null)
-    const inside =
-      event.clientX >= target.rect.left &&
-      event.clientX <= target.rect.right &&
-      event.clientY >= target.rect.top &&
-      event.clientY <= target.rect.bottom
-    if (inside) void uploadSample(kind)
+    if (moved) void uploadSample(kind)
   }
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[70]" aria-live="polite">
+      {drag && createPortal(<DropOverlay into={null} />, document.body)}
       {target && (
         <div
           className="absolute rounded-xl ring-3 ring-accent-400 ring-offset-4 ring-offset-white/70 transition-all duration-500 dark:ring-offset-zinc-950/70"
@@ -189,7 +199,7 @@ export function TutorialGuide() {
         />
       )}
 
-      <div className="absolute w-[min(22rem,calc(100vw-2rem))] transition-[left,top] duration-700 ease-out" style={placement}>
+      <div data-tutorial-guide className="absolute w-[min(22rem,calc(100vw-2rem))] transition-[left,top] duration-700 ease-out" style={placement}>
         <div className="pointer-events-auto relative rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
           <div className="absolute -left-14 top-2">
             <div className="flex size-12 items-center justify-center rounded-full bg-accent-100 shadow-lg ring-2 ring-white dark:bg-accent-950 dark:ring-zinc-900">
@@ -212,7 +222,20 @@ export function TutorialGuide() {
               demoRef={demoTile}
               drag={drag}
               uploading={uploading}
-              onDrag={(kind, event) => setDrag({ kind, x: event.clientX, y: event.clientY })}
+              onStart={(kind, event) => setDrag({
+                kind,
+                x: event.clientX,
+                y: event.clientY,
+                startX: event.clientX,
+                startY: event.clientY,
+              })}
+              onDrag={(kind, event) =>
+                setDrag((current) =>
+                  current?.kind === kind
+                    ? { ...current, x: event.clientX, y: event.clientY }
+                    : current,
+                )
+              }
               onDrop={dropSample}
               onKeyboardDrop={(kind) => void uploadSample(kind)}
             />
@@ -221,7 +244,7 @@ export function TutorialGuide() {
           {failed && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">{t('tutorial.fileFailed')}</p>}
 
           <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
-            <span>{t('tutorial.step', { current: phaseFor(step), total: 4 })}</span>
+            <span>{t('tutorial.step', { current: phaseFor(step), total: 5 })}</span>
             {step === 'noteSaved' && (
               <button type="button" className="ml-auto button-primary" onClick={() => tutorial.complete('noteSaved')}>
                 {t('tutorial.continue')}
@@ -232,12 +255,24 @@ export function TutorialGuide() {
                 {t('tutorial.notNow')}
               </button>
             )}
-            {step === 'accountMenu' ? (
-              <button type="button" className="ml-auto button-primary" onClick={tutorial.stop}>
-                <PartyPopper className="size-4 tutorial-celebrate" aria-hidden="true" />
-                {t('tutorial.finish')}
+            {step === 'graphIntro' && (
+              <button type="button" className="ml-auto button-primary" onClick={() => tutorial.complete('graphIntro')}>
+                {t('tutorial.continue')}
               </button>
-            ) : step !== 'noteSaved' && step !== 'voice' ? (
+            )}
+            {step === 'accountMenu' ? (
+              <button
+                type="button"
+                className="ml-auto inline-flex whitespace-nowrap button-primary"
+                onPointerDown={(event) => {
+                  event.stopPropagation()
+                  tutorial.stop()
+                }}
+                onClick={tutorial.stop}
+              >
+                🎉 {t('tutorial.finish')}
+              </button>
+            ) : step !== 'noteSaved' && step !== 'voice' && step !== 'graphIntro' ? (
               <button type="button" className="ml-auto button-ghost" onClick={tutorial.stop}>{t('tutorial.skip')}</button>
             ) : null}
           </div>
@@ -280,13 +315,15 @@ function SampleFolder({
   demoRef,
   drag,
   uploading,
+  onStart,
   onDrag,
   onDrop,
   onKeyboardDrop,
 }: {
   demoRef: RefObject<HTMLButtonElement | null>
-  drag: { kind: SampleFile; x: number; y: number } | null
+  drag: SampleDrag | null
   uploading: boolean
+  onStart: (kind: SampleFile, event: ReactPointerEvent) => void
   onDrag: (kind: SampleFile, event: ReactPointerEvent) => void
   onDrop: (event: ReactPointerEvent, kind: SampleFile) => void
   onKeyboardDrop: (kind: SampleFile) => void
@@ -307,10 +344,10 @@ function SampleFolder({
               ref={kind === 'image' ? demoRef : undefined}
               type="button"
               disabled={uploading}
-              className="flex min-w-0 touch-none flex-col items-center gap-1.5 rounded-lg border border-white/80 bg-white p-2 text-center text-[11px] leading-tight shadow-sm transition hover:-translate-y-0.5 hover:border-accent-300 active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-800"
+              className={`flex min-w-0 touch-none cursor-grab flex-col items-center gap-1.5 rounded-lg border border-white/80 bg-white p-2 text-center text-[11px] leading-tight shadow-sm transition hover:-translate-y-0.5 hover:border-accent-300 active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-800 ${drag?.kind === kind ? 'cursor-grabbing' : ''}`}
               onPointerDown={(event) => {
                 event.currentTarget.setPointerCapture(event.pointerId)
-                onDrag(kind, event)
+                onStart(kind, event)
               }}
               onPointerMove={(event) => drag?.kind === kind && onDrag(kind, event)}
               onPointerUp={(event) => drag?.kind === kind && onDrop(event, kind)}

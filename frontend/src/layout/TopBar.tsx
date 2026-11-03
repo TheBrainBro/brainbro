@@ -21,13 +21,13 @@ import { combo } from '../lib/keys'
 import { useTutorial } from '../onboarding/tutorial'
 import { Logo, Wordmark } from './Logo'
 
-type Section = { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; tutorial?: 'collections' | 'boards' }
+type Section = { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; tutorial?: 'collections' | 'boards' | 'graph' }
 
 const sections: Section[] = [
   { to: '/', label: 'layout.inbox', icon: Inbox, end: true },
   { to: '/collections', label: 'layout.collections', icon: Library, tutorial: 'collections' },
   { to: '/boards', label: 'layout.boards', icon: LayoutDashboard, tutorial: 'boards' },
-  { to: '/graph', label: 'layout.graph', icon: Network },
+  { to: '/graph', label: 'layout.graph', icon: Network, tutorial: 'graph' },
 ]
 
 /** Logo, the sections as icons in the middle, search and the account menu. */
@@ -106,6 +106,9 @@ function SectionLink({ to, label, icon: Icon, end, tutorial: tutorialTarget }: S
         if (tutorialTarget === 'boards' && tutorial.step === 'boardsNav') {
           tutorial.complete('boardsNav')
         }
+        if (tutorialTarget === 'graph' && tutorial.step === 'graphNav') {
+          tutorial.complete('graphNav')
+        }
       }}
     >
       <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
@@ -138,7 +141,14 @@ function AccountMenu({
   useEffect(() => {
     if (!open) return
     function onPointerDown(event: PointerEvent) {
-      if (!menu.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target
+      if (menu.current?.contains(target as Node)) return
+      if (
+        tutorial.step === 'accountMenu' &&
+        target instanceof Element &&
+        target.closest('[data-tutorial-guide]')
+      ) return
+      setOpen(false)
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false)
@@ -149,7 +159,7 @@ function AccountMenu({
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [open])
+  }, [open, tutorial.step])
 
   return (
     <div ref={menu} className="relative">

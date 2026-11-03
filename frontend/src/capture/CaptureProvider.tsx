@@ -496,7 +496,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 }
 
 /** Lets drags through, so an element that takes drops itself (a note) gets them. */
-function DropOverlay({ into }: { into: CaptureDestination | null }) {
+export function DropOverlay({ into }: { into: CaptureDestination | null }) {
   useT()
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-6 backdrop-blur-sm">

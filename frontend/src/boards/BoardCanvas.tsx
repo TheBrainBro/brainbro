@@ -383,7 +383,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 
   /** Puts an item on the board at `position` (if it isn't there already) and commits. */
   function place(item: Item, position: { x: number; y: number }, select: boolean) {
-    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return
+    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return null
     queryClient.setQueryData(itemKey(item.id), item)
     session.place()
     const others = select
@@ -406,6 +406,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     // Dropped on a group, it goes in it.
     settling.current.add(id)
     commit()
+    return id
   }
 
   /** Where a paste lands: under the pointer if it is over the canvas, else near the middle. */
@@ -419,8 +420,20 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   }
 
   function add(item: Item) {
-    place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
-    if (tutorial.step === 'boardAddFirst') tutorial.complete('boardAddFirst')
+    const position = freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current))
+    const id = place(item, position, true)
+    if (tutorial.step === 'boardAddFirst' && id) {
+      tutorial.complete('boardAddFirst')
+      requestAnimationFrame(() => {
+        const node = flow.getNode(id)
+        const width = node?.measured?.width ?? DEFAULT_WIDTH[item.kind]
+        const height = node?.measured?.height ?? 80
+        flow.setCenter(position.x + width / 2, position.y + height / 2, {
+          zoom: Math.min(flow.getZoom(), fitViewOptions.maxZoom),
+          duration: 500,
+        })
+      })
+    }
     if (tutorial.step === 'boardAddSecond') {
       setAdding(false)
       tutorial.complete('boardAddSecond')

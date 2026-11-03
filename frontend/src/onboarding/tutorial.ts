@@ -11,6 +11,8 @@ export type TutorialStep =
   | 'collectionCreate'
   | 'collectionName'
   | 'collectionSubmit'
+  | 'collectionOpen'
+  | 'collectionAdd'
   | 'boardsNav'
   | 'boardName'
   | 'boardSubmit'
@@ -18,6 +20,8 @@ export type TutorialStep =
   | 'boardAddFirst'
   | 'boardAddSecond'
   | 'boardConnect'
+  | 'graphNav'
+  | 'graphIntro'
   | 'accountNav'
   | 'accountMenu'
 export type TutorialAction = Exclude<TutorialStep, 'accountMenu'>
