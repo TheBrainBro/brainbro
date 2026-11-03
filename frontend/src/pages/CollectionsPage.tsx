@@ -347,6 +347,7 @@ function CollectionNode({
   return (
     <li>
       <div
+        data-tutorial={collection.id === tutorialCollection ? 'collection-open' : undefined}
         className={`relative flex items-center gap-1 rounded-lg pr-2 transition ${
           zone === 'inside'
             ? 'bg-accent-50 ring-2 ring-accent-500 ring-inset dark:bg-accent-500/10'
@@ -394,7 +395,6 @@ function CollectionNode({
           // The row moves, not the link.
           draggable={false}
           data-collection={collection.id}
-          data-tutorial={collection.id === tutorialCollection ? 'collection-open' : undefined}
           className="flex min-w-0 flex-1 items-center gap-3 py-1.5"
           onClick={() => collection.id === tutorialCollection && onOpen()}
           onKeyDown={(event) => drag.keyDown(event, collection)}
@@ -668,6 +668,7 @@ export function CollectionPage() {
               <div className="surface mb-4 p-4">
                 <CaptureBox
                   tutorialTarget="collection-add"
+                  into={{ id: collection.id, name: collection.name }}
                   onCaptured={() => tutorial.complete('collectionAdd')}
                 />
               </div>

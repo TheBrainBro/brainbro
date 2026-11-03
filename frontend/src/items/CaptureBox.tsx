@@ -1,7 +1,7 @@
 import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { useCapturePipeline } from '../capture/context'
+import { useCapturePipeline, type CaptureDestination } from '../capture/context'
 import { VoiceRecorder } from '../capture/VoiceRecorder'
 import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
@@ -16,9 +16,11 @@ import { useTutorial } from '../onboarding/tutorial'
 export function CaptureBox({
   tutorialTarget = 'capture',
   onCaptured,
+  into,
 }: {
   tutorialTarget?: string
   onCaptured?: () => void
+  into?: CaptureDestination
 } = {}) {
   const t = useT()
   const { capture, dismiss } = useCapturePipeline()
@@ -46,7 +48,7 @@ export function CaptureBox({
     setError(null)
     const [result] = await capture(
       { inputs: [{ kind: 'text', text: value }], skipped: [] },
-      { undo: false },
+      { undo: false, into },
     )
     setSaving(false)
     if ('item' in result) {
@@ -94,7 +96,10 @@ export function CaptureBox({
             className="button-ghost"
             label={t('items.voiceNote')}
             onRecorded={async (file) => {
-              const [result] = await capture({ inputs: [{ kind: 'file', file }], skipped: [] })
+              const [result] = await capture(
+                { inputs: [{ kind: 'file', file }], skipped: [] },
+                { into },
+              )
               if (result && 'item' in result) tutorial.complete('voice')
             }}
           />
