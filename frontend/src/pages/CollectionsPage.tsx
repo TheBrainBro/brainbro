@@ -15,6 +15,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
+import { CaptureBox } from '../items/CaptureBox'
 import { rich, useT } from '../i18n/i18n'
 import { CollectionAvatar } from '../items/CollectionAvatar'
 import { CollectionDialog } from '../items/CollectionDialog'
@@ -47,6 +48,7 @@ import { BackLink } from '../ui/BackLink'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
 import { useViewer } from '../viewer/context'
+import { useTutorial } from '../onboarding/tutorial'
 
 /** How many of a collection's items the tree shows before pointing to its page. */
 const TREE_ITEMS = 20
@@ -88,14 +90,20 @@ export function CollectionsPage() {
   const collections = useCollections()
   const { toast } = useFeedback()
   const [creating, setCreating] = useState(false)
+  const [tutorialCollection, setTutorialCollection] = useState<string | null>(null)
   const [view, setView] = useCollectionsView()
+  const tutorial = useTutorial()
   const some = collections.isSuccess && collections.data.length > 0
 
   const newButton = (
     <button
       type="button"
+      data-tutorial="collection-create"
       className="button-primary flex shrink-0 items-center gap-1.5"
-      onClick={() => setCreating(true)}
+      onClick={() => {
+        setCreating(true)
+        if (tutorial.step === 'collectionCreate') tutorial.complete('collectionCreate')
+      }}
     >
       <Plus className="size-4" aria-hidden="true" />
       {t('collections.new')}
@@ -131,9 +139,19 @@ export function CollectionsPage() {
         )}
         {some &&
           (view === 'grid' ? (
-            <CollectionGrid collections={collections.data} parent={null} label={t('collections.title')} />
+            <CollectionGrid
+              collections={collections.data}
+              parent={null}
+              label={t('collections.title')}
+              tutorialCollection={tutorialCollection}
+              onOpen={() => tutorial.complete('collectionOpen')}
+            />
           ) : (
-            <CollectionTree collections={collections.data} />
+            <CollectionTree
+              collections={collections.data}
+              tutorialCollection={tutorialCollection}
+              onOpen={() => tutorial.complete('collectionOpen')}
+            />
           ))}
       </div>
 
@@ -142,7 +160,9 @@ export function CollectionsPage() {
           onClose={() => setCreating(false)}
           onSaved={(collection) => {
             setCreating(false)
+            setTutorialCollection(collection.id)
             toast({ message: t('collections.created', { name: collection.name }) })
+            tutorial.complete('collectionSubmit')
           }}
         />
       )}
@@ -257,7 +277,15 @@ function useTreeDrag(collections: Collection[]) {
 }
 
 /** The collections as a tree, sorted by dragging. */
-function CollectionTree({ collections }: { collections: Collection[] }) {
+function CollectionTree({
+  collections,
+  tutorialCollection,
+  onOpen,
+}: {
+  collections: Collection[]
+  tutorialCollection: string | null
+  onOpen: () => void
+}) {
   const t = useT()
   const drag = useTreeDrag(collections)
   return (
@@ -276,6 +304,8 @@ function CollectionTree({ collections }: { collections: Collection[] }) {
           collections={collections}
           depth={0}
           drag={drag}
+          tutorialCollection={tutorialCollection}
+          onOpen={onOpen}
         />
       ))}
     </ul>
@@ -291,11 +321,15 @@ function CollectionNode({
   collections,
   depth,
   drag,
+  tutorialCollection,
+  onOpen,
 }: {
   collection: Collection
   collections: Collection[]
   depth: number
   drag: TreeDrag
+  tutorialCollection: string | null
+  onOpen: () => void
 }) {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -313,6 +347,7 @@ function CollectionNode({
   return (
     <li>
       <div
+        data-tutorial={collection.id === tutorialCollection ? 'collection-open' : undefined}
         className={`relative flex items-center gap-1 rounded-lg pr-2 transition ${
           zone === 'inside'
             ? 'bg-accent-50 ring-2 ring-accent-500 ring-inset dark:bg-accent-500/10'
@@ -361,6 +396,7 @@ function CollectionNode({
           draggable={false}
           data-collection={collection.id}
           className="flex min-w-0 flex-1 items-center gap-3 py-1.5"
+          onClick={() => collection.id === tutorialCollection && onOpen()}
           onKeyDown={(event) => drag.keyDown(event, collection)}
         >
           <CollectionAvatar collection={collection} />
@@ -383,6 +419,8 @@ function CollectionNode({
               collections={collections}
               depth={depth + 1}
               drag={drag}
+              tutorialCollection={tutorialCollection}
+              onOpen={onOpen}
             />
           ))}
           {collection.item_count > 0 && <TreeItems collection={collection} depth={depth + 1} />}
@@ -474,6 +512,7 @@ export function CollectionPage() {
   const [deleting, setDeleting] = useState(false)
   const [adding, setAdding] = useState(false)
   const capture = useCapturePipeline()
+  const tutorial = useTutorial()
   const pending = capture.pending.filter((entry) => entry.collection === id)
   const ancestors = ancestorsOf(collections.data ?? [], id)
   const inside = childrenOf(collections.data ?? [], id)
@@ -625,6 +664,15 @@ export function CollectionPage() {
           />
         ) : (
           <>
+            {collection && tutorial.step === 'collectionAdd' && (
+              <div className="surface mb-4 p-4">
+                <CaptureBox
+                  tutorialTarget="collection-add"
+                  into={{ id: collection.id, name: collection.name }}
+                  onCaptured={() => tutorial.complete('collectionAdd')}
+                />
+              </div>
+            )}
             {collections.isSuccess && inside.length > 0 && (
               <div className="mb-4">
                 <CollectionGrid

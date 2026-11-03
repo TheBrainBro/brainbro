@@ -53,6 +53,7 @@ import { isEditable } from '../lib/dom'
 import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { useTutorial } from '../onboarding/tutorial'
 import { useTheme } from '../theme/theme'
 import { EmptyState } from '../ui/states'
 import { useViewer } from '../viewer/context'
@@ -181,6 +182,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const [adding, setAdding] = useState(false)
   const viewer = useViewer()
   const theme = useTheme()
+  const tutorial = useTutorial()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
@@ -314,6 +316,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       edges: [...latestEdges.current.map((other) => ({ ...other, selected: false })), edge],
     })
     commit()
+    tutorial.complete('boardConnect')
   }
 
   /** A new group around what is selected (⌘G). */
@@ -380,7 +383,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 
   /** Puts an item on the board at `position` (if it isn't there already) and commits. */
   function place(item: Item, position: { x: number; y: number }, select: boolean) {
-    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return
+    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return null
     queryClient.setQueryData(itemKey(item.id), item)
     session.place()
     const others = select
@@ -403,6 +406,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     // Dropped on a group, it goes in it.
     settling.current.add(id)
     commit()
+    return id
   }
 
   /** Where a paste lands: under the pointer if it is over the canvas, else near the middle. */
@@ -416,7 +420,25 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   }
 
   function add(item: Item) {
-    place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
+    const position = freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current))
+    const id = place(item, position, true)
+    if (tutorial.step === 'boardAddFirst' && id) {
+      tutorial.complete('boardAddFirst')
+      requestAnimationFrame(() => {
+        const node = flow.getNode(id)
+        const width = node?.measured?.width ?? DEFAULT_WIDTH[item.kind]
+        const height = node?.measured?.height ?? 80
+        flow.setCenter(position.x + width / 2, position.y + height / 2, {
+          zoom: Math.min(flow.getZoom(), fitViewOptions.maxZoom),
+          duration: 500,
+        })
+      })
+    }
+    if (tutorial.step === 'boardAddSecond') {
+      setAdding(false)
+      tutorial.complete('boardAddSecond')
+      requestAnimationFrame(() => flow.fitView({ duration: 500, ...fitViewOptions }))
+    }
   }
 
   /** A paste or a drop: captured like anywhere else, each card placed once its item exists. */
@@ -774,9 +796,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <button
                   type="button"
+                  data-tutorial="board-add"
                   aria-pressed={adding}
                   className="button-primary flex items-center gap-1.5 px-3 py-1.5"
-                  onClick={() => setAdding((open) => !open)}
+                  onClick={() => {
+                    setAdding((open) => !open)
+                    if (tutorial.step === 'boardAddOpen') tutorial.complete('boardAddOpen')
+                  }}
                 >
                   <Plus className="size-4" aria-hidden="true" />
                   {t('canvas.addItems')}

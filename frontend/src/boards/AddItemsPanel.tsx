@@ -130,6 +130,7 @@ export function AddItemsPanel({
               ) : (
                 <button
                   type="button"
+                  data-tutorial="board-item-add"
                   aria-label={t('addItems.add', { name: itemLabel(item) })}
                   className="button-icon size-8 shrink-0 border border-zinc-200 dark:border-zinc-700"
                   onClick={() => onAdd(item)}
