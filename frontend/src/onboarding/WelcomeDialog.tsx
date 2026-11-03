@@ -20,7 +20,7 @@ const steps: Step[] = [
 ]
 
 /** A short animated tour of what the app does, shown on the first visit. */
-export function WelcomeDialog({ onClose }: { onClose: () => void }) {
+export function WelcomeDialog({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const t = useT()
   const createSample = useCreateSampleContent()
   const [index, setIndex] = useState(0)
@@ -32,9 +32,9 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
   const last = index === steps.length - 1
   const start = () => {
     if (includeSampleContent) {
-      createSample.mutate(`${window.location.origin}/api/mcp`, { onSuccess: onClose })
+      createSample.mutate(`${window.location.origin}/api/mcp`, { onSuccess: onStart })
     } else {
-      onClose()
+      onStart()
     }
   }
 

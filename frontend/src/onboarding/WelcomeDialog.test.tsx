@@ -11,6 +11,11 @@ const user = { id: 1, username: 'carlos', email: '', is_staff: true }
 function renderApp() {
   const fetch = vi.fn(async (url: string, _init?: RequestInit) => {
     if (url.includes('/auth/welcome/')) return new Response(null, { status: 204 })
+    if (url.includes('/items/capture/')) {
+      return new Response(JSON.stringify({ id: 'tutorial-note' }), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
     const body = url.includes('/auth/session/')
       ? { authenticated: true, user, welcome_seen: false }
       : url.includes('/items/note-titles/')
@@ -35,11 +40,11 @@ function renderApp() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('WelcomeDialog', () => {
-  function renderDialog(onClose: () => void) {
+  function renderDialog(onClose: () => void, onStart = onClose) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={queryClient}>
-        <WelcomeDialog onClose={onClose} />
+        <WelcomeDialog onClose={onClose} onStart={onStart} />
       </QueryClientProvider>,
     )
   }
@@ -99,6 +104,12 @@ describe('first visit', () => {
         JSON.stringify({ mcp_url: `${window.location.origin}/api/mcp` }),
       )
     })
+
+    expect(await screen.findByText("Let's save your first idea")).toBeInTheDocument()
+    const capture = await screen.findByRole('textbox', { name: 'Capture' })
+    fireEvent.change(capture, { target: { value: 'Plan a weekend trip' } })
+    fireEvent.keyDown(capture, { key: 'Enter' })
+    expect(await screen.findByText('Now bring in a file')).toBeInTheDocument()
   })
 
   it('shows the tour once, and the account menu brings it back', async () => {

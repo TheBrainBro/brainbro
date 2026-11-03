@@ -6,6 +6,7 @@ import { VoiceRecorder } from '../capture/VoiceRecorder'
 import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
 import { MOD } from '../lib/keys'
+import { useTutorial } from '../onboarding/tutorial'
 
 /**
  * Always-visible capture: type, Enter and done (Shift+Enter for a new line),
@@ -15,6 +16,7 @@ import { MOD } from '../lib/keys'
 export function CaptureBox() {
   const t = useT()
   const { capture, dismiss } = useCapturePipeline()
+  const tutorial = useTutorial()
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +45,7 @@ export function CaptureBox() {
     setSaving(false)
     if ('item' in result) {
       setText('')
+      tutorial.complete('capture')
     } else {
       // The box shows the error and keeps the text: no failed card as well.
       setError(result.error)
@@ -62,6 +65,7 @@ export function CaptureBox() {
       </label>
       <textarea
         id="capture"
+        data-tutorial="capture"
         ref={textarea}
         className="input field-sizing-content max-h-64 min-h-11 resize-none"
         placeholder={t('items.capturePlaceholder')}
