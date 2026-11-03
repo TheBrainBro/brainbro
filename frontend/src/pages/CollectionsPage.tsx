@@ -47,6 +47,7 @@ import { BackLink } from '../ui/BackLink'
 import { useFeedback } from '../ui/feedback'
 import { EmptyState, ErrorState } from '../ui/states'
 import { useViewer } from '../viewer/context'
+import { useTutorial } from '../onboarding/tutorial'
 
 /** How many of a collection's items the tree shows before pointing to its page. */
 const TREE_ITEMS = 20
@@ -89,11 +90,13 @@ export function CollectionsPage() {
   const { toast } = useFeedback()
   const [creating, setCreating] = useState(false)
   const [view, setView] = useCollectionsView()
+  const tutorial = useTutorial()
   const some = collections.isSuccess && collections.data.length > 0
 
   const newButton = (
     <button
       type="button"
+      data-tutorial="collection-create"
       className="button-primary flex shrink-0 items-center gap-1.5"
       onClick={() => setCreating(true)}
     >
@@ -143,6 +146,7 @@ export function CollectionsPage() {
           onSaved={(collection) => {
             setCreating(false)
             toast({ message: t('collections.created', { name: collection.name }) })
+            tutorial.complete('collection')
           }}
         />
       )}

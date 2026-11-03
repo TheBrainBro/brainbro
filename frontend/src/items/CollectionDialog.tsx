@@ -135,6 +135,7 @@ export function CollectionDialog({
             </label>
             <input
               id="collection-name"
+              data-tutorial="collection-name"
               className="input"
               placeholder={t('collectionDialog.namePlaceholder')}
               autoFocus

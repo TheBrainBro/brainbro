@@ -8,6 +8,7 @@ import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
 import { useSortable } from '../ui/sortable'
 import { EmptyState, ErrorState } from '../ui/states'
+import { useTutorial } from '../onboarding/tutorial'
 
 export function BoardsPage() {
   const t = useT()
@@ -24,6 +25,7 @@ export function BoardsPage() {
       { onError: (error) => toast({ message: error.message, tone: 'error' }) },
     ),
   )
+  const tutorial = useTutorial()
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -34,13 +36,17 @@ export function BoardsPage() {
           event.preventDefault()
           if (!title.trim()) return
           create.mutate(title.trim(), {
-            onSuccess: (board) => navigate(`/boards/${board.id}`),
+            onSuccess: (board) => {
+              tutorial.complete('board')
+              navigate(`/boards/${board.id}`)
+            },
             onError: (error) => toast({ message: error.message, tone: 'error' }),
           })
         }}
       >
         <input
           ref={input}
+          data-tutorial="board-title"
           className="input"
           aria-label={t('boards.new')}
           placeholder={t('boards.new')}
