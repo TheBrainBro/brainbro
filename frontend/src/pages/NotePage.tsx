@@ -12,7 +12,7 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { NoteHistoryDialog } from '../history/HistoryPanel'
@@ -122,14 +122,29 @@ function NoteSession({
 function NewNote({ onCreated }: { onCreated: (id: string) => void }) {
   const navigate = useNavigate()
   const tutorial = useTutorial()
+  const tutorialAdvance = useRef<number | null>(null)
   const { saver, state } = useNewNoteSaver({
     onCreated: (item) => {
-      tutorial.complete('newNoteWrite')
       onCreated(item.id)
       navigate(`/notes/${item.id}`, { replace: true })
     },
   })
-  return <NoteWorkspace initial={null} newNote={{ saver, state }} />
+  return (
+    <NoteWorkspace
+      initial={null}
+      newNote={{
+        saver,
+        state,
+        onTyped: (text) => {
+          if (!text.trim() || tutorial.step !== 'newNoteWrite' || tutorialAdvance.current) return
+          tutorialAdvance.current = window.setTimeout(
+            () => tutorial.complete('newNoteWrite'),
+            2_000,
+          )
+        },
+      }}
+    />
+  )
 }
 
 function NoteWorkspace({
@@ -138,7 +153,7 @@ function NoteWorkspace({
 }: {
   initial: Item | null
   /** For a new note: its saver, until it is live. */
-  newNote?: { saver: NoteSaver<Item>; state: SaverState }
+  newNote?: { saver: NoteSaver<Item>; state: SaverState; onTyped?: (text: string) => void }
 }) {
   const t = useT()
   const noteId = initial?.id ?? newNote?.saver.noteId ?? null
@@ -354,7 +369,10 @@ function NoteWorkspace({
         <NoteEditor
           initial={newNote.saver.body}
           autoFocus
-          onChange={(text) => newNote.saver.edit(text)}
+          onChange={(text) => {
+            newNote.saver.edit(text)
+            newNote.onTyped?.(text)
+          }}
           onSave={() => newNote.saver.flush()}
           uploadImage={uploadNoteImage}
           onUploadError={(message) => toast({ message, tone: 'error' })}

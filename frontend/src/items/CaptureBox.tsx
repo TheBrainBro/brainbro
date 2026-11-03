@@ -13,7 +13,13 @@ import { useTutorial } from '../onboarding/tutorial'
  * or record a voice note. Pasting or dropping anywhere is handled by the
  * capture pipeline, with no box involved. `/` focuses the box.
  */
-export function CaptureBox() {
+export function CaptureBox({
+  tutorialTarget = 'capture',
+  onCaptured,
+}: {
+  tutorialTarget?: string
+  onCaptured?: () => void
+} = {}) {
   const t = useT()
   const { capture, dismiss } = useCapturePipeline()
   const tutorial = useTutorial()
@@ -46,6 +52,7 @@ export function CaptureBox() {
     if ('item' in result) {
       setText('')
       tutorial.complete('capture')
+      onCaptured?.()
     } else {
       // The box shows the error and keeps the text: no failed card as well.
       setError(result.error)
@@ -65,7 +72,7 @@ export function CaptureBox() {
       </label>
       <textarea
         id="capture"
-        data-tutorial="capture"
+        data-tutorial={tutorialTarget}
         ref={textarea}
         className="input field-sizing-content max-h-64 min-h-11 resize-none"
         placeholder={t('items.capturePlaceholder')}
