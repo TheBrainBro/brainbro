@@ -53,6 +53,7 @@ import { isEditable } from '../lib/dom'
 import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { useTutorial } from '../onboarding/tutorial'
 import { useTheme } from '../theme/theme'
 import { EmptyState } from '../ui/states'
 import { useViewer } from '../viewer/context'
@@ -181,6 +182,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const [adding, setAdding] = useState(false)
   const viewer = useViewer()
   const theme = useTheme()
+  const tutorial = useTutorial()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
@@ -314,6 +316,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       edges: [...latestEdges.current.map((other) => ({ ...other, selected: false })), edge],
     })
     commit()
+    tutorial.complete('boardConnect')
   }
 
   /** A new group around what is selected (⌘G). */
@@ -417,6 +420,12 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 
   function add(item: Item) {
     place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
+    if (tutorial.step === 'boardAddFirst') tutorial.complete('boardAddFirst')
+    if (tutorial.step === 'boardAddSecond') {
+      setAdding(false)
+      tutorial.complete('boardAddSecond')
+      requestAnimationFrame(() => flow.fitView({ duration: 500, ...fitViewOptions }))
+    }
   }
 
   /** A paste or a drop: captured like anywhere else, each card placed once its item exists. */
@@ -774,9 +783,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <button
                   type="button"
+                  data-tutorial="board-add"
                   aria-pressed={adding}
                   className="button-primary flex items-center gap-1.5 px-3 py-1.5"
-                  onClick={() => setAdding((open) => !open)}
+                  onClick={() => {
+                    setAdding((open) => !open)
+                    if (tutorial.step === 'boardAddOpen') tutorial.complete('boardAddOpen')
+                  }}
                 >
                   <Plus className="size-4" aria-hidden="true" />
                   {t('canvas.addItems')}

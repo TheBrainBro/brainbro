@@ -36,6 +36,7 @@ import { VisibilityMenu } from '../notes/VisibilityMenu'
 import { forgetLiveNote, useLiveNote, type LiveNote, type LiveStatus } from '../notes/live'
 import { NEW_NOTE, type NoteSaver, type SaverState } from '../notes/saver'
 import { useNewNoteSaver } from '../notes/useNewNoteSaver'
+import { useTutorial } from '../onboarding/tutorial'
 import { BackLink } from '../ui/BackLink'
 import { Dropdown } from '../ui/Dropdown'
 import { useFeedback } from '../ui/feedback'
@@ -120,8 +121,10 @@ function NoteSession({
 /** A note that doesn't exist yet: created on its first text, then live. */
 function NewNote({ onCreated }: { onCreated: (id: string) => void }) {
   const navigate = useNavigate()
+  const tutorial = useTutorial()
   const { saver, state } = useNewNoteSaver({
     onCreated: (item) => {
+      tutorial.complete('newNoteWrite')
       onCreated(item.id)
       navigate(`/notes/${item.id}`, { replace: true })
     },

@@ -82,11 +82,16 @@ export function CaptureBox() {
       />
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         {/* A failed upload keeps its card, with Retry: the recording isn't lost. */}
-        <VoiceRecorder
-          className="button-ghost"
-          label={t('items.voiceNote')}
-          onRecorded={(file) => capture({ inputs: [{ kind: 'file', file }], skipped: [] })}
-        />
+        <span data-tutorial="voice">
+          <VoiceRecorder
+            className="button-ghost"
+            label={t('items.voiceNote')}
+            onRecorded={async (file) => {
+              const [result] = await capture({ inputs: [{ kind: 'file', file }], skipped: [] })
+              if (result && 'item' in result) tutorial.complete('voice')
+            }}
+          />
+        </span>
         {/* Phones paste into the box itself and have nothing to drop. */}
         <p className="ml-auto hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
           {t('items.orPaste')}

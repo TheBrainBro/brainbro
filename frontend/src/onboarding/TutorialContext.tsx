@@ -3,10 +3,24 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { TutorialContext, type Tutorial, type TutorialAction, type TutorialStep } from './tutorial'
 
 const NEXT: Record<TutorialAction, TutorialStep> = {
-  capture: 'file',
-  file: 'collection',
-  collection: 'board',
-  board: 'complete',
+  capture: 'noteSaved',
+  noteSaved: 'file',
+  file: 'voice',
+  voice: 'newNoteNav',
+  newNoteNav: 'newNoteWrite',
+  newNoteWrite: 'collectionsNav',
+  collectionsNav: 'collectionCreate',
+  collectionCreate: 'collectionName',
+  collectionName: 'collectionSubmit',
+  collectionSubmit: 'boardsNav',
+  boardsNav: 'boardName',
+  boardName: 'boardSubmit',
+  boardSubmit: 'boardAddOpen',
+  boardAddOpen: 'boardAddFirst',
+  boardAddFirst: 'boardAddSecond',
+  boardAddSecond: 'boardConnect',
+  boardConnect: 'accountNav',
+  accountNav: 'accountMenu',
 }
 
 export function TutorialProvider({ children }: { children: ReactNode }) {

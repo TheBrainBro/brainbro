@@ -3,12 +3,12 @@ import {
   CircleHelp,
   Info,
   Keyboard,
+  LayoutDashboard,
   Library,
   LogOut,
   Network,
   Search,
   Settings,
-  Waypoints,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -18,14 +18,15 @@ import { useLogout, useSession } from '../auth/session'
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Avatar } from '../settings/Avatar'
 import { combo } from '../lib/keys'
+import { useTutorial } from '../onboarding/tutorial'
 import { Logo, Wordmark } from './Logo'
 
-type Section = { to: string; label: MessageKey; icon: LucideIcon; end?: boolean }
+type Section = { to: string; label: MessageKey; icon: LucideIcon; end?: boolean; tutorial?: 'collections' | 'boards' }
 
 const sections: Section[] = [
   { to: '/', label: 'layout.inbox', icon: Inbox, end: true },
-  { to: '/boards', label: 'layout.boards', icon: Waypoints },
-  { to: '/collections', label: 'layout.collections', icon: Library },
+  { to: '/collections', label: 'layout.collections', icon: Library, tutorial: 'collections' },
+  { to: '/boards', label: 'layout.boards', icon: LayoutDashboard, tutorial: 'boards' },
   { to: '/graph', label: 'layout.graph', icon: Network },
 ]
 
@@ -82,12 +83,14 @@ export function TopBar({
   )
 }
 
-function SectionLink({ to, label, icon: Icon, end }: Section) {
+function SectionLink({ to, label, icon: Icon, end, tutorial: tutorialTarget }: Section) {
   const t = useT()
+  const tutorial = useTutorial()
   return (
     <NavLink
       to={to}
       end={end}
+      data-tutorial={tutorialTarget ? `nav-${tutorialTarget}` : undefined}
       aria-label={t(label)}
       className={({ isActive }) =>
         `group/tip relative flex h-9 w-12 items-center justify-center rounded-lg transition ${
@@ -96,6 +99,14 @@ function SectionLink({ to, label, icon: Icon, end }: Section) {
             : 'text-zinc-500 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100'
         }`
       }
+      onClick={() => {
+        if (tutorialTarget === 'collections' && tutorial.step === 'collectionsNav') {
+          tutorial.complete('collectionsNav')
+        }
+        if (tutorialTarget === 'boards' && tutorial.step === 'boardsNav') {
+          tutorial.complete('boardsNav')
+        }
+      }}
     >
       <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
       <span role="tooltip" className="tooltip top-full mt-2">
@@ -119,6 +130,7 @@ function AccountMenu({
   const t = useT()
   const { data: session } = useSession()
   const logout = useLogout()
+  const tutorial = useTutorial()
   const [open, setOpen] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const username = session?.user?.username ?? ''
@@ -143,11 +155,15 @@ function AccountMenu({
     <div ref={menu} className="relative">
       <button
         type="button"
+        data-tutorial="account"
         aria-label={t('layout.account')}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex size-9 items-center justify-center rounded-full shadow-sm ring-offset-2 ring-offset-white transition hover:ring-2 hover:ring-accent-300 dark:ring-offset-zinc-950 dark:hover:ring-accent-700"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setOpen((value) => !value)
+          if (tutorial.step === 'accountNav') tutorial.complete('accountNav')
+        }}
       >
         <Avatar username={username} profile={session?.profile} />
       </button>
@@ -163,10 +179,12 @@ function AccountMenu({
           <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
           <button
             type="button"
+            data-tutorial="account-settings"
             role="menuitem"
             className="menu-item"
             onClick={() => {
               setOpen(false)
+              if (tutorial.step === 'accountMenu') tutorial.stop()
               onSettings()
             }}
           >

@@ -98,7 +98,10 @@ export function CollectionsPage() {
       type="button"
       data-tutorial="collection-create"
       className="button-primary flex shrink-0 items-center gap-1.5"
-      onClick={() => setCreating(true)}
+      onClick={() => {
+        setCreating(true)
+        if (tutorial.step === 'collectionCreate') tutorial.complete('collectionCreate')
+      }}
     >
       <Plus className="size-4" aria-hidden="true" />
       {t('collections.new')}
@@ -146,7 +149,7 @@ export function CollectionsPage() {
           onSaved={(collection) => {
             setCreating(false)
             toast({ message: t('collections.created', { name: collection.name }) })
-            tutorial.complete('collection')
+            tutorial.complete('collectionSubmit')
           }}
         />
       )}

@@ -180,5 +180,5 @@ export function NoteEditor({
     if (titleList) view.current?.dispatch({ effects: setNoteTitles.of(titleList) })
   }, [titleList])
 
-  return <div ref={host} className="note-editor" />
+  return <div ref={host} data-tutorial="note-editor" className="note-editor" />
 }
