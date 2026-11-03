@@ -10,6 +10,9 @@ import { isEditable } from '../lib/dom'
 import { followChanges } from '../live/changes'
 import { NoteTitlesProvider } from '../notes/NoteTitlesProvider'
 import { WelcomeDialog } from '../onboarding/WelcomeDialog'
+import { TutorialGuide } from '../onboarding/TutorialGuide'
+import { TutorialProvider } from '../onboarding/TutorialContext'
+import { useTutorial } from '../onboarding/tutorial'
 import { SearchPalette } from '../search/SearchPalette'
 import { SettingsDialog } from '../settings/SettingsDialog'
 import { ShareReceiver } from '../share/ShareReceiver'
@@ -21,6 +24,14 @@ import { TopBar } from './TopBar'
 
 /** The top bar over the page; on phones, a capture button within thumb's reach. */
 export function AppLayout() {
+  return (
+    <TutorialProvider>
+      <AppLayoutContent />
+    </TutorialProvider>
+  )
+}
+
+function AppLayoutContent() {
   const t = useT()
   const { pathname } = useLocation()
   // Where it would only get in the way: capturing already, or writing.
@@ -32,6 +43,7 @@ export function AppLayout() {
   // The first visit opens on a short tour; the account menu brings it back.
   const { data: session } = useSession()
   const markWelcomeSeen = useMarkWelcomeSeen()
+  const tutorial = useTutorial()
   const [welcome, setWelcome] = useState(() => session?.welcome_seen === false)
   const queryClient = useQueryClient()
 
@@ -61,6 +73,7 @@ export function AppLayout() {
         <NoteTitlesProvider>
           <ViewerProvider>
             <ShareReceiver />
+            <TutorialGuide />
             <div className="flex h-full flex-col">
               <TopBar
                 onSearch={() => setSearching(true)}
@@ -90,6 +103,11 @@ export function AppLayout() {
                 onClose={() => {
                   if (!session?.welcome_seen) markWelcomeSeen.mutate()
                   setWelcome(false)
+                }}
+                onStart={() => {
+                  if (!session?.welcome_seen) markWelcomeSeen.mutate()
+                  setWelcome(false)
+                  tutorial.start()
                 }}
               />
             )}

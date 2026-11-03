@@ -72,6 +72,7 @@ export const ItemNode = memo(function ItemNode({
         </>
       )}
       <article
+        data-tutorial="board-node"
         className={`overflow-hidden rounded-xl border bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:bg-zinc-900 ${ring} ${
           height ? 'h-full' : ''
         } ${item?.status === 'archived' ? 'opacity-60' : ''}`}

@@ -1,4 +1,4 @@
-import { Plus, Waypoints } from 'lucide-react'
+import { LayoutDashboard, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
@@ -8,6 +8,7 @@ import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
 import { useSortable } from '../ui/sortable'
 import { EmptyState, ErrorState } from '../ui/states'
+import { useTutorial } from '../onboarding/tutorial'
 
 export function BoardsPage() {
   const t = useT()
@@ -24,6 +25,7 @@ export function BoardsPage() {
       { onError: (error) => toast({ message: error.message, tone: 'error' }) },
     ),
   )
+  const tutorial = useTutorial()
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -34,21 +36,31 @@ export function BoardsPage() {
           event.preventDefault()
           if (!title.trim()) return
           create.mutate(title.trim(), {
-            onSuccess: (board) => navigate(`/boards/${board.id}`),
+            onSuccess: (board) => {
+              tutorial.complete('boardSubmit')
+              navigate(`/boards/${board.id}`)
+            },
             onError: (error) => toast({ message: error.message, tone: 'error' }),
           })
         }}
       >
         <input
           ref={input}
+          data-tutorial="board-title"
           className="input"
           aria-label={t('boards.new')}
           placeholder={t('boards.new')}
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={(event) => {
+            setTitle(event.target.value)
+            if (event.target.value.trim() && tutorial.step === 'boardName') {
+              tutorial.complete('boardName')
+            }
+          }}
         />
         <button
           type="submit"
+          data-tutorial="board-submit"
           className="button-primary flex shrink-0 items-center gap-1.5"
           disabled={!title.trim() || create.isPending}
         >
@@ -67,7 +79,7 @@ export function BoardsPage() {
       {boards.isError && <ErrorState error={boards.error} onRetry={() => boards.refetch()} />}
       {boards.isSuccess && boards.data.length === 0 && (
         <EmptyState
-          icon={Waypoints}
+          icon={LayoutDashboard}
           title={t('boards.none')}
           action={
             <button type="button" className="button-primary" onClick={() => input.current?.focus()}>
@@ -92,7 +104,7 @@ export function BoardsPage() {
               className="surface group flex h-28 flex-col justify-between px-4 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
             >
               <span className="flex items-start gap-2">
-                <Waypoints
+                <LayoutDashboard
                   className="mt-0.5 size-4 shrink-0 text-zinc-400 transition group-hover:text-accent-500"
                   aria-hidden="true"
                 />
