@@ -96,8 +96,16 @@ DATABASES = {
         "PASSWORD": get_env_variable("POSTGRES_PASSWORD", "brain"),
         "HOST": get_env_variable("POSTGRES_HOST", "localhost"),
         "PORT": get_env_variable("POSTGRES_PORT", "5442"),
-        "CONN_MAX_AGE": 60,
+        # Under ASGI each request runs in a thread of its own, so persistent
+        # connections (CONN_MAX_AGE) are never reused and pile up until
+        # Postgres refuses clients. A pool per process reuses them and caps
+        # the total: web workers x max_size stays well under max_connections.
+        "CONN_MAX_AGE": 0,
+        # With the pool, a connection is checked before it is handed out.
         "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {
+            "pool": {"min_size": 1, "max_size": 10, "timeout": 10},
+        },
     }
 }
 
