@@ -181,8 +181,8 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
   const [adding, setAdding] = useState(false)
   const viewer = useViewer()
-  const theme = useTheme()
   const tutorial = useTutorial()
+  const theme = useTheme()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
 
@@ -316,7 +316,6 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
       edges: [...latestEdges.current.map((other) => ({ ...other, selected: false })), edge],
     })
     commit()
-    tutorial.complete('boardConnect')
   }
 
   /** A new group around what is selected (⌘G). */
@@ -422,8 +421,10 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   function add(item: Item) {
     const position = freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current))
     const id = place(item, position, true)
-    if (tutorial.step === 'boardAddFirst' && id) {
-      tutorial.complete('boardAddFirst')
+    // The tutorial's card: the panel steps aside and the view centers on it.
+    if (tutorial.step === 'boardPlace' && id) {
+      setAdding(false)
+      tutorial.complete('boardPlace')
       requestAnimationFrame(() => {
         const node = flow.getNode(id)
         const width = node?.measured?.width ?? DEFAULT_WIDTH[item.kind]
@@ -433,11 +434,6 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           duration: 500,
         })
       })
-    }
-    if (tutorial.step === 'boardAddSecond') {
-      setAdding(false)
-      tutorial.complete('boardAddSecond')
-      requestAnimationFrame(() => flow.fitView({ duration: 500, ...fitViewOptions }))
     }
   }
 
@@ -738,7 +734,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           )}
           {!readOnly && (
             <Panel position="bottom-center">
-              <div role="toolbar" aria-label={t('canvas.tools')} className="popover flex items-center gap-0.5 p-1">
+              <div role="toolbar" data-tutorial="board-tools" aria-label={t('canvas.tools')} className="popover flex items-center gap-0.5 p-1">
                 {TOOLS.map(({ tool: value, label, key, icon }) => (
                   <ToolButton
                     key={value}
@@ -801,7 +797,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                   className="button-primary flex items-center gap-1.5 px-3 py-1.5"
                   onClick={() => {
                     setAdding((open) => !open)
-                    if (tutorial.step === 'boardAddOpen') tutorial.complete('boardAddOpen')
+                    tutorial.complete('boardAdd')
                   }}
                 >
                   <Plus className="size-4" aria-hidden="true" />
@@ -919,7 +915,12 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           </div>
         )}
         {adding && !readOnly && (
-          <AddItemsPanel onBoard={onBoard} onAdd={add} onClose={() => setAdding(false)} />
+          <AddItemsPanel
+            everything={tutorial.step === 'boardAdd' || tutorial.step === 'boardPlace'}
+            onBoard={onBoard}
+            onAdd={add}
+            onClose={() => setAdding(false)}
+          />
         )}
       </div>
     </BoardContext>

@@ -35,7 +35,7 @@ export function GraphPage() {
   if (graph.isError) return <ErrorState error={graph.error} onRetry={() => graph.refetch()} />
   if (!graph.data.nodes.length) {
     return (
-      <div data-tutorial="graph" className="h-full">
+      <div className="h-full">
         <EmptyState icon={Network} title={t('graph.nothing')}>
           {t('graph.nothingHint')}
         </EmptyState>
@@ -44,9 +44,9 @@ export function GraphPage() {
   }
 
   return (
-    <div data-tutorial="graph" className="flex h-full flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-200/80 px-4 py-2 text-sm dark:border-zinc-800/80">
-        <div role="group" aria-label={t('graph.connections')} className="flex flex-wrap gap-1.5">
+        <div role="group" data-tutorial="graph-filters" aria-label={t('graph.connections')} className="flex flex-wrap gap-1.5">
           {EDGE_TYPES.map(({ type, label }) => (
             <button
               key={type}
@@ -90,7 +90,7 @@ export function GraphPage() {
           </li>
         </ul>
       </div>
-      <div className="relative min-h-0 flex-1">
+      <div data-tutorial="graph" className="relative min-h-0 flex-1">
         {visible && visible.nodes.length ? (
           <GraphCanvas visible={visible} onOpen={open} />
         ) : (

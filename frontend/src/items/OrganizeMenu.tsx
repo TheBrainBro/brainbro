@@ -35,12 +35,18 @@ export type OrganizeTriggerProps = {
  * full picker. With `onRemove`, picking a ticked collection takes it out.
  */
 export function OrganizeMenu({
+  guided = false,
   current = [],
   onPick,
   onRemove,
   onMore,
   trigger,
 }: {
+  /**
+   * Shown by the tutorial: it opens on a click only and stays open when the
+   * pointer wanders off, while the guide talks through it.
+   */
+  guided?: boolean
   /** Collections it is already in: shown ticked. */
   current?: string[]
   onPick: (collection: Collection) => void
@@ -78,7 +84,7 @@ export function OrganizeMenu({
   }
 
   return (
-    <span className="relative inline-flex" {...hover}>
+    <span className="relative inline-flex" {...(guided ? {} : hover)}>
       {trigger({
         ref: button,
         onClick: () => {
@@ -95,6 +101,7 @@ export function OrganizeMenu({
             anchor={button}
             current={current}
             focusFilter={focusFilter}
+            guided={guided}
             hover={hover}
             onPick={(collection) => {
               close()
@@ -126,6 +133,7 @@ function Menu({
   anchor,
   current,
   focusFilter,
+  guided,
   hover,
   onPick,
   onRemove,
@@ -135,6 +143,7 @@ function Menu({
   anchor: RefObject<HTMLButtonElement | null>
   current: string[]
   focusFilter: boolean
+  guided: boolean
   hover: Record<'onPointerEnter' | 'onPointerLeave', (event: ReactPointerEvent) => void>
   onPick: (collection: Collection) => void
   onRemove?: (collection: Collection) => void
@@ -205,7 +214,7 @@ function Menu({
         left: position?.left ?? -9999,
         transform: position?.up ? 'translateY(-100%)' : undefined,
       }}
-      {...hover}
+      {...(guided ? {} : hover)}
       // Inside a card: clicks here aren't the card's.
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
@@ -215,6 +224,7 @@ function Menu({
       }}
     >
       <input
+        data-tutorial={guided ? 'organize-filter' : undefined}
         className="input mb-1 py-1.5"
         placeholder={t('collectionPicker.find')}
         aria-label={t('collectionPicker.find')}

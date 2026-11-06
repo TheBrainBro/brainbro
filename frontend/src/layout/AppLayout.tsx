@@ -11,6 +11,7 @@ import { followChanges } from '../live/changes'
 import { NoteTitlesProvider } from '../notes/NoteTitlesProvider'
 import { WelcomeDialog } from '../onboarding/WelcomeDialog'
 import { TutorialGuide } from '../onboarding/TutorialGuide'
+import { TutorialPill } from '../onboarding/TutorialPill'
 import { TutorialProvider } from '../onboarding/TutorialContext'
 import { useTutorial } from '../onboarding/tutorial'
 import { SearchPalette } from '../search/SearchPalette'
@@ -39,7 +40,8 @@ function AppLayoutContent() {
   const capturing = pathname === '/capture' || pathname.startsWith('/notes/')
   const [shortcuts, setShortcuts] = useState(false)
   const [searching, setSearching] = useState(false)
-  const [settings, setSettings] = useState(false)
+  // Open on a page of its own, or on the first one (true).
+  const [settings, setSettings] = useState<string | boolean>(false)
   const [about, setAbout] = useState(false)
   // The first visit opens on the welcome screen; the account menu brings it back.
   const { data: session } = useSession()
@@ -78,7 +80,11 @@ function AppLayoutContent() {
         <NoteTitlesProvider>
           <ViewerProvider>
             <ShareReceiver />
-            <TutorialGuide />
+            <TutorialPill />
+            <TutorialGuide
+              onOpenAssistants={() => setSettings('assistants')}
+              onCloseSettings={() => setSettings(false)}
+            />
             <div className="flex h-full flex-col">
               <TopBar
                 onSearch={() => setSearching(true)}
@@ -101,7 +107,16 @@ function AppLayoutContent() {
               )}
             </div>
             {searching && <SearchPalette onClose={() => setSearching(false)} />}
-            {settings && <SettingsDialog onClose={() => setSettings(false)} />}
+            {settings && (
+              <SettingsDialog
+                page={typeof settings === 'string' ? settings : undefined}
+                onClose={() => {
+                  setSettings(false)
+                  // Closing it is the tutorial's "done here" too.
+                  tutorial.complete('assistant')
+                }}
+              />
+            )}
             {about && <AboutDialog onClose={() => setAbout(false)} />}
             {welcome && (
               <WelcomeDialog

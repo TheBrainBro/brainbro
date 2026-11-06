@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useCreateSampleContent } from '../auth/session'
 import { useT } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
+import { playWelcomeChime } from './chime'
 import { Particles } from './Particles'
 
 // three.js and the model only download when this screen opens.
@@ -46,6 +47,10 @@ export function WelcomeDialog({
   const leaveTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => dialog.current?.focus(), [])
+  // With the glow and the sparks; quiet with reduced motion, like them.
+  useEffect(() => {
+    if (!still) void playWelcomeChime()
+  }, [still])
   useEffect(() => () => window.clearTimeout(leaveTimer.current), [])
 
   // Dissolves the way it came in, then hands over to the choice made.

@@ -62,7 +62,7 @@ const adminGroup = {
 }
 
 /** Import, export, integrations and appearance: a list of pages on the side, the open one next to it. */
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({ page: initialPage, onClose }: { page?: string; onClose: () => void }) {
   const t = useT()
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])
@@ -78,7 +78,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       .filter((group) => group.pages.length > 0)
     return session?.user?.is_staff ? [...visibleGroups, adminGroup] : visibleGroups
   }, [session?.has_sample_content, session?.user?.is_staff])
-  const [openId, setOpenId] = useState(groups[0].pages[0].id)
+  const [openId, setOpenId] = useState(initialPage ?? groups[0].pages[0].id)
   const pages = useMemo(() => shown.flatMap((group) => group.pages), [shown])
   const page = pages.find((page) => page.id === openId) ?? pages[0]
 

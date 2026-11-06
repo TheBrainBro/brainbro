@@ -59,6 +59,15 @@ def profile_data(profile):
     }
 
 
+def tutorial_data(profile):
+    """Where the guided tour stands: `{started, done, closed}`."""
+    return {
+        "started": bool(profile and profile.tutorial_started_at),
+        "done": list(profile.tutorial_done) if profile else [],
+        "closed": bool(profile and profile.tutorial_closed_at),
+    }
+
+
 def signed_in(user):
     profile = Profile.objects.filter(user=user).first()
     return {
@@ -75,6 +84,7 @@ def signed_in(user):
                 or Board.objects.filter(owner=user, is_sample=True).exists()
             )
         ),
+        "tutorial": tutorial_data(profile),
         "theme": profile.theme if profile else Profile.Theme.SYSTEM,
         "language": profile.language if profile else Profile.Language.SYSTEM,
         "profile": profile_data(profile),
@@ -127,6 +137,52 @@ def welcome_view(request):
     if profile.welcome_seen_at is None:
         profile.welcome_seen_at = timezone.now()
         profile.save(update_fields=["welcome_seen_at", "updated_at"])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# The first loop, then each track from the tour's hub.
+TUTORIAL_PARTS = ["loop", "boards", "graph", "assistant", "examples"]
+
+
+class TutorialSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["start", "done", "close"])
+    part = serializers.ChoiceField(choices=TUTORIAL_PARTS, required=False)
+
+    def validate(self, data):
+        if data["action"] == "done" and "part" not in data:
+            raise serializers.ValidationError({"part": "Say which part is done."})
+        return data
+
+
+@api_view(["POST"])
+def tutorial_view(request):
+    """
+    `POST {"action", "part"}`: the guided tour's progress, on every device.
+    `start` begins it afresh (and brings it back if it was put away), `done`
+    ticks a part, `close` puts it away for good.
+    """
+    payload = TutorialSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+    action = payload.validated_data["action"]
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    if action == "start":
+        profile.tutorial_started_at = timezone.now()
+        profile.tutorial_done = []
+        profile.tutorial_closed_at = None
+    elif action == "done":
+        part = payload.validated_data["part"]
+        if part not in profile.tutorial_done:
+            profile.tutorial_done = [*profile.tutorial_done, part]
+    elif profile.tutorial_closed_at is None:
+        profile.tutorial_closed_at = timezone.now()
+    profile.save(
+        update_fields=[
+            "tutorial_started_at",
+            "tutorial_done",
+            "tutorial_closed_at",
+            "updated_at",
+        ]
+    )
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
