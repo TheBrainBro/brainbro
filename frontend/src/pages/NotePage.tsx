@@ -126,7 +126,12 @@ function NewNote({ onCreated }: { onCreated: (id: string) => void }) {
       navigate(`/notes/${item.id}`, { replace: true })
     },
   })
-  return <NoteWorkspace initial={null} newNote={{ saver, state }} />
+  return (
+    <NoteWorkspace
+      initial={null}
+      newNote={{ saver, state }}
+    />
+  )
 }
 
 function NoteWorkspace({

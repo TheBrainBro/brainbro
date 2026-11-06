@@ -71,7 +71,11 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
             </nav>
             <OriginFilter value={origin} onChange={setOrigin} />
             <ViewModeSwitch mode={mode} onChange={setMode} />
-            <Link to="/notes/new" aria-label={t('inbox.newNote')} className="button-outline group/tip relative px-3 py-1.5">
+            <Link
+              to="/notes/new"
+              aria-label={t('inbox.newNote')}
+              className="button-outline group/tip relative px-3 py-1.5"
+            >
               <SquarePen className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">{t('inbox.newNote')}</span>
               <span className="tooltip top-full mt-2">{t('inbox.newNoteKey')}</span>

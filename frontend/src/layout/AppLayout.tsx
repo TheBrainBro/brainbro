@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 
 import { useMarkWelcomeSeen, useSession } from '../auth/session'
 import { CaptureProvider } from '../capture/CaptureProvider'
@@ -10,6 +10,10 @@ import { isEditable } from '../lib/dom'
 import { followChanges } from '../live/changes'
 import { NoteTitlesProvider } from '../notes/NoteTitlesProvider'
 import { WelcomeDialog } from '../onboarding/WelcomeDialog'
+import { TutorialGuide } from '../onboarding/TutorialGuide'
+import { TutorialPill } from '../onboarding/TutorialPill'
+import { TutorialProvider } from '../onboarding/TutorialContext'
+import { useTutorial } from '../onboarding/tutorial'
 import { SearchPalette } from '../search/SearchPalette'
 import { SettingsDialog } from '../settings/SettingsDialog'
 import { ShareReceiver } from '../share/ShareReceiver'
@@ -21,19 +25,34 @@ import { TopBar } from './TopBar'
 
 /** The top bar over the page; on phones, a capture button within thumb's reach. */
 export function AppLayout() {
+  return (
+    <TutorialProvider>
+      <AppLayoutContent />
+    </TutorialProvider>
+  )
+}
+
+function AppLayoutContent() {
   const t = useT()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   // Where it would only get in the way: capturing already, or writing.
   const capturing = pathname === '/capture' || pathname.startsWith('/notes/')
   const [shortcuts, setShortcuts] = useState(false)
   const [searching, setSearching] = useState(false)
-  const [settings, setSettings] = useState(false)
+  // Open on a page of its own, or on the first one (true).
+  const [settings, setSettings] = useState<string | boolean>(false)
   const [about, setAbout] = useState(false)
-  // The first visit opens on a short tour; the account menu brings it back.
+  // The first visit opens on the welcome screen; the account menu brings it back.
   const { data: session } = useSession()
   const markWelcomeSeen = useMarkWelcomeSeen()
+  const tutorial = useTutorial()
   const [welcome, setWelcome] = useState(() => session?.welcome_seen === false)
   const queryClient = useQueryClient()
+  const closeWelcome = () => {
+    if (!session?.welcome_seen) markWelcomeSeen.mutate()
+    setWelcome(false)
+  }
 
   // What changes elsewhere (other devices, assistants) shows up here as it happens.
   useEffect(() => followChanges(queryClient), [queryClient])
@@ -61,6 +80,11 @@ export function AppLayout() {
         <NoteTitlesProvider>
           <ViewerProvider>
             <ShareReceiver />
+            <TutorialPill />
+            <TutorialGuide
+              onOpenAssistants={() => setSettings('assistants')}
+              onCloseSettings={() => setSettings(false)}
+            />
             <div className="flex h-full flex-col">
               <TopBar
                 onSearch={() => setSearching(true)}
@@ -83,13 +107,27 @@ export function AppLayout() {
               )}
             </div>
             {searching && <SearchPalette onClose={() => setSearching(false)} />}
-            {settings && <SettingsDialog onClose={() => setSettings(false)} />}
+            {settings && (
+              <SettingsDialog
+                page={typeof settings === 'string' ? settings : undefined}
+                onClose={() => {
+                  setSettings(false)
+                  // Closing it is the tutorial's "done here" too.
+                  tutorial.complete('assistant')
+                }}
+              />
+            )}
             {about && <AboutDialog onClose={() => setAbout(false)} />}
             {welcome && (
               <WelcomeDialog
-                onClose={() => {
-                  if (!session?.welcome_seen) markWelcomeSeen.mutate()
-                  setWelcome(false)
+                onClose={closeWelcome}
+                onTour={() => {
+                  closeWelcome()
+                  tutorial.start()
+                }}
+                onExamples={() => {
+                  closeWelcome()
+                  navigate('/')
                 }}
               />
             )}

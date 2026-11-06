@@ -17,6 +17,8 @@ export type Session = {
   limits?: { upload_max_size: number }
   /** Whether this user already closed the welcome tour, on any device. */
   welcome_seen?: boolean
+  /** Where the guided tour stands, the same on every device. */
+  tutorial?: TutorialProgress
   /** Whether this account has sample content that can be removed. */
   has_sample_content?: boolean
   /** The theme chosen, the same on every device. */
@@ -25,6 +27,18 @@ export type Session = {
   language?: LanguageChoice
   profile?: Profile
 }
+
+/** The parts of the guided tour: its first loop, then the tracks from its hub. */
+export type TutorialPart = 'loop' | 'boards' | 'graph' | 'assistant' | 'examples'
+
+export type TutorialProgress = {
+  started: boolean
+  done: TutorialPart[]
+  /** Put away for good: finished, or dismissed from its pill. */
+  closed: boolean
+}
+
+export type TutorialUpdate = { action: 'start' } | { action: 'close' } | { action: 'done'; part: TutorialPart }
 
 /** How the user shows: in the app, and as the author of their public notes. */
 export type Profile = {
@@ -138,5 +152,31 @@ export function useSetAvatar() {
     const form = new FormData()
     form.append('file', image, 'avatar.webp')
     return api<Profile>('/auth/profile/avatar/', { method: 'POST', body: form })
+  })
+}
+
+const NOT_STARTED: TutorialProgress = { started: false, done: [], closed: false }
+
+/** Saves where the guided tour stands, for every device; the session shows it at once. */
+export function useTutorialProgress() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (update: TutorialUpdate) =>
+      api<void>('/auth/tutorial/', { method: 'POST', body: JSON.stringify(update) }),
+    onMutate: (update) =>
+      queryClient.setQueryData<Session>(sessionKey, (session) => {
+        if (!session) return session
+        const current = session.tutorial ?? NOT_STARTED
+        const tutorial =
+          update.action === 'start'
+            ? { started: true, done: [], closed: false }
+            : update.action === 'close'
+              ? { ...current, closed: true }
+              : {
+                  ...current,
+                  done: current.done.includes(update.part) ? current.done : [...current.done, update.part],
+                }
+        return { ...session, tutorial }
+      }),
   })
 }

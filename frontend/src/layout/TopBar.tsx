@@ -3,12 +3,12 @@ import {
   CircleHelp,
   Info,
   Keyboard,
+  LayoutDashboard,
   Library,
   LogOut,
   Network,
   Search,
   Settings,
-  Waypoints,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -24,8 +24,8 @@ type Section = { to: string; label: MessageKey; icon: LucideIcon; end?: boolean 
 
 const sections: Section[] = [
   { to: '/', label: 'layout.inbox', icon: Inbox, end: true },
-  { to: '/boards', label: 'layout.boards', icon: Waypoints },
   { to: '/collections', label: 'layout.collections', icon: Library },
+  { to: '/boards', label: 'layout.boards', icon: LayoutDashboard },
   { to: '/graph', label: 'layout.graph', icon: Network },
 ]
 
@@ -126,7 +126,9 @@ function AccountMenu({
   useEffect(() => {
     if (!open) return
     function onPointerDown(event: PointerEvent) {
-      if (!menu.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target
+      if (menu.current?.contains(target as Node)) return
+      setOpen(false)
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false)

@@ -80,7 +80,10 @@ function Prompt() {
 
 function Setups() {
   return (
-    <div className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+    <div
+      data-tutorial="assistant-setup"
+      className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800"
+    >
       <Setup title="Claude" detail={t('tokens.claudeDetail')}>
         <li>{rich('tokens.claudeStep1', { b: bold })}</li>
         <li>{rich('tokens.claudeStep2', { b: bold })}</li>

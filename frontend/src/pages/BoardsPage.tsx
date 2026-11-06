@@ -1,22 +1,23 @@
-import { Plus, Waypoints } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { LayoutDashboard, Plus } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
-import { useBoards, useCreateBoard, useMoveBoard } from '../boards/api'
+import { useBoards, useMoveBoard } from '../boards/api'
+import { BoardDialog } from '../boards/BoardDialog'
 import { useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
 import { useSortable } from '../ui/sortable'
 import { EmptyState, ErrorState } from '../ui/states'
+import { useTutorial } from '../onboarding/tutorial'
 
 export function BoardsPage() {
   const t = useT()
   const boards = useBoards()
-  const create = useCreateBoard()
   const navigate = useNavigate()
   const { toast } = useFeedback()
-  const [title, setTitle] = useState('')
-  const input = useRef<HTMLInputElement>(null)
+  const [creating, setCreating] = useState(false)
+  const tutorial = useTutorial()
   const move = useMoveBoard()
   const sorted = useSortable(boards.data ?? [], (id, after) =>
     move.mutate(
@@ -24,38 +25,29 @@ export function BoardsPage() {
       { onError: (error) => toast({ message: error.message, tone: 'error' }) },
     ),
   )
+  const some = boards.isSuccess && boards.data.length > 0
+
+  const newButton = (
+    <button
+      type="button"
+      data-tutorial="board-create"
+      className="button-primary flex shrink-0 items-center gap-1.5"
+      onClick={() => {
+        setCreating(true)
+        tutorial.complete('boardCreate')
+      }}
+    >
+      <Plus className="size-4" aria-hidden="true" />
+      {t('boards.new')}
+    </button>
+  )
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-3 text-2xl font-semibold">{t('boards.title')}</h1>
-      <form
-        className="mb-6 flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (!title.trim()) return
-          create.mutate(title.trim(), {
-            onSuccess: (board) => navigate(`/boards/${board.id}`),
-            onError: (error) => toast({ message: error.message, tone: 'error' }),
-          })
-        }}
-      >
-        <input
-          ref={input}
-          className="input"
-          aria-label={t('boards.new')}
-          placeholder={t('boards.new')}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-        />
-        <button
-          type="submit"
-          className="button-primary flex shrink-0 items-center gap-1.5"
-          disabled={!title.trim() || create.isPending}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          {t('boards.create')}
-        </button>
-      </form>
+      <div className="mb-6 flex items-center gap-2">
+        <h1 className="mr-auto text-2xl font-semibold">{t('boards.title')}</h1>
+        {some && newButton}
+      </div>
 
       {boards.isPending && (
         <div role="status" aria-label={t('boards.loading')} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -67,13 +59,9 @@ export function BoardsPage() {
       {boards.isError && <ErrorState error={boards.error} onRetry={() => boards.refetch()} />}
       {boards.isSuccess && boards.data.length === 0 && (
         <EmptyState
-          icon={Waypoints}
+          icon={LayoutDashboard}
           title={t('boards.none')}
-          action={
-            <button type="button" className="button-primary" onClick={() => input.current?.focus()}>
-              {t('boards.nameFirst')}
-            </button>
-          }
+          action={newButton}
         >
           {t('boards.noneHint')}
         </EmptyState>
@@ -92,7 +80,7 @@ export function BoardsPage() {
               className="surface group flex h-28 flex-col justify-between px-4 py-3 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
             >
               <span className="flex items-start gap-2">
-                <Waypoints
+                <LayoutDashboard
                   className="mt-0.5 size-4 shrink-0 text-zinc-400 transition group-hover:text-accent-500"
                   aria-hidden="true"
                 />
@@ -106,6 +94,17 @@ export function BoardsPage() {
           </li>
         ))}
       </ul>
+
+      {creating && (
+        <BoardDialog
+          onClose={() => setCreating(false)}
+          onCreated={(board) => {
+            setCreating(false)
+            tutorial.complete('boardName')
+            navigate(`/boards/${board.id}`)
+          }}
+        />
+      )}
     </div>
   )
 }

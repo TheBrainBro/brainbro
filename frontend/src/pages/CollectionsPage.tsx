@@ -131,9 +131,15 @@ export function CollectionsPage() {
         )}
         {some &&
           (view === 'grid' ? (
-            <CollectionGrid collections={collections.data} parent={null} label={t('collections.title')} />
+            <CollectionGrid
+              collections={collections.data}
+              parent={null}
+              label={t('collections.title')}
+            />
           ) : (
-            <CollectionTree collections={collections.data} />
+            <CollectionTree
+              collections={collections.data}
+            />
           ))}
       </div>
 
@@ -257,7 +263,11 @@ function useTreeDrag(collections: Collection[]) {
 }
 
 /** The collections as a tree, sorted by dragging. */
-function CollectionTree({ collections }: { collections: Collection[] }) {
+function CollectionTree({
+  collections,
+}: {
+  collections: Collection[]
+}) {
   const t = useT()
   const drag = useTreeDrag(collections)
   return (

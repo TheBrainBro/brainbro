@@ -1,20 +1,26 @@
 import { CircleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { useCapturePipeline } from '../capture/context'
+import { useCapturePipeline, type CaptureDestination } from '../capture/context'
 import { VoiceRecorder } from '../capture/VoiceRecorder'
 import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
 import { MOD } from '../lib/keys'
+import { useTutorial } from '../onboarding/tutorial'
 
 /**
  * Always-visible capture: type, Enter and done (Shift+Enter for a new line),
  * or record a voice note. Pasting or dropping anywhere is handled by the
  * capture pipeline, with no box involved. `/` focuses the box.
  */
-export function CaptureBox() {
+export function CaptureBox({
+  into,
+}: {
+  into?: CaptureDestination
+} = {}) {
   const t = useT()
   const { capture, dismiss } = useCapturePipeline()
+  const tutorial = useTutorial()
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,11 +44,12 @@ export function CaptureBox() {
     setError(null)
     const [result] = await capture(
       { inputs: [{ kind: 'text', text: value }], skipped: [] },
-      { undo: false },
+      { undo: false, into },
     )
     setSaving(false)
     if ('item' in result) {
       setText('')
+      tutorial.complete('capture')
     } else {
       // The box shows the error and keeps the text: no failed card as well.
       setError(result.error)
@@ -62,6 +69,7 @@ export function CaptureBox() {
       </label>
       <textarea
         id="capture"
+        data-tutorial="capture"
         ref={textarea}
         className="input field-sizing-content max-h-64 min-h-11 resize-none"
         placeholder={t('items.capturePlaceholder')}
@@ -81,7 +89,7 @@ export function CaptureBox() {
         <VoiceRecorder
           className="button-ghost"
           label={t('items.voiceNote')}
-          onRecorded={(file) => capture({ inputs: [{ kind: 'file', file }], skipped: [] })}
+          onRecorded={(file) => capture({ inputs: [{ kind: 'file', file }], skipped: [] }, { into })}
         />
         {/* Phones paste into the box itself and have nothing to drop. */}
         <p className="ml-auto hidden items-center gap-1 text-xs text-zinc-500 sm:flex">

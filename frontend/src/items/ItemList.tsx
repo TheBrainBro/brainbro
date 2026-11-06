@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router'
 
 import { useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
+import { useTutorial } from '../onboarding/tutorial'
 import { useFeedback } from '../ui/feedback'
 import { isMoving, useFlip } from '../ui/flip'
 import { useViewer } from '../viewer/context'
@@ -76,6 +77,7 @@ export function ItemList({
   const viewer = useViewer()
   const { toast, confirm } = useFeedback()
   const undoAction = useUndoAction()
+  const tutorial = useTutorial()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focused, setFocused] = useState<string | null>(null)
   const [organizing, setOrganizing] = useState<string[] | null>(null)
@@ -86,6 +88,8 @@ export function ItemList({
   const [preview, setPreview] = useState<Preview | null>(null)
   const [departing, setDeparting] = useState<Map<string, Departure>>(new Map())
   const [entering, setEntering] = useState<Set<string>>(new Set())
+  // Several arriving at once (examples, an import) come in one after another.
+  const [stagger, setStagger] = useState<Map<string, number>>(new Map())
   const previous = useRef<{
     ready: boolean
     items: Map<string, Item>
@@ -98,6 +102,8 @@ export function ItemList({
       : items
   const list = useRef<HTMLUListElement>(null)
   const visibleItems = shown.filter((item) => !departing.has(item.id))
+  // The tutorial's note, the newest: its actions show, Organize first.
+  const guided = tutorial.step === 'organize' ? visibleItems[0]?.id : undefined
 
   // Items that change place glide there.
   useFlip(visibleItems.map((item) => item.id), cards, list)
@@ -151,6 +157,7 @@ export function ItemList({
         return next
       })
       setEntering((current) => new Set([...current, ...added]))
+      setStagger(new Map(added.length > 1 ? added.map((id, index) => [id, Math.min(index, 12)]) : []))
     }
     previous.current = { ready: true, items: currentItems, boxes: currentBoxes }
   }, [animatePresence, departing, items])
@@ -221,14 +228,16 @@ export function ItemList({
       focused: focused === item.id,
       onToggleSelect: () => toggle(item.id),
     }
+    const reveal = item.id === guided ? 'opacity-100' : 'opacity-0'
     const icons = (
-      <div className="popover flex gap-0.5 p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      <div className={`popover flex gap-0.5 p-0.5 ${reveal} shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100`}>
         {actionsFor([item.id], note, true)}
       </div>
     )
     return (
       <li
         key={leaving ? `${item.id}-leaving` : item.id}
+        data-tutorial={leaving ? undefined : 'inbox-item'}
         aria-hidden={leaving || undefined}
         className={`relative ${mode === 'masonry' ? 'mb-4 break-inside-avoid' : ''} ${
           sortable && !leaving ? 'cursor-grab active:cursor-grabbing' : ''
@@ -244,7 +253,9 @@ export function ItemList({
                 width: departure.box.width,
                 height: departure.box.height,
               }
-            : undefined
+            : entering.has(item.id) && stagger.has(item.id)
+              ? { animationDelay: `${stagger.get(item.id)! * 80}ms` }
+              : undefined
         }
         ref={
           leaving
@@ -284,7 +295,7 @@ export function ItemList({
             onOpen={note ? () => open(item) : undefined}
             onView={() => open(item)}
             actions={
-              <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+              <div className={`flex gap-1 ${reveal} transition-opacity group-focus-within:opacity-100 group-hover:opacity-100`}>
                 {actionsFor([item.id], note, mode === 'masonry')}
               </div>
             }
@@ -342,6 +353,7 @@ export function ItemList({
         onSuccess: () => {
           setSelected(new Set())
           toast({ message: triageMessage('organize', ids.length, collection.name) })
+          tutorial.complete('organize', { id: collection.id, name: collection.name })
         },
         onError: (error) => {
           cancelLeave(ids)
@@ -562,14 +574,16 @@ export function ItemList({
           </button>
         )
       if (id !== 'organize') return button()
+      const isGuided = ids.length === 1 && ids[0] === guided
       return (
         <OrganizeMenu
           key={id}
+          guided={isGuided}
           current={current}
           onPick={(collection) => organizeInto(ids, collection)}
           onRemove={(collection) => takeOutOf(ids, collection)}
           onMore={action}
-          trigger={button}
+          trigger={(props) => button(isGuided ? { ...props, 'data-tutorial': 'organize' } : props)}
         />
       )
     })
@@ -629,6 +643,7 @@ export function ItemList({
               {
                 onSuccess: () => {
                   toast({ message: triageMessage('organize', organizing.length, names) })
+                  tutorial.complete('organize', { id: collections[0], name: names })
                   setOrganizing(null)
                   setSelected(new Set())
                 },

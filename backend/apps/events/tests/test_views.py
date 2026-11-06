@@ -2,6 +2,7 @@ import json
 
 import pytest
 from asgiref.sync import async_to_sync
+from django.db import connection
 from django.test import AsyncClient
 
 from apps.events import views
@@ -83,3 +84,18 @@ def test_streams_the_users_changes(user, pubsub):
         ": ping\n\n",
     ]
     assert pubsub.closed
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hands_the_database_connection_back_before_streaming(user, pubsub, monkeypatch):
+    released = []
+    close = views.close_old_connections
+
+    def spy():
+        close()
+        released.append(connection.connection is None)
+
+    monkeypatch.setattr(views, "close_old_connections", spy)
+    response, _ = read(user, 1)
+    assert response.status_code == 200
+    assert released == [True]

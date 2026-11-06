@@ -283,7 +283,11 @@ export function CollectionDialog({
           <button type="button" className="button-secondary" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button type="submit" className="button-primary" disabled={!name.trim() || saving}>
+          <button
+            type="submit"
+            className="button-primary"
+            disabled={!name.trim() || saving}
+          >
             {collection ? t('common.save') : t('collectionDialog.create')}
           </button>
         </div>

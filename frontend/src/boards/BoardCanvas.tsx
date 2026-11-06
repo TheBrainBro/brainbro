@@ -53,6 +53,7 @@ import { isEditable } from '../lib/dom'
 import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
+import { useTutorial } from '../onboarding/tutorial'
 import { useTheme } from '../theme/theme'
 import { EmptyState } from '../ui/states'
 import { useViewer } from '../viewer/context'
@@ -180,6 +181,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   const [, historyChanged] = useReducer((count: number) => count + 1, 0)
   const [adding, setAdding] = useState(false)
   const viewer = useViewer()
+  const tutorial = useTutorial()
   const theme = useTheme()
   // Null until the saver first reports: it may start from a restored draft.
   const [reported, setSaveState] = useState<LayoutSaverState | null>(null)
@@ -380,7 +382,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
 
   /** Puts an item on the board at `position` (if it isn't there already) and commits. */
   function place(item: Item, position: { x: number; y: number }, select: boolean) {
-    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return
+    if (latest.current.some((node) => isItem(node) && node.data.itemId === item.id)) return null
     queryClient.setQueryData(itemKey(item.id), item)
     session.place()
     const others = select
@@ -403,6 +405,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     // Dropped on a group, it goes in it.
     settling.current.add(id)
     commit()
+    return id
   }
 
   /** Where a paste lands: under the pointer if it is over the canvas, else near the middle. */
@@ -416,7 +419,22 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
   }
 
   function add(item: Item) {
-    place(item, freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current)), true)
+    const position = freeSpot(pastePoint(), DEFAULT_WIDTH[item.kind], obstacles(latest.current))
+    const id = place(item, position, true)
+    // The tutorial's card: the panel steps aside and the view centers on it.
+    if (tutorial.step === 'boardPlace' && id) {
+      setAdding(false)
+      tutorial.complete('boardPlace')
+      requestAnimationFrame(() => {
+        const node = flow.getNode(id)
+        const width = node?.measured?.width ?? DEFAULT_WIDTH[item.kind]
+        const height = node?.measured?.height ?? 80
+        flow.setCenter(position.x + width / 2, position.y + height / 2, {
+          zoom: Math.min(flow.getZoom(), fitViewOptions.maxZoom),
+          duration: 500,
+        })
+      })
+    }
   }
 
   /** A paste or a drop: captured like anywhere else, each card placed once its item exists. */
@@ -716,7 +734,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           )}
           {!readOnly && (
             <Panel position="bottom-center">
-              <div role="toolbar" aria-label={t('canvas.tools')} className="popover flex items-center gap-0.5 p-1">
+              <div role="toolbar" data-tutorial="board-tools" aria-label={t('canvas.tools')} className="popover flex items-center gap-0.5 p-1">
                 {TOOLS.map(({ tool: value, label, key, icon }) => (
                   <ToolButton
                     key={value}
@@ -774,9 +792,13 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
                 <div className="mx-1 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
                 <button
                   type="button"
+                  data-tutorial="board-add"
                   aria-pressed={adding}
                   className="button-primary flex items-center gap-1.5 px-3 py-1.5"
-                  onClick={() => setAdding((open) => !open)}
+                  onClick={() => {
+                    setAdding((open) => !open)
+                    tutorial.complete('boardAdd')
+                  }}
                 >
                   <Plus className="size-4" aria-hidden="true" />
                   {t('canvas.addItems')}
@@ -893,7 +915,12 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
           </div>
         )}
         {adding && !readOnly && (
-          <AddItemsPanel onBoard={onBoard} onAdd={add} onClose={() => setAdding(false)} />
+          <AddItemsPanel
+            everything={tutorial.step === 'boardAdd' || tutorial.step === 'boardPlace'}
+            onBoard={onBoard}
+            onAdd={add}
+            onClose={() => setAdding(false)}
+          />
         )}
       </div>
     </BoardContext>

@@ -240,7 +240,8 @@ describe('boards', () => {
     expect(await screen.findByText('Trip')).toBeInTheDocument()
     expect(screen.getByText(/1 item/)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('New board'), { target: { value: 'Ideas' } })
+    fireEvent.click(screen.getByRole('button', { name: 'New board' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ideas' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/boards/b2'))
   })

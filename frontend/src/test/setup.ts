@@ -13,6 +13,10 @@ afterEach(cleanup)
 // an empty fake one, unless a test stubs its own (FakeLiveServer).
 globalThis.WebSocket = new FakeLiveServer().WebSocket
 
+// jsdom has no canvas: drawing code sees no context, as without WebGL,
+// instead of jsdom logging "not implemented".
+HTMLCanvasElement.prototype.getContext = () => null
+
 // jsdom doesn't implement layout APIs.
 Element.prototype.scrollIntoView ??= () => {}
 
