@@ -1,5 +1,7 @@
 import redis.asyncio as aioredis
+from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.db import close_old_connections
 from django.http import JsonResponse, StreamingHttpResponse
 
 from .changes import channel
@@ -18,6 +20,9 @@ async def stream(request):
     tab keeps it open. Needs the session; the browser reconnects on its own.
     """
     user = await request.auser()
+    # The stream needs no database: hand the connection back now, or it is
+    # held for as long as the tab stays open.
+    await sync_to_async(close_old_connections)()
     if not user.is_authenticated:
         return JsonResponse(
             {"detail": "Authentication credentials were not provided."}, status=403
