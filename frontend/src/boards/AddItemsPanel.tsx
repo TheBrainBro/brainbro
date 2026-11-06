@@ -26,16 +26,19 @@ const kinds: { kind?: ItemKind; label: MessageKey }[] = [
 
 /** Your items, to put on the board: with +, or dragged where they should go. */
 export function AddItemsPanel({
+  everything = false,
   onBoard,
   onAdd,
   onClose,
 }: {
+  /** Opens on all items, not just the Inbox (the tutorial's note is already sorted). */
+  everything?: boolean
   onBoard: Set<string>
   onAdd: (item: Item) => void
   onClose: () => void
 }) {
   const t = useT()
-  const [status, setStatus] = useState<ItemStatus | undefined>('inbox')
+  const [status, setStatus] = useState<ItemStatus | undefined>(everything ? undefined : 'inbox')
   const [kind, setKind] = useState<ItemKind | undefined>()
   const [query, setQuery] = useState('')
   const q = useDeferredValue(query.trim())

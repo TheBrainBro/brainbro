@@ -12,7 +12,7 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { NoteHistoryDialog } from '../history/HistoryPanel'
@@ -36,7 +36,6 @@ import { VisibilityMenu } from '../notes/VisibilityMenu'
 import { forgetLiveNote, useLiveNote, type LiveNote, type LiveStatus } from '../notes/live'
 import { NEW_NOTE, type NoteSaver, type SaverState } from '../notes/saver'
 import { useNewNoteSaver } from '../notes/useNewNoteSaver'
-import { useTutorial } from '../onboarding/tutorial'
 import { BackLink } from '../ui/BackLink'
 import { Dropdown } from '../ui/Dropdown'
 import { useFeedback } from '../ui/feedback'
@@ -121,8 +120,6 @@ function NoteSession({
 /** A note that doesn't exist yet: created on its first text, then live. */
 function NewNote({ onCreated }: { onCreated: (id: string) => void }) {
   const navigate = useNavigate()
-  const tutorial = useTutorial()
-  const tutorialAdvance = useRef<number | null>(null)
   const { saver, state } = useNewNoteSaver({
     onCreated: (item) => {
       onCreated(item.id)
@@ -132,17 +129,7 @@ function NewNote({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <NoteWorkspace
       initial={null}
-      newNote={{
-        saver,
-        state,
-        onTyped: (text) => {
-          if (!text.trim() || tutorial.step !== 'newNoteWrite' || tutorialAdvance.current) return
-          tutorialAdvance.current = window.setTimeout(
-            () => tutorial.complete('newNoteWrite'),
-            2_000,
-          )
-        },
-      }}
+      newNote={{ saver, state }}
     />
   )
 }
@@ -153,7 +140,7 @@ function NoteWorkspace({
 }: {
   initial: Item | null
   /** For a new note: its saver, until it is live. */
-  newNote?: { saver: NoteSaver<Item>; state: SaverState; onTyped?: (text: string) => void }
+  newNote?: { saver: NoteSaver<Item>; state: SaverState }
 }) {
   const t = useT()
   const noteId = initial?.id ?? newNote?.saver.noteId ?? null
@@ -369,10 +356,7 @@ function NoteWorkspace({
         <NoteEditor
           initial={newNote.saver.body}
           autoFocus
-          onChange={(text) => {
-            newNote.saver.edit(text)
-            newNote.onTyped?.(text)
-          }}
+          onChange={(text) => newNote.saver.edit(text)}
           onSave={() => newNote.saver.flush()}
           uploadImage={uploadNoteImage}
           onUploadError={(message) => toast({ message, tone: 'error' })}

@@ -14,12 +14,8 @@ import { useTutorial } from '../onboarding/tutorial'
  * capture pipeline, with no box involved. `/` focuses the box.
  */
 export function CaptureBox({
-  tutorialTarget = 'capture',
-  onCaptured,
   into,
 }: {
-  tutorialTarget?: string
-  onCaptured?: () => void
   into?: CaptureDestination
 } = {}) {
   const t = useT()
@@ -54,7 +50,6 @@ export function CaptureBox({
     if ('item' in result) {
       setText('')
       tutorial.complete('capture')
-      onCaptured?.()
     } else {
       // The box shows the error and keeps the text: no failed card as well.
       setError(result.error)
@@ -74,7 +69,7 @@ export function CaptureBox({
       </label>
       <textarea
         id="capture"
-        data-tutorial={tutorialTarget}
+        data-tutorial="capture"
         ref={textarea}
         className="input field-sizing-content max-h-64 min-h-11 resize-none"
         placeholder={t('items.capturePlaceholder')}
@@ -91,19 +86,11 @@ export function CaptureBox({
       />
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         {/* A failed upload keeps its card, with Retry: the recording isn't lost. */}
-        <span data-tutorial="voice">
-          <VoiceRecorder
-            className="button-ghost"
-            label={t('items.voiceNote')}
-            onRecorded={async (file) => {
-              const [result] = await capture(
-                { inputs: [{ kind: 'file', file }], skipped: [] },
-                { into },
-              )
-              if (result && 'item' in result) tutorial.complete('voice')
-            }}
-          />
-        </span>
+        <VoiceRecorder
+          className="button-ghost"
+          label={t('items.voiceNote')}
+          onRecorded={(file) => capture({ inputs: [{ kind: 'file', file }], skipped: [] }, { into })}
+        />
         {/* Phones paste into the box itself and have nothing to drop. */}
         <p className="ml-auto hidden items-center gap-1 text-xs text-zinc-500 sm:flex">
           {t('items.orPaste')}

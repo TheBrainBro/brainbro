@@ -42,6 +42,12 @@ class Profile(TimestampedModel):
     # Set the first time the welcome tour is closed, on any device.
     welcome_seen_at = models.DateTimeField(null=True, blank=True)
     sample_content_created_at = models.DateTimeField(null=True, blank=True)
+    # The guided tour, on every device: when it last started, the parts done
+    # ("loop", then the tracks from its hub) and when it was put away for good
+    # (finished, or dismissed from its minimized pill).
+    tutorial_started_at = models.DateTimeField(null=True, blank=True)
+    tutorial_done = models.JSONField(default=list, blank=True, db_default=[])
+    tutorial_closed_at = models.DateTimeField(null=True, blank=True)
     theme = models.CharField(max_length=10, choices=Theme, default=Theme.SYSTEM)
     language = models.CharField(
         max_length=10,

@@ -15,7 +15,6 @@ import { OriginFilter, type OriginFilters } from '../items/OriginFilter'
 import { ViewModeSwitch } from '../items/ViewModeSwitch'
 import { isEditable } from '../lib/dom'
 import { MOD } from '../lib/keys'
-import { useTutorial } from '../onboarding/tutorial'
 import { EmptyState, ErrorState } from '../ui/states'
 
 const TAB =
@@ -32,7 +31,6 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
   // Captures land in the inbox: that is where they show, unless it is filtered.
   const pending = archived || filtered ? [] : captures
   const navigate = useNavigate()
-  const tutorial = useTutorial()
   const [mode, setMode] = useViewMode('inbox')
   const nothing = items.isSuccess && all.length === 0 && pending.length === 0
   const empty = !archived && !filtered && nothing
@@ -75,12 +73,8 @@ export function InboxPage({ archived = false }: { archived?: boolean }) {
             <ViewModeSwitch mode={mode} onChange={setMode} />
             <Link
               to="/notes/new"
-              data-tutorial="new-note"
               aria-label={t('inbox.newNote')}
               className="button-outline group/tip relative px-3 py-1.5"
-              onClick={() => {
-                if (tutorial.step === 'newNoteNav') tutorial.complete('newNoteNav')
-              }}
             >
               <SquarePen className="size-4" aria-hidden="true" />
               <span className="hidden sm:inline">{t('inbox.newNote')}</span>

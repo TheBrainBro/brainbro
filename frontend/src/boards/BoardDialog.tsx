@@ -1,7 +1,6 @@
 import { useState } from 'react'
 
 import { useT } from '../i18n/i18n'
-import { useTutorial } from '../onboarding/tutorial'
 import { useCreateBoard, type BoardSummary } from './api'
 
 /** Names a new board, the way a new collection is named. */
@@ -13,7 +12,6 @@ export function BoardDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const tutorial = useTutorial()
   const create = useCreateBoard()
   const [title, setTitle] = useState('')
 
@@ -51,12 +49,7 @@ export function BoardDialog({
           autoFocus
           maxLength={200}
           value={title}
-          onChange={(event) => {
-            setTitle(event.target.value)
-            if (event.target.value.trim() && tutorial.step === 'boardName') {
-              tutorial.complete('boardName')
-            }
-          }}
+          onChange={(event) => setTitle(event.target.value)}
         />
         {create.isError && (
           <p role="alert" className="mt-3 text-sm text-red-600">
@@ -69,7 +62,6 @@ export function BoardDialog({
           </button>
           <button
             type="submit"
-            data-tutorial="board-submit"
             className="button-primary"
             disabled={!title.trim() || create.isPending}
           >

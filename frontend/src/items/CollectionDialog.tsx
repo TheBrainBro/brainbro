@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useT } from '../i18n/i18n'
 import { squareImage } from '../lib/image'
-import { useTutorial } from '../onboarding/tutorial'
 import {
   collectionsKey,
   setCollectionImage,
@@ -34,7 +33,6 @@ export function CollectionDialog({
   onClose: () => void
 }) {
   const t = useT()
-  const tutorial = useTutorial()
   const queryClient = useQueryClient()
   const create = useCreateCollection()
   const update = useUpdateCollection()
@@ -137,18 +135,12 @@ export function CollectionDialog({
             </label>
             <input
               id="collection-name"
-              data-tutorial="collection-name"
               className="input"
               placeholder={t('collectionDialog.namePlaceholder')}
               autoFocus
               maxLength={120}
               value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-                if (event.target.value.trim() && tutorial.step === 'collectionName') {
-                  tutorial.complete('collectionName')
-                }
-              }}
+              onChange={(event) => setName(event.target.value)}
             />
           </div>
         </div>
@@ -293,7 +285,6 @@ export function CollectionDialog({
           </button>
           <button
             type="submit"
-            data-tutorial="collection-submit"
             className="button-primary"
             disabled={!name.trim() || saving}
           >

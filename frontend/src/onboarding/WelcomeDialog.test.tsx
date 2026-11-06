@@ -8,17 +8,37 @@ import { WelcomeDialog } from './WelcomeDialog'
 
 const user = { id: 1, username: 'carlos', email: '', is_staff: true }
 
+const note = {
+  id: 'tutorial-note',
+  kind: 'note',
+  status: 'inbox',
+  title: '',
+  body: 'Plan a weekend trip',
+  collections: [],
+  created_at: '2026-11-06T12:00:00Z',
+  updated_at: '2026-11-06T12:00:00Z',
+}
+const trip = { id: 'trip', name: 'Weekend trip', parent: null, kind: 'project', icon: '', color: '', item_count: 0 }
+
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
 }
 
 function renderApp() {
-  const fetch = vi.fn(async (url: string, _init?: RequestInit) => {
+  // The inbox has the note once it is captured.
+  let captured = false
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.includes('/auth/welcome/')) return new Response(null, { status: 204 })
     if (url.includes('/auth/sample-content/')) return new Response(null, { status: 204 })
-    if (url.includes('/items/capture/')) return jsonResponse({ id: 'tutorial-note' })
+    if (url.includes('/items/capture/')) {
+      captured = true
+      return jsonResponse(note)
+    }
+    if (url.includes('/items/triage/')) return new Response(null, { status: 204 })
+    if (url.endsWith('/collections/') && init?.method === 'POST') return jsonResponse(trip)
     if (url.includes('/auth/session/')) return jsonResponse({ authenticated: true, user, welcome_seen: false })
     if (url.includes('/items/note-titles/')) return jsonResponse([])
+    if (url.includes('/items/') && captured) return jsonResponse({ results: [note], next: null })
     return jsonResponse({ results: [], next: null })
   })
   vi.stubGlobal('fetch', fetch)
@@ -109,7 +129,21 @@ describe('first visit', () => {
     const capture = await screen.findByRole('textbox', { name: 'Capture' })
     fireEvent.change(capture, { target: { value: 'Plan a weekend trip' } })
     fireEvent.keyDown(capture, { key: 'Enter' })
-    expect(await screen.findByText('Noted, bro! This is now in your Inbox.')).toBeInTheDocument()
+    expect(await screen.findByText('Noted, bro! Now give it a home')).toBeInTheDocument()
+
+    // Organize into a new collection, from the note itself.
+    fireEvent.click(await screen.findByRole('button', { name: 'Organize' }))
+    const filter = await screen.findByRole('textbox', { name: 'Find or create a collection' })
+    fireEvent.change(filter, { target: { value: 'Weekend trip' } })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+
+    expect(await screen.findByText(/Your note lives in Weekend trip/)).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/items/triage/',
+      expect.objectContaining({
+        body: JSON.stringify({ ids: ['tutorial-note'], action: 'organize', collections: ['trip'] }),
+      }),
+    )
   })
 
   it('shows once, and the account menu brings it back', async () => {

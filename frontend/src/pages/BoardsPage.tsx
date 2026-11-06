@@ -17,6 +17,7 @@ export function BoardsPage() {
   const navigate = useNavigate()
   const { toast } = useFeedback()
   const [creating, setCreating] = useState(false)
+  const tutorial = useTutorial()
   const move = useMoveBoard()
   const sorted = useSortable(boards.data ?? [], (id, after) =>
     move.mutate(
@@ -24,7 +25,6 @@ export function BoardsPage() {
       { onError: (error) => toast({ message: error.message, tone: 'error' }) },
     ),
   )
-  const tutorial = useTutorial()
   const some = boards.isSuccess && boards.data.length > 0
 
   const newButton = (
@@ -34,7 +34,7 @@ export function BoardsPage() {
       className="button-primary flex shrink-0 items-center gap-1.5"
       onClick={() => {
         setCreating(true)
-        if (tutorial.step === 'boardCreate') tutorial.complete('boardCreate')
+        tutorial.complete('boardCreate')
       }}
     >
       <Plus className="size-4" aria-hidden="true" />
@@ -100,7 +100,7 @@ export function BoardsPage() {
           onClose={() => setCreating(false)}
           onCreated={(board) => {
             setCreating(false)
-            tutorial.complete('boardSubmit')
+            tutorial.complete('boardName')
             navigate(`/boards/${board.id}`)
           }}
         />

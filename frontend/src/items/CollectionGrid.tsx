@@ -15,14 +15,10 @@ export function CollectionGrid({
   collections,
   parent,
   label,
-  tutorialCollection,
-  onOpen,
 }: {
   collections: Collection[]
   parent: string | null
   label: string
-  tutorialCollection?: string | null
-  onOpen?: () => void
 }) {
   const move = useMoveCollection()
   const { toast } = useFeedback()
@@ -49,9 +45,7 @@ export function CollectionGrid({
               to={`/collections/${collection.id}`}
               // The card moves, not the link.
               draggable={false}
-              data-tutorial={collection.id === tutorialCollection ? 'collection-open' : undefined}
               className="surface flex h-full flex-col gap-3 p-4 transition hover:-translate-y-px hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700"
-              onClick={() => collection.id === tutorialCollection && onOpen?.()}
             >
               <CollectionAvatar collection={collection} size="lg" />
               <span className="min-w-0">
