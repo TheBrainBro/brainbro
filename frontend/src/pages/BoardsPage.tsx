@@ -1,8 +1,9 @@
 import { LayoutDashboard, Plus } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
-import { useBoards, useCreateBoard, useMoveBoard } from '../boards/api'
+import { useBoards, useMoveBoard } from '../boards/api'
+import { BoardDialog } from '../boards/BoardDialog'
 import { useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import { useFeedback } from '../ui/feedback'
@@ -13,11 +14,9 @@ import { useTutorial } from '../onboarding/tutorial'
 export function BoardsPage() {
   const t = useT()
   const boards = useBoards()
-  const create = useCreateBoard()
   const navigate = useNavigate()
   const { toast } = useFeedback()
-  const [title, setTitle] = useState('')
-  const input = useRef<HTMLInputElement>(null)
+  const [creating, setCreating] = useState(false)
   const move = useMoveBoard()
   const sorted = useSortable(boards.data ?? [], (id, after) =>
     move.mutate(
@@ -26,48 +25,29 @@ export function BoardsPage() {
     ),
   )
   const tutorial = useTutorial()
+  const some = boards.isSuccess && boards.data.length > 0
+
+  const newButton = (
+    <button
+      type="button"
+      data-tutorial="board-create"
+      className="button-primary flex shrink-0 items-center gap-1.5"
+      onClick={() => {
+        setCreating(true)
+        if (tutorial.step === 'boardCreate') tutorial.complete('boardCreate')
+      }}
+    >
+      <Plus className="size-4" aria-hidden="true" />
+      {t('boards.new')}
+    </button>
+  )
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-3 text-2xl font-semibold">{t('boards.title')}</h1>
-      <form
-        className="mb-6 flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (!title.trim()) return
-          create.mutate(title.trim(), {
-            onSuccess: (board) => {
-              tutorial.complete('boardSubmit')
-              navigate(`/boards/${board.id}`)
-            },
-            onError: (error) => toast({ message: error.message, tone: 'error' }),
-          })
-        }}
-      >
-        <input
-          ref={input}
-          data-tutorial="board-title"
-          className="input"
-          aria-label={t('boards.new')}
-          placeholder={t('boards.new')}
-          value={title}
-          onChange={(event) => {
-            setTitle(event.target.value)
-            if (event.target.value.trim() && tutorial.step === 'boardName') {
-              tutorial.complete('boardName')
-            }
-          }}
-        />
-        <button
-          type="submit"
-          data-tutorial="board-submit"
-          className="button-primary flex shrink-0 items-center gap-1.5"
-          disabled={!title.trim() || create.isPending}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          {t('boards.create')}
-        </button>
-      </form>
+      <div className="mb-6 flex items-center gap-2">
+        <h1 className="mr-auto text-2xl font-semibold">{t('boards.title')}</h1>
+        {some && newButton}
+      </div>
 
       {boards.isPending && (
         <div role="status" aria-label={t('boards.loading')} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -81,11 +61,7 @@ export function BoardsPage() {
         <EmptyState
           icon={LayoutDashboard}
           title={t('boards.none')}
-          action={
-            <button type="button" className="button-primary" onClick={() => input.current?.focus()}>
-              {t('boards.nameFirst')}
-            </button>
-          }
+          action={newButton}
         >
           {t('boards.noneHint')}
         </EmptyState>
@@ -118,6 +94,17 @@ export function BoardsPage() {
           </li>
         ))}
       </ul>
+
+      {creating && (
+        <BoardDialog
+          onClose={() => setCreating(false)}
+          onCreated={(board) => {
+            setCreating(false)
+            tutorial.complete('boardSubmit')
+            navigate(`/boards/${board.id}`)
+          }}
+        />
+      )}
     </div>
   )
 }

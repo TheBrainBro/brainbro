@@ -14,6 +14,7 @@ export type TutorialStep =
   | 'collectionOpen'
   | 'collectionAdd'
   | 'boardsNav'
+  | 'boardCreate'
   | 'boardName'
   | 'boardSubmit'
   | 'boardAddOpen'
