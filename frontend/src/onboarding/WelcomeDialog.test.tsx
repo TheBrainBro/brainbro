@@ -8,22 +8,18 @@ import { WelcomeDialog } from './WelcomeDialog'
 
 const user = { id: 1, username: 'carlos', email: '', is_staff: true }
 
+function jsonResponse(body: unknown) {
+  return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
+}
+
 function renderApp() {
   const fetch = vi.fn(async (url: string, _init?: RequestInit) => {
     if (url.includes('/auth/welcome/')) return new Response(null, { status: 204 })
-    if (url.includes('/items/capture/')) {
-      return new Response(JSON.stringify({ id: 'tutorial-note' }), {
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-    const body = url.includes('/auth/session/')
-      ? { authenticated: true, user, welcome_seen: false }
-      : url.includes('/items/note-titles/')
-        ? []
-        : { results: [], next: null }
-    return new Response(JSON.stringify(body), {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    if (url.includes('/auth/sample-content/')) return new Response(null, { status: 204 })
+    if (url.includes('/items/capture/')) return jsonResponse({ id: 'tutorial-note' })
+    if (url.includes('/auth/session/')) return jsonResponse({ authenticated: true, user, welcome_seen: false })
+    if (url.includes('/items/note-titles/')) return jsonResponse([])
+    return jsonResponse({ results: [], next: null })
   })
   vi.stubGlobal('fetch', fetch)
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -40,97 +36,94 @@ function renderApp() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('WelcomeDialog', () => {
-  function renderDialog(onClose: () => void, onStart = onClose) {
+  function renderDialog(props: Partial<Parameters<typeof WelcomeDialog>[0]> = {}) {
+    const handlers = { onClose: vi.fn(), onTour: vi.fn(), onExamples: vi.fn(), ...props }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={queryClient}>
-        <WelcomeDialog onClose={onClose} onStart={onStart} />
+        <WelcomeDialog {...handlers} />
       </QueryClientProvider>,
     )
+    return handlers
   }
 
-  it('walks through the steps and closes on the last one', () => {
-    const onClose = vi.fn()
-    renderDialog(onClose)
+  it('greets first, and a click skips straight to the choices', async () => {
+    const { onTour } = renderDialog()
 
-    expect(screen.getByRole('heading', { name: 'Welcome to your second brain' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(screen.getByRole('heading', { name: 'Sort it later' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome to BrainBro!' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Show me around/ })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Go to step 3' }))
-    expect(screen.getByRole('heading', { name: 'See it your way' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(screen.getByRole('heading', { name: 'One memory for your AI' })).toBeInTheDocument()
-    const option = screen.getByRole('checkbox', { name: /Start with a few examples/ })
-    expect(option).toBeChecked()
-    expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument()
-    fireEvent.click(option)
-    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
-    expect(onClose).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('dialog'))
+    fireEvent.click(screen.getByRole('button', { name: /Show me around/ }))
+    // After the exit animation.
+    expect(onTour).not.toHaveBeenCalled()
+    await waitFor(() => expect(onTour).toHaveBeenCalled())
   })
 
-  it('moves with the arrow keys and closes on Escape', () => {
-    const onClose = vi.fn()
-    renderDialog(onClose)
-    const dialog = screen.getByRole('dialog')
+  it('brings the choices in on its own after the intro', async () => {
+    renderDialog()
+    expect(await screen.findByRole('button', { name: /Show me around/ }, { timeout: 4000 })).toBeInTheDocument()
+  })
 
-    fireEvent.keyDown(dialog, { key: 'ArrowRight' })
-    expect(screen.getByRole('heading', { name: 'Sort it later' })).toBeInTheDocument()
-    fireEvent.keyDown(dialog, { key: 'ArrowLeft' })
-    expect(screen.getByRole('heading', { name: 'Welcome to your second brain' })).toBeInTheDocument()
+  it('starts empty, leaving once', async () => {
+    const { onClose } = renderDialog()
 
-    fireEvent.keyDown(dialog, { key: 'Escape' })
-    expect(onClose).toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: 'Start with an empty brain' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes on Escape', async () => {
+    const { onClose } = renderDialog()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('adds the examples before moving on', async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetch)
+    const { onExamples } = renderDialog()
+
+    fireEvent.click(screen.getByRole('dialog'))
+    fireEvent.click(screen.getByRole('button', { name: /Explore with examples/ }))
+
+    await waitFor(() => expect(onExamples).toHaveBeenCalled())
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/auth/sample-content/',
+      expect.objectContaining({ body: JSON.stringify({ mcp_url: `${window.location.origin}/api/mcp` }) }),
+    )
   })
 })
 
 describe('first visit', () => {
-  it('starts with examples selected and creates them when the tour is finished', async () => {
+  it('starts the tour on an empty inbox, without examples', async () => {
     const fetch = renderApp()
-    await screen.findByRole('heading', { name: 'Welcome to your second brain' })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-
-    const option = screen.getByRole('checkbox', { name: /Start with a few examples/ })
-    expect(option).toBeChecked()
-    expect(fetch).not.toHaveBeenCalledWith('/api/auth/sample-content/', expect.anything())
-    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
-
-    await waitFor(() => {
-      const request = fetch.mock.calls.find(([url]) => url === '/api/auth/sample-content/')
-      expect(request?.[1]?.body).toBe(
-        JSON.stringify({ mcp_url: `${window.location.origin}/api/mcp` }),
-      )
-    })
+    await screen.findByRole('heading', { name: 'Welcome to BrainBro!' })
+    fireEvent.click(screen.getByRole('dialog'))
+    fireEvent.click(screen.getByRole('button', { name: /Show me around/ }))
 
     expect(await screen.findByText("Let's save your first idea")).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalledWith('/api/auth/sample-content/', expect.anything())
     const capture = await screen.findByRole('textbox', { name: 'Capture' })
     fireEvent.change(capture, { target: { value: 'Plan a weekend trip' } })
     fireEvent.keyDown(capture, { key: 'Enter' })
     expect(await screen.findByText('Noted, bro! This is now in your Inbox.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    expect(await screen.findByText('Now bring in a file')).toBeInTheDocument()
   })
 
-  it('shows the tour once, and the account menu brings it back', async () => {
+  it('shows once, and the account menu brings it back', async () => {
     const fetch = renderApp()
 
-    expect(
-      await screen.findByRole('heading', { name: 'Welcome to your second brain' }),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await screen.findByRole('heading', { name: 'Welcome to BrainBro!' })
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() =>
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/auth/welcome/',
-        expect.objectContaining({ method: 'POST' }),
-      ),
+      expect(fetch).toHaveBeenCalledWith('/api/auth/welcome/', expect.objectContaining({ method: 'POST' })),
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Welcome tour' }))
-    expect(screen.getByRole('heading', { name: 'Welcome to your second brain' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Getting started' }))
+    expect(screen.getByRole('heading', { name: 'Welcome to BrainBro!' })).toBeInTheDocument()
   })
 })

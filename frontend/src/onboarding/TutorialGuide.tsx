@@ -35,6 +35,7 @@ const COPY: Record<TutorialStep, { title: MessageKey; line: MessageKey }> = {
   collectionOpen: { title: 'tutorial.collectionOpenTitle', line: 'tutorial.collectionOpenLine' },
   collectionAdd: { title: 'tutorial.collectionAddTitle', line: 'tutorial.collectionAddLine' },
   boardsNav: { title: 'tutorial.boardsNavTitle', line: 'tutorial.boardsNavLine' },
+  boardCreate: { title: 'tutorial.boardCreateTitle', line: 'tutorial.boardCreateLine' },
   boardName: { title: 'tutorial.boardNameTitle', line: 'tutorial.boardNameLine' },
   boardSubmit: { title: 'tutorial.boardSubmitTitle', line: 'tutorial.boardSubmitLine' },
   boardAddOpen: { title: 'tutorial.boardAddOpenTitle', line: 'tutorial.boardAddOpenLine' },
@@ -61,6 +62,7 @@ const SELECTORS: Record<TutorialStep, string> = {
   collectionOpen: '[data-tutorial="collection-open"]',
   collectionAdd: '[data-tutorial="collection-add"]',
   boardsNav: '[data-tutorial="nav-boards"]',
+  boardCreate: '[data-tutorial="board-create"]',
   boardName: '[data-tutorial="board-title"]',
   boardSubmit: '[data-tutorial="board-submit"]',
   boardAddOpen: '[data-tutorial="board-add"]',
@@ -80,7 +82,7 @@ function findTarget(step: TutorialStep) {
 function pathFor(step: TutorialStep) {
   if (['capture', 'noteSaved', 'file', 'voice', 'newNoteNav'].includes(step)) return '/'
   if (['collectionCreate', 'collectionName', 'collectionSubmit', 'collectionOpen'].includes(step)) return '/collections'
-  if (['boardName', 'boardSubmit'].includes(step)) return '/boards'
+  if (['boardCreate', 'boardName', 'boardSubmit'].includes(step)) return '/boards'
   if (step === 'graphIntro') return '/graph'
   return null
 }

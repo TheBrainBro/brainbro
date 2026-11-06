@@ -27,7 +27,13 @@ const user = { id: 1, username: 'carlos', email: '', is_staff: true }
 
 // Signed in, with no notes to link to.
 const signedIn = async (url: string) =>
-  jsonResponse(url.includes('/items/note-titles/') ? [] : { authenticated: true, user })
+  jsonResponse(
+    url.includes('/auth/session/')
+      ? { authenticated: true, user }
+      : url.includes('/items/note-titles/')
+        ? []
+        : { count: 0, results: [], next: null },
+  )
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -59,8 +65,8 @@ describe('auth routing', () => {
 
   it('opens the keyboard shortcuts with ? or from the account menu, not while typing', async () => {
     vi.stubGlobal('fetch', vi.fn(signedIn))
-    renderAt('/boards')
-    const input = await screen.findByRole('textbox', { name: 'New board' })
+    renderAt('/')
+    const input = await screen.findByRole('textbox', { name: 'Capture' })
 
     fireEvent.keyDown(input, { key: '?' })
     expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
