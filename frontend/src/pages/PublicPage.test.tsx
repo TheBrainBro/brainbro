@@ -190,6 +190,6 @@ describe('a blog on its own domain', () => {
     renderAt('/trip-plan', { onSite: true })
 
     expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Feed' })).toHaveAttribute('href', '/rss.xml')
+    expect(screen.getByRole('link', { name: 'Feed' })).toHaveAttribute('href', '/rss')
   })
 })
