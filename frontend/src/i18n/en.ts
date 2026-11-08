@@ -578,7 +578,7 @@ export const en = {
     updated: 'Updated {date}',
     feed: 'Feed',
     moreFrom: 'More from {name}',
-    allNotes: 'All notes',
+    allPosts: 'All posts',
   },
   pending: {
     failed: 'Failed: {name}',

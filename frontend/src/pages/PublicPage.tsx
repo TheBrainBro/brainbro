@@ -94,7 +94,17 @@ function ProfileHeader({
 }) {
   useT()
   return (
-    <header className="flex flex-col items-center text-center">
+    <header className="relative flex flex-col items-center text-center">
+      {feed && (
+        <a
+          href="/rss"
+          className="button-icon absolute top-0 right-0 size-9 text-zinc-400"
+          aria-label={t('public.feed')}
+          title={t('public.feed')}
+        >
+          <Rss className="size-4" aria-hidden="true" />
+        </a>
+      )}
       <PublicAvatar
         url={avatarUrl}
         name={name}
@@ -113,15 +123,6 @@ function ProfileHeader({
       {detail && <p className="mt-1 text-zinc-500">{detail}</p>}
       {description && (
         <p className="mt-4 max-w-md text-zinc-700 dark:text-zinc-300">{description}</p>
-      )}
-      {feed && (
-        <a
-          href="/rss"
-          className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-600 transition hover:border-accent-300 hover:text-accent-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-accent-700 dark:hover:text-accent-300"
-        >
-          <Rss className="size-3.5" aria-hidden="true" />
-          {t('public.feed')}
-        </a>
       )}
     </header>
   )
@@ -284,15 +285,55 @@ function PublicNoteView({ handle, slug }: { handle: string; slug: string }) {
   useTitle(note.data?.title)
 
   return (
-    <Frame>
-      {note.isPending ? (
-        <Loading />
-      ) : note.isError ? (
-        <Missing error={note.error} onRetry={() => note.refetch()} />
-      ) : (
-        <PublicArticle note={note.data} home={`/@${handle}`} author={handle} />
-      )}
-    </Frame>
+    <>
+      <TopBar
+        home={`/@${handle}`}
+        name={note.data ? note.data.author || `@${note.data.handle}` : undefined}
+        avatarUrl={note.data?.avatar_url ?? null}
+      />
+      <Frame>
+        {note.isPending ? (
+          <Loading />
+        ) : note.isError ? (
+          <Missing error={note.error} onRetry={() => note.refetch()} />
+        ) : (
+          <PublicArticle note={note.data} home={`/@${handle}`} author={handle} />
+        )}
+      </Frame>
+    </>
+  )
+}
+
+/** On top of a note: whose it is (the blog, or its author), leading back to all their posts. */
+function TopBar({
+  home,
+  name,
+  avatarUrl,
+  feed = false,
+}: {
+  home: string
+  name: string | undefined
+  avatarUrl: string | null
+  feed?: boolean
+}) {
+  useT()
+  return (
+    <nav className="sticky top-0 z-10 border-b border-zinc-100 bg-white/85 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/85">
+      <div className="mx-auto flex min-h-14 max-w-2xl items-center justify-between gap-4 px-4 py-3">
+        <Link
+          to={home}
+          className="flex min-w-0 items-center gap-2.5 font-semibold hover:text-accent-700 dark:hover:text-accent-300"
+        >
+          {name && <PublicAvatar url={avatarUrl} name={name} className="size-7 text-xs" />}
+          <span className="truncate">{name ?? '\u00a0'}</span>
+        </Link>
+        {feed && (
+          <a href="/rss" className="button-icon size-8" aria-label={t('public.feed')}>
+            <Rss className="size-4" aria-hidden="true" />
+          </a>
+        )}
+      </div>
+    </nav>
   )
 }
 
@@ -309,9 +350,10 @@ function Missing({ error, onRetry }: { error: Error; onRetry: () => void }) {
 }
 
 /**
- * A published note as an article: its author and date, its title, its text,
- * then more of the author's notes. `home` is where its author's notes are
- * (their page, or the blog's index); `author` narrows "more" to theirs.
+ * A published note as an article: its date, its title, its text, then more
+ * of the author's notes. Whose it is shows in the `TopBar` above. `home` is
+ * where all their posts are (their page, or the blog's index); `author`
+ * narrows "more" to theirs.
  */
 function PublicArticle({ note, home, author }: { note: PublicNote; home: string; author?: string }) {
   useT()
@@ -333,17 +375,7 @@ function PublicArticle({ note, home, author }: { note: PublicNote; home: string;
 
   return (
     <article>
-      <Link to={home} className="group flex items-center gap-3">
-        <PublicAvatar url={note.avatar_url} name={name} className="size-11 text-base" />
-        <span className="min-w-0">
-          <span className="block font-semibold group-hover:text-accent-700 dark:group-hover:text-accent-300">
-            {name}
-          </span>
-          {note.author && <span className="block text-sm text-zinc-500">@{note.handle}</span>}
-        </span>
-      </Link>
-
-      <p className="mt-8 text-sm text-zinc-500">
+      <p className="text-sm text-zinc-500">
         <time dateTime={note.published_at}>{day(note.published_at)}</time>
         {edited && (
           <>
@@ -370,19 +402,36 @@ function PublicArticle({ note, home, author }: { note: PublicNote; home: string;
       />
 
       <footer className="mt-16 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-        <h2 className="text-sm font-semibold text-zinc-500">{t('public.moreFrom', { name })}</h2>
-        <div className="mt-2">
-          <NoteList author={author} except={note.slug} limit={3} empty={false} />
-        </div>
+        <MoreNotes author={author} except={note.slug} name={name} />
         <Link
           to={home}
-          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent-700 hover:underline dark:text-accent-300"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-700 hover:underline dark:text-accent-300"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
-          {t('public.allNotes')}
+          {t('public.allPosts')}
         </Link>
       </footer>
     </article>
+  )
+}
+
+/** Up to three more of their notes, under a heading; nothing when there are none. */
+function MoreNotes({ author, except, name }: { author?: string; except: string; name: string }) {
+  useT()
+  const notes = usePublicNotes(author)
+  const more = (notes.data?.results ?? []).filter((note) => note.slug !== except).slice(0, 3)
+  if (more.length === 0) return null
+  return (
+    <section className="mb-8">
+      <h2 className="text-sm font-semibold text-zinc-500">{t('public.moreFrom', { name })}</h2>
+      <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800/70">
+        {more.map((other) => (
+          <li key={other.url}>
+            <NoteCard note={other} />
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -429,22 +478,12 @@ export function SiteNotePage() {
 
   return (
     <>
-      <nav className="sticky top-0 z-10 border-b border-zinc-100 bg-white/85 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/85">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
-          <Link
-            to="/"
-            className="flex min-w-0 items-center gap-2.5 font-semibold hover:text-accent-700 dark:hover:text-accent-300"
-          >
-            {site.data && (
-              <PublicAvatar url={site.data.avatar_url} name={site.data.title} className="size-7 text-xs" />
-            )}
-            <span className="truncate">{site.data?.title || site.data?.hostname || ' '}</span>
-          </Link>
-          <a href="/rss" className="button-icon size-8" aria-label={t('public.feed')}>
-            <Rss className="size-4" aria-hidden="true" />
-          </a>
-        </div>
-      </nav>
+      <TopBar
+        home="/"
+        name={site.data ? site.data.title || site.data.hostname : undefined}
+        avatarUrl={site.data?.avatar_url ?? null}
+        feed
+      />
       <Frame>
         {site.isError ? (
           <Missing error={site.error} onRetry={() => site.refetch()} />
