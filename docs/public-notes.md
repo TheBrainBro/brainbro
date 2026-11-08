@@ -13,6 +13,12 @@ the link, opens the page and leads to **Page settings**. Switching back to Priva
 page down. A note filed in a blog's collection lives on the blog's domain instead (see
 [blogs.md](blogs.md)).
 
+**Unlisted** is public with no listing: the note opens at the same address, for anyone with
+the link, but it is left out of `/@<handle>`, `/p`, a blog's index and categories, its RSS and
+its sitemap, and its page carries `<meta name="robots" content="noindex">`. It is not secret:
+the address comes from the title, so it can be guessed. `[[links]]` to it from published notes
+keep working. Notes are **Public** (listed) unless their owner says otherwise.
+
 - The **handle** is the user's public address on the server, `/@<handle>/`: made from their
   display name the first time they publish (`author` without one), and changed in Settings ›
   Profile. Lowercase letters, numbers and hyphens, 2 to 40, unique on the server; never the
@@ -84,7 +90,7 @@ Nothing links to it for now.
 
 | Method | Path | |
 | --- | --- | --- |
-| `PUT` | `/api/items/<id>/publication/` | Makes the note public. Returns the note, with `public_slug`, `published_at` and `public_url` (`/@<handle>/<slug>`, or its blog's full URL). |
+| `PUT` | `/api/items/<id>/publication/` | Makes the note public; `{"listed": false}` makes it unlisted, `true` lists it, without it stays as it was. Returns the note, with `public_slug`, `published_at`, `public_listed` and `public_url` (`/@<handle>/<slug>`, or its blog's full URL). |
 | `DELETE` | `/api/items/<id>/publication/` | Makes it private. Returns the note. |
 | `GET` | `/api/items/<id>/page/` | `{slug, address, title, description, image, defaults, preview}`: the page settings, what comes before the slug, the defaults and the result. |
 | `PATCH` | `/api/items/<id>/page/` | Any of `slug`, `title`, `description`, `image` (a `src` of the note's images, or `"none"`); empty ones go back to their default. |

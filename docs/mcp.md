@@ -235,7 +235,9 @@ restore a version, in the app.
 Notes say whether they are public: `published_at` (null while private) and,
 once published, `public_url`, the whole address, on the server
 (`https://<host>/@<handle>/<slug>`) or on the note's blog (see
-[public-notes.md](public-notes.md) and [blogs.md](blogs.md)).
+[public-notes.md](public-notes.md) and [blogs.md](blogs.md)). `listed` is false
+while unlisted: readable at its address, but on no list or feed. `publish_note`
+and `update_page` take `listed` to change it.
 
 Publishing makes a note readable by anyone. The instructions and the tool
 descriptions tell assistants to publish, change a page or set up a blog only
