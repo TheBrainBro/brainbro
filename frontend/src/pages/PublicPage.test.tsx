@@ -163,6 +163,25 @@ describe('the article', () => {
   })
 })
 
+describe('more from the author', () => {
+  it("isn't there when the note is their only one", async () => {
+    renderAt('/@ana/trip-plan')
+
+    expect(await screen.findByRole('link', { name: 'All posts' })).toHaveAttribute('href', '/@ana')
+    expect(screen.queryByText(/More from/)).not.toBeInTheDocument()
+  })
+
+  it('shows their other notes', async () => {
+    renderAt('/@ana/packing')
+
+    expect(await screen.findByText('More from @ana')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
+      'href',
+      '/@ana/trip-plan',
+    )
+  })
+})
+
 describe('PublicAuthorPage', () => {
   it('shows an author with their public notes', async () => {
     const fetchMock = renderAt('/@ana')
@@ -185,6 +204,7 @@ describe('PublicAuthorPage', () => {
   it('is reached from a note by its author', async () => {
     renderAt('/@ana/trip-plan')
 
+    // The bar on top leads to their page.
     expect(await screen.findByRole('link', { name: /Carlos Lugones/ })).toHaveAttribute(
       'href',
       '/@ana',
