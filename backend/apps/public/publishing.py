@@ -24,6 +24,10 @@ class SlugTaken(Exception):
     pass
 
 
+class NotPublished(Exception):
+    """Its date is a published note's only: setting one would publish it."""
+
+
 # A blog's own pages, at the root of its domain next to its notes.
 RESERVED_SLUGS = {"rss"}
 
@@ -59,10 +63,12 @@ def suggested_slug(note):
     return slug
 
 
-def publish(note, slug=None):
+def publish(note, slug=None, published_at=None):
     """
     Publishes `note` at `slug`, or at the one it had, or at one made from its
     title. Raises SlugTaken if another of its owner's notes has that slug.
+    `published_at` is the date it shows, and its blog sorts by (one moved
+    from elsewhere keeps its own); otherwise the one it had, or now.
     """
     if slug is None:
         slug = note.public_slug or suggested_slug(note)
@@ -71,7 +77,7 @@ def publish(note, slug=None):
     # Its address starts with the owner's handle.
     public_handle(note.owner_id)
     note.public_slug = slug
-    note.published_at = note.published_at or timezone.now()
+    note.published_at = published_at or note.published_at or timezone.now()
     try:
         # Another note may take the slug in between.
         with transaction.atomic():
@@ -91,10 +97,16 @@ PAGE_FIELDS = {
 def save_page(note, changes):
     """
     Saves the page settings in `changes` (`slug`, `title`, `description`,
-    `image`); empty ones go back to their default. Raises SlugTaken if
-    another of its owner's notes has the slug.
+    `image`, `published_at`); empty ones go back to their default. Raises
+    SlugTaken if another of its owner's notes has the slug, and NotPublished
+    for a date on a note that isn't public.
     """
     fields = []
+    if "published_at" in changes:
+        if note.published_at is None:
+            raise NotPublished
+        note.published_at = changes["published_at"]
+        fields.append("published_at")
     if "slug" in changes and changes["slug"] != note.public_slug:
         if owner_slugs(note).filter(public_slug=changes["slug"]).exists():
             raise SlugTaken
