@@ -26,11 +26,17 @@ def test_a_note_without_words_is_just_note(user):
     assert suggested_slug(note(user, body="🙂")) == "note"
 
 
-def test_a_slug_in_use_anywhere_on_the_server_gets_a_number(user, other_user):
-    publish(note(other_user, title="Plan"))
+def test_a_slug_the_owner_uses_gets_a_number(user):
+    publish(note(user, title="Plan"))
     publish(note(user, title="Plan"))
 
     assert suggested_slug(note(user, title="Plan")) == "plan-3"
+
+
+def test_other_users_slugs_are_theirs(user, other_user):
+    publish(note(other_user, title="Plan"))
+
+    assert publish(note(user, title="Plan")).public_slug == "plan"
 
 
 def test_long_titles_make_short_slugs(user):
@@ -68,11 +74,17 @@ def test_publishing_again_keeps_the_address(user):
     assert item.published_at is not None
 
 
-def test_a_slug_another_note_has_is_refused(user, other_user):
-    publish(note(other_user, title="Plan"))
+def test_a_slug_another_of_their_notes_has_is_refused(user):
+    publish(note(user, title="Plan"))
 
     with pytest.raises(SlugTaken):
         publish(note(user), "plan")
+
+
+def test_publishing_gives_the_owner_a_handle(user):
+    publish(note(user, title="Plan"))
+
+    assert user.profile.handle == "author"
 
 
 def test_unpublished_notes_hold_their_slug(user):
@@ -80,3 +92,8 @@ def test_unpublished_notes_hold_their_slug(user):
 
     with pytest.raises(SlugTaken):
         publish(note(user), "plan")
+
+
+def test_a_blog_s_own_pages_are_never_slugs(user):
+    assert is_valid_slug("rss") is False
+    assert suggested_slug(note(user, title="RSS")) == "rss-2"

@@ -7,14 +7,21 @@ a small blog. Everything else stays private.
 
 Every note is **Private** by default: only its owner can see it. The visibility button in the
 note's bar (next to Organize) switches it to **Public**, at once: the note gets an address,
-`/p/<slug>`, with the slug made from its title (`Café & trip plan` is `cafe-trip-plan`; an
-untitled note uses the title it shows, its first H1 or first line). The same menu then shows
+`/@<handle>/<slug>`, with the slug made from its title (`Café & trip plan` is `cafe-trip-plan`;
+an untitled note uses the title it shows, its first H1 or first line). The same menu then shows
 the link, opens the page and leads to **Page settings**. Switching back to Private takes the
-page down.
+page down. A note filed in a blog's collection lives on the blog's domain instead (see
+[blogs.md](blogs.md)).
 
-- Slugs are lowercase letters, numbers and hyphens, up to 80 characters, and unique across the
-  whole server (every user's notes share `/p/`). A slug in use gets a number (`plan-2`); one
-  typed by hand that is in use is refused.
+- The **handle** is the user's public address on the server, `/@<handle>/`: made from their
+  display name the first time they publish (`author` without one), and changed in Settings ›
+  Profile. Lowercase letters, numbers and hyphens, 2 to 40, unique on the server; never the
+  username, which is half of the login. Changing it breaks links to the old address.
+- Slugs are lowercase letters, numbers and hyphens, up to 80 characters, and unique among each
+  user's notes: two people can both have an `about`. A slug in use gets a number (`plan-2`);
+  one typed by hand that is in use is refused.
+- `/p/<slug>`, the address notes had before handles, redirects to where the note is now while
+  only one published note on the server has that slug.
 - A private note keeps its slug: making it public again brings back the same address, and no
   other note can take it meanwhile.
 - The page shows the note as it is saved now: edits show up on the next load.
@@ -30,7 +37,7 @@ page down.
 
 The page is rendered in the browser, but sites that read a link (chat apps, search engines) run
 no JavaScript: the server puts `<title>`, the description, canonical link and `og:*` /
-`twitter:card` tags in the HTML it sends for `/p/<slug>` (`apps/public/pages.py`, from
+`twitter:card` tags in the HTML it sends for `/@<handle>/<slug>` (`apps/public/pages.py`, from
 `apps.core.views.spa`). In development the Vite server answers instead, so the tags only show
 when Django serves the build.
 
@@ -49,29 +56,45 @@ read-only; embed links play, since the author picked them.
   `Cache-Control: public, max-age=300`, so a page taken down stops showing them within minutes
   even behind a cache. Nothing else of the user is served: uploads, other notes' images and
   previews stay behind sign-in.
-- **Author**: the page is signed with its owner's **display name** (Settings › Profile), and it
-  goes in the `author` meta tag. Without a display name the page shows no author: the
-  username, half of the login, never shows. The profile photo stays in the app.
+- **Author**: the page shows its owner's **display name** (Settings › Profile), or `@<handle>`
+  without one, and their **profile photo**, leading to their page; the name goes in the
+  `author` meta tag. The photo is public only while they have a published note
+  (`/api/public/authors/<handle>/avatar/`): someone who publishes nothing never shows theirs.
+  The username, half of the login, never shows.
+
+## How it looks
+
+A note reads as an article, under a bar with whose it is (the blog, or its author) that leads
+back to all their posts: the date, its title, then its text in larger type with wide images. A
+first line `# Title` equal to its title isn't shown twice. Below, up to three more of the
+author's notes (on a blog, of the blog's), when there are any, and a link to all posts. Lists (`/@<handle>`, a blog's index, `/p`) show each note with its title, the start of
+its text (or its page description), its date and its cover: the image its shared link
+shows.
 - The page never says which account owns the note, nor where it is filed.
 
-`/p` lists every published note on the server, the last published first. Nothing links to it
-for now.
+`/@<handle>` is the author's page: their display name (or `@<handle>` without one) and all their
+public notes, newest first, each at its address (its blog's, if it is on one). A note's byline
+links to it. It is there with or without blogs. It, and notes read on the server's own domain,
+end with a small "Powered by BrainBro" line (blogs choose; see [blogs.md](blogs.md)).
+
+`/p` lists every published note on the server, the last published first, each at its address.
+Nothing links to it for now.
 
 ## API
 
 | Method | Path | |
 | --- | --- | --- |
-| `PUT` | `/api/items/<id>/publication/` | Makes the note public. Returns the note, with `public_slug` and `published_at`. |
+| `PUT` | `/api/items/<id>/publication/` | Makes the note public. Returns the note, with `public_slug`, `published_at` and `public_url` (`/@<handle>/<slug>`, or its blog's full URL). |
 | `DELETE` | `/api/items/<id>/publication/` | Makes it private. Returns the note. |
-| `GET` | `/api/items/<id>/page/` | `{slug, title, description, image, defaults, preview}`: the page settings, their defaults and the result. |
+| `GET` | `/api/items/<id>/page/` | `{slug, address, title, description, image, defaults, preview}`: the page settings, what comes before the slug, the defaults and the result. |
 | `PATCH` | `/api/items/<id>/page/` | Any of `slug`, `title`, `description`, `image` (a `src` of the note's images, or `"none"`); empty ones go back to their default. |
-| `GET` | `/api/public/notes/` | Anyone: `{slug, title, published_at}`, paginated. |
-| `GET` | `/api/public/notes/<slug>/` | Anyone: `{slug, title, body, published_at, edited_at, author, images, links, notes}`; `notes` are the `[{slug, title}]` its links can lead to. |
-| `GET` | `/api/public/notes/<slug>/images/<id>/` | Anyone, while published: one of its images. |
-| `GET` | `/api/public/notes/<slug>/links/<id>/image/` | Anyone, while published: a card's image. |
+| `PATCH` | `/api/auth/profile/` | `handle` (and `display_name`): the user's public address. |
+| `GET` | `/api/public/notes/` | Anyone: `{slug, title, published_at, url, excerpt, image_url}`, paginated. On a blog's domain, its notes; with `?author=<handle>`, that author's. |
+| `GET` | `/api/public/authors/<handle>/` | Anyone: `{handle, author, avatar_url}`, the author's display name and photo. |
+| `GET` | `/api/public/authors/<handle>/avatar/` | Anyone, while they have a published note: their photo. |
+| `GET` | `/api/public/notes/<handle>/<slug>/` | Anyone: `{slug, handle, title, body, published_at, edited_at, author, avatar_url, images, links, notes}`; `notes` are the `[{url, title}]` its links can lead to. |
+| `GET` | `/api/public/notes/<handle>/<slug>/images/<id>/` | Anyone, while published: one of its images. |
+| `GET` | `/api/public/notes/<handle>/<slug>/links/<id>/image/` | Anyone, while published: a card's image. |
+| `GET` | `/api/public/legacy/<slug>/` | Anyone: `{url}`, where `/p/<slug>` lives now, while one published note has that slug. |
 
 A note never published, or taken down, answers 404 everywhere under `/api/public/`.
-
-## Not yet
-
-Custom domains are left out of this first version: pages live on the server's own domain.

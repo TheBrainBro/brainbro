@@ -2,33 +2,62 @@
 What anyone can read, signed in or not: published notes and their images.
 Nothing else of a note's owner is reachable from here, and a note taken down
 answers 404 at once, as if it never existed.
+
+On a blog's domain (`current_site(request)`) only that blog's notes exist.
 """
 
-from django.http import FileResponse, Http404
+from django.conf import settings
+from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
-from rest_framework import generics, serializers
+from rest_framework import generics, mixins, serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.items.models import Item, NoteImage, NoteLink
+from apps.accounts.models import Profile
+from apps.items.models import Collection, Item, NoteImage, NoteLink
 from apps.items.serializers import note_link_preview
 from apps.items.titles import linkable_titles, note_title
 
-from .pages import author_name, public_image_url
+from .handles import public_handle
+from .models import Site
+from .pages import (
+    author_name,
+    cover_image,
+    excerpt,
+    public_avatar_url,
+    public_image_url,
+    site_author,
+)
+from .sites import (
+    current_site,
+    is_app_host,
+    normalize_hostname,
+    public_urls,
+    site_categories,
+    site_notes,
+    site_url,
+    verified_sites,
+)
+from .tasks import verify_site
 
 # Long enough to spare the server, short enough that a note taken down stops
 # showing its images soon, even through a cache in front.
 IMAGE_MAX_AGE = 300
 
 
-def published_notes():
+def published_notes(request):
+    """Every published note on the server, or those of the blog being read."""
+    if current_site(request):
+        return site_notes(current_site(request))
     return Item.objects.filter(kind=Item.Kind.NOTE, published_at__isnull=False)
 
 
-def published_note(slug):
-    return get_object_or_404(published_notes(), public_slug=slug)
+def published_note(request, handle, slug, queryset=None):
+    queryset = queryset if queryset is not None else published_notes(request)
+    return get_object_or_404(queryset, owner__profile__handle=handle, public_slug=slug)
 
 
 def versioned(path, file):
@@ -36,42 +65,45 @@ def versioned(path, file):
     return f"{path}?v={file.name.rsplit('/', 1)[-1]}"
 
 
-def public_images(note):
+def public_images(note, handle):
     """The note's stored images, by `src`, at their public addresses."""
     images = {}
     for image in note.note_images.all():
-        url = public_image_url(note, image) if image.image else None
+        url = public_image_url(note, image, handle) if image.image else None
         images[image.src] = {"status": image.status, "url": url}
     return images
 
 
-def public_links(note):
+def public_links(note, handle):
     """The previews of its card and embed links, with their images made public."""
     links = {}
     for link in note.note_links.all():
         preview = note_link_preview(link)
         if link.image:
-            path = reverse("public-note-link-image", args=[note.public_slug, link.id])
+            path = reverse(
+                "public-note-link-image", args=[handle, note.public_slug, link.id]
+            )
             preview["image_url"] = versioned(path, link.image)
         links[link.url] = preview
     return links
 
 
-def linked_notes(note):
+def linked_notes(request, note):
     """
     The titles `[[Title]]` finds the owner's published notes by, as
-    `[{"slug", "title"}]`. Links are resolved against all of the owner's
+    `[{"url", "title"}]`. Links are resolved against all of the owner's
     notes first (see `linkable_titles`): a title that finds a private note
     is left out, so the link reads as plain text and never leads anywhere else.
+    On a blog, so is a note with no address there (see `public_urls`).
     """
     notes = list(
         Item.objects.filter(owner_id=note.owner_id, kind=Item.Kind.NOTE)
-        .only("id", "title", "body", "public_slug", "published_at")
+        .only("id", "owner_id", "title", "body", "public_slug", "published_at")
         .order_by("created_at")
     )
     by_id = {candidate.id: candidate for candidate in notes}
     seen = set()
-    found = []
+    targets = []
     for note_id, title in linkable_titles(notes):
         key = title.lower()
         if key in seen:
@@ -79,35 +111,76 @@ def linked_notes(note):
         seen.add(key)
         target = by_id[note_id]
         if target.published_at:
-            found.append({"slug": target.public_slug, "title": title})
-    return found
-
-
-class PublicNoteSummarySerializer(serializers.ModelSerializer):
-    slug = serializers.CharField(source="public_slug")
-    title = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Item
-        fields = ["slug", "title", "published_at"]
-
-    def get_title(self, note):
-        return note.title or note_title(note.body)
+            targets.append((target, title))
+    urls = public_urls([target for target, _ in targets], current_site(request))
+    return [
+        {"url": urls[target.id], "title": title}
+        for target, title in targets
+        if urls[target.id]
+    ]
 
 
 class PublicNoteListView(generics.ListAPIView):
-    """`/p/`: every published note on the server, the last published first."""
+    """
+    `/p/`: every published note on the server, the last published first; on
+    a blog, its notes (`?category=<slug>`: those in one of its categories);
+    with `?author=<handle>`, that author's. Each with its address.
+    """
 
     authentication_classes = []
     permission_classes = [AllowAny]
-    serializer_class = PublicNoteSummarySerializer
 
     def get_queryset(self):
+        notes = published_notes(self.request)
+        site = current_site(self.request)
+        if site is not None and (slug := self.request.query_params.get("category")):
+            category = next((c for c in site_categories(site) if c.slug == slug), None)
+            if category is None:
+                raise Http404
+            notes = site_notes(site, category)
+        if handle := self.request.query_params.get("author"):
+            notes = notes.filter(owner__profile__handle=handle)
         return (
-            published_notes()
-            .only("id", "title", "body", "public_slug", "published_at")
+            notes.only(
+                "id",
+                "owner_id",
+                "title",
+                "body",
+                "public_slug",
+                "published_at",
+                "public_description",
+                "public_image",
+            )
+            .prefetch_related("note_images")
             .order_by("-published_at")
         )
+
+    def list(self, request, *args, **kwargs):
+        notes = self.paginate_queryset(self.get_queryset())
+        urls = public_urls(notes, current_site(request))
+        handles = dict(
+            Profile.objects.filter(
+                user_id__in={note.owner_id for note in notes}
+            ).values_list("user_id", "handle")
+        )
+        return self.get_paginated_response(
+            [
+                self.summary(note, urls[note.id], handles.get(note.owner_id))
+                for note in notes
+            ]
+        )
+
+    def summary(self, note, url, handle):
+        """A note in the list: its title, the start of its text and its cover."""
+        cover = cover_image(note, note.note_images.all())
+        return {
+            "slug": note.public_slug,
+            "title": note.title or note_title(note.body),
+            "published_at": note.published_at,
+            "url": url,
+            "excerpt": note.public_description or excerpt(note.body),
+            "image_url": public_image_url(note, cover, handle) if cover else None,
+        }
 
 
 class PublicNoteView(APIView):
@@ -120,25 +193,51 @@ class PublicNoteView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def get(self, request, slug):
-        note = get_object_or_404(
-            published_notes().prefetch_related("note_images", "note_links"),
-            public_slug=slug,
+    def get(self, request, handle, slug):
+        note = published_note(
+            request,
+            handle,
+            slug,
+            published_notes(request).prefetch_related("note_images", "note_links"),
         )
         return Response(
             {
                 "slug": note.public_slug,
+                "handle": handle,
                 "title": note.title or note_title(note.body),
                 "body": note.body,
                 "published_at": note.published_at,
                 "edited_at": note.edited_at,
                 # The owner's display name, never their username; "" without one.
                 "author": author_name(note),
-                "images": public_images(note),
-                "links": public_links(note),
-                "notes": linked_notes(note),
+                "avatar_url": public_avatar_url(
+                    Profile.objects.filter(user_id=note.owner_id).first()
+                ),
+                "images": public_images(note, handle),
+                "links": public_links(note, handle),
+                "notes": linked_notes(request, note),
             }
         )
+
+
+class LegacyPublicNoteView(APIView):
+    """
+    Where `/p/<slug>`, the address notes had before handles, lives now:
+    `{url}`, while one published note has that slug.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug):
+        notes = list(
+            published_notes(request)
+            .filter(public_slug=slug)
+            .only("id", "owner_id", "public_slug")[:2]
+        )
+        if len(notes) != 1:
+            raise Http404
+        return Response({"url": public_urls(notes)[notes[0].id]})
 
 
 def image_response(file):
@@ -156,8 +255,8 @@ class PublicNoteImageView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def get(self, request, slug, image_id):
-        note = published_note(slug)
+    def get(self, request, handle, slug, image_id):
+        note = published_note(request, handle, slug)
         image = get_object_or_404(NoteImage, id=image_id, note=note)
         return image_response(image.image)
 
@@ -168,7 +267,232 @@ class PublicNoteLinkImageView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def get(self, request, slug, link_id):
-        note = published_note(slug)
+    def get(self, request, handle, slug, link_id):
+        note = published_note(request, handle, slug)
         link = get_object_or_404(NoteLink, id=link_id, note=note)
         return image_response(link.image)
+
+
+class PublicAuthorView(APIView):
+    """
+    `/@<handle>`, an author's page: `{handle, author}`, their display name
+    ("" without one). Never their username. Their notes are listed by
+    `/api/public/notes/?author=<handle>`.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, handle):
+        if current_site(request) is not None:
+            raise Http404
+        profile = get_object_or_404(Profile, handle=handle)
+        return Response(
+            {
+                "handle": profile.handle,
+                "author": profile.display_name,
+                "avatar_url": public_avatar_url(profile),
+            }
+        )
+
+
+class PublicAuthorAvatarView(APIView):
+    """
+    An author's photo, for their public pages. Only while they have a
+    published note: someone who publishes nothing never shows theirs. On a
+    blog, only its owner's.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, handle):
+        profile = get_object_or_404(Profile, handle=handle)
+        if not published_notes(request).filter(owner_id=profile.user_id).exists():
+            raise Http404
+        return image_response(profile.avatar)
+
+
+class PublicSiteView(APIView):
+    """
+    The blog being read: its name, blurb, author, handle, links and
+    categories. 404 off a blog.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        site = current_site(request)
+        if site is None:
+            raise Http404
+        return Response(
+            {
+                "hostname": site.hostname,
+                "title": site.name,
+                "description": site.description,
+                "author": site_author(site),
+                "handle": public_handle(site.owner_id),
+                "avatar_url": public_avatar_url(
+                    Profile.objects.filter(user_id=site.owner_id).first()
+                ),
+                "links": site.links,
+                "powered_by": site.powered_by,
+                # Those with something published in them.
+                "categories": [
+                    {"slug": category.slug, "name": category.name}
+                    for category in site_categories(site)
+                    if site_notes(site, category).exists()
+                ],
+            }
+        )
+
+
+class SiteCheckView(APIView):
+    """
+    `?domain=<hostname>`: 200 if it is a verified blog's, 404 otherwise. A
+    reverse proxy that issues certificates on demand (Caddy's `ask`) asks
+    this before getting one, so it never gets one for a domain nobody added.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        hostname = normalize_hostname(request.query_params.get("domain", ""))
+        if not hostname or not verified_sites().filter(hostname=hostname).exists():
+            raise Http404
+        return HttpResponse(status=200)
+
+
+class SiteLinkSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=60)
+    url = serializers.URLField(max_length=500)
+
+    def validate_url(self, value):
+        # Nothing that runs: `javascript:` and the like never reach a page.
+        if not value.lower().startswith(("https://", "http://")):
+            raise serializers.ValidationError("Use a web address (https://...).")
+        return value
+
+
+MAX_SITE_LINKS = 10
+
+
+class SiteSerializer(serializers.ModelSerializer):
+    # Checked by hand: it is normalized first, and unique once verified only.
+    hostname = serializers.CharField(max_length=253)
+    collection = serializers.PrimaryKeyRelatedField(
+        queryset=Collection.objects.none(), allow_null=True, required=False
+    )
+    url = serializers.SerializerMethodField()
+    records = serializers.SerializerMethodField()
+    links = serializers.ListField(
+        child=SiteLinkSerializer(), max_length=MAX_SITE_LINKS, required=False
+    )
+
+    class Meta:
+        model = Site
+        fields = [
+            "id",
+            "hostname",
+            "collection",
+            "title",
+            "description",
+            "links",
+            "powered_by",
+            "status",
+            "checked_at",
+            "verified_at",
+            "url",
+            "records",
+            "created_at",
+        ]
+        read_only_fields = ["status", "checked_at", "verified_at", "created_at"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        if request is not None:
+            self.fields["collection"].queryset = Collection.objects.filter(
+                owner=request.user
+            )
+
+    def validate_hostname(self, value):
+        hostname = normalize_hostname(value)
+        if not hostname:
+            raise serializers.ValidationError("Enter a domain, like blog.example.com.")
+        if is_app_host(hostname):
+            raise serializers.ValidationError("This is BrainBro's own address.")
+        user = self.context["request"].user
+        others = Site.objects.filter(hostname=hostname)
+        if self.instance is not None:
+            others = others.exclude(pk=self.instance.pk)
+        if others.filter(owner=user).exists():
+            raise serializers.ValidationError("You already have a blog on this domain.")
+        if others.filter(status=Site.Status.VERIFIED).exists():
+            raise serializers.ValidationError("Another blog already uses this domain.")
+        return hostname
+
+    def validate_links(self, value):
+        return [{"name": link["name"], "url": link["url"]} for link in value]
+
+    def get_url(self, site):
+        return site_url(site)
+
+    def get_records(self, site):
+        """The DNS records its owner adds: where it points, and the proof."""
+        request = self.context["request"]
+        target = settings.SITE_CNAME_TARGET or request.get_host().split(":")[0]
+        records = [{"type": "CNAME", "name": site.hostname, "value": target}]
+        # Root domains can't have a CNAME at many DNS providers.
+        if settings.SITE_IPV4:
+            records.append(
+                {"type": "A", "name": site.hostname, "value": settings.SITE_IPV4}
+            )
+        records.append(
+            {
+                "type": "TXT",
+                "name": site.verification_name,
+                "value": site.verification_value,
+            }
+        )
+        return records
+
+    def update(self, instance, validated_data):
+        # A new domain has to be verified again.
+        if validated_data.get("hostname", instance.hostname) != instance.hostname:
+            instance.status = Site.Status.UNVERIFIED
+            instance.checked_at = None
+            instance.verified_at = None
+        return super().update(instance, validated_data)
+
+
+class SiteViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """The user's blogs on their own domains."""
+
+    serializer_class = SiteSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return Site.objects.filter(owner=self.request.user).select_related("collection")
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def verify(self, request, pk=None):
+        """Looks the TXT record up (in the worker); the site says how it went."""
+        site = self.get_object()
+        site.status = Site.Status.CHECKING
+        site.save(update_fields=["status", "updated_at"])
+        verify_site.delay(str(site.id))
+        site.refresh_from_db()
+        return Response(self.get_serializer(site).data, status=status.HTTP_202_ACCEPTED)

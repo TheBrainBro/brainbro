@@ -15,6 +15,7 @@ from apps.exports.models import Export
 from apps.history.models import Revision
 from apps.imports.models import Import
 from apps.items.models import Collection, Item, NoteImage, NoteLink
+from apps.public.models import Site
 from apps.telegram.models import TelegramLink
 
 SECRET = "their-secret"
@@ -66,6 +67,9 @@ def theirs(other_user):
     telegram = TelegramLink.objects.create(
         owner=owner, chat_id=42, telegram_name=SECRET
     )
+    site = Site.objects.create(
+        owner=owner, hostname="their-secret.example.com", title=SECRET
+    )
     return {
         "collection": collection,
         "note": note,
@@ -79,6 +83,7 @@ def theirs(other_user):
         "export": export,
         "import": imported,
         "telegram": telegram,
+        "site": site,
         "revision": note.revisions.get(),
         "board_revision": board.revisions.get(),
     }
@@ -126,6 +131,11 @@ def snapshot(owner):
         "revisions": sorted(
             Revision.objects.filter(owner=owner).values_list("id", "updated_at")
         ),
+        "sites": sorted(
+            Site.objects.filter(owner=owner).values_list(
+                "id", "hostname", "collection_id", "status", "updated_at"
+            )
+        ),
     }
 
 
@@ -143,6 +153,7 @@ LISTS = [
     "/api/imports/",
     "/api/graph/",
     "/api/telegram/",
+    "/api/sites/",
     "/api/revisions/?item={note}",
     "/api/revisions/?board={board}",
 ]
@@ -193,6 +204,11 @@ BY_ID = [
     ("get", "/api/revisions/{revision}/"),
     ("post", "/api/revisions/{revision}/restore/"),
     ("post", "/api/revisions/{board_revision}/restore/"),
+    ("get", "/api/sites/{site}/"),
+    ("patch", "/api/sites/{site}/"),
+    ("put", "/api/sites/{site}/"),
+    ("delete", "/api/sites/{site}/"),
+    ("post", "/api/sites/{site}/verify/"),
 ]
 
 

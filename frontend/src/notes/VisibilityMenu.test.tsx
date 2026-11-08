@@ -33,10 +33,16 @@ const privateNote: Item = {
   edited_via: '',
   edited_at: null,
   public_slug: null,
+  public_url: null,
   published_at: null,
 }
 
-const publicNote = { ...privateNote, public_slug: 'trip-plan', published_at: '2026-11-01T10:00:00Z' }
+const publicNote = {
+  ...privateNote,
+  public_slug: 'trip-plan',
+  public_url: '/@ana/trip-plan',
+  published_at: '2026-11-01T10:00:00Z',
+}
 
 /** The menu over the cached note, as the note page shows it. */
 function Harness({ onSettings }: { onSettings: () => void }) {
@@ -69,7 +75,7 @@ describe('VisibilityMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /Public/, pressed: false }))
 
     expect(await screen.findByLabelText('Public link')).toHaveValue(
-      `${window.location.origin}/p/trip-plan`,
+      `${window.location.origin}/@ana/trip-plan`,
     )
     expect(screen.getByRole('button', { name: 'Visibility: public' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(

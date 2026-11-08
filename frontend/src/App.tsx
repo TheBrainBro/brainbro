@@ -11,7 +11,14 @@ import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
 import { InboxPage } from './pages/InboxPage'
 import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
-import { PublicIndexPage, PublicNotePage } from './pages/PublicPage'
+import {
+  LegacyPublicNotePage,
+  PublicAuthorPage,
+  PublicIndexPage,
+  PublicNotePage,
+  SiteIndexPage,
+  SiteNotePage,
+} from './pages/PublicPage'
 import { SharePage } from './pages/SharePage'
 
 // The editor (CodeMirror) loads when a note is first opened, not with the inbox.
@@ -45,7 +52,10 @@ export function AppRoutes() {
       <Route path="/join/:token" element={<JoinPage />} />
       {/* Published notes: open to anyone, signed in or not. */}
       <Route path="/p" element={<PublicIndexPage />} />
-      <Route path="/p/:slug" element={<PublicNotePage />} />
+      <Route path="/p/:slug" element={<LegacyPublicNotePage />} />
+      {/* `/@<handle>` and `/@<handle>/<slug>`: the pages check the `@`. */}
+      <Route path="/:handle" element={<PublicAuthorPage />} />
+      <Route path="/:handle/:slug" element={<PublicNotePage />} />
       <Route element={<RequireAuth />}>
         <Route path="/oauth/authorize" element={<AuthorizePage />} />
         <Route element={<AppLayout />}>
@@ -95,12 +105,22 @@ export function AppRoutes() {
   )
 }
 
-export default function App() {
+/** A blog on its own domain: its index and notes, and nothing of the app. */
+export function SiteRoutes() {
+  return (
+    <Routes>
+      <Route index element={<SiteIndexPage />} />
+      <Route path="/c/:category" element={<SiteIndexPage />} />
+      <Route path="/:slug" element={<SiteNotePage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+export default function App({ site = false }: { site?: boolean }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <BrowserRouter>{site ? <SiteRoutes /> : <AppRoutes />}</BrowserRouter>
     </QueryClientProvider>
   )
 }
