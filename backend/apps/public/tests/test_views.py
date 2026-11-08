@@ -278,3 +278,32 @@ def test_other_notes_images_are_not_served_through_a_public_one(anyone, user):
     response = anyone.get(f"/api/public/notes/author/plan/images/{private.id}/")
 
     assert response.status_code == 404
+
+
+# An author's page
+
+
+def test_an_author_s_page_says_who_they_are(anyone, user):
+    publish(note(user, title="Plan"))
+    Profile.objects.filter(user=user).update(display_name="Carlos Lugones")
+
+    response = anyone.get("/api/public/authors/author/")
+
+    assert response.json() == {"handle": "author", "author": "Carlos Lugones"}
+    assert user.username not in response.content.decode()
+
+
+def test_no_such_author_is_not_found(anyone, db):
+    assert anyone.get("/api/public/authors/nobody/").status_code == 404
+
+
+def test_an_author_s_notes_are_listed_on_their_own(anyone, user, other_user):
+    publish(note(user, title="Mine"))
+    publish(note(other_user, title="Theirs"))
+    note(user, title="Private")
+
+    results = anyone.get("/api/public/notes/?author=author").json()["results"]
+
+    assert [(entry["title"], entry["url"]) for entry in results] == [
+        ("Mine", "/@author/mine")
+    ]

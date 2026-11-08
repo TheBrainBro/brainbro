@@ -89,3 +89,17 @@ def test_an_old_address_two_notes_share_leads_nowhere(client, user, other_user):
 
     assert response.status_code == 200
     assert response.content.decode() == INDEX
+
+
+def test_an_author_s_page_tells_who_it_is(client, user):
+    Profile.objects.create(user=user, display_name="Carlos <L>")
+    publish(note(user, title="Plan"))
+
+    html = client.get("/@carlos-l").content.decode()
+
+    assert "<title>Carlos &lt;L&gt;</title>" in html
+    assert '<link rel="canonical" href="http://testserver/@carlos-l" />' in html
+
+
+def test_no_such_author_says_nothing(client, db):
+    assert client.get("/@nobody").content.decode() == INDEX

@@ -53,6 +53,7 @@ function renderAt(path: string, { onSite = false } = {}) {
     if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
     if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
     if (url === '/api/public/site/' && onSite) return jsonResponse(site)
+    if (url === '/api/public/authors/ana/') return jsonResponse({ handle: 'ana', author: 'Ana' })
     if (url.startsWith('/api/public/notes/?')) {
       return jsonResponse({
         count: 1,
@@ -140,6 +141,35 @@ describe('PublicIndexPage', () => {
     expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
       'href',
       '/@ana/trip-plan',
+    )
+  })
+})
+
+describe('PublicAuthorPage', () => {
+  it('shows an author with their public notes', async () => {
+    const fetchMock = renderAt('/@ana')
+
+    expect(await screen.findByRole('heading', { name: 'Ana' })).toBeInTheDocument()
+    expect(screen.getByText('@ana')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
+      'href',
+      '/@ana/trip-plan',
+    )
+    expect(fetchMock).toHaveBeenCalledWith('/api/public/notes/?limit=200&author=ana', expect.anything())
+  })
+
+  it('says when there is no such author', async () => {
+    renderAt('/@nobody')
+
+    expect(await screen.findByText("This page doesn't exist")).toBeInTheDocument()
+  })
+
+  it('is reached from a note by its author', async () => {
+    renderAt('/@ana/trip-plan')
+
+    expect(await screen.findByRole('link', { name: 'Carlos Lugones' })).toHaveAttribute(
+      'href',
+      '/@ana',
     )
   })
 })
