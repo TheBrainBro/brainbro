@@ -1,5 +1,14 @@
-import { CircleAlert, CircleCheck, ExternalLink, LoaderCircle, Plus, Trash2, X } from 'lucide-react'
-import { useId, useState, type FormEvent } from 'react'
+import {
+  CircleAlert,
+  CircleCheck,
+  ExternalLink,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useT } from '../i18n/i18n'
 import { useCollections, type Collection } from '../items/api'
@@ -128,12 +137,108 @@ function NewBlog({ collections }: { collections: Collection[] }) {
   )
 }
 
+/** A verified blog's new domain stays pending; until then it serves at this one. */
+function ChangeDomain({ blog, onDone }: { blog: Blog; onDone: () => void }) {
+  const t = useT()
+  const update = useUpdateBlog(blog.id)
+  const [hostname, setHostname] = useState(blog.hostname)
+  const id = useId()
+  const changed = hostname.trim() !== '' && hostname.trim() !== blog.hostname
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!changed || update.isPending) return
+    update.mutate({ hostname: hostname.trim() }, { onSuccess: onDone })
+  }
+
+  return (
+    <form className="space-y-2" onSubmit={submit}>
+      <div className="space-y-1">
+        <label htmlFor={id} className="block text-sm font-medium">
+          {t('blogs.newDomain')}
+        </label>
+        <input
+          id={id}
+          className="input"
+          value={hostname}
+          placeholder="blog.example.com"
+          spellCheck={false}
+          autoCapitalize="none"
+          onChange={(event) => setHostname(event.target.value)}
+        />
+        {blog.status === 'verified' && (
+          <p className="text-xs text-zinc-500">{t('blogs.changeDomainHint')}</p>
+        )}
+      </div>
+      {update.isError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {update.error.message}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button type="submit" className="button-primary" disabled={!changed || update.isPending}>
+          {t('common.save')}
+        </button>
+        <button type="button" className="button-outline" onClick={onDone}>
+          {t('common.cancel')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+/** The DNS records to add, and the button that checks them. */
+function DnsSetup({
+  blog,
+  intro,
+  checking,
+  verifying,
+  onVerify,
+  children,
+}: {
+  blog: Blog
+  intro: string
+  checking: boolean
+  verifying: boolean
+  onVerify: () => void
+  children?: ReactNode
+}) {
+  const t = useT()
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">{intro}</p>
+      {blog.records.map((record) => (
+        <div key={`${record.type}-${record.name}`} className="space-y-1">
+          <p className="text-xs font-medium text-zinc-500">
+            {record.type === 'A' ? t('blogs.recordA') : record.type === 'TXT' ? t('blogs.recordTxt') : t('blogs.recordCname')}
+          </p>
+          <CopyField label={t('blogs.recordName', { type: record.type })} value={record.name} />
+          <CopyField label={t('blogs.recordValue', { type: record.type })} value={record.value} />
+        </div>
+      ))}
+      <p className="text-xs text-zinc-500">{t('blogs.tunnelHint')}</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="button-primary"
+          disabled={verifying || checking}
+          onClick={onVerify}
+        >
+          {t('blogs.verify')}
+        </button>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[] }) {
   const t = useT()
   const { confirm } = useFeedback()
   const update = useUpdateBlog(blog.id)
   const remove = useDeleteBlog(blog.id)
   const verify = useVerifyBlog(blog.id)
+  const [editingDomain, setEditingDomain] = useState(false)
   const [title, setTitle] = useState(blog.title)
   const [description, setDescription] = useState(blog.description)
   const [links, setLinks] = useState(blog.links)
@@ -165,7 +270,7 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
     >
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="mr-auto font-semibold break-all">{blog.hostname}</h4>
-        <Status blog={blog} />
+        <Status status={blog.status} />
         {blog.status === 'verified' && (
           <a
             href={blog.url}
@@ -176,6 +281,17 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
           >
             <ExternalLink className="size-4" aria-hidden="true" />
           </a>
+        )}
+        {!blog.pending_hostname && (
+          <button
+            type="button"
+            className="button-icon size-8"
+            aria-label={t('blogs.changeDomain')}
+            aria-expanded={editingDomain}
+            onClick={() => setEditingDomain(!editingDomain)}
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+          </button>
         )}
         <button
           type="button"
@@ -188,28 +304,45 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
         </button>
       </div>
 
-      {blog.status !== 'verified' && (
+      {editingDomain && !blog.pending_hostname && (
+        <ChangeDomain blog={blog} onDone={() => setEditingDomain(false)} />
+      )}
+
+      {blog.pending_hostname ? (
         <div className="space-y-2">
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('blogs.dnsIntro')}</p>
-          {blog.records.map((record) => (
-            <div key={`${record.type}-${record.name}`} className="space-y-1">
-              <p className="text-xs font-medium text-zinc-500">
-                {record.type === 'A' ? t('blogs.recordA') : record.type === 'TXT' ? t('blogs.recordTxt') : t('blogs.recordCname')}
-              </p>
-              <CopyField label={t('blogs.recordName', { type: record.type })} value={record.name} />
-              <CopyField label={t('blogs.recordValue', { type: record.type })} value={record.value} />
-            </div>
-          ))}
-          <p className="text-xs text-zinc-500">{t('blogs.tunnelHint')}</p>
-          <button
-            type="button"
-            className="button-primary"
-            disabled={verify.isPending || blog.status === 'checking'}
-            onClick={() => verify.mutate()}
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mr-auto text-sm font-medium break-all">
+              {t('blogs.movingTo', { domain: blog.pending_hostname })}
+            </p>
+            <Status status={blog.pending_status} />
+          </div>
+          <DnsSetup
+            blog={blog}
+            intro={t('blogs.moveIntro', { domain: blog.hostname })}
+            checking={blog.pending_status === 'checking'}
+            verifying={verify.isPending}
+            onVerify={() => verify.mutate()}
           >
-            {t('blogs.verify')}
-          </button>
+            <button
+              type="button"
+              className="button-outline"
+              disabled={update.isPending}
+              onClick={() => update.mutate({ hostname: blog.hostname })}
+            >
+              {t('blogs.cancelMove')}
+            </button>
+          </DnsSetup>
         </div>
+      ) : (
+        blog.status !== 'verified' && (
+          <DnsSetup
+            blog={blog}
+            intro={t('blogs.dnsIntro')}
+            checking={blog.status === 'checking'}
+            verifying={verify.isPending}
+            onVerify={() => verify.mutate()}
+          />
+        )
       )}
 
       <div className="space-y-1">
@@ -331,9 +464,9 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
   )
 }
 
-function Status({ blog }: { blog: Blog }) {
+function Status({ status }: { status: Blog['status'] }) {
   const t = useT()
-  if (blog.status === 'verified') {
+  if (status === 'verified') {
     return (
       <span role="status" className="flex items-center gap-1 text-sm text-green-700 dark:text-green-400">
         <CircleCheck className="size-4" aria-hidden="true" />
@@ -341,7 +474,7 @@ function Status({ blog }: { blog: Blog }) {
       </span>
     )
   }
-  if (blog.status === 'checking') {
+  if (status === 'checking') {
     return (
       <span role="status" className="flex items-center gap-1 text-sm text-zinc-500">
         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -349,7 +482,7 @@ function Status({ blog }: { blog: Blog }) {
       </span>
     )
   }
-  if (blog.status === 'failed') {
+  if (status === 'failed') {
     return (
       <span role="status" className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
         <CircleAlert className="size-4" aria-hidden="true" />
