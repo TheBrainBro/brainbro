@@ -586,9 +586,10 @@ export const es: Messages = {
     none: 'Aún no hay nada publicado',
     missing: 'Esta página no existe',
     missingHint: 'Puede que la hayan retirado o que haya cambiado su dirección.',
-    by: 'Por {author}',
     updated: 'Actualizado {date}',
     feed: 'Feed',
+    moreFrom: 'Más de {name}',
+    allNotes: 'Todas las notas',
   },
   pending: {
     failed: 'Falló: {name}',

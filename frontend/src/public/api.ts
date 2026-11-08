@@ -10,15 +10,25 @@ type Page<T> = { count: number; next: string | null; previous: string | null; re
  * own. `url` is where it lives: `/@<handle>/<slug>`, `/<slug>` on the blog
  * being read, or another blog's full URL.
  */
-export type PublicNoteSummary = { slug: string; title: string; published_at: string; url: string }
+export type PublicNoteSummary = {
+  slug: string
+  title: string
+  published_at: string
+  url: string
+  /** The start of its text, or its page description. */
+  excerpt: string
+  /** Its cover: the image its shared link shows, if any. */
+  image_url: string | null
+}
 
 /** A published note, as anyone reads it. */
-export type PublicNote = Omit<PublicNoteSummary, 'url'> & {
+export type PublicNote = Omit<PublicNoteSummary, 'url' | 'excerpt' | 'image_url'> & {
   handle: string
   body: string
   edited_at: string | null
   /** Its author's display name; empty when they have none. */
   author: string
+  avatar_url: string | null
   images: NoteImages
   links: NoteLinks
   /** The published notes its `[[links]]` lead to, by the titles they find. */
@@ -32,6 +42,7 @@ export type PublicSite = {
   description: string
   author: string
   handle: string
+  avatar_url: string | null
 }
 
 /** The blog's domain, when the server serves the app as one (`brainbro-site`). */
@@ -62,7 +73,7 @@ export function usePublicNotes(author?: string) {
 }
 
 /** An author's page, `/@<handle>`: their display name, empty without one. */
-export type PublicAuthor = { handle: string; author: string }
+export type PublicAuthor = { handle: string; author: string; avatar_url: string | null }
 
 export function usePublicAuthor(handle: string) {
   return useQuery({
