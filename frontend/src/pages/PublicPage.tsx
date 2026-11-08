@@ -475,7 +475,9 @@ export function SiteIndexPage() {
             avatarUrl={site.data.avatar_url}
             name={site.data.title || site.data.hostname}
             detail={
-              site.data.author && site.data.author !== site.data.title ? site.data.author : undefined
+              site.data.show_author && site.data.author && site.data.author !== site.data.title
+                ? site.data.author
+                : undefined
             }
             description={site.data.description}
             links={site.data.links}

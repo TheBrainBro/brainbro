@@ -14,6 +14,12 @@ export type Blog = {
   collection: string | null
   title: string
   description: string
+  /** Who signs it; empty, the owner's display name. */
+  author: string
+  /** Whether its index shows the author under its name. */
+  show_author: boolean
+  /** Its own photo, for its owner; null when it uses the profile's. */
+  avatar_url: string | null
   /** Shown under the description on its index, up to 10. */
   links: { name: string; url: string }[]
   /** A small "Powered by BrainBro" line at the end of its pages. */
@@ -35,7 +41,17 @@ export type Blog = {
 }
 
 export type BlogChanges = Partial<
-  Pick<Blog, 'hostname' | 'collection' | 'title' | 'description' | 'links' | 'powered_by'>
+  Pick<
+    Blog,
+    | 'hostname'
+    | 'collection'
+    | 'title'
+    | 'description'
+    | 'author'
+    | 'show_author'
+    | 'links'
+    | 'powered_by'
+  >
 >
 
 const blogsKey = ['blogs'] as const
@@ -77,6 +93,20 @@ export function useDeleteBlog(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api<void>(`/sites/${id}/`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+/** Sets the blog's own photo; null goes back to the profile's. */
+export function useSetBlogAvatar(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (image: Blob | null) => {
+      if (!image) return api<Blog>(`/sites/${id}/avatar/`, { method: 'DELETE' })
+      const form = new FormData()
+      form.append('file', image, 'avatar.webp')
+      return api<Blog>(`/sites/${id}/avatar/`, { method: 'POST', body: form })
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
   })
 }
