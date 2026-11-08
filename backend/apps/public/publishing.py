@@ -24,8 +24,16 @@ class SlugTaken(Exception):
     pass
 
 
+# A blog's own pages, at the root of its domain next to its notes.
+RESERVED_SLUGS = {"rss"}
+
+
 def is_valid_slug(slug):
-    return len(slug) <= MAX_SLUG and bool(SLUG.fullmatch(slug))
+    return (
+        len(slug) <= MAX_SLUG
+        and bool(SLUG.fullmatch(slug))
+        and slug not in RESERVED_SLUGS
+    )
 
 
 def owner_slugs(note):
@@ -42,6 +50,7 @@ def suggested_slug(note):
         .filter(public_slug__startswith=base)
         .values_list("public_slug", flat=True)
     )
+    taken |= RESERVED_SLUGS
     slug, number = base, 1
     while slug in taken:
         number += 1

@@ -139,7 +139,7 @@ def render_tags(request, *, title, description, url, meta, author="", feed=None)
         *(
             [
                 '<link rel="alternate" type="application/rss+xml" '
-                f'title="{escape(feed)}" href="/rss.xml" />'
+                f'title="{escape(feed)}" href="/rss" />'
             ]
             if feed
             else []

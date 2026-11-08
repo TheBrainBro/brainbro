@@ -31,7 +31,8 @@ by then, the blog stops showing. Changing a blog's domain means verifying it aga
 - `/<slug>`: a note, as on its public page (see [public-notes.md](public-notes.md)). Links to
   other notes on the blog stay on it; links to notes elsewhere lead to wherever those live (their
   own blog), or read as plain text if they have no blog.
-- `/rss.xml`, `/sitemap.xml`, `/robots.txt`.
+- `/rss` (the feed, served as plain XML so browsers show it), `/sitemap.xml`, `/robots.txt`.
+  `rss` is never a note's slug: a note titled "RSS" gets `rss-2`.
 
 Its notes are the **public** notes **filed directly in** its collection: private ones, and those
 in collections inside it, don't show. A note on a blog lives there: its address on the server
