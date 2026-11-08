@@ -63,12 +63,13 @@ def suggested_slug(note):
     return slug
 
 
-def publish(note, slug=None, published_at=None):
+def publish(note, slug=None, published_at=None, listed=None):
     """
     Publishes `note` at `slug`, or at the one it had, or at one made from its
     title. Raises SlugTaken if another of its owner's notes has that slug.
     `published_at` is the date it shows, and its blog sorts by (one moved
     from elsewhere keeps its own); otherwise the one it had, or now.
+    `listed=False` makes it unlisted; without it, it stays as it was.
     """
     if slug is None:
         slug = note.public_slug or suggested_slug(note)
@@ -78,10 +79,19 @@ def publish(note, slug=None, published_at=None):
     public_handle(note.owner_id)
     note.public_slug = slug
     note.published_at = published_at or note.published_at or timezone.now()
+    if listed is not None:
+        note.public_listed = listed
     try:
         # Another note may take the slug in between.
         with transaction.atomic():
-            note.save(update_fields=["public_slug", "published_at", "updated_at"])
+            note.save(
+                update_fields=[
+                    "public_slug",
+                    "published_at",
+                    "public_listed",
+                    "updated_at",
+                ]
+            )
     except IntegrityError:
         raise SlugTaken from None
     return note
@@ -91,13 +101,14 @@ PAGE_FIELDS = {
     "title": "public_title",
     "description": "public_description",
     "image": "public_image",
+    "listed": "public_listed",
 }
 
 
 def save_page(note, changes):
     """
     Saves the page settings in `changes` (`slug`, `title`, `description`,
-    `image`, `published_at`); empty ones go back to their default. Raises
+    `image`, `listed`, `published_at`); empty ones go back to their default. Raises
     SlugTaken if another of its owner's notes has the slug, and NotPublished
     for a date on a note that isn't public.
     """

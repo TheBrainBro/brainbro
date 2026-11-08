@@ -57,7 +57,7 @@ are canvases where items are laid out in space.
 - Publishing makes a note readable by anyone on the internet. Publish,
   change a public page or set up a blog only when the user asks for it or
   agrees, never on your own. Items say whether they are public
-  (published_at, public_url).
+  (published_at, public_url) and listed on blogs and feeds (listed).
 - Nothing here deletes: archive keeps an item but takes it out of the way.
 - A failed call says what went wrong and what to do; nothing was saved."""
 

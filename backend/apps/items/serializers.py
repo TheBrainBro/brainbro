@@ -197,6 +197,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "edited_at",
             "public_slug",
             "published_at",
+            "public_listed",
             "public_url",
         ]
         # Markdown is stored exactly as written: leading indentation and
@@ -220,6 +221,7 @@ class ItemSerializer(serializers.ModelSerializer):
             # Set through `PUT/DELETE /items/<id>/publication/`.
             "public_slug",
             "published_at",
+            "public_listed",
         ]
 
     def validate_filename(self, value):
@@ -308,6 +310,10 @@ class AlbumSerializer(serializers.Serializer):
         if len(found) != len(ids):
             raise serializers.ValidationError("No such item.")
         return [found[item_id] for item_id in ids]
+
+
+class PublicationSerializer(serializers.Serializer):
+    listed = serializers.BooleanField(required=False)
 
 
 class TriageSerializer(serializers.Serializer):
