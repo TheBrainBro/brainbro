@@ -122,7 +122,7 @@ export function SettingsDialog({ page: initialPage, onClose }: { page?: string; 
               className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 p-2 sm:w-52 sm:flex-col sm:border-r sm:border-b-0 dark:border-zinc-800"
             >
               {shown.map((group) => (
-                <div key={group.label} className="flex gap-1 sm:flex-col">
+                <div key={group.label} className="flex shrink-0 gap-1 sm:flex-col">
                   <div className="hidden px-3 pt-2 pb-1 text-xs font-medium text-zinc-500 sm:block">
                     {t(group.label)}
                   </div>
@@ -131,7 +131,7 @@ export function SettingsDialog({ page: initialPage, onClose }: { page?: string; 
                       key={id}
                       type="button"
                       aria-current={id === page.id ? 'page' : undefined}
-                      className="menu-item shrink-0 whitespace-nowrap aria-[current=page]:bg-zinc-100 aria-[current=page]:font-medium aria-[current=page]:text-zinc-900 dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-zinc-100"
+                      className="menu-item w-auto shrink-0 whitespace-nowrap sm:w-full aria-[current=page]:bg-zinc-100 aria-[current=page]:font-medium aria-[current=page]:text-zinc-900 dark:aria-[current=page]:bg-zinc-800 dark:aria-[current=page]:text-zinc-100"
                       onClick={() => setOpenId(id)}
                     >
                       <Icon className="size-4" aria-hidden="true" />
