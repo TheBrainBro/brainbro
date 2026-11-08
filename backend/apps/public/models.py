@@ -49,6 +49,12 @@ class Site(OwnedModel):
     status = models.CharField(max_length=16, choices=Status, default=Status.UNVERIFIED)
     checked_at = models.DateTimeField(null=True, blank=True)
     verified_at = models.DateTimeField(null=True, blank=True)
+    # The domain a serving blog is moving to. It keeps serving at `hostname`
+    # until this one is verified, and `status` says nothing about this one.
+    pending_hostname = models.CharField(max_length=253, blank=True, default="")
+    pending_status = models.CharField(
+        max_length=16, choices=Status, default=Status.UNVERIFIED
+    )
 
     class Meta:
         ordering = ["created_at"]
@@ -67,9 +73,14 @@ class Site(OwnedModel):
         return self.hostname
 
     @property
+    def domain_to_verify(self):
+        """The domain it is moving to, or else its own."""
+        return self.pending_hostname or self.hostname
+
+    @property
     def verification_name(self):
         """Where its TXT record goes."""
-        return f"_brainbro.{self.hostname}"
+        return f"_brainbro.{self.domain_to_verify}"
 
     @property
     def verification_value(self):
@@ -78,6 +89,12 @@ class Site(OwnedModel):
     @property
     def is_verified(self):
         return self.status == self.Status.VERIFIED
+
+    def start_check(self):
+        """Says its domain is being checked. A blog moving keeps serving."""
+        field = "pending_status" if self.pending_hostname else "status"
+        setattr(self, field, self.Status.CHECKING)
+        self.save(update_fields=[field, "updated_at"])
 
     @property
     def name(self):

@@ -313,6 +313,13 @@ export const es: Messages = {
     delete: 'Eliminar blog',
     deleteTitle: '¿Eliminar el blog de {domain}?',
     deleteMessage: 'El dominio deja de mostrarlo. Sus notas quedan como están.',
+    changeDomain: 'Cambiar dominio',
+    newDomain: 'Dominio nuevo',
+    changeDomainHint: 'El blog sigue funcionando en su dominio actual hasta que el nuevo esté verificado.',
+    movingTo: 'Cambiando a {domain}',
+    moveIntro:
+      'Añade estos registros donde gestionas el dominio nuevo y luego verifica. Hasta entonces el blog sigue en {domain}. Una vez verificado pasa al dominio nuevo, y la dirección antigua deja de funcionar.',
+    cancelMove: 'Mantener el dominio actual',
   },
   appearance: {
     light: 'Claro',
