@@ -313,6 +313,13 @@ export const en = {
     delete: 'Delete blog',
     deleteTitle: 'Delete the blog at {domain}?',
     deleteMessage: 'The domain stops showing it. Its notes stay as they are.',
+    changeDomain: 'Change domain',
+    newDomain: 'New domain',
+    changeDomainHint: 'The blog keeps working at its current domain until the new one is verified.',
+    movingTo: 'Moving to {domain}',
+    moveIntro:
+      'Add these records where the new domain is managed, then verify. The blog stays at {domain} until then. Once verified it moves to the new domain, and the old address stops working.',
+    cancelMove: 'Keep current domain',
   },
   appearance: {
     light: 'Light',

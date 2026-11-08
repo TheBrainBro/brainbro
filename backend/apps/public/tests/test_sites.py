@@ -6,6 +6,7 @@ from apps.items.models import Collection, Item
 from apps.public.models import Redirect, Site
 from apps.public.publishing import publish, unpublish
 from apps.public.sites import normalize_hostname
+from apps.public.tasks import verify_site
 
 INDEX = (
     "<html><head><title>BrainBro</title>"
@@ -13,6 +14,7 @@ INDEX = (
     "</head><body></body></html>"
 )
 BLOG = "blog.example.com"
+NEW = "new.example.com"
 
 
 @pytest.fixture(autouse=True)
@@ -167,14 +169,81 @@ def test_a_blog_is_on_one_of_the_owner_s_collections(api, other_user):
     assert "collection" in response.json()
 
 
-def test_a_new_domain_has_to_be_verified_again(api, blog):
-    response = api.patch(
-        f"/api/sites/{blog.id}/", {"hostname": "new.example.com"}, format="json"
-    )
+def test_a_blog_never_verified_just_changes_domain(api, user):
+    site = Site.objects.create(owner=user, hostname=BLOG)
+
+    response = api.patch(f"/api/sites/{site.id}/", {"hostname": NEW}, format="json")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "unverified"
-    assert response.json()["verified_at"] is None
+    data = response.json()
+    assert data["hostname"] == NEW
+    assert data["pending_hostname"] == ""
+    assert data["status"] == "unverified"
+    assert data["records"][0]["name"] == NEW
+
+
+def test_a_verified_blog_keeps_serving_while_its_new_domain_is_pending(api, blog):
+    response = api.patch(f"/api/sites/{blog.id}/", {"hostname": NEW}, format="json")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["hostname"] == BLOG
+    assert data["status"] == "verified"
+    assert data["pending_hostname"] == NEW
+    assert data["pending_status"] == "unverified"
+    assert data["url"] == f"https://{BLOG}/"
+    assert on_blog(APIClient(), "/").status_code == 200
+    assert on_blog(APIClient(), "/", host=NEW).status_code == 400
+
+
+def test_a_pending_domain_shows_its_own_records(api, blog):
+    data = api.patch(f"/api/sites/{blog.id}/", {"hostname": NEW}, format="json").json()
+
+    assert {record["name"] for record in data["records"]} == {NEW, f"_brainbro.{NEW}"}
+
+
+def test_sending_the_current_domain_calls_a_move_off(api, blog):
+    blog.pending_hostname = NEW
+    blog.pending_status = Site.Status.FAILED
+    blog.save()
+
+    data = api.patch(f"/api/sites/{blog.id}/", {"hostname": BLOG}, format="json").json()
+
+    assert data["hostname"] == BLOG
+    assert data["status"] == "verified"
+    assert data["pending_hostname"] == ""
+    assert data["pending_status"] == "unverified"
+
+
+def test_a_pending_domain_another_blog_verified_is_refused(api, blog, other_user):
+    Site.objects.create(owner=other_user, hostname=NEW, status=Site.Status.VERIFIED)
+
+    response = api.patch(f"/api/sites/{blog.id}/", {"hostname": NEW}, format="json")
+
+    assert response.status_code == 400
+    assert response.json() == {"hostname": ["Another blog already uses this domain."]}
+
+
+def test_a_domain_another_of_your_blogs_is_moving_to_is_refused(api, blog):
+    blog.pending_hostname = NEW
+    blog.save()
+
+    response = api.post("/api/sites/", {"hostname": NEW}, format="json")
+
+    assert response.status_code == 400
+    assert response.json() == {"hostname": ["You already have a blog on this domain."]}
+
+
+def test_changing_other_settings_leaves_a_move_alone(api, blog):
+    blog.pending_hostname = NEW
+    blog.save()
+
+    data = api.patch(
+        f"/api/sites/{blog.id}/", {"title": "Renamed"}, format="json"
+    ).json()
+
+    assert data["title"] == "Renamed"
+    assert data["pending_hostname"] == NEW
 
 
 def test_other_users_blogs_are_out_of_reach(api, other_user):
@@ -230,6 +299,93 @@ def test_a_domain_verified_by_another_blog_fails(api, user, other_user, dns):
 
     site.refresh_from_db()
     assert site.status == Site.Status.FAILED
+
+
+# Moving to a new domain
+
+
+@pytest.fixture
+def moving(blog):
+    blog.pending_hostname = NEW
+    blog.save()
+    return blog
+
+
+def test_a_found_record_moves_the_blog_to_its_new_domain(api, moving, dns, user):
+    Redirect.objects.create(owner=user, site=moving, path="/old", target="/new")
+    dns[f"_brainbro.{NEW}"] = [f"brainbro-site-verification={moving.token}"]
+
+    response = api.post(f"/api/sites/{moving.id}/verify/")
+
+    assert response.status_code == 202
+    moving.refresh_from_db()
+    assert moving.hostname == NEW
+    assert moving.status == Site.Status.VERIFIED
+    assert moving.verified_at is not None
+    assert moving.pending_hostname == ""
+    assert moving.pending_status == Site.Status.UNVERIFIED
+    assert moving.title == "Carlos writes"
+    assert moving.redirects.count() == 1
+    assert on_blog(APIClient(), "/", host=NEW).status_code == 200
+    assert on_blog(APIClient(), "/").status_code == 400
+
+
+def test_the_record_of_the_old_domain_doesn_t_move_a_blog(api, moving, dns):
+    dns[f"_brainbro.{BLOG}"] = [f"brainbro-site-verification={moving.token}"]
+
+    api.post(f"/api/sites/{moving.id}/verify/")
+
+    moving.refresh_from_db()
+    assert moving.hostname == BLOG
+    assert moving.pending_hostname == NEW
+    assert moving.pending_status == Site.Status.FAILED
+
+
+def test_a_failed_move_leaves_the_blog_serving(api, moving, dns):
+    api.post(f"/api/sites/{moving.id}/verify/")
+
+    moving.refresh_from_db()
+    assert moving.status == Site.Status.VERIFIED
+    assert moving.pending_status == Site.Status.FAILED
+    assert on_blog(APIClient(), "/").status_code == 200
+
+
+def test_a_blog_keeps_serving_while_its_new_domain_is_checked(api, moving, monkeypatch):
+    monkeypatch.setattr("apps.public.views.verify_site.delay", lambda site_id: None)
+
+    data = api.post(f"/api/sites/{moving.id}/verify/").json()
+
+    assert data["status"] == "verified"
+    assert data["pending_status"] == "checking"
+    assert on_blog(APIClient(), "/").status_code == 200
+
+
+def test_a_domain_another_blog_verifies_first_fails_the_move(
+    api, moving, dns, other_user
+):
+    Site.objects.create(owner=other_user, hostname=NEW, status=Site.Status.VERIFIED)
+    dns[f"_brainbro.{NEW}"] = [f"brainbro-site-verification={moving.token}"]
+
+    api.post(f"/api/sites/{moving.id}/verify/")
+
+    moving.refresh_from_db()
+    assert moving.hostname == BLOG
+    assert moving.pending_status == Site.Status.FAILED
+    assert on_blog(APIClient(), "/").status_code == 200
+
+
+def test_a_move_called_off_during_the_lookup_stays_off(moving, monkeypatch):
+    def lookup(name):
+        Site.objects.filter(id=moving.id).update(pending_hostname="")
+        return {f"brainbro-site-verification={moving.token}"}
+
+    monkeypatch.setattr("apps.public.tasks.txt_values", lookup)
+
+    verify_site(str(moving.id))
+
+    moving.refresh_from_db()
+    assert moving.hostname == BLOG
+    assert moving.status == Site.Status.VERIFIED
 
 
 # Certificates on demand

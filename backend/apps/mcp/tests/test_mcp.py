@@ -1022,13 +1022,40 @@ def test_update_a_blog(call, user):
     assert blog["description"] == "Notes."
 
 
-def test_a_new_domain_has_to_be_verified_again(call, user):
+def test_a_verified_blog_s_new_domain_stays_pending(call, user):
     site = Site.objects.create(owner=user, hostname=BLOG, status=Site.Status.VERIFIED)
 
     blog = structured(call("update_blog", id=str(site.id), domain="new.example.com"))
 
+    assert blog["domain"] == BLOG
+    assert blog["status"] == "verified"
+    assert blog["pending_domain"] == "new.example.com"
+    assert blog["pending_status"] == "unverified"
+
+
+def test_a_blog_not_moving_has_no_pending_domain(call, user):
+    site = Site.objects.create(owner=user, hostname=BLOG, status=Site.Status.VERIFIED)
+
+    blog = structured(call("update_blog", id=str(site.id), title="Mine"))
+
+    assert blog["pending_domain"] is None
+    assert blog["pending_status"] is None
+
+
+def test_verifying_a_pending_domain_moves_the_blog(call, user, dns):
+    site = Site.objects.create(
+        owner=user,
+        hostname=BLOG,
+        status=Site.Status.VERIFIED,
+        pending_hostname="new.example.com",
+    )
+    dns["_brainbro.new.example.com"] = [f"brainbro-site-verification={site.token}"]
+
+    blog = structured(call("verify_blog", id=str(site.id)))
+
     assert blog["domain"] == "new.example.com"
-    assert blog["status"] == "unverified"
+    assert blog["status"] == "verified"
+    assert blog["pending_domain"] is None
 
 
 def test_someone_else_s_blog_is_out_of_reach(call, other_user, dns):
