@@ -331,6 +331,9 @@ def test_a_blog_says_what_it_is(anyone, user, blog):
         "author": "Carlos",
         "handle": "carlos",
         "avatar_url": None,
+        "links": [],
+        "powered_by": True,
+        "categories": [],
     }
     assert anyone.get("/api/public/site/").status_code == 404
 
@@ -441,3 +444,87 @@ def test_locally_a_blog_is_where_django_serves_it(api, user, blog, writing, sett
     assert api.get(f"/api/items/{item.id}/").json()["public_url"] == (
         f"http://{BLOG}:8000/hello"
     )
+
+
+# Categories, links and "Powered by"
+
+
+@pytest.fixture
+def travel(user, writing):
+    return Collection.objects.create(owner=user, name="Travel & Trips", parent=writing)
+
+
+def test_notes_in_collections_inside_the_blog_s_are_on_it(anyone, user, blog, travel):
+    deeper = Collection.objects.create(owner=user, name="Japan", parent=travel)
+    publish(note(user, title="Tokyo", collection=deeper))
+
+    results = on_blog(anyone, "/api/public/notes/").json()["results"]
+
+    assert [(entry["title"], entry["url"]) for entry in results] == [
+        ("Tokyo", "/tokyo")
+    ]
+
+
+def test_the_collections_inside_a_blog_s_are_its_categories(
+    anyone, user, blog, writing, travel
+):
+    Collection.objects.create(owner=user, name="Empty", parent=writing)
+    publish(note(user, title="Tokyo", collection=travel))
+    publish(note(user, title="Hello", collection=writing))
+
+    data = on_blog(anyone, "/api/public/site/").json()
+    in_travel = on_blog(anyone, "/api/public/notes/?category=travel-trips").json()
+
+    # Only those with something published.
+    assert data["categories"] == [{"slug": "travel-trips", "name": "Travel & Trips"}]
+    assert [entry["title"] for entry in in_travel["results"]] == ["Tokyo"]
+    assert on_blog(anyone, "/api/public/notes/?category=nope").status_code == 404
+
+
+def test_a_category_page_says_what_it_is(client, user, blog, travel):
+    publish(note(user, title="Tokyo", collection=travel))
+
+    html = on_blog(client, "/c/travel-trips").content.decode()
+
+    assert "<title>Travel &amp; Trips · Carlos writes</title>" in html
+    assert f'<link rel="canonical" href="https://{BLOG}/c/travel-trips" />' in html
+
+
+def test_a_blog_shows_its_links(api, anyone, blog):
+    links = [{"name": "Website", "url": "https://carlos.dev"}]
+
+    response = api.patch(f"/api/sites/{blog.id}/", {"links": links}, format="json")
+
+    assert response.status_code == 200
+    assert on_blog(anyone, "/api/public/site/").json()["links"] == links
+
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        {"name": "Bad", "url": "javascript:alert(1)"},
+        {"name": "Bad", "url": "ftp://carlos.dev"},
+        {"name": "", "url": "https://carlos.dev"},
+        {"name": "x" * 61, "url": "https://carlos.dev"},
+    ],
+)
+def test_a_link_must_be_a_web_address_with_a_name(api, blog, link):
+    response = api.patch(f"/api/sites/{blog.id}/", {"links": [link]}, format="json")
+
+    assert response.status_code == 400
+
+
+def test_a_blog_has_ten_links_at_most(api, blog):
+    links = [{"name": f"L{n}", "url": f"https://x.dev/{n}"} for n in range(11)]
+
+    response = api.patch(f"/api/sites/{blog.id}/", {"links": links}, format="json")
+
+    assert response.status_code == 400
+
+
+def test_powered_by_shows_until_it_is_turned_off(api, anyone, blog):
+    assert on_blog(anyone, "/api/public/site/").json()["powered_by"] is True
+
+    api.patch(f"/api/sites/{blog.id}/", {"powered_by": False}, format="json")
+
+    assert on_blog(anyone, "/api/public/site/").json()["powered_by"] is False

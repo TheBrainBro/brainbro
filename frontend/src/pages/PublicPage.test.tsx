@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -45,14 +45,20 @@ const site = {
   description: 'Notes on travel.',
   author: 'Ana',
   handle: 'ana',
+  avatar_url: null,
+  links: [{ name: 'Website', url: 'https://ana.dev' }],
+  powered_by: true,
+  categories: [{ slug: 'travel', name: 'Travel' }],
 }
 
-function renderAt(path: string, { onSite = false } = {}) {
+function renderAt(path: string, { onSite = false, poweredBy = true } = {}) {
   const fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(plan)
     if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
     if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
-    if (url === '/api/public/site/' && onSite) return jsonResponse(site)
+    if (url === '/api/public/site/' && onSite) {
+      return jsonResponse({ ...site, powered_by: poweredBy })
+    }
     if (url === '/api/public/authors/ana/') return jsonResponse({ handle: 'ana', author: 'Ana' })
     if (url.startsWith('/api/public/notes/?')) {
       return jsonResponse({
@@ -193,6 +199,8 @@ describe('PublicAuthorPage', () => {
       '/@ana/trip-plan',
     )
     expect(fetchMock).toHaveBeenCalledWith('/api/public/notes/?limit=200&author=ana', expect.anything())
+    // On the server's own domain, always.
+    expect(screen.getByRole('link', { name: 'BrainBro' })).toBeInTheDocument()
   })
 
   it('says when there is no such author', async () => {
@@ -222,6 +230,39 @@ describe('a blog on its own domain', () => {
       'href',
       '/trip-plan',
     )
+  })
+
+  it('shows its links, and its categories as tabs', async () => {
+    const fetchMock = renderAt('/c/travel', { onSite: true })
+
+    expect(await screen.findByRole('link', { name: 'Website' })).toHaveAttribute(
+      'href',
+      'https://ana.dev',
+    )
+    const tabs = screen.getByRole('navigation', { name: 'Categories' })
+    expect(within(tabs).getByRole('link', { name: 'All posts' })).toHaveAttribute('href', '/')
+    expect(within(tabs).getByRole('link', { name: 'Travel' })).toHaveAttribute('aria-current', 'page')
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/public/notes/?limit=200&category=travel',
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('says it is powered by BrainBro, unless turned off', async () => {
+    renderAt('/', { onSite: true })
+    expect(await screen.findByRole('link', { name: 'BrainBro' })).toHaveAttribute(
+      'href',
+      'https://brainbro.app',
+    )
+  })
+
+  it("doesn't when turned off", async () => {
+    renderAt('/', { onSite: true, poweredBy: false })
+
+    expect(await screen.findByRole('link', { name: 'Website' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'BrainBro' })).not.toBeInTheDocument()
   })
 
   it('shows a note at /<slug>', async () => {

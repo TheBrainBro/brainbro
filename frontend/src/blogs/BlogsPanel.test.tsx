@@ -133,6 +133,51 @@ describe('BlogsPanel', () => {
     expect(within(card).queryByLabelText('TXT record value')).not.toBeInTheDocument()
   })
 
+  it('saves its links, leaving empty rows out', async () => {
+    const fetchMock = renderPanel([blog], {
+      'PATCH /api/sites/s1/': () => jsonResponse(blog),
+    })
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    fireEvent.click(within(card).getByRole('button', { name: 'Add link' }))
+    fireEvent.change(within(card).getByLabelText('Link 1 name'), { target: { value: 'Website' } })
+    fireEvent.change(within(card).getByLabelText('Link 1 address'), {
+      target: { value: 'https://carlos.dev' },
+    })
+    fireEvent.click(within(card).getByRole('button', { name: 'Add link' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Save' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({
+            title: '',
+            description: '',
+            links: [{ name: 'Website', url: 'https://carlos.dev' }],
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('turns "Powered by BrainBro" off', async () => {
+    const fetchMock = renderPanel([blog], {
+      'PATCH /api/sites/s1/': () => jsonResponse({ ...blog, powered_by: false }),
+    })
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    fireEvent.click(within(card).getByRole('checkbox', { name: /Powered by BrainBro/ }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ powered_by: false }) }),
+      ),
+    )
+  })
+
   it('deletes a blog after asking', async () => {
     const fetchMock = renderPanel([blog], {
       'DELETE /api/sites/s1/': () => new Response(null, { status: 204 }),
