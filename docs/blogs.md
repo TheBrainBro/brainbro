@@ -23,7 +23,21 @@ notes filed in it, newest first, and each one is at `https://blog.example.com/<s
 Only someone who controls a domain's DNS can add its `TXT` record, so nobody can put a blog on
 someone else's domain. A domain is unique once verified: adding one that isn't yours, unverified,
 never keeps its owner out. Verify again after changing the records; if the `TXT` record is gone
-by then, the blog stops showing. Changing a blog's domain means verifying it again.
+by then, the blog stops showing.
+
+## Changing a blog's domain
+
+The pencil next to a blog's domain changes it, keeping the blog as it is: its collection, name,
+links and redirects. A blog that was never verified just changes domain. A verified one keeps
+serving at its current domain while the new one stays pending:
+
+1. Enter the new domain. BrainBro shows that domain's DNS records.
+2. Add them, and behind a tunnel add the domain to the tunnel.
+3. **Verify**. Found, the blog moves to the new domain with no downtime, and the old one stops
+   showing it: it does not redirect. Not found, nothing changes and you can try again.
+
+**Keep current domain** calls the change off. If another blog verifies the new domain first, the
+check fails and the blog stays where it is.
 
 ## What a blog shows
 
@@ -96,8 +110,8 @@ one or a few people on it.
 | Method | Path | |
 | --- | --- | --- |
 | `GET`, `POST` | `/api/sites/` | The user's blogs; a new one (`hostname`, `collection`, `title`, `description`, `links`, `powered_by`). |
-| `GET`, `PATCH`, `DELETE` | `/api/sites/<id>/` | One of them. A new `hostname` is unverified again. |
-| `POST` | `/api/sites/<id>/verify/` | Checks its `TXT` record in the worker; `status` goes `checking`, then `verified` or `failed`. |
+| `GET`, `PATCH`, `DELETE` | `/api/sites/<id>/` | One of them. A verified blog's new `hostname` goes to `pending_hostname` and it keeps serving; sending its current `hostname` calls that off. On a blog never verified, `hostname` just changes. |
+| `POST` | `/api/sites/<id>/verify/` | Checks its `TXT` record in the worker; `status` goes `checking`, then `verified` or `failed`. On a blog with a `pending_hostname` it checks that domain and `pending_status` says so instead; found, the blog moves there. |
 | `GET` | `/api/public/site/` | Anyone, on a blog's domain: `{hostname, title, description, author, handle, avatar_url, links, powered_by, categories}`; `categories` are `[{slug, name}]`. 404 elsewhere. |
 | `GET` | `/api/public/notes/?category=<slug>` | Anyone, on a blog's domain: the notes of one of its categories. |
 | `GET` | `/api/public/sites/check/?domain=` | Anyone: `200` for a verified blog's domain, `404` otherwise. For Caddy's `ask`. |
