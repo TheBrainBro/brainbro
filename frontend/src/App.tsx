@@ -110,6 +110,7 @@ export function SiteRoutes() {
   return (
     <Routes>
       <Route index element={<SiteIndexPage />} />
+      <Route path="/c/:category" element={<SiteIndexPage />} />
       <Route path="/:slug" element={<SiteNotePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
