@@ -13,6 +13,7 @@ import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import {
   LegacyPublicNotePage,
+  PublicAuthorPage,
   PublicIndexPage,
   PublicNotePage,
   SiteIndexPage,
@@ -52,7 +53,8 @@ export function AppRoutes() {
       {/* Published notes: open to anyone, signed in or not. */}
       <Route path="/p" element={<PublicIndexPage />} />
       <Route path="/p/:slug" element={<LegacyPublicNotePage />} />
-      {/* `/@<handle>/<slug>`: the page checks the `@`. */}
+      {/* `/@<handle>` and `/@<handle>/<slug>`: the pages check the `@`. */}
+      <Route path="/:handle" element={<PublicAuthorPage />} />
       <Route path="/:handle/:slug" element={<PublicNotePage />} />
       <Route element={<RequireAuth />}>
         <Route path="/oauth/authorize" element={<AuthorizePage />} />

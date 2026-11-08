@@ -8,6 +8,7 @@ import { renderNote } from '../lib/markdown'
 import { noteTitleIndex } from '../notes/wikilinks'
 import {
   useLegacyNote,
+  usePublicAuthor,
   usePublicNote,
   usePublicNotes,
   usePublicSite,
@@ -51,10 +52,10 @@ export function PublicIndexPage() {
   )
 }
 
-/** The published notes the server lists here: all of them, or the blog's. */
-function NoteList() {
+/** The published notes the server lists here: all of them, the blog's, or one author's. */
+function NoteList({ author }: { author?: string }) {
   useT()
-  const notes = usePublicNotes()
+  const notes = usePublicNotes(author)
 
   if (notes.isPending) return <Loading />
   if (notes.isError) return <ErrorState error={notes.error} onRetry={() => notes.refetch()} />
@@ -102,6 +103,41 @@ export function PublicNotePage() {
   return <PublicNote handle={handle.slice(1)} slug={slug} />
 }
 
+/**
+ * `/@<handle>`: an author's page, with all their public notes, newest first.
+ * The route matches any one segment, so anything else goes back to the app.
+ */
+export function PublicAuthorPage() {
+  const { handle = '' } = useParams()
+  if (!handle.startsWith('@')) return <Navigate to="/" replace />
+  return <AuthorPage handle={handle.slice(1)} />
+}
+
+function AuthorPage({ handle }: { handle: string }) {
+  useT()
+  const author = usePublicAuthor(handle)
+  const name = author.data ? author.data.author || `@${author.data.handle}` : undefined
+  useTitle(name)
+
+  return (
+    <Frame>
+      {author.isError ? (
+        <Missing error={author.error} onRetry={() => author.refetch()} />
+      ) : author.data ? (
+        <>
+          <h1 className="text-2xl font-semibold">{name}</h1>
+          {author.data.author && <p className="mt-1 text-sm text-zinc-500">@{author.data.handle}</p>}
+          <div className="mt-8">
+            <NoteList author={handle} />
+          </div>
+        </>
+      ) : (
+        <Loading />
+      )}
+    </Frame>
+  )
+}
+
 /** `/p/<slug>`, where notes were before handles: off to where it lives now. */
 export function LegacyPublicNotePage() {
   useT()
@@ -139,7 +175,7 @@ function PublicNote({ handle, slug }: { handle: string; slug: string }) {
       ) : note.isError ? (
         <Missing error={note.error} onRetry={() => note.refetch()} />
       ) : (
-        <PublicArticle note={note.data} />
+        <PublicArticle note={note.data} authorPage={`/@${handle}`} />
       )}
     </Frame>
   )
@@ -157,7 +193,8 @@ function Missing({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return <ErrorState error={error} onRetry={onRetry} />
 }
 
-function PublicArticle({ note }: { note: PublicNote }) {
+/** A published note; `authorPage` links its byline to its author's page. */
+function PublicArticle({ note, authorPage }: { note: PublicNote; authorPage?: string }) {
   useT()
   const navigate = useNavigate()
   const html = useMemo(
@@ -180,7 +217,14 @@ function PublicArticle({ note }: { note: PublicNote }) {
         {note.author && (
           <>
             {rich('public.by', {
-              author: (
+              author: authorPage ? (
+                <Link
+                  to={authorPage}
+                  className="font-medium text-zinc-700 hover:text-accent-700 dark:text-zinc-300 dark:hover:text-accent-300"
+                >
+                  {note.author}
+                </Link>
+              ) : (
                 <span className="font-medium text-zinc-700 dark:text-zinc-300">{note.author}</span>
               ),
             })}

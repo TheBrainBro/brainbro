@@ -50,10 +50,24 @@ export function usePublicNote(handle: string, slug: string) {
   })
 }
 
-export function usePublicNotes() {
+/** Published notes: all on the server, the blog's on a blog, or one author's. */
+export function usePublicNotes(author?: string) {
   return useQuery({
-    queryKey: ['public', 'notes'],
-    queryFn: () => api<Page<PublicNoteSummary>>('/public/notes/?limit=200'),
+    queryKey: ['public', 'notes', { author }],
+    queryFn: () =>
+      api<Page<PublicNoteSummary>>(
+        `/public/notes/?limit=200${author ? `&author=${encodeURIComponent(author)}` : ''}`,
+      ),
+  })
+}
+
+/** An author's page, `/@<handle>`: their display name, empty without one. */
+export type PublicAuthor = { handle: string; author: string }
+
+export function usePublicAuthor(handle: string) {
+  return useQuery({
+    queryKey: ['public', 'authors', handle],
+    queryFn: () => api<PublicAuthor>(`/public/authors/${encodeURIComponent(handle)}/`),
   })
 }
 
