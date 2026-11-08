@@ -33,6 +33,11 @@ public_patterns = [
         views.LegacyPublicNoteView.as_view(),
         name="public-legacy-note",
     ),
+    path(
+        "public/authors/<slug:handle>/",
+        views.PublicAuthorView.as_view(),
+        name="public-author",
+    ),
     path("public/site/", views.PublicSiteView.as_view(), name="public-site"),
     path(
         "public/sites/check/", views.SiteCheckView.as_view(), name="public-site-check"

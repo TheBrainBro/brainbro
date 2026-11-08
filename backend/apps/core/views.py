@@ -13,8 +13,10 @@ from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
+from apps.accounts.models import Profile
 from apps.items.models import Item
 from apps.public.pages import (
+    author_head_tags,
     note_head_tags,
     published_note_for_page,
     site_head_tags,
@@ -24,6 +26,7 @@ from apps.public.sites import current_site, public_url, site_notes, site_url
 
 # A published note on the server, and where notes were before handles.
 NOTE_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/(?P<slug>[a-z0-9-]+)/?")
+AUTHOR_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/?")
 LEGACY_PAGE = re.compile(r"p/(?P<slug>[a-z0-9-]+)/?")
 # A note on a blog's domain.
 SITE_PAGE = re.compile(r"(?P<slug>[a-z0-9-]+)/?")
@@ -48,43 +51,57 @@ def health(request):
     return JsonResponse({"status": "ok", "database": True})
 
 
+def site_page_head(request, site, path):
+    """The tags of a blog's index or of one of its notes, on its domain."""
+    if path == "":
+        return site_head_tags(request, site)
+    if match := SITE_PAGE.fullmatch(path):
+        note = published_note_for_page(
+            id__in=site_notes(site).values("id"), public_slug=match["slug"]
+        )
+        if note:
+            url = site_url(site, f"/{note.public_slug}")
+            return note_head_tags(request, note, url)
+    return None
+
+
+def note_page_head(request, handle, slug):
+    """A note's tags at `/@<handle>/<slug>`, or a redirect to its blog."""
+    note = published_note_for_page(owner__profile__handle=handle, public_slug=slug)
+    if note is None:
+        return None, None
+    url = public_url(note)
+    if not url.startswith("/"):
+        return None, url
+    return note_head_tags(request, note, request.build_absolute_uri(url)), None
+
+
+def legacy_redirect(slug):
+    """Where `/p/<slug>` lives now, while one published note has that slug."""
+    notes = list(
+        Item.objects.filter(
+            kind=Item.Kind.NOTE, published_at__isnull=False, public_slug=slug
+        ).only("id", "owner_id", "public_slug")[:2]
+    )
+    return public_url(notes[0]) if len(notes) == 1 else None
+
+
 def page_head(request, path):
     """
     The tags of a public page at `path`, or a redirect to where it lives
     now: `/@<handle>/<slug>` on its blog, `/p/<slug>` at its new address.
+    `/@<handle>` is its author's page, with all their public notes.
     `(tags, redirect)`, both None for the app's own routes.
     """
-    site = current_site(request)
-    if site is not None:
-        if path == "":
-            return site_head_tags(request, site), None
-        if match := SITE_PAGE.fullmatch(path):
-            note = published_note_for_page(
-                id__in=site_notes(site).values("id"), public_slug=match["slug"]
-            )
-            if note:
-                url = site_url(site, f"/{note.public_slug}")
-                return note_head_tags(request, note, url), None
-        return None, None
+    if (site := current_site(request)) is not None:
+        return site_page_head(request, site, path), None
     if match := NOTE_PAGE.fullmatch(path):
-        note = published_note_for_page(
-            owner__profile__handle=match["handle"], public_slug=match["slug"]
-        )
-        if note:
-            url = public_url(note)
-            if not url.startswith("/"):
-                return None, url
-            return note_head_tags(request, note, request.build_absolute_uri(url)), None
-    elif match := LEGACY_PAGE.fullmatch(path):
-        notes = list(
-            Item.objects.filter(
-                kind=Item.Kind.NOTE,
-                published_at__isnull=False,
-                public_slug=match["slug"],
-            ).only("id", "owner_id", "public_slug")[:2]
-        )
-        if len(notes) == 1:
-            return None, public_url(notes[0])
+        return note_page_head(request, match["handle"], match["slug"])
+    if match := AUTHOR_PAGE.fullmatch(path):
+        profile = Profile.objects.filter(handle=match["handle"]).first()
+        return (author_head_tags(request, profile) if profile else None), None
+    if match := LEGACY_PAGE.fullmatch(path):
+        return None, legacy_redirect(match["slug"])
     return None, None
 
 
