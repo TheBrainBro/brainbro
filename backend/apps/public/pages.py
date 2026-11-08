@@ -102,6 +102,15 @@ def public_avatar_url(profile):
     return f"{path}?v={profile.avatar.name.rsplit('/', 1)[-1]}"
 
 
+def public_site_avatar_url(site):
+    """Where anyone sees the blog's photo: its own, or else its owner's."""
+    if site.avatar:
+        path = reverse("public-site-avatar")
+        # The file name changes with the photo, so it doubles as a cache buster.
+        return f"{path}?v={site.avatar.name.rsplit('/', 1)[-1]}"
+    return public_avatar_url(Profile.objects.filter(user_id=site.owner_id).first())
+
+
 @dataclass
 class Preview:
     title: str
@@ -189,7 +198,7 @@ def note_head_tags(request, note, url):
         description=preview.description,
         url=url,
         meta=meta,
-        author=author_name(note),
+        author=site_author(site) if site else author_name(note),
         feed=site.name if site else None,
         noindex=not note.public_listed,
     )
@@ -240,6 +249,9 @@ def author_head_tags(request, profile):
 
 
 def site_author(site):
+    """Who signs the blog: its own author, or else its owner's display name."""
+    if site.author:
+        return site.author
     names = Profile.objects.filter(user_id=site.owner_id).values_list(
         "display_name", flat=True
     )
