@@ -34,6 +34,7 @@ function item(id: string, fields: Partial<Item>): Item {
     public_slug: null,
     public_url: null,
     published_at: null,
+    public_listed: true,
     ...fields,
   }
 }
