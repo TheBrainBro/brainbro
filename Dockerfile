@@ -6,6 +6,9 @@ WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# Tailwind reads the classes of a blog's pages from its templates, and the
+# typecheck the data the parity test shares with the backend.
+COPY backend/apps/public/ /backend/apps/public/
 RUN npm run build
 
 
