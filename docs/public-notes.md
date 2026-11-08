@@ -8,7 +8,7 @@ a small blog. Everything else stays private.
 Every note is **Private** by default: only its owner can see it. The visibility button in the
 note's bar (next to Organize) switches it to **Public**, at once: the note gets an address,
 `/@<handle>/<slug>`, with the slug made from its title (`Café & trip plan` is `cafe-trip-plan`;
-an untitled note uses the title it shows, its first H1 or first line). The same menu then shows
+an untitled note uses the title it shows, its first line). The same menu then shows
 the link, opens the page and leads to **Page settings**. Switching back to Private takes the
 page down. A note filed in a blog's collection lives on the blog's domain instead (see
 [blogs.md](blogs.md)).
@@ -72,7 +72,7 @@ read-only; embed links play, since the author picked them.
 
 A note reads as an article, under a bar with whose it is (the blog, or its author) that leads
 back to all their posts: the date, its title, then its text in larger type with wide images. A
-first line `# Title` equal to its title isn't shown twice. Below, up to three more of the
+first line equal to its title, written as a heading or not, isn't shown twice. Below, up to three more of the
 author's notes (on a blog, of the blog's), when there are any, and a link to all posts. Lists (`/@<handle>`, a blog's index, `/p`) show each note with its title, the start of
 its text (or its page description), its date and its cover: the image its shared link
 shows.

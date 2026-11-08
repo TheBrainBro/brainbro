@@ -548,7 +548,8 @@ class RevisionsArguments(PageArguments):
 def revision_summary(revision):
     summary = {
         "id": revision.id,
-        "title": revision.title,
+        # Named after its text if untitled, as `get_item` names the note.
+        "title": revision.title or note_title(revision.body, fallback=""),
         # Who saved it and through what: "user", or the app's name.
         "by": revision.by or "user",
         "via": revision.via or "unknown",

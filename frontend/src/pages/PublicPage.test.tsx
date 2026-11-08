@@ -51,9 +51,9 @@ const site = {
   categories: [{ slug: 'travel', name: 'Travel' }],
 }
 
-function renderAt(path: string, { onSite = false, poweredBy = true } = {}) {
+function renderAt(path: string, { onSite = false, poweredBy = true, note = plan } = {}) {
   const fetchMock = vi.fn(async (url: string) => {
-    if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(plan)
+    if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(note)
     if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
     if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
     if (url === '/api/public/site/' && onSite) {
@@ -158,6 +158,19 @@ describe('the article', () => {
     renderAt('/@ana/trip-plan')
 
     expect(await screen.findAllByRole('heading', { name: 'Trip plan' })).toHaveLength(1)
+  })
+
+  it("doesn't repeat a plain first line that is its title", async () => {
+    renderAt('/@ana/trip-plan', { note: { ...plan, body: 'Trip plan\n\nTen days in Japan.' } })
+
+    expect(await screen.findByText('Ten days in Japan.')).toBeInTheDocument()
+    expect(screen.getAllByText('Trip plan')).toHaveLength(1)
+  })
+
+  it('keeps a first line that is not its title', async () => {
+    renderAt('/@ana/trip-plan', { note: { ...plan, body: 'Before we go\n\nTen days.' } })
+
+    expect(await screen.findByText(/Before we go/)).toBeInTheDocument()
   })
 
   it('shows each note in a list with the start of its text and its cover', async () => {

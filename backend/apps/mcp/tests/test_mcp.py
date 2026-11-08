@@ -303,7 +303,7 @@ def test_assistant_lists_exclude_sample_collections_and_boards(call, user):
 
 
 def test_untitled_notes_are_named_after_their_body(call, user):
-    Item.objects.create(owner=user, kind="note", body="Intro\n# Garden plan\nbeds")
+    Item.objects.create(owner=user, kind="note", body="# Garden plan\nbeds")
     Item.objects.create(owner=user, kind="note", title="Seeds", body="# Garden")
 
     found = structured(call("search_items", query="garden"))["items"]
@@ -646,6 +646,25 @@ def test_get_a_revision(call, user):
     revision = structured(call("get_revision", revision_id=first["id"]))
 
     assert (revision["body"], revision["note_id"]) == ("first", str(item.id))
+
+
+def test_untitled_revisions_are_named_after_their_own_text(call, user):
+    item = note(user, "# First\nmore")
+    call("edit_note", id=str(item.id), body="Second\nmore")
+
+    revisions = structured(call("list_revisions", id=str(item.id)))["revisions"]
+    revision = structured(call("get_revision", revision_id=revisions[-1]["id"]))
+
+    assert [each["title"] for each in revisions] == ["Second", "First"]
+    assert revision["title"] == "First"
+
+
+def test_a_revision_keeps_its_saved_title(call, user):
+    item = note(user, "Text", title="Saved")
+
+    [revision] = structured(call("list_revisions", id=str(item.id)))["revisions"]
+
+    assert revision["title"] == "Saved"
 
 
 def test_revisions_are_of_your_notes(call, user, other_user):

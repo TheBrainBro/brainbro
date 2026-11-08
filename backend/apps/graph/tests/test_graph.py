@@ -91,7 +91,7 @@ def test_notes_link_each_other_by_title(api, user):
 
 def test_untitled_notes_are_linked_by_the_title_shown(api, user):
     a = Item.objects.create(owner=user, kind="note", body="See [[what is ai]]")
-    b = Item.objects.create(owner=user, kind="note", body="Intro\n# What is AI\n…")
+    b = Item.objects.create(owner=user, kind="note", body="# What is AI\n…")
     saved = Item.objects.create(owner=user, kind="note", title="Intro", body="x")
     c = Item.objects.create(owner=user, kind="note", body="Intro\nmore\n[[Intro]]")
 
@@ -109,7 +109,7 @@ def test_albums_stand_for_their_images_and_labels(api, user):
     Item.objects.create(owner=user, kind="image", album=album)
     Item.objects.create(owner=user, kind="image", album=album)
     note = Item.objects.create(
-        owner=user, kind="note", body="\nIntro\n# [Read](https://x.y) this\nmore"
+        owner=user, kind="note", body="\n# [Read](https://x.y) this\nmore"
     )
     file = Item.objects.create(owner=user, kind="file", metadata={"filename": "a.pdf"})
 

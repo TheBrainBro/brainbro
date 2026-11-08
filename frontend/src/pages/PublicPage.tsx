@@ -5,6 +5,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { currentLanguage, rich, t, useT } from '../i18n/i18n'
 import { ApiError } from '../lib/api'
 import { renderNote } from '../lib/markdown'
+import { noteTitle } from '../notes/title'
 import { noteTitleIndex } from '../notes/wikilinks'
 import {
   useLegacyNote,
@@ -53,12 +54,12 @@ function AnyLink({ to, className, children }: { to: string; className?: string; 
 }
 
 /**
- * The note's Markdown without its first line when that is a `# Title` equal
- * to the title the page already shows on top.
+ * The note's Markdown without its first line when that is the title the page
+ * already shows on top, written as a heading or not.
  */
 function withoutTitle(body: string, title: string) {
-  const match = /^\s*#\s+(.+?)\s*#*\s*(?:\n|$)/.exec(body)
-  if (!match || match[1].trim().toLowerCase() !== title.trim().toLowerCase()) return body
+  const match = /^\s*([^\n]*?)\s*#*\s*(?:\n|$)/.exec(body)
+  if (!match || noteTitle(match[1], '').toLowerCase() !== title.trim().toLowerCase()) return body
   return body.slice(match[0].length)
 }
 
