@@ -7,10 +7,11 @@ from django.test import Client
 from django.utils import timezone
 from PIL import Image
 
-from apps.accounts.models import ApiToken
+from apps.accounts.models import ApiToken, Permission
 from apps.boards.models import Board
 from apps.items.models import Collection, Item, NoteImage
 from apps.items.safe_http import BlockedURL, Fetched, TransientFetchError
+from apps.mcp.tools import TOOLS
 from apps.public.models import Redirect, Site
 from apps.public.publishing import publish
 
@@ -1424,3 +1425,171 @@ def test_what_isn_t_imported(call, web, answer, error):
 
 def test_only_web_addresses_are_imported(call, web):
     assert "url" in failure(call("import_image", url="ftp://example.com/a.png"))
+
+
+# Permissions
+
+
+@pytest.fixture
+def limit(user, key):
+    """Leaves the connection with only these permissions."""
+
+    def limit(*permissions):
+        ApiToken.objects.filter(key_hash=ApiToken.hash(key)).update(
+            permissions=list(permissions)
+        )
+
+    return limit
+
+
+def listed_tools(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    return {tool["name"] for tool in response.json()["result"]["tools"]}
+
+
+def test_a_personal_token_sees_every_tool(mcp):
+    assert listed_tools(mcp) == set(TOOLS)
+
+
+def test_read_only_tools_are_exactly_the_read_permission():
+    for tool in TOOLS.values():
+        assert (tool.permission == Permission.READ) == tool.read_only, tool.name
+
+
+def test_only_allowed_tools_are_listed(mcp, limit):
+    limit("read", "capture")
+
+    tools = listed_tools(mcp)
+
+    assert {"search_items", "get_item", "capture", "import_image"} <= tools
+    assert not tools & {"edit_note", "archive", "publish_note", "create_blog"}
+
+
+def test_a_tool_not_allowed_fails_saying_why(call, limit, user):
+    limit("read")
+
+    result = call("capture", text="Nope")
+
+    assert result["isError"] is True
+    assert '"Capture" permission' in result["content"][0]["text"]
+    assert not Item.objects.filter(owner=user).exists()
+
+
+def test_publishing_needs_its_own_permission(call, limit, user):
+    note = Item.objects.create(owner=user, kind=Item.Kind.NOTE, body="Private")
+    limit("read", "capture", "edit")
+
+    result = call("publish_note", id=str(note.id))
+
+    assert result["isError"] is True
+    assert '"Publish" permission' in result["content"][0]["text"]
+    note.refresh_from_db()
+    assert note.published_at is None
+
+
+# Logos
+
+
+@pytest.fixture
+def connected(key):
+    """Makes the connection one that went back to `host`."""
+
+    def connected(host):
+        ApiToken.objects.filter(key_hash=ApiToken.hash(key)).update(redirect_host=host)
+
+    return connected
+
+
+def handshake(mcp, **client_info):
+    response = mcp(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "clientInfo": {"version": "1", **client_info},
+            },
+        }
+    )
+    assert response.status_code == 200
+
+
+def test_what_an_assistant_makes_keeps_its_logo(call, connected, user):
+    connected("claude.ai")
+
+    structured(call("capture", text="A thought"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_logo) == ("Claude", "claude")
+    assert item.revisions.get().logo == "claude"
+
+
+def test_a_personal_token_has_no_logo(call, user):
+    structured(call("capture", text="A thought"))
+
+    assert Item.objects.get(owner=user).created_logo == ""
+
+
+def test_an_edit_keeps_the_logo_of_who_made_it(call, connected, user):
+    connected("claude.ai")
+    note = Item.objects.get(id=structured(call("capture", text="Old"))["id"])
+    connected("chatgpt.com")
+
+    structured(call("edit_note", id=str(note.id), body="New"))
+
+    note.refresh_from_db()
+    assert note.created_logo == "claude"
+    assert note.edited_logo == "chatgpt"
+
+
+def test_the_handshake_is_remembered(mcp, key):
+    handshake(mcp, name="grok-bot", title="Grok Bot")
+
+    assert ApiToken.objects.get(key_hash=ApiToken.hash(key)).client_app == (
+        "grok-bot Grok Bot"
+    )
+
+
+@pytest.mark.parametrize("info", [None, "text", {"name": 3}, {}])
+def test_a_strange_handshake_changes_nothing(mcp, key, info):
+    response = mcp(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "clientInfo": info},
+        }
+    )
+
+    assert response.status_code == 200
+    assert ApiToken.objects.get(key_hash=ApiToken.hash(key)).client_app == ""
+
+
+def test_grok_bot_is_told_apart_from_cursor(mcp, call, connected, user):
+    connected("www.cursor.com")
+    handshake(mcp, name="Grok Bot")
+
+    structured(call("capture", text="A thought"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_logo) == ("Grok Bot", "grokbot")
+
+
+def test_cursor_stays_cursor(mcp, call, connected, user):
+    connected("www.cursor.com")
+    handshake(mcp, name="cursor-agent")
+
+    structured(call("capture", text="A thought"))
+
+    assert Item.objects.get(owner=user).created_logo == "cursor"
+
+
+def test_only_cursors_address_can_claim_grok_bot(mcp, call, connected, user):
+    connected("evil.example")
+    handshake(mcp, name="Grok Bot")
+
+    structured(call("capture", text="A thought"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_logo) == ("Claude", "")
