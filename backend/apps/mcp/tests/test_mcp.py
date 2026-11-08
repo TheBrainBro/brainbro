@@ -303,7 +303,7 @@ def test_assistant_lists_exclude_sample_collections_and_boards(call, user):
 
 
 def test_untitled_notes_are_named_after_their_body(call, user):
-    Item.objects.create(owner=user, kind="note", body="Intro\n# Garden plan\nbeds")
+    Item.objects.create(owner=user, kind="note", body="# Garden plan\nbeds")
     Item.objects.create(owner=user, kind="note", title="Seeds", body="# Garden")
 
     found = structured(call("search_items", query="garden"))["items"]
