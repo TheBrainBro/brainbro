@@ -199,14 +199,18 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | `list_boards` | Every board, with how many items are on it |
 | `get_board` | A board's items, sticky notes and groups, in reading order, without the layout |
 | `add_to_board` | Puts items on a board, where the app puts new cards |
-| `publish_note` | Makes a note public, optionally at a slug, and returns its address |
+| `publish_note` | Makes a note public, optionally at a slug and with its original date, and returns its address |
 | `unpublish_note` | Makes a public note private again |
 | `get_page` | A published note's page settings: slug, address, title, description, image |
-| `update_page` | Changes some of them, as *Page settings* in the app |
+| `update_page` | Changes some of them, as *Page settings* in the app, and the date it shows |
 | `list_blogs` | Every blog: domain, collection, status, categories and the DNS records to add |
 | `create_blog` | A new blog on the user's domain, unverified until its records are added |
 | `update_blog` | Changes a blog's domain, collection, title, description, links or *Powered by* |
 | `verify_blog` | Looks up a blog's TXT record and says how it went |
+| `list_blog_posts` | A blog's notes, published (newest first) and drafts, with slug, date and addresses |
+| `set_redirects` | Sends old addresses on a blog's domain to new ones (301) |
+| `list_redirects` | A blog's redirects |
+| `import_image` | Downloads an image from a URL, as if pasted, and returns its `src` for a note |
 
 A note saved without a title still comes back with one, worked out from its
 body as the app shows it: its first H1, or else its first line, shortened. It
@@ -242,6 +246,22 @@ the collections inside its own, so `create_collection` with `parent_id` adds
 one. `verify_blog` runs the lookup in the worker like the app does: a blog
 still `checking` says how it went in `list_blogs` a moment later. No tool
 deletes or turns off a blog: that is done in the app.
+
+Moving posts in from another blog: `import_image` downloads each image into
+BrainBro as if it had been pasted (`attachments/<id>.<ext>`), and the
+assistant writes that `src` in the note in place of the old URL, so nothing
+depends on the old site. It downloads during the call, through the same
+guarded fetching as link previews, so the assistant knows at once whether it
+worked; an image no note links within a week is deleted, like a pasted one.
+`publish_note` and `update_page` take `published_at`, the date the post
+shows and its blog sorts by, so it keeps its original date; it can't be in
+the future. `list_blog_posts` lists what is on a blog, drafts included (notes
+filed there but private), to check the move and avoid duplicates. Posts that
+keep their old slug on the same domain need nothing else; for those whose
+address changed, `set_redirects` answers the old path with a 301 to the new
+one once the blog serves the domain. Redirects can't take a published post's
+address or the blog's own pages (`/`, `/c/…`, `/rss`, `/api/…`); no tool
+removes one, `set_redirects` can point it elsewhere.
 
 `add_to_board` saves the board like the app does (its revision goes up), so a
 tab with the board open gets the usual conflict on its next save. Assistants
