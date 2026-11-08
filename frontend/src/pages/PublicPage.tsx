@@ -1,4 +1,4 @@
-import { ArrowLeft, FileQuestion, Globe, Rss } from 'lucide-react'
+import { ArrowLeft, FileQuestion, Globe } from 'lucide-react'
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 
@@ -12,7 +12,6 @@ import {
   usePublicAuthor,
   usePublicNote,
   usePublicNotes,
-  usePublicSite,
   type PublicNote,
   type PublicNoteSummary,
 } from '../public/api'
@@ -76,73 +75,25 @@ function PublicAvatar({ url, name, className }: { url: string | null; name: stri
   )
 }
 
-/** Who a page is about, on top of it: photo, name, handle, blurb and feed. */
+/** Who a page is about, on top of it: photo, name and handle. */
 function ProfileHeader({
   avatarUrl,
   name,
   detail,
-  description,
-  links = [],
-  home,
-  feed = false,
 }: {
   avatarUrl: string | null
   name: string
   detail?: string
-  description?: string
-  links?: { name: string; url: string }[]
-  /** Where the name leads; it is the page's heading when absent. */
-  home?: string
-  feed?: boolean
 }) {
-  useT()
   return (
     <header className="relative flex flex-col items-center text-center">
-      {feed && (
-        <a
-          href="/rss"
-          className="button-icon absolute top-0 right-0 size-9 text-zinc-400"
-          aria-label={t('public.feed')}
-          title={t('public.feed')}
-        >
-          <Rss className="size-4" aria-hidden="true" />
-        </a>
-      )}
       <PublicAvatar
         url={avatarUrl}
         name={name}
         className="size-24 text-3xl shadow-sm ring-4 ring-white dark:ring-zinc-900"
       />
-      {home ? (
-        <Link
-          to={home}
-          className="mt-5 font-display text-3xl font-semibold tracking-tight hover:text-accent-700 dark:hover:text-accent-300"
-        >
-          {name}
-        </Link>
-      ) : (
-        <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight">{name}</h1>
-      )}
+      <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight">{name}</h1>
       {detail && <p className="mt-1 text-zinc-500">{detail}</p>}
-      {description && (
-        <p className="mt-4 max-w-md text-zinc-700 dark:text-zinc-300">{description}</p>
-      )}
-      {links.length > 0 && (
-        <ul className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
-          {links.map((link) => (
-            <li key={`${link.name}-${link.url}`}>
-              <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-accent-700 hover:underline dark:text-accent-300"
-              >
-                {link.name}
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
     </header>
   )
 }
@@ -177,26 +128,23 @@ function NoteCard({ note }: { note: PublicNoteSummary }) {
 }
 
 /**
- * The published notes the server lists here: all of them, the blog's, or
- * one author's; without `except`, and up to `limit` of them.
+ * The published notes the server lists here: all of them, or one author's;
+ * without `except`, and up to `limit` of them.
  */
 function NoteList({
   author,
-  category,
   except,
   limit,
   empty = true,
 }: {
   author?: string
-  /** On a blog, one of its categories. */
-  category?: string
   except?: string
   limit?: number
   /** Says so when there are none; otherwise shows nothing. */
   empty?: boolean
 }) {
   useT()
-  const notes = usePublicNotes({ author, category })
+  const notes = usePublicNotes({ author })
 
   if (notes.isPending) return empty ? <Loading /> : null
   if (notes.isError) {
@@ -326,22 +274,20 @@ function PublicNoteView({ handle, slug }: { handle: string; slug: string }) {
   )
 }
 
-/** On top of a note: whose it is (the blog, or its author), leading back to all their posts. */
+/** On top of a note: its author, leading back to all their posts. */
 function TopBar({
   home,
   name,
   avatarUrl,
-  feed = false,
 }: {
   home: string
   name: string | undefined
   avatarUrl: string | null
-  feed?: boolean
 }) {
   useT()
   return (
     <nav className="sticky top-0 z-10 border-b border-zinc-100 bg-white/85 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/85">
-      <div className="mx-auto flex min-h-14 max-w-2xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex min-h-14 max-w-2xl items-center gap-4 px-4 py-3">
         <Link
           to={home}
           className="flex min-w-0 items-center gap-2.5 font-semibold hover:text-accent-700 dark:hover:text-accent-300"
@@ -349,11 +295,6 @@ function TopBar({
           {name && <PublicAvatar url={avatarUrl} name={name} className="size-7 text-xs" />}
           <span className="truncate">{name ?? '\u00a0'}</span>
         </Link>
-        {feed && (
-          <a href="/rss" className="button-icon size-8" aria-label={t('public.feed')}>
-            <Rss className="size-4" aria-hidden="true" />
-          </a>
-        )}
       </div>
     </nav>
   )
@@ -454,110 +395,6 @@ function MoreNotes({ author, except, name }: { author?: string; except: string; 
         ))}
       </ul>
     </section>
-  )
-}
-
-/** A blog's index, at the root of its own domain. */
-export function SiteIndexPage() {
-  useT()
-  const { category } = useParams()
-  const site = usePublicSite()
-  const current = site.data?.categories.find((each) => each.slug === category)
-  useTitle(site.data && (current ? `${current.name} · ${site.data.title}` : site.data.title))
-
-  return (
-    <Frame poweredBy={site.data?.powered_by}>
-      {site.isError ? (
-        <Missing error={site.error} onRetry={() => site.refetch()} />
-      ) : site.data ? (
-        <>
-          <ProfileHeader
-            avatarUrl={site.data.avatar_url}
-            name={site.data.title || site.data.hostname}
-            detail={
-              site.data.show_author && site.data.author && site.data.author !== site.data.title
-                ? site.data.author
-                : undefined
-            }
-            description={site.data.description}
-            links={site.data.links}
-            home="/"
-            feed
-          />
-          {site.data.categories.length > 0 && (
-            <Categories categories={site.data.categories} current={category} />
-          )}
-          <div className={site.data.categories.length > 0 ? 'mt-6' : 'mt-12'}>
-            <NoteList category={category} />
-          </div>
-        </>
-      ) : (
-        <Loading />
-      )}
-    </Frame>
-  )
-}
-
-/** A blog's categories as tabs: all its posts, then each one's, at `/c/<slug>`. */
-function Categories({
-  categories,
-  current,
-}: {
-  categories: { slug: string; name: string }[]
-  current: string | undefined
-}) {
-  useT()
-  const tabs: { slug?: string; name: string; to: string }[] = [
-    { name: t('public.allPosts'), to: '/' },
-    ...categories.map((each) => ({ slug: each.slug, name: each.name, to: `/c/${each.slug}` })),
-  ]
-  return (
-    <nav
-      aria-label={t('public.categories')}
-      className="mt-12 flex gap-1 overflow-x-auto border-b border-zinc-100 dark:border-zinc-800/70"
-    >
-      {tabs.map((tab) => (
-        <Link
-          key={tab.to}
-          to={tab.to}
-          aria-current={tab.slug === current ? 'page' : undefined}
-          className="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-zinc-500 hover:text-zinc-900 aria-[current=page]:border-accent-500 aria-[current=page]:font-semibold aria-[current=page]:text-zinc-900 dark:hover:text-zinc-100 dark:aria-[current=page]:text-zinc-100"
-        >
-          {tab.name}
-        </Link>
-      ))}
-    </nav>
-  )
-}
-
-/** A note on a blog's own domain: `/<slug>`, under a bar back to the blog. */
-export function SiteNotePage() {
-  useT()
-  const { slug = '' } = useParams()
-  const site = usePublicSite()
-  const note = usePublicNote(site.data?.handle ?? '', slug)
-  useTitle(note.data?.title)
-
-  return (
-    <>
-      <TopBar
-        home="/"
-        name={site.data ? site.data.title || site.data.hostname : undefined}
-        avatarUrl={site.data?.avatar_url ?? null}
-        feed
-      />
-      <Frame poweredBy={site.data?.powered_by}>
-        {site.isError ? (
-          <Missing error={site.error} onRetry={() => site.refetch()} />
-        ) : note.isError ? (
-          <Missing error={note.error} onRetry={() => note.refetch()} />
-        ) : note.data ? (
-          <PublicArticle note={note.data} home="/" />
-        ) : (
-          <Loading />
-        )}
-      </Frame>
-    </>
   )
 }
 

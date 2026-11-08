@@ -16,8 +16,6 @@ import {
   PublicAuthorPage,
   PublicIndexPage,
   PublicNotePage,
-  SiteIndexPage,
-  SiteNotePage,
 } from './pages/PublicPage'
 import { SharePage } from './pages/SharePage'
 
@@ -105,22 +103,12 @@ export function AppRoutes() {
   )
 }
 
-/** A blog on its own domain: its index and notes, and nothing of the app. */
-export function SiteRoutes() {
-  return (
-    <Routes>
-      <Route index element={<SiteIndexPage />} />
-      <Route path="/c/:category" element={<SiteIndexPage />} />
-      <Route path="/:slug" element={<SiteNotePage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
-}
-
-export default function App({ site = false }: { site?: boolean }) {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{site ? <SiteRoutes /> : <AppRoutes />}</BrowserRouter>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }
