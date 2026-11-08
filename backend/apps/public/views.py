@@ -7,6 +7,7 @@ On a blog's domain (`current_site(request)`) only that blog's notes exist.
 """
 
 from django.conf import settings
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from rest_framework import generics, mixins, serializers, status, viewsets
@@ -404,11 +405,20 @@ class SiteSerializer(serializers.ModelSerializer):
             "status",
             "checked_at",
             "verified_at",
+            "pending_hostname",
+            "pending_status",
             "url",
             "records",
             "created_at",
         ]
-        read_only_fields = ["status", "checked_at", "verified_at", "created_at"]
+        read_only_fields = [
+            "status",
+            "checked_at",
+            "verified_at",
+            "pending_hostname",
+            "pending_status",
+            "created_at",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -425,12 +435,16 @@ class SiteSerializer(serializers.ModelSerializer):
         if is_app_host(hostname):
             raise serializers.ValidationError("This is BrainBro's own address.")
         user = self.context["request"].user
-        others = Site.objects.filter(hostname=hostname)
+        others = Site.objects.all()
         if self.instance is not None:
             others = others.exclude(pk=self.instance.pk)
-        if others.filter(owner=user).exists():
+        if (
+            others.filter(owner=user)
+            .filter(Q(hostname=hostname) | Q(pending_hostname=hostname))
+            .exists()
+        ):
             raise serializers.ValidationError("You already have a blog on this domain.")
-        if others.filter(status=Site.Status.VERIFIED).exists():
+        if others.filter(hostname=hostname, status=Site.Status.VERIFIED).exists():
             raise serializers.ValidationError("Another blog already uses this domain.")
         return hostname
 
@@ -441,15 +455,17 @@ class SiteSerializer(serializers.ModelSerializer):
         return site_url(site)
 
     def get_records(self, site):
-        """The DNS records its owner adds: where it points, and the proof."""
+        """
+        The DNS records its owner adds, for the domain it is moving to if it
+        is: where it points, and the proof.
+        """
         request = self.context["request"]
+        hostname = site.domain_to_verify
         target = settings.SITE_CNAME_TARGET or request.get_host().split(":")[0]
-        records = [{"type": "CNAME", "name": site.hostname, "value": target}]
+        records = [{"type": "CNAME", "name": hostname, "value": target}]
         # Root domains can't have a CNAME at many DNS providers.
         if settings.SITE_IPV4:
-            records.append(
-                {"type": "A", "name": site.hostname, "value": settings.SITE_IPV4}
-            )
+            records.append({"type": "A", "name": hostname, "value": settings.SITE_IPV4})
         records.append(
             {
                 "type": "TXT",
@@ -460,11 +476,21 @@ class SiteSerializer(serializers.ModelSerializer):
         return records
 
     def update(self, instance, validated_data):
-        # A new domain has to be verified again.
-        if validated_data.get("hostname", instance.hostname) != instance.hostname:
-            instance.status = Site.Status.UNVERIFIED
-            instance.checked_at = None
-            instance.verified_at = None
+        if "hostname" not in validated_data:
+            return super().update(instance, validated_data)
+        hostname = validated_data["hostname"]
+        # Sending its current domain calls a move off.
+        instance.pending_hostname = ""
+        instance.pending_status = Site.Status.UNVERIFIED
+        if hostname != instance.hostname:
+            if instance.is_verified:
+                # It keeps serving where it is until the new domain is verified.
+                instance.pending_hostname = validated_data.pop("hostname")
+            else:
+                # It serves nothing yet, so there is nothing to keep up.
+                instance.status = Site.Status.UNVERIFIED
+                instance.checked_at = None
+                instance.verified_at = None
         return super().update(instance, validated_data)
 
 
@@ -491,8 +517,7 @@ class SiteViewSet(
     def verify(self, request, pk=None):
         """Looks the TXT record up (in the worker); the site says how it went."""
         site = self.get_object()
-        site.status = Site.Status.CHECKING
-        site.save(update_fields=["status", "updated_at"])
+        site.start_check()
         verify_site.delay(str(site.id))
         site.refresh_from_db()
         return Response(self.get_serializer(site).data, status=status.HTTP_202_ACCEPTED)
