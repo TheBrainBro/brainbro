@@ -344,7 +344,7 @@ function NoteWorkspace({
           onDone={() => setPrinting(false)}
         />
       )}
-      {current && <NoteTitleInput item={current} onError={failed} />}
+      {current?.title && <NoteTitleInput item={current} onError={failed} />}
       {live ? (
         <LiveNoteEditor
           live={live}
@@ -356,6 +356,7 @@ function NoteWorkspace({
         <NoteEditor
           initial={newNote.saver.body}
           autoFocus
+          firstLineIsTitle
           onChange={(text) => newNote.saver.edit(text)}
           onSave={() => newNote.saver.flush()}
           uploadImage={uploadNoteImage}
@@ -434,6 +435,7 @@ function LiveNoteEditor({
     <NoteEditor
       live={live}
       autoFocus
+      firstLineIsTitle={!item?.title}
       images={item?.images}
       links={item?.links}
       uploadImage={uploadNoteImage}

@@ -2,7 +2,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { EditorState } from '@codemirror/state'
+import { Compartment, EditorState } from '@codemirror/state'
 import { dropCursor, EditorView, keymap, placeholder } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import { useEffect, useEffectEvent, useRef } from 'react'
@@ -14,6 +14,7 @@ import { imageUploads } from './imageUploads'
 import { setNoteLinks } from './linkWidgets'
 import type { LiveNote } from './live'
 import { livePreview, setNoteImages } from './livePreview'
+import { firstLineTitle } from './titleLine'
 import { setNoteTitles, wikilinks } from './wikilinkEditor'
 import { useNoteTitles } from './wikilinks'
 
@@ -58,10 +59,26 @@ const theme = EditorView.theme({
     caretColor: 'currentColor',
   },
   '.cm-line': { padding: '0' },
+  '.cm-line.cm-note-title': {
+    fontSize: '1.5rem',
+    fontWeight: '600',
+    lineHeight: '1.35',
+    paddingBottom: '0.5rem',
+  },
+  // One size for the whole title, whether or not it's written as a heading.
+  '.cm-note-title span': { fontSize: 'inherit', fontWeight: 'inherit' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'currentColor' },
   // Others' cursors: their name shows on hover, in their color.
   '.cm-ySelectionInfo': { fontFamily: 'var(--font-sans)', fontSize: '0.7rem', borderRadius: '0.25rem' },
 })
+
+const titling = new Compartment()
+
+function titlingOf(firstLineIsTitle: boolean) {
+  return firstLineIsTitle
+    ? [firstLineTitle, placeholder(t('note.titlePlaceholder'))]
+    : placeholder(t('editor.placeholder'))
+}
 
 /**
  * CodeMirror over the raw Markdown: the document is the stored text, so what
@@ -71,7 +88,8 @@ const theme = EditorView.theme({
  * edited together with its other sessions, whose cursors show. Images show
  * the note's stored copies (`images`); pasted or dropped ones are uploaded
  * with `uploadImage` and linked. `[[Title]]` links resolve against the
- * user's notes, Mod-click opens them, and typing `[[` suggests titles.
+ * user's notes, Mod-click opens them, and typing `[[` suggests titles. With
+ * `firstLineIsTitle`, for a note with no saved title, its first line reads as one.
  */
 export function NoteEditor({
   initial = '',
@@ -79,6 +97,7 @@ export function NoteEditor({
   onChange,
   onSave,
   autoFocus = false,
+  firstLineIsTitle = false,
   images,
   links,
   uploadImage,
@@ -90,6 +109,7 @@ export function NoteEditor({
   /** Mod-S: save now instead of waiting for the debounce. */
   onSave?: () => void
   autoFocus?: boolean
+  firstLineIsTitle?: boolean
   images?: NoteImages | null
   /** The previews of its card and embed links, by URL. */
   links?: NoteLinks | null
@@ -104,6 +124,7 @@ export function NoteEditor({
     initial,
     live,
     autoFocus,
+    firstLineIsTitle,
     images,
     links,
     uploads: Boolean(uploadImage),
@@ -142,7 +163,7 @@ export function NoteEditor({
             spellcheck: 'true',
             lang: '',
           }),
-          placeholder(t('editor.placeholder')),
+          titling.of(titlingOf(startup.current.firstLineIsTitle)),
           keymap.of([
             { key: 'Mod-s', preventDefault: true, run: () => (save(), true) },
             ...markdownKeymap,
@@ -165,6 +186,11 @@ export function NoteEditor({
       editor.destroy()
     }
   }, [])
+
+  // A title can be saved or cleared while the note is open.
+  useEffect(() => {
+    view.current?.dispatch({ effects: titling.reconfigure(titlingOf(firstLineIsTitle)) })
+  }, [firstLineIsTitle])
 
   // Copies made since (fetched, or pasted ones re-encoded) replace the placeholders.
   useEffect(() => {
