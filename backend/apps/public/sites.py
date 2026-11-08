@@ -92,7 +92,12 @@ def site_notes(site):
 
 
 def site_url(site, path="/"):
-    return f"https://{site.hostname}{path}"
+    """
+    A blog's address: HTTPS on its own domain in production; in development,
+    `http://<hostname>:8000`, where Django serves it (`SITE_SCHEME`, `SITE_PORT`).
+    """
+    port = f":{settings.SITE_PORT}" if settings.SITE_PORT else ""
+    return f"{settings.SITE_SCHEME}://{site.hostname}{port}{path}"
 
 
 def public_urls(notes, current_site=None):

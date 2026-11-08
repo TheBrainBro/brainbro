@@ -22,6 +22,11 @@ CSRF_TRUSTED_ORIGINS = [
 # The tunnel terminates TLS and forwards the original scheme.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Blogs locally: `http://blog.localhost:8000/`, served by Django (`make
+# preview`). Browsers send every `*.localhost` to this machine.
+SITE_SCHEME = "http"
+SITE_PORT = get_env_variable("SITE_PORT", "8000")
+
 # The embedder from docker-compose.yml (`make services`).
 EMBEDDER_URL = get_env_variable("EMBEDDER_URL", "http://localhost:8100")
 

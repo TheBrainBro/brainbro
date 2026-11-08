@@ -81,6 +81,9 @@ APP_HOSTS = []
 # server's public IPv4 is set.
 SITE_CNAME_TARGET = get_env_variable("SITE_CNAME_TARGET", "")
 SITE_IPV4 = get_env_variable("SITE_IPV4", "")
+# How blogs' addresses start. Production serves them over HTTPS, on 443.
+SITE_SCHEME = "https"
+SITE_PORT = ""
 
 TEMPLATES = [
     {
