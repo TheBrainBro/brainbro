@@ -15,6 +15,6 @@ urlpatterns = [
     path("rss", feeds.rss, name="site-rss"),
     path("sitemap.xml", feeds.sitemap, name="site-sitemap"),
     path("robots.txt", feeds.robots, name="site-robots"),
-    # The index, and a note at its slug.
-    re_path(r"^(?P<path>[a-z0-9-]*)/?$", core_views.spa, name="site-page"),
+    # The index, a note at its slug, and a category at `/c/<slug>`.
+    re_path(r"^(?P<path>(?:c/)?[a-z0-9-]*)/?$", core_views.spa, name="site-page"),
 ]

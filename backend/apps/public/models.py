@@ -41,6 +41,10 @@ class Site(OwnedModel):
     # the collection's name, no description.
     title = models.CharField(max_length=120, blank=True, default="")
     description = models.CharField(max_length=300, blank=True, default="")
+    # Shown on its index under the description: `[{"name", "url"}]`, up to 10.
+    links = models.JSONField(default=list, blank=True)
+    # A small "Powered by BrainBro" line at the end of its pages.
+    powered_by = models.BooleanField(default=True)
     token = models.CharField(max_length=64, default=new_token, editable=False)
     status = models.CharField(max_length=16, choices=Status, default=Status.UNVERIFIED)
     checked_at = models.DateTimeField(null=True, blank=True)

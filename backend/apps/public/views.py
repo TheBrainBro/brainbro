@@ -36,6 +36,7 @@ from .sites import (
     is_app_host,
     normalize_hostname,
     public_urls,
+    site_categories,
     site_notes,
     site_url,
     verified_sites,
@@ -122,8 +123,8 @@ def linked_notes(request, note):
 class PublicNoteListView(generics.ListAPIView):
     """
     `/p/`: every published note on the server, the last published first; on
-    a blog, its notes; with `?author=<handle>`, that author's. Each with its
-    address.
+    a blog, its notes (`?category=<slug>`: those in one of its categories);
+    with `?author=<handle>`, that author's. Each with its address.
     """
 
     authentication_classes = []
@@ -131,6 +132,12 @@ class PublicNoteListView(generics.ListAPIView):
 
     def get_queryset(self):
         notes = published_notes(self.request)
+        site = current_site(self.request)
+        if site is not None and (slug := self.request.query_params.get("category")):
+            category = next((c for c in site_categories(site) if c.slug == slug), None)
+            if category is None:
+                raise Http404
+            notes = site_notes(site, category)
         if handle := self.request.query_params.get("author"):
             notes = notes.filter(owner__profile__handle=handle)
         return (
@@ -307,7 +314,10 @@ class PublicAuthorAvatarView(APIView):
 
 
 class PublicSiteView(APIView):
-    """The blog being read: its name, blurb, author and handle. 404 off a blog."""
+    """
+    The blog being read: its name, blurb, author, handle, links and
+    categories. 404 off a blog.
+    """
 
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -326,6 +336,14 @@ class PublicSiteView(APIView):
                 "avatar_url": public_avatar_url(
                     Profile.objects.filter(user_id=site.owner_id).first()
                 ),
+                "links": site.links,
+                "powered_by": site.powered_by,
+                # Those with something published in them.
+                "categories": [
+                    {"slug": category.slug, "name": category.name}
+                    for category in site_categories(site)
+                    if site_notes(site, category).exists()
+                ],
             }
         )
 
@@ -347,6 +365,20 @@ class SiteCheckView(APIView):
         return HttpResponse(status=200)
 
 
+class SiteLinkSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=60)
+    url = serializers.URLField(max_length=500)
+
+    def validate_url(self, value):
+        # Nothing that runs: `javascript:` and the like never reach a page.
+        if not value.lower().startswith(("https://", "http://")):
+            raise serializers.ValidationError("Use a web address (https://...).")
+        return value
+
+
+MAX_SITE_LINKS = 10
+
+
 class SiteSerializer(serializers.ModelSerializer):
     # Checked by hand: it is normalized first, and unique once verified only.
     hostname = serializers.CharField(max_length=253)
@@ -355,6 +387,9 @@ class SiteSerializer(serializers.ModelSerializer):
     )
     url = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField()
+    links = serializers.ListField(
+        child=SiteLinkSerializer(), max_length=MAX_SITE_LINKS, required=False
+    )
 
     class Meta:
         model = Site
@@ -364,6 +399,8 @@ class SiteSerializer(serializers.ModelSerializer):
             "collection",
             "title",
             "description",
+            "links",
+            "powered_by",
             "status",
             "checked_at",
             "verified_at",
@@ -396,6 +433,9 @@ class SiteSerializer(serializers.ModelSerializer):
         if others.filter(status=Site.Status.VERIFIED).exists():
             raise serializers.ValidationError("Another blog already uses this domain.")
         return hostname
+
+    def validate_links(self, value):
+        return [{"name": link["name"], "url": link["url"]} for link in value]
 
     def get_url(self, site):
         return site_url(site)

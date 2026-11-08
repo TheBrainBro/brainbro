@@ -190,19 +190,20 @@ def note_head_tags(request, note, url):
     )
 
 
-def site_head_tags(request, site):
-    """The `<title>` and meta tags for a blog's index."""
-    url = site_url(site)
+def site_head_tags(request, site, category=None):
+    """The `<title>` and meta tags for a blog's index, or one of its categories."""
+    url = site_url(site, f"/c/{category.slug}" if category else "/")
+    title = f"{category.name} · {site.name}" if category else site.name
     meta = {
         "og:type": "website",
-        "og:title": site.name,
+        "og:title": title,
         "og:description": site.description,
         "og:url": url,
         "twitter:card": "summary",
     }
     return render_tags(
         request,
-        title=site.name,
+        title=title,
         description=site.description,
         url=url,
         meta=meta,
