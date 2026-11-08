@@ -232,7 +232,7 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | `import_image` | Downloads an image from a URL, as if pasted, and returns its `src` for a note |
 
 A note saved without a title still comes back with one, worked out from its
-body as the app shows it: its first H1, or else its first line, shortened. It
+body as the app shows it: its first line, shortened. It
 follows the note as it changes, and is never saved.
 
 `edit_note` takes the version `get_item` returned: if you edited the note in
