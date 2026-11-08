@@ -12,8 +12,23 @@ class ProfileAdmin(ModelAdmin):
 
 @admin.register(ApiToken)
 class ApiTokenAdmin(ModelAdmin):
-    list_display = ["__str__", "owner", "client", "created_at", "last_used_at"]
-    readonly_fields = ["prefix", "client", "expires_at", "last_used_at"]
+    list_display = [
+        "__str__",
+        "owner",
+        "client",
+        "client_app",
+        "redirect_host",
+        "created_at",
+        "last_used_at",
+    ]
+    readonly_fields = [
+        "prefix",
+        "client",
+        "client_app",
+        "redirect_host",
+        "expires_at",
+        "last_used_at",
+    ]
     exclude = ["key_hash", "refresh_hash"]
 
 

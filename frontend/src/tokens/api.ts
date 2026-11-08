@@ -2,6 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
 
+/** What a connected assistant may do. */
+export type Permission = 'read' | 'capture' | 'edit' | 'publish'
+
+/** Publishing makes notes public, so it is only ever turned on by hand. */
+export const DEFAULT_PERMISSIONS: Permission[] = ['read', 'capture', 'edit']
+
 export type ApiToken = {
   id: string
   name: string
@@ -9,6 +15,7 @@ export type ApiToken = {
   prefix: string
   /** An app connected by signing in (OAuth), not a token made here. */
   connected_app: boolean
+  permissions: Permission[]
   created_at: string
   last_used_at: string | null
 }
@@ -39,8 +46,21 @@ export function useRevokeApiToken() {
   })
 }
 
+/** Changes what a connected app may do. */
+export function useUpdateTokenPermissions(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (permissions: Permission[]) =>
+      api<ApiToken>(`/auth/tokens/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permissions }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: tokensKey }),
+  })
+}
+
 /** Who asks to connect through "Sign in to BrainBro", for the authorize page. */
-export type AuthorizationAsk = { client_name: string; redirect_host: string }
+export type AuthorizationAsk = { client_name: string; redirect_host: string; logo: string }
 
 /** The app's query, checked: an unknown app or return address is an error. */
 export function useAuthorizationAsk(query: string) {
@@ -54,10 +74,15 @@ export function useAuthorizationAsk(query: string) {
 /** Allow or cancel: the answer is where to send the browser back to the app. */
 export function useAnswerAuthorization(query: string) {
   return useMutation({
-    mutationFn: (allow: boolean) =>
+    mutationFn: ({ allow, permissions }: { allow: boolean; permissions?: Permission[] }) =>
       api<{ redirect_to: string }>('/auth/oauth/authorize/', {
         method: 'POST',
-        body: JSON.stringify({ ...Object.fromEntries(new URLSearchParams(query)), allow }),
+        // Last, so nothing in the app's query can stand in for the user's choice.
+        body: JSON.stringify({
+          ...Object.fromEntries(new URLSearchParams(query)),
+          allow,
+          permissions,
+        }),
       }),
     onSuccess: ({ redirect_to }) => window.location.assign(redirect_to),
   })

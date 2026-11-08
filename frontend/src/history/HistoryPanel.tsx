@@ -22,6 +22,7 @@ import {
   type Revision,
 } from './api'
 import { aroundChanges, boardChanges, textDiff, type BoardChange } from './diff'
+import { AppLogo } from '../tokens/AppLogo'
 
 function when(iso: string) {
   const format = new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium', timeStyle: 'short' })
@@ -75,7 +76,14 @@ function RevisionList({
               onClick={() => select(revision.id)}
             >
               <span className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-sm font-medium">{revisionAuthor(revision)}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {revision.by && (
+                    <span aria-hidden="true" className="inline-flex shrink-0 text-zinc-400">
+                      <AppLogo logo={revision.logo} className="size-3.5" />
+                    </span>
+                  )}
+                  <span className="truncate text-sm font-medium">{revisionAuthor(revision)}</span>
+                </span>
                 <time
                   dateTime={revision.updated_at}
                   title={when(revision.updated_at)}

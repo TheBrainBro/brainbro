@@ -154,7 +154,9 @@ MCP authorization spec describes:
 2. The app registers itself (dynamic client registration,
    `/api/auth/oauth/register/`).
 3. It opens `/oauth/authorize` in the browser: a page of the app where you,
-   signed in, see the app's name and where it goes back to, and allow it.
+   signed in, see the app's name and where it goes back to, choose what it
+   can do, and allow it. The logo comes from where it goes back to, never
+   from the name, which any app can make up.
 4. It swaps the one-time code (PKCE, S256) for a token at
    `/api/auth/oauth/token/`. Tokens last an hour and come with a refresh
    token; refreshing replaces both.
@@ -162,6 +164,23 @@ MCP authorization spec describes:
 A connected app shows up in the list with your tokens; *Disconnect* stops it
 and its refresh token right away. Connected apps can only use the MCP
 endpoint, not the rest of the API.
+
+### Permissions
+
+| Permission | Tools |
+|---|---|
+| Read | Search, get and list items, collections, boards, revisions, public pages, blogs and redirects |
+| Capture | `capture`, `import_image` |
+| Edit and organize | `edit_note`, `organize`, `archive`, `create_collection`, `add_to_board` |
+| Publish | `publish_note`, `unpublish_note`, `update_page`, `create_blog`, `update_blog`, `verify_blog`, `set_redirects` |
+
+Read, Capture and Edit start on and Publish starts off. Editing and publishing
+need Read. Change them later from *Settings* → *AI assistants*, without
+reconnecting. An app only sees the tools it is allowed, and any other call
+fails with a message saying which permission is missing.
+
+They are BrainBro's own: the OAuth scope stays `brainbro` for every app.
+Personal tokens have them all, since they can use the whole API.
 
 ## Personal tokens
 

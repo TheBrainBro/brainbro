@@ -18,6 +18,8 @@ export type Revision = {
   /** The app that saved it; empty for the user. */
   by: string
   via: ItemSource
+  /** Which assistant's logo goes with it; empty for the generic icon. */
+  logo: string
   /** The revision this one brought back, and when that one started. */
   restored_from: string | null
   restored_from_at: string | null

@@ -4,6 +4,8 @@ from django.utils import timezone
 
 
 def test_notes_and_boards_start_with_what_they_hold(migrate_to, user):
+    # Item columns added since have no database default, and these rows lack them.
+    migrate_to(("items", "0020_item_public_listed"))
     old = migrate_to(("history", "0001_initial"))
     Item = old.get_model("items", "Item")
     Board = old.get_model("boards", "Board")

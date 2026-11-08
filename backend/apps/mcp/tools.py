@@ -17,6 +17,7 @@ from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.accounts.models import Permission
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
@@ -96,6 +97,7 @@ class Tool:
     arguments: type[serializers.Serializer]
     schema: dict
     run_with: Callable
+    permission: Permission
     read_only: bool = False
     idempotent: bool = False
     required: list = field(default_factory=list)
@@ -1182,6 +1184,7 @@ TOOLS = {
     for tool in [
         Tool(
             name="search_items",
+            permission=Permission.READ,
             title="Search items",
             description=(
                 "Search the user's notes, links, images, recordings and files, "
@@ -1213,6 +1216,7 @@ TOOLS = {
         ),
         Tool(
             name="get_item",
+            permission=Permission.READ,
             title="Get an item",
             description=(
                 "One item in full: a note's whole Markdown body and its "
@@ -1229,6 +1233,7 @@ TOOLS = {
         ),
         Tool(
             name="get_items",
+            permission=Permission.READ,
             title="Get several items",
             description=(
                 f"Up to {MAX_FULL_ITEMS} items in full, in one call, in the "
@@ -1247,6 +1252,7 @@ TOOLS = {
         ),
         Tool(
             name="list_inbox",
+            permission=Permission.READ,
             title="List the inbox",
             description=(
                 "What is waiting in the inbox to be sorted, newest first, as "
@@ -1263,6 +1269,7 @@ TOOLS = {
         ),
         Tool(
             name="list_collections",
+            permission=Permission.READ,
             title="List collections",
             description=(
                 "Every collection: its id, name, kind (project, area or "
@@ -1279,6 +1286,7 @@ TOOLS = {
         ),
         Tool(
             name="list_collection_items",
+            permission=Permission.READ,
             title="List a collection's items",
             description=(
                 "The items organized in a collection, in the order the user "
@@ -1294,6 +1302,7 @@ TOOLS = {
         ),
         Tool(
             name="create_collection",
+            permission=Permission.EDIT,
             title="Create a collection",
             description=(
                 "Makes a new, empty collection. Kinds follow PARA: project "
@@ -1315,6 +1324,7 @@ TOOLS = {
         ),
         Tool(
             name="capture",
+            permission=Permission.CAPTURE,
             title="Capture a note or link",
             description=(
                 "Saves a new note (Markdown) or link into the inbox, or "
@@ -1343,6 +1353,7 @@ TOOLS = {
         ),
         Tool(
             name="edit_note",
+            permission=Permission.EDIT,
             title="Edit a note",
             description=(
                 "Changes a note. Prefer the partial edits, which leave the "
@@ -1388,6 +1399,7 @@ TOOLS = {
         ),
         Tool(
             name="list_revisions",
+            permission=Permission.READ,
             title="List a note's revisions",
             description=(
                 "The history of a note, newest first: each revision says who "
@@ -1408,6 +1420,7 @@ TOOLS = {
         ),
         Tool(
             name="get_revision",
+            permission=Permission.READ,
             title="Get a revision",
             description=(
                 "One revision of a note in full: its title and Markdown body "
@@ -1423,6 +1436,7 @@ TOOLS = {
         ),
         Tool(
             name="organize",
+            permission=Permission.EDIT,
             title="Organize into collections",
             description=(
                 "Adds items to one or more collections and takes them out of "
@@ -1439,6 +1453,7 @@ TOOLS = {
         ),
         Tool(
             name="archive",
+            permission=Permission.EDIT,
             title="Archive items",
             description=(
                 "Keeps items but takes them out of the way: out of the inbox "
@@ -1453,6 +1468,7 @@ TOOLS = {
         ),
         Tool(
             name="list_boards",
+            permission=Permission.READ,
             title="List boards",
             description=(
                 "Every board (a canvas where the user lays items out in "
@@ -1466,6 +1482,7 @@ TOOLS = {
         ),
         Tool(
             name="get_board",
+            permission=Permission.READ,
             title="Get a board",
             description=(
                 "What is on a board, in reading order (top to bottom, left to "
@@ -1483,6 +1500,7 @@ TOOLS = {
         ),
         Tool(
             name="add_to_board",
+            permission=Permission.EDIT,
             title="Add items to a board",
             description=(
                 "Puts existing items on a board, where the app puts new "
@@ -1500,6 +1518,7 @@ TOOLS = {
         ),
         Tool(
             name="publish_note",
+            permission=Permission.PUBLISH,
             title="Publish a note",
             description=(
                 "Makes a note public: anyone with its address can read it, "
@@ -1533,6 +1552,7 @@ TOOLS = {
         ),
         Tool(
             name="unpublish_note",
+            permission=Permission.PUBLISH,
             title="Unpublish a note",
             description=(
                 "Makes a public note private again: its address stops "
@@ -1547,6 +1567,7 @@ TOOLS = {
         ),
         Tool(
             name="get_page",
+            permission=Permission.READ,
             title="Get a note's page settings",
             description=(
                 "A published note's page settings, as Page settings in the "
@@ -1565,6 +1586,7 @@ TOOLS = {
         ),
         Tool(
             name="update_page",
+            permission=Permission.PUBLISH,
             title="Update a note's page settings",
             description=(
                 "Changes some of a published note's page settings; an empty "
@@ -1597,6 +1619,7 @@ TOOLS = {
         ),
         Tool(
             name="list_blogs",
+            permission=Permission.READ,
             title="List blogs",
             description=(
                 "The user's blogs on their own domains: each one's domain, "
@@ -1618,6 +1641,7 @@ TOOLS = {
         ),
         Tool(
             name="create_blog",
+            permission=Permission.PUBLISH,
             title="Create a blog",
             description=(
                 "Sets up a blog on a domain the user owns, showing the "
@@ -1646,6 +1670,7 @@ TOOLS = {
         ),
         Tool(
             name="update_blog",
+            permission=Permission.PUBLISH,
             title="Update a blog",
             description=(
                 "Changes some of a blog's settings: the same ones as "
@@ -1672,6 +1697,7 @@ TOOLS = {
         ),
         Tool(
             name="verify_blog",
+            permission=Permission.PUBLISH,
             title="Verify a blog's domain",
             description=(
                 "Looks up the blog's TXT record, once the user says they "
@@ -1692,6 +1718,7 @@ TOOLS = {
         ),
         Tool(
             name="list_blog_posts",
+            permission=Permission.READ,
             title="List a blog's posts",
             description=(
                 "The notes on a blog: those filed in its collection or the "
@@ -1712,6 +1739,7 @@ TOOLS = {
         ),
         Tool(
             name="set_redirects",
+            permission=Permission.PUBLISH,
             title="Set a blog's redirects",
             description=(
                 "Sends readers of old addresses on a blog's domain to new "
@@ -1753,6 +1781,7 @@ TOOLS = {
         ),
         Tool(
             name="list_redirects",
+            permission=Permission.READ,
             title="List a blog's redirects",
             description=(
                 "A blog's redirects, by old path: where each one sends "
@@ -1767,6 +1796,7 @@ TOOLS = {
         ),
         Tool(
             name="import_image",
+            permission=Permission.CAPTURE,
             title="Import an image from a URL",
             description=(
                 "Downloads an image into BrainBro, as if the user had pasted "

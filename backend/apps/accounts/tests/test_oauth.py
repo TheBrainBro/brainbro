@@ -2,9 +2,11 @@ import base64
 import hashlib
 import json
 from datetime import timedelta
+from importlib import import_module
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from django.apps import apps as django_apps
 from django.test import Client
 from django.utils import timezone
 
@@ -57,11 +59,15 @@ def authorization(client_id, **params):
     } | params
 
 
-def allow(browser, client_id, **params):
+def allow(browser, client_id, permissions=("read", "capture", "edit"), **params):
     """The user presses Allow; returns the query the app gets back."""
     response = browser.post(
         "/api/auth/oauth/authorize/",
-        {**authorization(client_id, **params), "allow": True},
+        {
+            **authorization(client_id, **params),
+            "allow": True,
+            "permissions": list(permissions),
+        },
         content_type="application/json",
     )
     assert response.status_code == 200, response.json()
@@ -184,6 +190,7 @@ def test_the_page_shows_who_asks_and_where_it_goes_back(anonymous, browser):
     assert response.json() == {
         "client_name": "ChatGPT",
         "redirect_host": "chatgpt.com",
+        "logo": "chatgpt",
     }
 
 
@@ -372,3 +379,197 @@ def test_revoking_a_connected_app_disconnects_it(anonymous, browser):
         },
     )
     assert refreshed.json()["error"] == "invalid_grant"
+
+
+# Permissions
+
+
+def registered(client):
+    return register(client).json()["client_id"]
+
+
+def swap_for_token(anonymous, client_id, query):
+    response = swap(anonymous, client_id, query["code"])
+    assert response.status_code == 200, response.json()
+    return response.json()
+
+
+def test_the_app_gets_what_the_user_chose(anonymous, browser):
+    client_id = registered(anonymous)
+    query = allow(browser, client_id, permissions=["capture", "read"])
+
+    tokens = swap_for_token(anonymous, client_id, query)
+
+    # The app sees the one scope it asked for, as OAuth clients expect.
+    assert tokens["scope"] == "brainbro"
+    token = ApiToken.objects.get(client_id=client_id)
+    assert token.permissions == ["read", "capture"]
+
+
+def test_refreshing_keeps_the_permissions(anonymous, browser):
+    client_id = registered(anonymous)
+    tokens = swap_for_token(
+        anonymous, client_id, allow(browser, client_id, permissions=["read"])
+    )
+
+    response = anonymous.post(
+        "/api/auth/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "client_id": client_id,
+            "refresh_token": tokens["refresh_token"],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert ApiToken.objects.get(client_id=client_id).permissions == ["read"]
+
+
+@pytest.mark.parametrize(
+    "permissions",
+    [[], ["delete"], ["edit"], ["capture", "publish"], "read"],
+)
+def test_allowing_needs_a_valid_choice(anonymous, browser, permissions):
+    client_id = registered(anonymous)
+
+    response = browser.post(
+        "/api/auth/oauth/authorize/",
+        {**authorization(client_id), "allow": True, "permissions": permissions},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert not AuthorizationCode.objects.exists()
+
+
+def test_allowing_has_to_say_what(anonymous, browser):
+    client_id = registered(anonymous)
+
+    response = browser.post(
+        "/api/auth/oauth/authorize/",
+        {**authorization(client_id), "allow": True},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+
+
+def test_the_query_cannot_choose_the_permissions(anonymous, browser):
+    client_id = registered(anonymous)
+
+    response = browser.post(
+        "/api/auth/oauth/authorize/",
+        {**authorization(client_id), "allow": False, "permissions": "publish"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert "error=access_denied" in response.json()["redirect_to"]
+
+
+def test_the_user_changes_them_later(anonymous, browser):
+    client_id = registered(anonymous)
+    swap_for_token(anonymous, client_id, allow(browser, client_id))
+    token = ApiToken.objects.get(client_id=client_id)
+
+    response = browser.patch(
+        f"/api/auth/tokens/{token.id}/",
+        {"permissions": ["publish", "read"]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["permissions"] == ["read", "publish"]
+    token.refresh_from_db()
+    assert token.permissions == ["read", "publish"]
+
+
+def test_personal_tokens_keep_them_all(browser, user):
+    token, _ = ApiToken.issue(user, "Script")
+
+    response = browser.patch(
+        f"/api/auth/tokens/{token.id}/",
+        {"permissions": ["read"]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+    token.refresh_from_db()
+    assert token.permissions == ["read", "capture", "edit", "publish"]
+
+
+def test_nobody_else_changes_them(anonymous, browser, other_user):
+    client_id = registered(anonymous)
+    swap_for_token(anonymous, client_id, allow(browser, client_id))
+    token = ApiToken.objects.get(client_id=client_id)
+    stranger = Client()
+    stranger.force_login(other_user)
+
+    response = stranger.patch(
+        f"/api/auth/tokens/{token.id}/",
+        {"permissions": ["read"]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+    token.refresh_from_db()
+    assert token.permissions == ["read", "capture", "edit"]
+
+
+# Logos
+
+
+@pytest.mark.parametrize(
+    ("redirect", "logo"),
+    [
+        ("https://claude.ai/api/mcp/auth_callback", "claude"),
+        ("https://claude.com/api/mcp/auth_callback", "claude"),
+        ("https://chatgpt.com/connector/oauth/callback", "chatgpt"),
+        ("https://www.cursor.com/agents/mcp/oauth/callback", "cursor"),
+        ("https://grok.com/callback", "grok"),
+        ("http://localhost:8787/callback", ""),
+        ("https://claude.ai.evil.example/callback", ""),
+        ("https://claude.ai@evil.example/callback", ""),
+    ],
+)
+def test_the_logo_comes_from_where_it_goes_back_to(anonymous, browser, redirect, logo):
+    # Whatever it calls itself.
+    client_id = register(
+        anonymous, client_name="Claude", redirect_uris=[redirect]
+    ).json()["client_id"]
+
+    response = browser.get(
+        "/api/auth/oauth/authorize/",
+        authorization(client_id, redirect_uri=redirect),
+    )
+
+    assert response.json()["logo"] == logo
+
+
+def test_the_token_remembers_where_it_went_back_to(anonymous, browser):
+    client_id = registered(anonymous)
+    swap_for_token(anonymous, client_id, allow(browser, client_id))
+
+    assert ApiToken.objects.get(client_id=client_id).redirect_host == "chatgpt.com"
+
+
+@pytest.mark.parametrize(
+    ("uris", "host"),
+    [
+        (["https://claude.ai/api/mcp/auth_callback"], "claude.ai"),
+        # It could have used either, so nobody can say which.
+        (["https://www.cursor.com/cb", "http://localhost:8787/cb"], ""),
+    ],
+)
+def test_existing_connections_get_their_only_address(user, uris, host):
+    client = OAuthClient.objects.create(name="App", redirect_uris=uris)
+    token, _ = ApiToken.issue(user, "App", client=client)
+    migration = import_module(
+        "apps.accounts.migrations.0012_apitoken_client_app_apitoken_redirect_host"
+    )
+
+    migration.fill_redirect_hosts(django_apps, None)
+
+    token.refresh_from_db()
+    assert token.redirect_host == host

@@ -34,6 +34,8 @@ class Revision(OwnedModel):
     via = models.CharField(
         max_length=16, choices=Source, default=Source.UNKNOWN, blank=True
     )
+    # Which logo goes with `by`; see `apps.accounts.logos`.
+    logo = models.CharField(max_length=32, blank=True)
     restored_from = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

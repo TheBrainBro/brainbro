@@ -27,6 +27,7 @@ function revision(id: string, fields: Partial<RevisionDetail>): RevisionDetail {
     title: '',
     by: '',
     via: 'web',
+    logo: '',
     restored_from: null,
     restored_from_at: null,
     created_at: minutesAgo(10),
@@ -57,6 +58,8 @@ const note: Item = {
   created_via: 'web',
   edited_by: 'Claude',
   edited_via: 'mcp',
+  edited_logo: '',
+  created_logo: '',
   edited_at: minutesAgo(1),
   public_slug: null,
   public_url: null,
@@ -109,7 +112,7 @@ async function confirmRestore() {
 describe('NoteHistory', () => {
   beforeEach(() => {
     revisions = [
-      revision('r2', { item: 'n1', title: 'Plan', body: note.body, by: 'Claude', via: 'mcp', updated_at: minutesAgo(1) }),
+      revision('r2', { item: 'n1', title: 'Plan', body: note.body, by: 'Claude', via: 'mcp', logo: 'claude', updated_at: minutesAgo(1) }),
       revision('r1', { item: 'n1', title: 'Plan', body: 'Buy flights\n' }),
     ]
   })
@@ -121,7 +124,9 @@ describe('NoteHistory', () => {
     const entries = within(list).getAllByRole('button')
     expect(entries[0]).toHaveTextContent('Claude')
     expect(entries[0]).toHaveTextContent('Current version')
+    expect(entries[0].querySelector('svg')).toHaveAttribute('aria-label', 'Claude')
     expect(entries[1]).toHaveTextContent('You')
+    expect(entries[1].querySelector('svg')).toBeNull()
     // The one before the current is picked first.
     expect(entries[1]).toHaveAttribute('aria-current', 'true')
     expect(await screen.findByLabelText('Changes')).toHaveTextContent('added: Book the hotel')

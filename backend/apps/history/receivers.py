@@ -26,9 +26,17 @@ def note_saved(sender, instance, created, raw=False, update_fields=None, **kwarg
     # The note says who made it and who edited it last (live edits come from
     # no request, so only the note knows they were the user's on the web).
     if created or not instance.edited_at:
-        made = Origin(by=instance.created_by, via=instance.created_via)
+        made = Origin(
+            by=instance.created_by,
+            via=instance.created_via,
+            logo=instance.created_logo,
+        )
     else:
-        made = Origin(by=instance.edited_by, via=instance.edited_via)
+        made = Origin(
+            by=instance.edited_by,
+            via=instance.edited_via,
+            logo=instance.edited_logo,
+        )
     content = {name: getattr(instance, name) for name in NOTE_FIELDS}
     record(instance.owner_id, content, made, item=instance)
 
