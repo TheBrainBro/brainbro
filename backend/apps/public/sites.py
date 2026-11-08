@@ -128,22 +128,26 @@ def site_categories(site):
     return categories
 
 
-def site_notes(site, category=None):
+def filed_notes(site, category=None):
     """
-    The published notes on `site`: those filed in its collection or any
-    inside it; with a `Category`, in that one's.
+    The notes filed on `site`, private ones too: those in its collection or
+    any inside it; with a `Category`, in that one's.
     """
     root = category.collection_id if category else site.collection_id
     if root is None:
         return Item.objects.none()
     return Item.objects.filter(
         kind=Item.Kind.NOTE,
-        published_at__isnull=False,
         owner_id=site.owner_id,
         id__in=CollectionItem.objects.filter(
             collection_id__in=collection_tree(root, site.owner_id)
         ).values("item_id"),
     )
+
+
+def site_notes(site, category=None):
+    """The published notes on `site` (see `filed_notes`)."""
+    return filed_notes(site, category).filter(published_at__isnull=False)
 
 
 def site_url(site, path="/"):

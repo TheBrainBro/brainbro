@@ -1,12 +1,17 @@
+import io
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.test import Client
+from django.utils import timezone
+from PIL import Image
 
 from apps.accounts.models import ApiToken
 from apps.boards.models import Board
-from apps.items.models import Collection, Item
-from apps.public.models import Site
+from apps.items.models import Collection, Item, NoteImage
+from apps.items.safe_http import BlockedURL, Fetched, TransientFetchError
+from apps.public.models import Redirect, Site
 from apps.public.publishing import publish
 
 
@@ -222,6 +227,10 @@ def test_tools_are_listed_with_their_schemas(mcp):
         "create_blog",
         "update_blog",
         "verify_blog",
+        "list_blog_posts",
+        "set_redirects",
+        "list_redirects",
+        "import_image",
     }
     assert tools["capture"]["inputSchema"]["required"] == ["text"]
     assert tools["get_item"]["annotations"]["readOnlyHint"] is True
@@ -1067,3 +1076,301 @@ def test_no_tool_deletes_a_blog(mcp):
 
     names = {tool["name"] for tool in response.json()["result"]["tools"]}
     assert not any("delete" in name or "remove" in name for name in names)
+
+
+# Moving a blog in
+
+
+ORIGINAL = "2021-05-03T10:00:00Z"
+ORIGINAL_DATE = datetime(2021, 5, 3, 10, tzinfo=UTC)
+
+
+def test_publish_a_note_with_its_original_date(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id), published_at=ORIGINAL))
+
+    item.refresh_from_db()
+    assert item.published_at == ORIGINAL_DATE
+    assert result["published_at"] == "2021-05-03T10:00:00Z"
+    # The note itself is still from when it was made.
+    assert item.created_at > ORIGINAL_DATE
+
+
+def test_publishing_again_keeps_the_date(call, user):
+    item = note(user, "Trip plan")
+    publish(item, published_at=ORIGINAL_DATE)
+
+    structured(call("publish_note", id=str(item.id)))
+
+    item.refresh_from_db()
+    assert item.published_at == ORIGINAL_DATE
+
+
+def test_change_a_published_note_s_date(call, user):
+    item = note(user, "Trip plan")
+    publish(item)
+
+    page = structured(call("update_page", id=str(item.id), published_at=ORIGINAL))
+
+    item.refresh_from_db()
+    assert item.published_at == ORIGINAL_DATE
+    assert page["published_at"] == "2021-05-03T10:00:00Z"
+
+
+def test_a_date_doesn_t_publish_a_private_note(call, user):
+    item = note(user, "Trip plan")
+    publish(item)
+    item.published_at = None
+    item.save()
+
+    assert "private" in failure(
+        call("update_page", id=str(item.id), published_at=ORIGINAL)
+    )
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+def test_a_date_can_t_be_in_the_future(call, user):
+    item = note(user, "Trip plan")
+    tomorrow = (timezone.now() + timedelta(days=1)).isoformat()
+
+    assert "future" in failure(
+        call("publish_note", id=str(item.id), published_at=tomorrow)
+    )
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+@pytest.fixture
+def blog(user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+    travel = Collection.objects.create(owner=user, name="Travel", parent=writing)
+    site = Site.objects.create(owner=user, hostname=BLOG, collection=writing)
+    site.travel = travel
+    return site
+
+
+def test_list_a_blog_s_posts(call, user, other_user, blog):
+    old = note(user, "Vienna", title="Vienna")
+    old.collections.add(blog.travel)
+    publish(old, "viaje-a-viena", ORIGINAL_DATE)
+    new = note(user, "Lisbon", title="Lisbon")
+    new.collections.add(blog.collection)
+    publish(new, "lisbon")
+    draft = note(user, "Porto", title="Porto")
+    draft.collections.add(blog.collection)
+    # Not filed on the blog.
+    publish(note(user, "Elsewhere"))
+
+    result = structured(call("list_blog_posts", id=str(blog.id)))
+
+    assert result["total"] == 3
+    posts = result["posts"]
+    assert [post["id"] for post in posts] == [str(new.id), str(old.id), str(draft.id)]
+    assert posts[1] == {
+        **posts[1],
+        "title": "Vienna",
+        "slug": "viaje-a-viena",
+        "status": "published",
+        "published_at": "2021-05-03T10:00:00Z",
+        # Its address once the blog serves; until then, the user's page.
+        "url": f"https://{BLOG}/viaje-a-viena",
+    }
+    assert posts[1]["public_url"].endswith("/viaje-a-viena")
+    assert posts[2]["status"] == "draft"
+    assert posts[2]["url"] is None
+    assert posts[2]["public_url"] is None
+
+
+def test_blog_posts_come_in_pages(call, user, blog):
+    for number in range(3):
+        item = note(user, f"Post {number}")
+        item.collections.add(blog.collection)
+
+    result = structured(call("list_blog_posts", id=str(blog.id), limit=2, offset=2))
+
+    assert result["total"] == 3
+    assert len(result["posts"]) == 1
+
+
+def test_someone_else_s_blog_posts_are_out_of_reach(call, other_user):
+    site = Site.objects.create(owner=other_user, hostname="theirs.example.com")
+
+    assert "No blog" in failure(call("list_blog_posts", id=str(site.id)))
+    assert "No blog" in failure(call("list_redirects", id=str(site.id)))
+    assert "No blog" in failure(
+        call(
+            "set_redirects",
+            id=str(site.id),
+            redirects=[{"from_path": "/a", "to": "/b"}],
+        )
+    )
+    assert not Redirect.objects.exists()
+
+
+def test_set_and_list_redirects(call, user, blog):
+    result = structured(
+        call(
+            "set_redirects",
+            id=str(blog.id),
+            redirects=[
+                {"from_path": "/mi-viaje", "to": "/viaje-a-viena"},
+                {"from_path": f"https://{BLOG}/Caf%C3%A9/?ref=x", "to": "/cafe"},
+            ],
+        )
+    )
+
+    assert {(r["from_path"], r["to"]) for r in result["redirects"]} == {
+        ("/mi-viaje", "/viaje-a-viena"),
+        ("/Café", "/cafe"),
+    }
+    # The same path again points elsewhere.
+    structured(
+        call(
+            "set_redirects",
+            id=str(blog.id),
+            redirects=[{"from_path": "/mi-viaje/", "to": "https://example.com/a"}],
+        )
+    )
+    listed = structured(call("list_redirects", id=str(blog.id)))
+    assert listed["total"] == 2
+    assert {"from_path": "/mi-viaje", "to": "https://example.com/a"}.items() <= {
+        r["from_path"]: r for r in listed["redirects"]
+    }["/mi-viaje"].items()
+
+
+@pytest.mark.parametrize(
+    ("pair", "error"),
+    [
+        ({"from_path": "/", "to": "/a"}, "blog's own"),
+        ({"from_path": "/rss", "to": "/a"}, "blog's own"),
+        ({"from_path": "/c/travel", "to": "/a"}, "blog's own"),
+        ({"from_path": "/api/public/notes", "to": "/a"}, "blog's own"),
+        ({"from_path": "/a", "to": "a"}, "isn't a path"),
+        ({"from_path": "/a", "to": "//evil.example.com"}, "isn't a path"),
+        ({"from_path": "/a", "to": "javascript:alert(1)"}, "isn't a path"),
+        ({"from_path": "/a/", "to": "/a"}, "itself"),
+    ],
+)
+def test_what_can_t_redirect(call, blog, pair, error):
+    result = call(
+        "set_redirects",
+        id=str(blog.id),
+        redirects=[{"from_path": "/fine", "to": "/ok"}, pair],
+    )
+
+    assert error in failure(result)
+    # All or none.
+    assert not Redirect.objects.exists()
+
+
+def test_a_published_post_s_address_can_t_redirect(call, user, blog):
+    item = note(user, "Vienna")
+    item.collections.add(blog.travel)
+    publish(item, "viaje-a-viena")
+
+    assert "published post lives" in failure(
+        call(
+            "set_redirects",
+            id=str(blog.id),
+            redirects=[{"from_path": "/viaje-a-viena", "to": "/other"}],
+        )
+    )
+
+
+PNG = "https://teletype.example/files/photo.png"
+
+
+def png():
+    data = io.BytesIO()
+    Image.new("RGB", (4, 3), "red").save(data, "PNG")
+    return data.getvalue()
+
+
+@pytest.fixture
+def web(monkeypatch, settings, tmp_path):
+    """What each URL answers with: bytes, or an exception to raise."""
+    settings.MEDIA_ROOT = tmp_path / "media"
+    answers = {}
+    asked = []
+
+    def fetch(url, **options):
+        asked.append(url)
+        answer = answers[url]
+        if isinstance(answer, Exception):
+            raise answer
+        return Fetched(url=url, content_type="image/png", charset=None, content=answer)
+
+    monkeypatch.setattr("apps.mcp.tools.fetch", fetch)
+    answers["asked"] = asked
+    return answers
+
+
+def test_import_an_image(call, user, web):
+    web[PNG] = png()
+
+    result = structured(call("import_image", url=PNG))
+
+    image = NoteImage.objects.get()
+    assert image.owner == user
+    assert image.source == NoteImage.Source.PASTED
+    assert result["src"] == f"attachments/{image.id}.png"
+    assert result["markdown"] == f"![](attachments/{image.id}.png)"
+    assert (result["width"], result["height"]) == (4, 3)
+    assert image.original.read() == web[PNG]
+    # Unused until a note links it.
+    assert image.note is None
+    assert image.unused_since is not None
+
+
+def test_a_note_that_links_an_imported_image_keeps_it(call, user, web):
+    web[PNG] = png()
+    src = structured(call("import_image", url=PNG))["src"]
+
+    item = structured(call("capture", text=f"Vienna\n\n![Ring]({src})"))
+
+    image = NoteImage.objects.get()
+    assert str(image.note_id) == item["id"]
+    assert image.unused_since is None
+
+
+def test_the_same_url_twice_is_one_image(call, user, web):
+    web[PNG] = png()
+
+    first = structured(call("import_image", url=PNG))
+    again = structured(call("import_image", url=PNG))
+
+    assert first["src"] == again["src"]
+    assert web["asked"] == [PNG]
+
+
+def test_an_image_a_note_uses_is_downloaded_again(call, user, web):
+    web[PNG] = png()
+    src = structured(call("import_image", url=PNG))["src"]
+    call("capture", text=f"![]({src})")
+
+    again = structured(call("import_image", url=PNG))
+
+    # Another note gets its own copy.
+    assert again["src"] != src
+    assert NoteImage.objects.count() == 2
+
+
+@pytest.mark.parametrize(
+    ("answer", "error"),
+    [
+        (b"<html>not an image</html>", "isn't an image"),
+        (BlockedURL("Refusing to connect"), "Couldn't download"),
+        (TransientFetchError("timeout"), "try again"),
+    ],
+)
+def test_what_isn_t_imported(call, web, answer, error):
+    web[PNG] = answer
+
+    assert error in failure(call("import_image", url=PNG))
+    assert not NoteImage.objects.exists()
+
+
+def test_only_web_addresses_are_imported(call, web):
+    assert "url" in failure(call("import_image", url="ftp://example.com/a.png"))
