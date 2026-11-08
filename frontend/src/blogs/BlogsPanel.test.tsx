@@ -135,6 +135,111 @@ describe('BlogsPanel', () => {
     expect(within(card).queryByLabelText('TXT record value')).not.toBeInTheDocument()
   })
 
+  const verified: Blog = { ...blog, status: 'verified', verified_at: '2026-11-02T10:00:00Z' }
+  const moving: Blog = {
+    ...verified,
+    pending_hostname: 'new.example.com',
+    records: [
+      { type: 'CNAME', name: 'new.example.com', value: 'brainbro.example.com' },
+      {
+        type: 'TXT',
+        name: '_brainbro.new.example.com',
+        value: 'brainbro-site-verification=abc',
+      },
+    ],
+  }
+
+  it('changes the domain of a verified blog', async () => {
+    const fetchMock = renderPanel([verified], {
+      'PATCH /api/sites/s1/': () => jsonResponse(moving),
+    })
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    fireEvent.click(within(card).getByRole('button', { name: 'Change domain' }))
+    expect(within(card).getByText(/keeps working at its current domain/)).toBeInTheDocument()
+    fireEvent.change(within(card).getByLabelText('New domain'), {
+      target: { value: ' new.example.com ' },
+    })
+    fireEvent.click(within(card).getAllByRole('button', { name: 'Save' })[0])
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ hostname: 'new.example.com' }),
+        }),
+      ),
+    )
+  })
+
+  it('says why a new domain is refused', async () => {
+    renderPanel([verified], {
+      'PATCH /api/sites/s1/': () =>
+        jsonResponse({ hostname: ['Another blog already uses this domain.'] }, 400),
+    })
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    fireEvent.click(within(card).getByRole('button', { name: 'Change domain' }))
+    fireEvent.change(within(card).getByLabelText('New domain'), {
+      target: { value: 'new.example.com' },
+    })
+    fireEvent.click(within(card).getAllByRole('button', { name: 'Save' })[0])
+
+    expect(await within(card).findByRole('alert')).toHaveTextContent(
+      'Another blog already uses this domain.',
+    )
+    expect(within(card).getByLabelText('New domain')).toBeInTheDocument()
+  })
+
+  it('shows a pending domain with its records, and verifies it', async () => {
+    const fetchMock = renderPanel([moving], {
+      'POST /api/sites/s1/verify/': () =>
+        jsonResponse({ ...moving, pending_status: 'checking' }, 202),
+    })
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    expect(within(card).getByText('Moving to new.example.com')).toBeInTheDocument()
+    expect(within(card).getByText('Verified')).toBeInTheDocument()
+    expect(within(card).getByText('Not verified')).toBeInTheDocument()
+    expect(within(card).getByLabelText('TXT record name')).toHaveValue('_brainbro.new.example.com')
+    expect(within(card).queryByRole('button', { name: 'Change domain' })).not.toBeInTheDocument()
+    fireEvent.click(within(card).getByRole('button', { name: 'Verify' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/verify/',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    )
+  })
+
+  it('can\'t verify a pending domain while it is being checked', async () => {
+    renderPanel([{ ...moving, pending_status: 'checking' }])
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    expect(within(card).getByRole('button', { name: 'Verify' })).toBeDisabled()
+  })
+
+  it('calls a pending domain off', async () => {
+    const fetchMock = renderPanel([moving], {
+      'PATCH /api/sites/s1/': () => jsonResponse(verified),
+    })
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    fireEvent.click(within(card).getByRole('button', { name: 'Keep current domain' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ hostname: 'blog.example.com' }),
+        }),
+      ),
+    )
+  })
+
   it('saves its links, leaving empty rows out', async () => {
     const fetchMock = renderPanel([blog], {
       'PATCH /api/sites/s1/': () => jsonResponse(blog),
