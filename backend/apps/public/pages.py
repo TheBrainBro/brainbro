@@ -200,6 +200,28 @@ def site_head_tags(request, site):
     )
 
 
+def author_head_tags(request, profile):
+    """The `<title>` and meta tags for an author's page, `/@<handle>`."""
+    name = profile.display_name or f"@{profile.handle}"
+    description = f"Public notes by {name}."
+    url = request.build_absolute_uri(f"/@{profile.handle}")
+    meta = {
+        "og:type": "profile",
+        "og:title": name,
+        "og:description": description,
+        "og:url": url,
+        "twitter:card": "summary",
+    }
+    return render_tags(
+        request,
+        title=name,
+        description=description,
+        url=url,
+        meta=meta,
+        author=profile.display_name,
+    )
+
+
 def site_author(site):
     names = Profile.objects.filter(user_id=site.owner_id).values_list(
         "display_name", flat=True

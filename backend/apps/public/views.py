@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import Profile
 from apps.items.models import Collection, Item, NoteImage, NoteLink
 from apps.items.serializers import note_link_preview
 from apps.items.titles import linkable_titles, note_title
@@ -114,18 +115,20 @@ def linked_notes(request, note):
 class PublicNoteListView(generics.ListAPIView):
     """
     `/p/`: every published note on the server, the last published first; on
-    a blog, its notes. Each with its address.
+    a blog, its notes; with `?author=<handle>`, that author's. Each with its
+    address.
     """
 
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return (
-            published_notes(self.request)
-            .only("id", "owner_id", "title", "body", "public_slug", "published_at")
-            .order_by("-published_at")
-        )
+        notes = published_notes(self.request)
+        if handle := self.request.query_params.get("author"):
+            notes = notes.filter(owner__profile__handle=handle)
+        return notes.only(
+            "id", "owner_id", "title", "body", "public_slug", "published_at"
+        ).order_by("-published_at")
 
     def list(self, request, *args, **kwargs):
         notes = self.paginate_queryset(self.get_queryset())
@@ -228,6 +231,23 @@ class PublicNoteLinkImageView(APIView):
         note = published_note(request, handle, slug)
         link = get_object_or_404(NoteLink, id=link_id, note=note)
         return image_response(link.image)
+
+
+class PublicAuthorView(APIView):
+    """
+    `/@<handle>`, an author's page: `{handle, author}`, their display name
+    ("" without one). Never their username. Their notes are listed by
+    `/api/public/notes/?author=<handle>`.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, handle):
+        if current_site(request) is not None:
+            raise Http404
+        profile = get_object_or_404(Profile, handle=handle)
+        return Response({"handle": profile.handle, "author": profile.display_name})
 
 
 class PublicSiteView(APIView):
