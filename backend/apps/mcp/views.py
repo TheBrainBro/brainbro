@@ -9,7 +9,7 @@ from apps.accounts.authentication import McpAuthentication
 from apps.events.changes import collect
 from apps.items.origin import Source, acting, app_name
 
-from . import server
+from . import server, tools
 
 
 class McpView(APIView):
@@ -48,7 +48,8 @@ class McpView(APIView):
             return HttpResponse(status=202)
         # Open tabs name the assistant on what it changed, and so do items.
         name = app_name(request.auth)
-        with collect(by=name), acting(Source.MCP, by=name):
+        # The tools give whole addresses on this host, and check as the app does.
+        with collect(by=name), acting(Source.MCP, by=name), tools.serving(request):
             return JsonResponse(server.handle(request.user, message))
 
 
