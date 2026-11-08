@@ -45,6 +45,8 @@ const publicNote = {
   published_at: '2026-11-01T10:00:00Z',
 }
 
+const unlistedNote = { ...publicNote, public_listed: false }
+
 /** The menu over the cached note, as the note page shows it. */
 function Harness({ onSettings }: { onSettings: () => void }) {
   const note = useItem('n1').data
@@ -96,6 +98,36 @@ describe('VisibilityMenu', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/items/n1/publication/',
       expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('makes a private note unlisted, and shows its link', async () => {
+    const fetchMock = renderMenu(privateNote, () => jsonResponse(unlistedNote))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Visibility: private' }))
+    fireEvent.click(screen.getByRole('button', { name: /Unlisted/, pressed: false }))
+
+    expect(await screen.findByRole('button', { name: 'Visibility: unlisted' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Public link')).toHaveValue(
+      `${window.location.origin}/@ana/trip-plan`,
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/items/n1/publication/',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ listed: false }) }),
+    )
+  })
+
+  it('lists an unlisted note when public is chosen', async () => {
+    const fetchMock = renderMenu(unlistedNote, () => jsonResponse(publicNote))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Visibility: unlisted' }))
+    expect(screen.getByRole('button', { name: /Unlisted/, pressed: true })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Public/, pressed: false }))
+
+    expect(await screen.findByRole('button', { name: 'Visibility: public' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/items/n1/publication/',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ listed: true }) }),
     )
   })
 
