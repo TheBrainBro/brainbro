@@ -38,6 +38,11 @@ public_patterns = [
         views.PublicAuthorView.as_view(),
         name="public-author",
     ),
+    path(
+        "public/authors/<slug:handle>/avatar/",
+        views.PublicAuthorAvatarView.as_view(),
+        name="public-author-avatar",
+    ),
     path("public/site/", views.PublicSiteView.as_view(), name="public-site"),
     path(
         "public/sites/check/", views.SiteCheckView.as_view(), name="public-site-check"

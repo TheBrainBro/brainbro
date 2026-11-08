@@ -23,7 +23,14 @@ from apps.items.titles import linkable_titles, note_title
 
 from .handles import public_handle
 from .models import Site
-from .pages import author_name, public_image_url, site_author
+from .pages import (
+    author_name,
+    cover_image,
+    excerpt,
+    public_avatar_url,
+    public_image_url,
+    site_author,
+)
 from .sites import (
     current_site,
     is_app_host,
@@ -126,24 +133,47 @@ class PublicNoteListView(generics.ListAPIView):
         notes = published_notes(self.request)
         if handle := self.request.query_params.get("author"):
             notes = notes.filter(owner__profile__handle=handle)
-        return notes.only(
-            "id", "owner_id", "title", "body", "public_slug", "published_at"
-        ).order_by("-published_at")
+        return (
+            notes.only(
+                "id",
+                "owner_id",
+                "title",
+                "body",
+                "public_slug",
+                "published_at",
+                "public_description",
+                "public_image",
+            )
+            .prefetch_related("note_images")
+            .order_by("-published_at")
+        )
 
     def list(self, request, *args, **kwargs):
         notes = self.paginate_queryset(self.get_queryset())
         urls = public_urls(notes, current_site(request))
+        handles = dict(
+            Profile.objects.filter(
+                user_id__in={note.owner_id for note in notes}
+            ).values_list("user_id", "handle")
+        )
         return self.get_paginated_response(
             [
-                {
-                    "slug": note.public_slug,
-                    "title": note.title or note_title(note.body),
-                    "published_at": note.published_at,
-                    "url": urls[note.id],
-                }
+                self.summary(note, urls[note.id], handles.get(note.owner_id))
                 for note in notes
             ]
         )
+
+    def summary(self, note, url, handle):
+        """A note in the list: its title, the start of its text and its cover."""
+        cover = cover_image(note, note.note_images.all())
+        return {
+            "slug": note.public_slug,
+            "title": note.title or note_title(note.body),
+            "published_at": note.published_at,
+            "url": url,
+            "excerpt": note.public_description or excerpt(note.body),
+            "image_url": public_image_url(note, cover, handle) if cover else None,
+        }
 
 
 class PublicNoteView(APIView):
@@ -173,6 +203,9 @@ class PublicNoteView(APIView):
                 "edited_at": note.edited_at,
                 # The owner's display name, never their username; "" without one.
                 "author": author_name(note),
+                "avatar_url": public_avatar_url(
+                    Profile.objects.filter(user_id=note.owner_id).first()
+                ),
                 "images": public_images(note, handle),
                 "links": public_links(note, handle),
                 "notes": linked_notes(request, note),
@@ -247,7 +280,30 @@ class PublicAuthorView(APIView):
         if current_site(request) is not None:
             raise Http404
         profile = get_object_or_404(Profile, handle=handle)
-        return Response({"handle": profile.handle, "author": profile.display_name})
+        return Response(
+            {
+                "handle": profile.handle,
+                "author": profile.display_name,
+                "avatar_url": public_avatar_url(profile),
+            }
+        )
+
+
+class PublicAuthorAvatarView(APIView):
+    """
+    An author's photo, for their public pages. Only while they have a
+    published note: someone who publishes nothing never shows theirs. On a
+    blog, only its owner's.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, handle):
+        profile = get_object_or_404(Profile, handle=handle)
+        if not published_notes(request).filter(owner_id=profile.user_id).exists():
+            raise Http404
+        return image_response(profile.avatar)
 
 
 class PublicSiteView(APIView):
@@ -267,6 +323,9 @@ class PublicSiteView(APIView):
                 "description": site.description,
                 "author": site_author(site),
                 "handle": public_handle(site.owner_id),
+                "avatar_url": public_avatar_url(
+                    Profile.objects.filter(user_id=site.owner_id).first()
+                ),
             }
         )
 
