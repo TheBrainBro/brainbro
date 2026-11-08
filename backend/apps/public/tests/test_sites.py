@@ -3,7 +3,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Profile
 from apps.items.models import Collection, Item
-from apps.public.models import Site
+from apps.public.models import Redirect, Site
 from apps.public.publishing import publish, unpublish
 from apps.public.sites import normalize_hostname
 
@@ -528,3 +528,38 @@ def test_powered_by_shows_until_it_is_turned_off(api, anyone, blog):
     api.patch(f"/api/sites/{blog.id}/", {"powered_by": False}, format="json")
 
     assert on_blog(anyone, "/api/public/site/").json()["powered_by"] is False
+
+
+# Redirects
+
+
+def test_an_old_address_redirects_for_good(anyone, user, blog):
+    Redirect.objects.create(owner=user, site=blog, path="/mi-viaje", target="/viena")
+    Redirect.objects.create(
+        owner=user, site=blog, path="/Café", target="https://example.com/cafe"
+    )
+
+    response = on_blog(anyone, "/mi-viaje/?from=telegram")
+    assert response.status_code == 301
+    assert response["Location"] == "/viena"
+    response = on_blog(anyone, "/Caf%C3%A9")
+    assert response.status_code == 301
+    assert response["Location"] == "https://example.com/cafe"
+
+
+def test_redirects_are_their_blog_s_only(anyone, user, other_user, blog):
+    Redirect.objects.create(owner=user, site=blog, path="/mi-viaje", target="/viena")
+
+    # Not on the app's own domain.
+    assert anyone.get("/mi-viaje").status_code != 301
+    # Nor on an unverified blog.
+    blog.status = Site.Status.UNVERIFIED
+    blog.save()
+    assert on_blog(anyone, "/mi-viaje").status_code == 400
+
+
+def test_a_blog_s_own_pages_never_redirect(anyone, user, blog):
+    # Made by hand: save_redirects refuses them.
+    Redirect.objects.create(owner=user, site=blog, path="/rss", target="/elsewhere")
+
+    assert on_blog(anyone, "/rss").status_code == 200
