@@ -871,6 +871,10 @@ def blog_details(site):
             for category in site_categories(site)
         ],
         "records": details["records"],
+        "pending_domain": details["pending_hostname"] or None,
+        "pending_status": (
+            details["pending_status"] if details["pending_hostname"] else None
+        ),
         "checked_at": details["checked_at"],
         "verified_at": details["verified_at"],
         "created_at": details["created_at"],
@@ -952,8 +956,7 @@ class BlogIdArguments(serializers.Serializer):
 def verify_blog(user, data):
     # As the app does: the lookup runs in the worker, and the blog says how it went.
     site = owned_site(user, data["id"])
-    site.status = Site.Status.CHECKING
-    site.save(update_fields=["status", "updated_at"])
+    site.start_check()
     verify_site.delay(str(site.id))
     return blog_details(owned_site(user, site.id))
 
@@ -1585,7 +1588,9 @@ TOOLS = {
                 "parent_id adds one). records are the DNS records the user "
                 "adds at their domain provider. status: unverified (records "
                 "not checked yet), checking, failed (the TXT record wasn't "
-                "found) or verified (serving)."
+                "found) or verified (serving). pending_domain is the domain "
+                "a serving blog is moving to, if any: records are that "
+                "domain's, and pending_status says how its check went."
             ),
             arguments=NoArguments,
             schema={},
@@ -1626,10 +1631,12 @@ TOOLS = {
             title="Update a blog",
             description=(
                 "Changes some of a blog's settings: the same ones as "
-                "create_blog. links replaces all of them. A new domain has to "
-                "be verified again, and the blog stops serving until it is. "
-                "Only when the user asks for it. Blogs are turned off or "
-                "removed in the app only."
+                "create_blog. links replaces all of them. A verified blog's "
+                "new domain stays pending and the blog keeps serving at its "
+                "current one: tell the user to add the records in the result, "
+                "then verify_blog moves it. Sending its current domain calls "
+                "the move off. Only when the user asks for it. Blogs are "
+                "turned off or removed in the app only."
             ),
             arguments=UpdateBlogArguments,
             schema={
@@ -1654,7 +1661,10 @@ TOOLS = {
                 "failed: the record wasn't found; DNS changes can take a "
                 "while to show, so the user can try again later. checking: "
                 "the lookup is still running, call list_blogs in a few "
-                "seconds to see how it went."
+                "seconds to see how it went. On a blog moving to a new "
+                "domain it checks that one and says so in pending_status; "
+                "found, the blog moves there, and until then nothing changes "
+                "where it serves."
             ),
             arguments=BlogIdArguments,
             schema={"id": UUID},
