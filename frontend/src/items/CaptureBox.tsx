@@ -49,7 +49,8 @@ export function CaptureBox({
     setSaving(false)
     if ('item' in result) {
       setText('')
-      tutorial.complete('capture')
+      // The tutorial's next step organizes this note from the inbox.
+      if (!into) tutorial.complete('capture')
     } else {
       // The box shows the error and keeps the text: no failed card as well.
       setError(result.error)

@@ -16,6 +16,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useCapturePipeline } from '../capture/context'
 import { PendingCard } from '../capture/PendingCard'
 import { rich, useT } from '../i18n/i18n'
+import { CaptureBox } from '../items/CaptureBox'
 import { CollectionAvatar } from '../items/CollectionAvatar'
 import { CollectionDialog } from '../items/CollectionDialog'
 import { CollectionGrid } from '../items/CollectionGrid'
@@ -580,6 +581,12 @@ export function CollectionPage() {
           )}
           {!missing && <ViewModeSwitch mode={mode} onChange={setMode} />}
         </div>
+        {/* Only once it is known: until then a capture would land in the inbox. */}
+        {collection && (
+          <div className="mb-4">
+            <CaptureBox into={{ id, name: collection.name }} />
+          </div>
+        )}
       </div>
       {editing && collection && (
         <CollectionDialog
