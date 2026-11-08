@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -44,6 +44,7 @@ const site = {
   title: 'Ana writes',
   description: 'Notes on travel.',
   author: 'Ana',
+  show_author: true,
   handle: 'ana',
   avatar_url: null,
   links: [{ name: 'Website', url: 'https://ana.dev' }],
@@ -51,13 +52,16 @@ const site = {
   categories: [{ slug: 'travel', name: 'Travel' }],
 }
 
-function renderAt(path: string, { onSite = false, poweredBy = true, note = plan } = {}) {
+function renderAt(
+  path: string,
+  { onSite = false, poweredBy = true, showAuthor = true, note = plan } = {},
+) {
   const fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(note)
     if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
     if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
     if (url === '/api/public/site/' && onSite) {
-      return jsonResponse({ ...site, powered_by: poweredBy })
+      return jsonResponse({ ...site, powered_by: poweredBy, show_author: showAuthor })
     }
     if (url === '/api/public/authors/ana/') return jsonResponse({ handle: 'ana', author: 'Ana' })
     if (url.startsWith('/api/public/notes/?')) {
@@ -261,6 +265,16 @@ describe('a blog on its own domain', () => {
         expect.anything(),
       ),
     )
+  })
+
+  it('shows who signs the blog, unless turned off', async () => {
+    renderAt('/', { onSite: true })
+    expect(await screen.findByText('Ana')).toBeInTheDocument()
+    cleanup()
+
+    renderAt('/', { onSite: true, showAuthor: false })
+    expect(await screen.findByText('Ana writes')).toBeInTheDocument()
+    expect(screen.queryByText('Ana')).not.toBeInTheDocument()
   })
 
   it('says it is powered by BrainBro, unless turned off', async () => {

@@ -265,9 +265,63 @@ describe('BlogsPanel', () => {
           body: JSON.stringify({
             title: '',
             description: '',
+            author: '',
             links: [{ name: 'Website', url: 'https://carlos.dev' }],
           }),
         }),
+      ),
+    )
+  })
+
+  it('saves who signs the blog', async () => {
+    const fetchMock = renderPanel([blog], {
+      'PATCH /api/sites/s1/': () => jsonResponse({ ...blog, author: 'BrainBro' }),
+    })
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+
+    fireEvent.change(within(card).getByLabelText('Author'), { target: { value: ' BrainBro ' } })
+    fireEvent.click(within(card).getByRole('button', { name: 'Save' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ title: '', description: '', author: 'BrainBro', links: [] }),
+        }),
+      ),
+    )
+  })
+
+  it('hides the author line', async () => {
+    const fetchMock = renderPanel([blog], {
+      'PATCH /api/sites/s1/': () => jsonResponse({ ...blog, show_author: false }),
+    })
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+
+    fireEvent.click(within(card).getByRole('checkbox', { name: /Show the author/ }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ show_author: false }) }),
+      ),
+    )
+  })
+
+  it('removes the blog’s own photo', async () => {
+    const fetchMock = renderPanel([{ ...blog, avatar_url: '/api/sites/s1/avatar/?v=a' }], {
+      'DELETE /api/sites/s1/avatar/': () => jsonResponse({ ...blog, avatar_url: null }),
+    })
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+
+    expect(card.querySelector('img')).toHaveAttribute('src', '/api/sites/s1/avatar/?v=a')
+    fireEvent.click(within(card).getByRole('button', { name: 'Remove' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/avatar/',
+        expect.objectContaining({ method: 'DELETE' }),
       ),
     )
   })
