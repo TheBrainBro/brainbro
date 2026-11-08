@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AppRoutes } from '../App'
+import { AppRoutes, SiteRoutes } from '../App'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -14,6 +14,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 const plan = {
   slug: 'trip-plan',
+  handle: 'ana',
   title: 'Trip plan',
   body: '# Trip plan\n\nSee [[Packing]] and [[Diary]].\n\n![map](https://x.example/map.png)',
   published_at: '2026-10-01T10:00:00Z',
@@ -22,11 +23,11 @@ const plan = {
   images: {
     'https://x.example/map.png': {
       status: 'ready',
-      url: '/api/public/notes/trip-plan/images/1/?v=a',
+      url: '/api/public/notes/ana/trip-plan/images/1/?v=a',
     },
   },
   links: {},
-  notes: [{ slug: 'packing', title: 'Packing' }],
+  notes: [{ url: '/@ana/packing', title: 'Packing' }],
 }
 
 const packing = {
@@ -38,16 +39,33 @@ const packing = {
   notes: [],
 }
 
-function renderAt(path: string) {
+const site = {
+  hostname: 'blog.example.com',
+  title: 'Ana writes',
+  description: 'Notes on travel.',
+  author: 'Ana',
+  handle: 'ana',
+}
+
+function renderAt(path: string, { onSite = false } = {}) {
   const fetchMock = vi.fn(async (url: string) => {
-    if (url === '/api/public/notes/trip-plan/') return jsonResponse(plan)
-    if (url === '/api/public/notes/packing/') return jsonResponse(packing)
+    if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(plan)
+    if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
+    if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
+    if (url === '/api/public/site/' && onSite) return jsonResponse(site)
     if (url.startsWith('/api/public/notes/?')) {
       return jsonResponse({
         count: 1,
         next: null,
         previous: null,
-        results: [{ slug: 'trip-plan', title: 'Trip plan', published_at: plan.published_at }],
+        results: [
+          {
+            slug: 'trip-plan',
+            title: 'Trip plan',
+            published_at: plan.published_at,
+            url: onSite ? '/trip-plan' : '/@ana/trip-plan',
+          },
+        ],
       })
     }
     return jsonResponse({ detail: 'Not found.' }, 404)
@@ -57,7 +75,7 @@ function renderAt(path: string) {
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
-        <AppRoutes />
+        {onSite ? <SiteRoutes /> : <AppRoutes />}
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -68,12 +86,12 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('PublicNotePage', () => {
   it('shows a published note without signing in', async () => {
-    const fetchMock = renderAt('/p/trip-plan')
+    const fetchMock = renderAt('/@ana/trip-plan')
 
     expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'map' })).toHaveAttribute(
       'src',
-      '/api/public/notes/trip-plan/images/1/?v=a',
+      '/api/public/notes/ana/trip-plan/images/1/?v=a',
     )
     expect(screen.getByText('Carlos Lugones')).toBeInTheDocument()
     expect(screen.getByText('October 1, 2026')).toBeInTheDocument()
@@ -83,10 +101,10 @@ describe('PublicNotePage', () => {
   })
 
   it('links published notes and leaves the rest as words', async () => {
-    renderAt('/p/trip-plan')
+    renderAt('/@ana/trip-plan')
 
     const packingLink = await screen.findByRole('link', { name: 'Packing' })
-    expect(packingLink).toHaveAttribute('href', '/p/packing')
+    expect(packingLink).toHaveAttribute('href', '/@ana/packing')
     expect(screen.queryByRole('link', { name: 'Diary' })).not.toBeInTheDocument()
 
     fireEvent.click(packingLink)
@@ -97,6 +115,18 @@ describe('PublicNotePage', () => {
   })
 
   it('says when the page is not there', async () => {
+    renderAt('/@ana/gone')
+
+    expect(await screen.findByText("This page doesn't exist")).toBeInTheDocument()
+  })
+
+  it('follows an address from before handles to where the note is now', async () => {
+    renderAt('/p/trip-plan')
+
+    expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
+  })
+
+  it('says when an old address leads nowhere', async () => {
     renderAt('/p/gone')
 
     expect(await screen.findByText("This page doesn't exist")).toBeInTheDocument()
@@ -109,7 +139,27 @@ describe('PublicIndexPage', () => {
 
     expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
       'href',
-      '/p/trip-plan',
+      '/@ana/trip-plan',
     )
+  })
+})
+
+describe('a blog on its own domain', () => {
+  it('lists its notes under its name, at their short addresses', async () => {
+    renderAt('/', { onSite: true })
+
+    expect(await screen.findByRole('link', { name: 'Ana writes' })).toHaveAttribute('href', '/')
+    expect(screen.getByText('Notes on travel.')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
+      'href',
+      '/trip-plan',
+    )
+  })
+
+  it('shows a note at /<slug>', async () => {
+    renderAt('/trip-plan', { onSite: true })
+
+    expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Feed' })).toHaveAttribute('href', '/rss.xml')
   })
 })

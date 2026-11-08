@@ -103,11 +103,11 @@ describe('card and embed links', () => {
 })
 
 describe('wikilinks on a public page', () => {
-  const notes = noteTitleIndex([{ id: 'trip-plan', title: 'Trip plan' }])
+  const notes = noteTitleIndex([{ id: '/@ana/trip-plan', title: 'Trip plan' }])
 
   it('link published notes by their address', () => {
     const html = renderNote('[[Trip plan|the plan]]', { notes, isPublic: true })
-    expect(html).toContain('<a class="wikilink" href="/p/trip-plan">the plan</a>')
+    expect(html).toContain('<a class="wikilink" href="/@ana/trip-plan">the plan</a>')
     expect(html).not.toContain('data-note')
   })
 

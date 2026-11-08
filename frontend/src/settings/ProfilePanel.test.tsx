@@ -11,7 +11,12 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
-function renderPanel(profile = { display_name: '', avatar_url: null as string | null }) {
+function renderPanel(
+  profile: { display_name: string; handle?: string; avatar_url: string | null } = {
+    display_name: '',
+    avatar_url: null,
+  },
+) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/auth/session/') {
       return jsonResponse({
@@ -21,8 +26,11 @@ function renderPanel(profile = { display_name: '', avatar_url: null as string | 
       })
     }
     if (url === '/api/auth/profile/') {
-      const { display_name } = JSON.parse(String(init?.body))
-      return jsonResponse({ ...profile, display_name })
+      const changes = JSON.parse(String(init?.body))
+      if (changes.handle === 'taken') {
+        return jsonResponse({ handle: ['Someone else already has this name.'] }, 400)
+      }
+      return jsonResponse({ ...profile, ...changes })
     }
     if (url === '/api/auth/profile/avatar/' && init?.method === 'DELETE') {
       return jsonResponse({ ...profile, avatar_url: null })
@@ -60,6 +68,33 @@ describe('ProfilePanel', () => {
       ),
     )
     await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled())
+  })
+
+  it('saves the public address, lowercase', async () => {
+    const fetchMock = renderPanel({ display_name: '', handle: 'author', avatar_url: null })
+
+    const field = await screen.findByLabelText('Public address')
+    await vi.waitFor(() => expect(field).toHaveValue('author'))
+    const save = screen.getByRole('button', { name: 'Save public address' })
+    expect(save).toBeDisabled()
+    fireEvent.change(field, { target: { value: 'Carlos' } })
+    fireEvent.click(save)
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/profile/',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ handle: 'carlos' }) }),
+      ),
+    )
+  })
+
+  it('says when the public address is taken', async () => {
+    renderPanel({ display_name: '', handle: 'author', avatar_url: null })
+
+    fireEvent.change(await screen.findByLabelText('Public address'), { target: { value: 'taken' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save public address' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Someone else already has this name.')
   })
 
   it('shows the photo and removes it', async () => {
