@@ -575,9 +575,10 @@ export const en = {
     none: 'Nothing published yet',
     missing: "This page doesn't exist",
     missingHint: 'It may have been taken down, or its address changed.',
-    by: 'By {author}',
     updated: 'Updated {date}',
     feed: 'Feed',
+    moreFrom: 'More from {name}',
+    allNotes: 'All notes',
   },
   pending: {
     failed: 'Failed: {name}',
