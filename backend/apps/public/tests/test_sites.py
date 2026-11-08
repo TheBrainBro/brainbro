@@ -429,3 +429,13 @@ def test_a_blog_has_a_sitemap_and_robots(client, user, blog, writing):
     assert f"<loc>https://{BLOG}/</loc>" in sitemap
     assert f"<loc>https://{BLOG}/hello</loc>" in sitemap
     assert f"Sitemap: https://{BLOG}/sitemap.xml" in robots
+
+
+def test_locally_a_blog_is_where_django_serves_it(api, user, blog, writing, settings):
+    settings.SITE_SCHEME = "http"
+    settings.SITE_PORT = "8000"
+    item = publish(note(user, title="Hello", collection=writing))
+
+    assert api.get(f"/api/items/{item.id}/").json()["public_url"] == (
+        f"http://{BLOG}:8000/hello"
+    )
