@@ -82,3 +82,27 @@ class Site(OwnedModel):
     @property
     def name(self):
         return self.title or (self.collection.name if self.collection else "")
+
+
+class Redirect(OwnedModel):
+    """
+    An old address on a blog that sends readers to a new one, for good (301):
+    a post that moved there from somewhere else keeps its links working, and
+    search engines move it over. `path` is as `apps.public.redirects` writes
+    it; `target` a path on the same blog or a whole http(s) URL.
+    """
+
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="redirects")
+    path = models.CharField(max_length=2048)
+    target = models.CharField(max_length=2048)
+
+    class Meta:
+        ordering = ["path"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site", "path"], name="unique_redirect_path_per_site"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.path} -> {self.target}"
