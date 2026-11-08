@@ -35,6 +35,8 @@ function note(id: string, body: string): Item {
     created_via: 'web',
     edited_by: '',
     edited_via: '',
+    edited_logo: '',
+    created_logo: '',
     edited_at: null,
     public_slug: null,
     public_url: null,

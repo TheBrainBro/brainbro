@@ -17,6 +17,7 @@ const existing: ApiToken = {
   name: 'Script',
   prefix: 'brainbro_ab12',
   connected_app: false,
+  permissions: ['read', 'capture', 'edit', 'publish'],
   created_at: '2026-01-01T00:00:00Z',
   last_used_at: null,
 }

@@ -1,9 +1,17 @@
-import { CircleAlert, LoaderCircle } from 'lucide-react'
+import { ArrowLeftRight, CircleAlert, LoaderCircle } from 'lucide-react'
+import { useState } from 'react'
 import { useLocation } from 'react-router'
 
 import { rich, useT } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
-import { useAnswerAuthorization, useAuthorizationAsk } from '../tokens/api'
+import {
+  DEFAULT_PERMISSIONS,
+  useAnswerAuthorization,
+  useAuthorizationAsk,
+  type Permission,
+} from '../tokens/api'
+import { AppLogo } from '../tokens/AppLogo'
+import { PermissionChoices } from '../tokens/PermissionChoices'
 
 /**
  * "Sign in to BrainBro" for AI assistants (OAuth): an app like ChatGPT opens
@@ -15,13 +23,22 @@ export function AuthorizePage() {
   const query = useLocation().search.replace(/^\?/, '')
   const ask = useAuthorizationAsk(query)
   const answer = useAnswerAuthorization(query)
+  const [permissions, setPermissions] = useState<Permission[]>(DEFAULT_PERMISSIONS)
   // Sent back: the page stays as it is while the browser leaves.
   const busy = answer.isPending || answer.isSuccess
 
   return (
     <div className="flex h-full items-center justify-center bg-linear-to-b from-accent-50 to-zinc-50 p-4 dark:from-accent-950/40 dark:to-zinc-950">
       <div className="surface w-full max-w-sm space-y-4 rounded-2xl p-8 shadow-lg shadow-zinc-900/5 [animation:pop-in_200ms_ease-out]">
-        <Logo className="size-10" />
+        <div className="flex items-center gap-3">
+          <Logo className="size-10" />
+          {ask.data && (
+            <>
+              <ArrowLeftRight className="size-4 text-zinc-400" aria-hidden="true" />
+              <AppLogo logo={ask.data.logo} className="size-10 text-zinc-400" />
+            </>
+          )}
+        </div>
         {ask.isPending ? (
           <LoaderCircle className="size-5 animate-spin text-accent-500" aria-label={t('common.loading')} />
         ) : ask.isError ? (
@@ -47,6 +64,7 @@ export function AuthorizePage() {
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
               {t('auth.appCan')}
             </p>
+            <PermissionChoices value={permissions} onChange={setPermissions} disabled={busy} />
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
               {t('auth.onlyAllow', { app: ask.data.client_name })}
             </p>
@@ -60,7 +78,7 @@ export function AuthorizePage() {
                 type="button"
                 className="button-secondary"
                 disabled={busy}
-                onClick={() => answer.mutate(false)}
+                onClick={() => answer.mutate({ allow: false })}
               >
                 {t('common.cancel')}
               </button>
@@ -68,7 +86,7 @@ export function AuthorizePage() {
                 type="button"
                 className="button-primary flex items-center gap-2"
                 disabled={busy}
-                onClick={() => answer.mutate(true)}
+                onClick={() => answer.mutate({ allow: true, permissions })}
               >
                 {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
                 {t('auth.allow')}

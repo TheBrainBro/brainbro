@@ -63,9 +63,12 @@ export type Item = {
   /** The app that made it (its OAuth name or the token's); empty for the user. */
   created_by: string
   created_via: ItemSource
+  /** Which assistant's logo goes with it; empty for the generic icon. */
+  created_logo: string
   /** The same for the last edit of its content; `edited_at` is null until then. */
   edited_by: string
   edited_via: ItemSource
+  edited_logo: string
   edited_at: string | null
   /** Notes only: the last part of its address, kept while unpublished. */
   public_slug: string | null

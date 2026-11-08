@@ -4,7 +4,15 @@ import { useState, type ReactNode } from 'react'
 import { rich, t, useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
 import { CopyField } from '../ui/CopyField'
-import { useApiTokens, useCreateApiToken, useRevokeApiToken, type NewApiToken } from './api'
+import {
+  useApiTokens,
+  useCreateApiToken,
+  useRevokeApiToken,
+  useUpdateTokenPermissions,
+  type ApiToken,
+  type NewApiToken,
+} from './api'
+import { PermissionChoices } from './PermissionChoices'
 
 /**
  * AI assistants (through MCP) and scripts: how to connect each one, and the
@@ -159,6 +167,7 @@ function Connections() {
   const { data: tokens } = useApiTokens()
   const revoke = useRevokeApiToken()
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   if (!tokens?.length) return null
 
   return (
@@ -168,41 +177,56 @@ function Connections() {
       </h4>
       <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
         {tokens.map((token) => (
-          <li key={token.id} className="flex items-center gap-3 p-3">
-            <div className="mr-auto min-w-0 text-sm">
-              <div className="truncate font-medium">{token.name}</div>
-              <div className="text-xs text-zinc-500">
-                {token.connected_app ? t('tokens.connectedApp') : <code>{token.prefix}…</code>} ·{' '}
-                {t(token.connected_app ? 'tokens.allowed' : 'tokens.created', {
-                  when: timeAgo(token.created_at),
-                })}{' '}
-                ·{' '}
-                {token.last_used_at
-                  ? t('tokens.lastUsed', { when: timeAgo(token.last_used_at) })
-                  : t('tokens.neverUsed')}
+          <li key={token.id} className="space-y-3 p-3">
+            <div className="flex items-center gap-3">
+              <div className="mr-auto min-w-0 text-sm">
+                <div className="truncate font-medium">{token.name}</div>
+                <div className="text-xs text-zinc-500">
+                  {token.connected_app ? t('tokens.connectedApp') : <code>{token.prefix}…</code>} ·{' '}
+                  {t(token.connected_app ? 'tokens.allowed' : 'tokens.created', {
+                    when: timeAgo(token.created_at),
+                  })}{' '}
+                  ·{' '}
+                  {token.last_used_at
+                    ? t('tokens.lastUsed', { when: timeAgo(token.last_used_at) })
+                    : t('tokens.neverUsed')}
+                </div>
               </div>
+              {confirming === token.id ? (
+                <>
+                  <button type="button" className="button-ghost" onClick={() => setConfirming(null)}>
+                    {t('tokens.keep')}
+                  </button>
+                  <button
+                    type="button"
+                    className="button-ghost text-red-600 dark:text-red-400"
+                    disabled={revoke.isPending}
+                    onClick={() => revoke.mutate(token.id, { onSuccess: () => setConfirming(null) })}
+                  >
+                    {t(token.connected_app ? 'tokens.disconnectNamed' : 'tokens.revokeNamed', {
+                      name: token.name,
+                    })}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {token.connected_app && (
+                    <button
+                      type="button"
+                      className="button-ghost"
+                      aria-expanded={editing === token.id}
+                      onClick={() => setEditing(editing === token.id ? null : token.id)}
+                    >
+                      {t('tokens.permissions')}
+                    </button>
+                  )}
+                  <button type="button" className="button-ghost" onClick={() => setConfirming(token.id)}>
+                    {token.connected_app ? t('tokens.disconnect') : t('tokens.revoke')}
+                  </button>
+                </>
+              )}
             </div>
-            {confirming === token.id ? (
-              <>
-                <button type="button" className="button-ghost" onClick={() => setConfirming(null)}>
-                  {t('tokens.keep')}
-                </button>
-                <button
-                  type="button"
-                  className="button-ghost text-red-600 dark:text-red-400"
-                  disabled={revoke.isPending}
-                  onClick={() => revoke.mutate(token.id, { onSuccess: () => setConfirming(null) })}
-                >
-                  {t(token.connected_app ? 'tokens.disconnectNamed' : 'tokens.revokeNamed', {
-                    name: token.name,
-                  })}
-                </button>
-              </>
-            ) : (
-              <button type="button" className="button-ghost" onClick={() => setConfirming(token.id)}>
-                {token.connected_app ? t('tokens.disconnect') : t('tokens.revoke')}
-              </button>
-            )}
+            {editing === token.id && <AppPermissions token={token} />}
           </li>
         ))}
       </ul>
@@ -212,6 +236,27 @@ function Connections() {
         </p>
       )}
     </section>
+  )
+}
+
+/** What a connected app may do, saved on every change. */
+function AppPermissions({ token }: { token: ApiToken }) {
+  useT()
+  const update = useUpdateTokenPermissions(token.id)
+  return (
+    <div className="space-y-2">
+      <PermissionChoices
+        value={token.permissions}
+        onChange={(permissions) => update.mutate(permissions)}
+        disabled={update.isPending}
+      />
+      <p className="text-xs text-zinc-500">{t('tokens.permissionsChanged')}</p>
+      {update.isError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {update.error.message}
+        </p>
+      )}
+    </div>
   )
 }
 
