@@ -26,6 +26,7 @@ from apps.items.models import Collection, Item
 from apps.public.handles import MAX_HANDLE, handle_taken, is_valid_handle
 
 from .models import ApiToken, Invitation, Profile
+from .oauth import PermissionsSerializer
 
 # How long an invitation link can be used to join.
 INVITATION_LIFETIME = timedelta(days=7)
@@ -312,8 +313,16 @@ class ApiTokenSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApiToken
-        fields = ["id", "name", "prefix", "connected_app", "created_at", "last_used_at"]
-        read_only_fields = ["prefix", "created_at", "last_used_at"]
+        fields = [
+            "id",
+            "name",
+            "prefix",
+            "connected_app",
+            "permissions",
+            "created_at",
+            "last_used_at",
+        ]
+        read_only_fields = ["prefix", "permissions", "created_at", "last_used_at"]
 
     def get_connected_app(self, token):
         return token.client_id is not None
@@ -339,12 +348,25 @@ def tokens_view(request):
     )
 
 
-@api_view(["DELETE"])
+@api_view(["PATCH", "DELETE"])
 @authentication_classes([SessionAuthentication])
 def token_view(request, pk):
-    """Revokes a token: whatever uses it stops working right away."""
-    ApiToken.objects.filter(owner=request.user, pk=pk).delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    """
+    `DELETE` revokes a token: whatever uses it stops working right away.
+    `PATCH {"permissions"}` changes what a connected app may do.
+    """
+    tokens = ApiToken.objects.filter(owner=request.user, pk=pk)
+    if request.method == "DELETE":
+        tokens.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    token = tokens.filter(client__isnull=False).first()
+    if token is None:
+        raise Http404
+    payload = PermissionsSerializer(data=request.data)
+    payload.is_valid(raise_exception=True)
+    token.permissions = payload.validated_data["permissions"]
+    token.save(update_fields=["permissions", "updated_at"])
+    return Response(ApiTokenSerializer(token).data)
 
 
 class InvitationSerializer(serializers.ModelSerializer):

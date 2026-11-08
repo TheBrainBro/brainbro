@@ -179,12 +179,14 @@ class Item(OwnedModel):
     created_via = models.CharField(
         max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
     )
+    created_logo = models.CharField(max_length=32, blank=True)
     # The same for the last edit of its content (title, body, name); null
     # until it is edited. Triage and previews don't count.
     edited_by = models.CharField(max_length=200, blank=True)
     edited_via = models.CharField(
         max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
     )
+    edited_logo = models.CharField(max_length=32, blank=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     # Notes only: published at `/@<handle>/<public_slug>` while `published_at`
     # is set (see `apps.public`). Slugs are unique per owner. Unpublished, a
@@ -242,15 +244,17 @@ class Item(OwnedModel):
         if self._state.adding and not self.created_via:
             made = origin.current()
             self.created_by, self.created_via = made.by, made.via
+            self.created_logo = made.logo
         super().save(*args, **kwargs)
 
     # What `mark_edited` sets, for `save(update_fields=...)`.
-    EDIT_FIELDS = ("edited_by", "edited_via", "edited_at")
+    EDIT_FIELDS = ("edited_by", "edited_via", "edited_logo", "edited_at")
 
     def mark_edited(self, by=None):
         """Its content was just edited, by `by` (an `Origin`) or who is acting now."""
         made = by or origin.current()
         self.edited_by, self.edited_via = made.by, made.via
+        self.edited_logo = made.logo
         self.edited_at = timezone.now()
 
     @property

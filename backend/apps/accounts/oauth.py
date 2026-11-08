@@ -32,10 +32,30 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .discovery import AUTH_METHODS, SCOPE, base_url, same_resource
-from .models import ApiToken, AuthorizationCode, OAuthClient
+from .logos import host_logo
+from .models import ApiToken, AuthorizationCode, OAuthClient, Permission
 
 ACCESS_LIFETIME = timedelta(hours=1)
 CODE_LIFETIME = timedelta(minutes=10)
+# These act on what the assistant finds, so they come with reading.
+NEED_READ = {Permission.EDIT.value, Permission.PUBLISH.value}
+
+
+class PermissionsField(serializers.MultipleChoiceField):
+    """At least one `Permission`, as a list in their usual order."""
+
+    def __init__(self, **kwargs):
+        super().__init__(choices=Permission.choices, allow_empty=False, **kwargs)
+
+    def to_internal_value(self, data):
+        chosen = set(super().to_internal_value(data))
+        if chosen & NEED_READ and Permission.READ.value not in chosen:
+            raise serializers.ValidationError("Editing and publishing need reading.")
+        return [value for value in Permission.values if value in chosen]
+
+
+class PermissionsSerializer(serializers.Serializer):
+    permissions = PermissionsField()
 
 
 # Registration
@@ -145,10 +165,12 @@ class AuthorizeView(APIView):
 
     def get(self, request):
         data = self._request(request.query_params)
+        host = urlsplit(data["redirect_uri"]).netloc
         return Response(
             {
                 "client_name": data["client"].name,
-                "redirect_host": urlsplit(data["redirect_uri"]).netloc,
+                "redirect_host": host,
+                "logo": host_logo(host),
             }
         )
 
@@ -158,6 +180,8 @@ class AuthorizeView(APIView):
         if "state" in data:
             answer["state"] = data["state"]
         if request.data.get("allow") is True:
+            grant = PermissionsSerializer(data=request.data)
+            grant.is_valid(raise_exception=True)
             code = secrets.token_urlsafe(32)
             now = timezone.now()
             # Nobody swapped these: the sign-in was abandoned.
@@ -169,6 +193,7 @@ class AuthorizeView(APIView):
                 redirect_uri=data["redirect_uri"],
                 code_challenge=data["code_challenge"],
                 expires_at=now + CODE_LIFETIME,
+                permissions=grant.validated_data["permissions"],
             )
             answer["code"] = code
         else:
@@ -252,7 +277,13 @@ class TokenView(APIView):
             return oauth_error("invalid_target", "Tokens are only for BrainBro's MCP.")
         if not code.owner.is_active:
             return oauth_error("invalid_grant", "The account is disabled.")
-        token = ApiToken(owner=code.owner, name=client.name[:100], client=client)
+        token = ApiToken(
+            owner=code.owner,
+            name=client.name[:100],
+            client=client,
+            permissions=code.permissions,
+            redirect_host=urlsplit(code.redirect_uri).netloc,
+        )
         return issued(token)
 
     def _refresh(self, request, client):

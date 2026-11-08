@@ -62,8 +62,11 @@ are canvases where items are laid out in space.
 - A failed call says what went wrong and what to do; nothing was saved."""
 
 
-def handle(user, message):
-    """The JSON-RPC response to a request (`message` has an id and a method)."""
+def handle(user, message, allowed):
+    """
+    The JSON-RPC response to a request (`message` has an id and a method), for
+    a connection with the `allowed` permissions.
+    """
     params = message.get("params") or {}
     method = METHODS.get(message["method"])
     if method is None:
@@ -71,7 +74,7 @@ def handle(user, message):
     if not isinstance(params, dict):
         return error(message["id"], INVALID_PARAMS, "Params must be an object.")
     try:
-        result = method(user, params)
+        result = method(user, params, allowed)
     except UnknownTool as unknown:
         return error(message["id"], INVALID_PARAMS, f"Unknown tool: {unknown}")
     except Exception:
@@ -92,7 +95,7 @@ class UnknownTool(LookupError):
     pass
 
 
-def initialize(user, params):
+def initialize(user, params, allowed):
     requested = params.get("protocolVersion")
     version = requested if requested in PROTOCOL_VERSIONS else PROTOCOL_VERSIONS[0]
     return {
@@ -103,15 +106,19 @@ def initialize(user, params):
     }
 
 
-def ping(user, params):
+def ping(user, params, allowed):
     return {}
 
 
-def list_tools(user, params):
-    return {"tools": [tool.definition() for tool in TOOLS.values()]}
+def list_tools(user, params, allowed):
+    return {
+        "tools": [
+            tool.definition() for tool in TOOLS.values() if tool.permission in allowed
+        ]
+    }
 
 
-def call_tool(user, params):
+def call_tool(user, params, allowed):
     tool = TOOLS.get(params.get("name"))
     if tool is None:
         raise UnknownTool(params.get("name"))
@@ -119,6 +126,13 @@ def call_tool(user, params):
     try:
         if not isinstance(arguments, dict):
             raise ToolError("Arguments must be an object.")
+        # Hidden from `tools/list`, but a client may still have the old list.
+        if tool.permission not in allowed:
+            raise ToolError(
+                f'This connection doesn\'t have the "{tool.permission.label}" '
+                "permission. The user can turn it on in BrainBro, in Settings "
+                "\u2192 AI assistants."
+            )
         result = tool.run(user, arguments)
     except ToolError as failure:
         return {"content": [{"type": "text", "text": str(failure)}], "isError": True}

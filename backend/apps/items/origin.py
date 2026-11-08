@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from django.db import models
 
+from apps.accounts.logos import GROK_BOT, GROK_BOT_NAME, token_logo
 from apps.accounts.models import ApiToken
 
 
@@ -33,6 +34,8 @@ class Origin:
     # The app's name; empty for the user.
     by: str = ""
     via: str = Source.UNKNOWN
+    # Which logo goes with `by`; see `apps.accounts.logos`.
+    logo: str = ""
 
 
 _acting: ContextVar[Origin | None] = ContextVar("acting", default=None)
@@ -41,13 +44,15 @@ _request: ContextVar = ContextVar("origin_request", default=None)
 
 def app_name(token):
     """The connected app's name, or the personal token's."""
+    if token_logo(token) == GROK_BOT:
+        return GROK_BOT_NAME
     return token.client.name if token.client_id else token.name
 
 
 @contextmanager
-def acting(via, by=""):
+def acting(via, by="", logo=""):
     """What changes inside is made by `by` (the user when empty) through `via`."""
-    token = _acting.set(Origin(by=by, via=via))
+    token = _acting.set(Origin(by=by, via=via, logo=logo))
     try:
         yield
     finally:
