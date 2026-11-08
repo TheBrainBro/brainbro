@@ -1,10 +1,12 @@
 """
 What an assistant can do in BrainBro through MCP. Everything acts as the token's
 owner, through the same code the app uses. Reading, capturing, editing notes,
-organizing and archiving: nothing deletes.
+organizing, archiving, publishing notes and setting up blogs: nothing deletes.
 """
 
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 from django.db import transaction
@@ -22,7 +24,18 @@ from apps.items.notes import sync_images
 from apps.items.search import find
 from apps.items.serializers import TriageSerializer
 from apps.items.titles import note_title
-from apps.items.views import capture_text, triage
+from apps.items.views import PageSerializer, capture_text, page_settings, triage
+from apps.public.models import Site
+from apps.public.publishing import (
+    SlugTaken,
+    is_valid_slug,
+    publish,
+    save_page,
+    unpublish,
+)
+from apps.public.sites import public_url, site_categories, site_url
+from apps.public.tasks import verify_site
+from apps.public.views import SiteSerializer
 
 # How much of a body lists show; `get_item` has all of it.
 EXCERPT_LENGTH = 300
@@ -33,6 +46,23 @@ MAX_FULL_ITEMS = 50
 MAX_REPLACEMENTS = 50
 
 Action = TriageSerializer.Action
+
+# The request the tools run in: for whole addresses, and the app's own checks.
+current_request = ContextVar("mcp_request")
+
+
+@contextmanager
+def serving(request):
+    token = current_request.set(request)
+    try:
+        yield
+    finally:
+        current_request.reset(token)
+
+
+def absolute(url):
+    """`/@ana/trip` on this server as `https://<host>/@ana/trip`; a blog's as is."""
+    return current_request.get().build_absolute_uri(url)
 
 
 class ToolError(ValueError):
@@ -122,6 +152,11 @@ def item_summary(item):
         summary["edited_at"] = item.edited_at
     if item.url:
         summary["url"] = item.url
+    if item.kind == Item.Kind.NOTE:
+        # Null while private; published, where anyone reads it.
+        summary["published_at"] = item.published_at
+        if item.published_at:
+            summary["public_url"] = absolute(public_url(item))
     if item.body:
         excerpt = item.body[:EXCERPT_LENGTH]
         summary["excerpt"] = excerpt + ("…" if len(item.body) > EXCERPT_LENGTH else "")
@@ -669,11 +704,241 @@ def add_to_board(user, data):
     }
 
 
+# Publishing
+
+
+def owned_note(user, note_id):
+    note = owned_items(user).filter(id=note_id).first()
+    if note is None:
+        raise no_item([note_id])
+    if note.kind != Item.Kind.NOTE:
+        raise ToolError(f"Only notes can be published, and this item is a {note.kind}.")
+    return note
+
+
+def publication(note):
+    return {
+        "id": note.id,
+        "title": item_title(note),
+        "slug": note.public_slug,
+        "published_at": note.published_at,
+        "public_url": absolute(public_url(note)) if note.published_at else None,
+    }
+
+
+SLUG_RULE = "Use lowercase letters, numbers and hyphens."
+SLUG_TAKEN = (
+    "slug: Another of the user's notes already has this address: pick another. "
+    "Nothing was saved."
+)
+
+
+class PublishArguments(serializers.Serializer):
+    id = serializers.UUIDField()
+    slug = serializers.CharField(max_length=80, required=False)
+
+    def validate_slug(self, value):
+        if not is_valid_slug(value):
+            raise serializers.ValidationError(SLUG_RULE)
+        return value
+
+
+def publish_note(user, data):
+    note = owned_note(user, data["id"])
+    try:
+        publish(note, data.get("slug"))
+    except SlugTaken:
+        raise ToolError(SLUG_TAKEN) from None
+    return publication(note)
+
+
+def unpublish_note(user, data):
+    return publication(unpublish(owned_note(user, data["id"])))
+
+
+def page(note):
+    settings = page_settings(note)
+    # Its image is in the app, behind the user's sign-in: no use to an assistant.
+    settings["preview"].pop("image_url")
+    return {
+        **publication(note),
+        **settings,
+        "address": absolute(settings["address"]),
+    }
+
+
+def note_with_page(user, note_id):
+    note = owned_note(user, note_id)
+    if not note.public_slug:
+        raise ToolError(
+            "This note was never published, so it has no page yet: publish_note "
+            "first, when the user asks for it."
+        )
+    return note
+
+
+def get_page(user, data):
+    return page(note_with_page(user, data["id"]))
+
+
+class UpdatePageArguments(PageSerializer):
+    id = serializers.UUIDField()
+
+    def validate(self, data):
+        if not set(data) - {"id"}:
+            raise serializers.ValidationError(
+                "Send a slug, a title, a description or an image."
+            )
+        return data
+
+
+def update_page(user, data):
+    note = note_with_page(user, data.pop("id"))
+    try:
+        save_page(note, data)
+    except SlugTaken:
+        raise ToolError(SLUG_TAKEN) from None
+    return page(note)
+
+
+# Blogs
+
+FIND_BLOGS = "list_blogs gives every blog's id."
+# The app's names for what the tools call otherwise.
+BLOG_FIELDS = {"domain": "hostname", "collection_id": "collection"}
+
+
+def blog_details(site):
+    details = SiteSerializer(site, context={"request": current_request.get()}).data
+    collection = site.collection
+    return {
+        "id": details["id"],
+        "domain": details["hostname"],
+        "url": details["url"],
+        "status": details["status"],
+        "collection": (
+            {"id": collection.id, "name": collection.name} if collection else None
+        ),
+        "title": details["title"],
+        "name": site.name,
+        "description": details["description"],
+        "links": details["links"],
+        "powered_by": details["powered_by"],
+        "categories": [
+            {
+                "name": category.name,
+                "collection_id": category.collection_id,
+                "url": site_url(site, f"/c/{category.slug}"),
+            }
+            for category in site_categories(site)
+        ],
+        "records": details["records"],
+        "checked_at": details["checked_at"],
+        "verified_at": details["verified_at"],
+        "created_at": details["created_at"],
+    }
+
+
+def owned_sites(user):
+    return Site.objects.filter(owner=user).select_related("collection")
+
+
+def owned_site(user, site_id):
+    site = owned_sites(user).filter(id=site_id).first()
+    if site is None:
+        raise ToolError(f"No blog with id {site_id}. {FIND_BLOGS}")
+    return site
+
+
+def list_blogs(user, data):
+    return {"blogs": [blog_details(site) for site in owned_sites(user)]}
+
+
+class LinkArguments(serializers.Serializer):
+    name = serializers.CharField()
+    url = serializers.CharField()
+
+
+class BlogArguments(serializers.Serializer):
+    domain = serializers.CharField(max_length=253)
+    collection_id = serializers.UUIDField(required=False, allow_null=True)
+    title = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+    links = serializers.ListField(child=LinkArguments(), required=False)
+    powered_by = serializers.BooleanField(required=False)
+
+
+def save_blog(user, data, site=None):
+    """Through the app's own checks: the domain, the collection, the links."""
+    if data.get("collection_id"):
+        owned_collection(user, data["collection_id"])
+    fields = {BLOG_FIELDS.get(name, name): value for name, value in data.items()}
+    payload = SiteSerializer(
+        site,
+        data=fields,
+        partial=site is not None,
+        context={"request": current_request.get()},
+    )
+    if not payload.is_valid():
+        names = {field: name for name, field in BLOG_FIELDS.items()}
+        errors = {
+            names.get(name, name): value for name, value in payload.errors.items()
+        }
+        raise ToolError(f"{describe(errors)} Nothing was saved.")
+    return blog_details(payload.save(owner=user))
+
+
+def create_blog(user, data):
+    return save_blog(user, data)
+
+
+class UpdateBlogArguments(BlogArguments):
+    id = serializers.UUIDField()
+    domain = serializers.CharField(max_length=253, required=False)
+
+    def validate(self, data):
+        if not set(data) - {"id"}:
+            raise serializers.ValidationError("Send at least one setting to change.")
+        return data
+
+
+def update_blog(user, data):
+    site = owned_site(user, data.pop("id"))
+    return save_blog(user, data, site)
+
+
+class BlogIdArguments(serializers.Serializer):
+    id = serializers.UUIDField()
+
+
+def verify_blog(user, data):
+    # As the app does: the lookup runs in the worker, and the blog says how it went.
+    site = owned_site(user, data["id"])
+    site.status = Site.Status.CHECKING
+    site.save(update_fields=["status", "updated_at"])
+    verify_site.delay(str(site.id))
+    return blog_details(owned_site(user, site.id))
+
+
 UUID = {"type": "string", "format": "uuid"}
 IDS = {"type": "array", "items": UUID, "minItems": 1, "maxItems": MAX_IDS}
 LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT}
 OFFSET = {"type": "integer", "minimum": 0}
 MARKDOWN = {"type": "string", "description": "Markdown."}
+LINKS = {
+    "type": "array",
+    "maxItems": 10,
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "maxLength": 60},
+            "url": {"type": "string", "format": "uri"},
+        },
+        "required": ["name", "url"],
+        "additionalProperties": False,
+    },
+    "description": "Shown on its index, under the description. Replaces them all.",
+}
 
 TOOLS = {
     tool.name: tool
@@ -994,6 +1259,179 @@ TOOLS = {
             schema={"board_id": UUID, "item_ids": IDS},
             required=["board_id", "item_ids"],
             run_with=add_to_board,
+            idempotent=True,
+        ),
+        Tool(
+            name="publish_note",
+            title="Publish a note",
+            description=(
+                "Makes a note public: anyone with its address can read it, "
+                "signed in or not, and so can search engines. Only when the "
+                "user asks for it or agrees to it, never on your own. It "
+                "lives on the user's page on this server, or on their blog "
+                "if it is filed in a blog's collection (see list_blogs). "
+                "slug is the end of its address; without one it keeps the "
+                "one it had, or gets one made from its title. Returns "
+                "public_url, its address.\n\n"
+                'Example: {"id": "<id>", "slug": "trip-plan"}'
+            ),
+            arguments=PublishArguments,
+            schema={
+                "id": UUID,
+                "slug": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Lowercase letters, numbers and hyphens.",
+                },
+            },
+            required=["id"],
+            run_with=publish_note,
+            idempotent=True,
+        ),
+        Tool(
+            name="unpublish_note",
+            title="Unpublish a note",
+            description=(
+                "Makes a public note private again: its address stops "
+                "working at once. It keeps its slug and page settings for "
+                "when it is published again. Only when the user asks for it."
+            ),
+            arguments=ItemArguments,
+            schema={"id": UUID},
+            required=["id"],
+            run_with=unpublish_note,
+            idempotent=True,
+        ),
+        Tool(
+            name="get_page",
+            title="Get a note's page settings",
+            description=(
+                "A published note's page settings, as Page settings in the "
+                "app: its slug and address, and the title, description and "
+                "image its page shows in search results and shared links. "
+                "Empty ones use the defaults listed; preview is what shows "
+                'now. image is the src of one of the note\'s images, "none" '
+                "for no image, or empty for its first."
+            ),
+            arguments=ItemArguments,
+            schema={"id": UUID},
+            required=["id"],
+            run_with=get_page,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="update_page",
+            title="Update a note's page settings",
+            description=(
+                "Changes some of a published note's page settings; an empty "
+                "title, description or image goes back to its default. A new "
+                "slug changes its address, and links to the old one stop "
+                "working. Only when the user asks for it.\n\n"
+                'Example: {"id": "<id>", "description": "What we packed for '
+                'ten days in Japan."}'
+            ),
+            arguments=UpdatePageArguments,
+            schema={
+                "id": UUID,
+                "slug": {"type": "string", "maxLength": 80},
+                "title": {"type": "string", "maxLength": 200},
+                "description": {"type": "string", "maxLength": 300},
+                "image": {
+                    "type": "string",
+                    "description": 'An image\'s src in the note, "none", or "".',
+                },
+            },
+            required=["id"],
+            run_with=update_page,
+            idempotent=True,
+        ),
+        Tool(
+            name="list_blogs",
+            title="List blogs",
+            description=(
+                "The user's blogs on their own domains: each one's domain, "
+                "address, status, the collection whose published notes it "
+                "shows, its title, description, links and categories (the "
+                "collections right inside its own; create_collection with "
+                "parent_id adds one). records are the DNS records the user "
+                "adds at their domain provider. status: unverified (records "
+                "not checked yet), checking, failed (the TXT record wasn't "
+                "found) or verified (serving)."
+            ),
+            arguments=NoArguments,
+            schema={},
+            run_with=list_blogs,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="create_blog",
+            title="Create a blog",
+            description=(
+                "Sets up a blog on a domain the user owns, showing the "
+                "published notes filed in collection_id and the collections "
+                "inside it. Only when the user asks for it. It serves "
+                "nothing until verified: tell the user to add the records "
+                "in the result at their domain provider, then verify_blog. "
+                "Without a title it is named after its collection.\n\n"
+                'Example: {"domain": "blog.example.com", "collection_id": '
+                '"<id>", "title": "Field notes"}'
+            ),
+            arguments=BlogArguments,
+            schema={
+                "domain": {"type": "string", "description": "Like blog.example.com."},
+                "collection_id": UUID,
+                "title": {"type": "string", "maxLength": 120},
+                "description": {"type": "string", "maxLength": 300},
+                "links": LINKS,
+                "powered_by": {
+                    "type": "boolean",
+                    "description": "A small Powered by BrainBro line, on by default.",
+                },
+            },
+            required=["domain"],
+            run_with=create_blog,
+        ),
+        Tool(
+            name="update_blog",
+            title="Update a blog",
+            description=(
+                "Changes some of a blog's settings: the same ones as "
+                "create_blog. links replaces all of them. A new domain has to "
+                "be verified again, and the blog stops serving until it is. "
+                "Only when the user asks for it. Blogs are turned off or "
+                "removed in the app only."
+            ),
+            arguments=UpdateBlogArguments,
+            schema={
+                "id": UUID,
+                "domain": {"type": "string"},
+                "collection_id": {**UUID, "type": ["string", "null"]},
+                "title": {"type": "string", "maxLength": 120},
+                "description": {"type": "string", "maxLength": 300},
+                "links": LINKS,
+                "powered_by": {"type": "boolean"},
+            },
+            required=["id"],
+            run_with=update_blog,
+            idempotent=True,
+        ),
+        Tool(
+            name="verify_blog",
+            title="Verify a blog's domain",
+            description=(
+                "Looks up the blog's TXT record, once the user says they "
+                "added its records. verified: it is serving at its url. "
+                "failed: the record wasn't found; DNS changes can take a "
+                "while to show, so the user can try again later. checking: "
+                "the lookup is still running, call list_blogs in a few "
+                "seconds to see how it went."
+            ),
+            arguments=BlogIdArguments,
+            schema={"id": UUID},
+            required=["id"],
+            run_with=verify_blog,
             idempotent=True,
         ),
     ]
