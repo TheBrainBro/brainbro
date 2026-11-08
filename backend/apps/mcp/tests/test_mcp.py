@@ -6,6 +6,8 @@ from django.test import Client
 from apps.accounts.models import ApiToken
 from apps.boards.models import Board
 from apps.items.models import Collection, Item
+from apps.public.models import Site
+from apps.public.publishing import publish
 
 
 @pytest.fixture(autouse=True)
@@ -212,6 +214,14 @@ def test_tools_are_listed_with_their_schemas(mcp):
         "list_boards",
         "get_board",
         "add_to_board",
+        "publish_note",
+        "unpublish_note",
+        "get_page",
+        "update_page",
+        "list_blogs",
+        "create_blog",
+        "update_blog",
+        "verify_blog",
     }
     assert tools["capture"]["inputSchema"]["required"] == ["text"]
     assert tools["get_item"]["annotations"]["readOnlyHint"] is True
@@ -230,6 +240,7 @@ def test_the_instructions_say_how_to_use_brain(mcp):
         "partial edits",
         "inbox",
         "do not mention or reveal unrelated items",
+        "only when the user asks for it or",
     ):
         assert advice in instructions
 
@@ -748,3 +759,311 @@ def test_add_to_someone_else_s_board(call, user, other_user):
     result = call("add_to_board", board_id=str(theirs.id), item_ids=[str(item.id)])
 
     assert "list_boards" in failure(result)
+
+
+# Publishing
+
+
+def test_items_say_whether_a_note_is_public_and_where(call, user):
+    private = note(user, "Draft")
+    public = publish(note(user, "Trip plan", title="Trip plan"))
+
+    found = structured(call("get_items", ids=[str(private.id), str(public.id)]))
+    draft, trip = found["items"]
+
+    assert draft["published_at"] is None
+    assert "public_url" not in draft
+    assert trip["published_at"] is not None
+    assert trip["public_url"].startswith("http://testserver/@")
+    assert trip["public_url"].endswith("/trip-plan")
+    search = structured(call("search_items", query="Trip plan"))["items"][0]
+    assert search["public_url"] == trip["public_url"]
+
+
+def test_publish_a_note(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id)))
+
+    item.refresh_from_db()
+    assert item.published_at is not None
+    assert result["slug"] == "trip-plan"
+    assert result["public_url"].endswith("/trip-plan")
+
+
+def test_publish_a_note_at_a_slug(call, user):
+    item = note(user, "Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id), slug="japan"))
+
+    assert result["slug"] == "japan"
+    assert result["public_url"].endswith("/japan")
+
+
+def test_a_slug_is_used_once_and_must_be_one(call, user):
+    publish(note(user, "Other"), "japan")
+    item = note(user, "Trip plan")
+
+    assert "already has this address" in failure(
+        call("publish_note", id=str(item.id), slug="japan")
+    )
+    assert "lowercase letters" in failure(
+        call("publish_note", id=str(item.id), slug="Not a slug")
+    )
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+def test_only_notes_are_published(call, user):
+    link = Item.objects.create(owner=user, kind=Item.Kind.LINK, url="https://a.com")
+
+    assert "Only notes" in failure(call("publish_note", id=str(link.id)))
+
+
+def test_someone_else_s_note_is_not_published(call, other_user):
+    item = note(other_user, "Theirs")
+
+    assert "No item" in failure(call("publish_note", id=str(item.id)))
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+def test_unpublish_a_note(call, user):
+    item = publish(note(user, "Trip plan"), "japan")
+
+    result = structured(call("unpublish_note", id=str(item.id)))
+
+    item.refresh_from_db()
+    assert item.published_at is None
+    assert item.public_slug == "japan"
+    assert result["public_url"] is None
+
+
+def test_publishing_says_it_makes_notes_public(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+
+    tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
+    assert "anyone" in tools["publish_note"]["description"]
+    assert "never on your own" in tools["publish_note"]["description"]
+
+
+# Page settings
+
+
+def test_get_a_page(call, user):
+    item = publish(note(user, "# Trip plan\nTen days in Japan."), "japan")
+
+    page = structured(call("get_page", id=str(item.id)))
+
+    assert page["slug"] == "japan"
+    assert page["address"].startswith("http://testserver/@")
+    assert page["address"].endswith("/")
+    assert page["title"] == ""
+    assert page["defaults"]["title"] == "Trip plan"
+    assert page["preview"] == {
+        "title": "Trip plan",
+        "description": page["defaults"]["description"],
+    }
+
+
+def test_a_note_never_published_has_no_page(call, user):
+    item = note(user, "Draft")
+
+    assert "publish_note first" in failure(call("get_page", id=str(item.id)))
+    assert "publish_note first" in failure(
+        call("update_page", id=str(item.id), title="Draft")
+    )
+
+
+def test_update_a_page(call, user):
+    item = publish(note(user, "Trip plan"), "japan")
+
+    page = structured(
+        call(
+            "update_page",
+            id=str(item.id),
+            slug="japan-2026",
+            title="Japan",
+            description="Ten days.",
+        )
+    )
+
+    item.refresh_from_db()
+    assert item.public_slug == "japan-2026"
+    assert item.public_title == "Japan"
+    assert page["preview"]["description"] == "Ten days."
+    assert page["public_url"].endswith("/japan-2026")
+
+
+def test_a_page_update_needs_something_to_change(call, user):
+    item = publish(note(user, "Trip plan"))
+
+    assert "Send a slug" in failure(call("update_page", id=str(item.id)))
+
+
+def test_a_page_can_t_take_another_note_s_slug(call, user):
+    publish(note(user, "Other"), "japan")
+    item = publish(note(user, "Trip plan"), "trip")
+
+    assert "already has this address" in failure(
+        call("update_page", id=str(item.id), slug="japan")
+    )
+
+
+# Blogs
+
+BLOG = "blog.example.com"
+
+
+@pytest.fixture
+def dns(monkeypatch):
+    """The TXT records public DNS answers with, by name."""
+    records = {}
+    monkeypatch.setattr(
+        "apps.public.tasks.txt_values", lambda name: set(records.get(name, []))
+    )
+    return records
+
+
+def test_list_blogs(call, user, other_user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+    Collection.objects.create(owner=user, name="Travel", parent=writing)
+    site = Site.objects.create(owner=user, hostname=BLOG, collection=writing)
+    Site.objects.create(owner=other_user, hostname="theirs.example.com")
+
+    blogs = structured(call("list_blogs"))["blogs"]
+
+    assert len(blogs) == 1
+    blog = blogs[0]
+    assert blog["id"] == str(site.id)
+    assert blog["domain"] == BLOG
+    assert blog["url"] == f"https://{BLOG}/"
+    assert blog["status"] == "unverified"
+    assert blog["collection"] == {"id": str(writing.id), "name": "Writing"}
+    assert blog["name"] == "Writing"
+    assert blog["categories"][0]["name"] == "Travel"
+    assert blog["categories"][0]["url"] == f"https://{BLOG}/c/travel"
+    assert {"type": "CNAME", "name": BLOG, "value": "testserver"} in blog["records"]
+    assert {
+        "type": "TXT",
+        "name": f"_brainbro.{BLOG}",
+        "value": f"brainbro-site-verification={site.token}",
+    } in blog["records"]
+
+
+def test_create_a_blog(call, user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+
+    blog = structured(
+        call(
+            "create_blog",
+            domain="Blog.Example.com",
+            collection_id=str(writing.id),
+            title="Field notes",
+            links=[{"name": "GitHub", "url": "https://github.com/someone"}],
+            powered_by=False,
+        )
+    )
+
+    site = Site.objects.get()
+    assert site.owner == user
+    assert site.hostname == BLOG
+    assert site.collection == writing
+    assert site.powered_by is False
+    assert site.links == [{"name": "GitHub", "url": "https://github.com/someone"}]
+    assert blog["status"] == "unverified"
+    assert blog["name"] == "Field notes"
+
+
+def test_a_blog_is_checked_as_in_the_app(call, user, other_user):
+    Site.objects.create(owner=other_user, hostname=BLOG, status=Site.Status.VERIFIED)
+
+    assert "domain: Another blog" in failure(call("create_blog", domain=BLOG))
+    assert "domain: Enter a domain" in failure(call("create_blog", domain="nope"))
+    assert "url" in failure(
+        call(
+            "create_blog",
+            domain="other.example.com",
+            links=[{"name": "Bad", "url": "javascript:alert(1)"}],
+        )
+    )
+    assert not Site.objects.filter(owner=user).exists()
+
+
+def test_a_blog_can_t_show_someone_else_s_collection(call, user, other_user):
+    theirs = Collection.objects.create(owner=other_user, name="Theirs")
+
+    assert "No collection" in failure(
+        call("create_blog", domain=BLOG, collection_id=str(theirs.id))
+    )
+    assert not Site.objects.exists()
+
+
+def test_update_a_blog(call, user):
+    site = Site.objects.create(
+        owner=user, hostname=BLOG, status=Site.Status.VERIFIED, title="Old"
+    )
+
+    blog = structured(call("update_blog", id=str(site.id), description="Notes."))
+
+    site.refresh_from_db()
+    assert site.description == "Notes."
+    assert site.title == "Old"
+    assert site.status == Site.Status.VERIFIED
+    assert blog["description"] == "Notes."
+
+
+def test_a_new_domain_has_to_be_verified_again(call, user):
+    site = Site.objects.create(owner=user, hostname=BLOG, status=Site.Status.VERIFIED)
+
+    blog = structured(call("update_blog", id=str(site.id), domain="new.example.com"))
+
+    assert blog["domain"] == "new.example.com"
+    assert blog["status"] == "unverified"
+
+
+def test_someone_else_s_blog_is_out_of_reach(call, other_user, dns):
+    site = Site.objects.create(owner=other_user, hostname=BLOG)
+
+    assert "No blog" in failure(call("update_blog", id=str(site.id), title="Mine"))
+    assert "No blog" in failure(call("verify_blog", id=str(site.id)))
+    site.refresh_from_db()
+    assert site.title == ""
+    assert site.status == Site.Status.UNVERIFIED
+
+
+def test_verify_a_blog(call, user, dns):
+    site = Site.objects.create(owner=user, hostname=BLOG)
+    dns[f"_brainbro.{BLOG}"] = [f"brainbro-site-verification={site.token}"]
+
+    # The worker runs at once in tests.
+    blog = structured(call("verify_blog", id=str(site.id)))
+
+    assert blog["status"] == "verified"
+    assert blog["verified_at"] is not None
+
+
+def test_a_blog_without_its_record_fails_to_verify(call, user, dns):
+    site = Site.objects.create(owner=user, hostname=BLOG)
+
+    assert structured(call("verify_blog", id=str(site.id)))["status"] == "failed"
+
+
+def test_a_note_on_a_blog_lives_there(call, user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+    Site.objects.create(
+        owner=user, hostname=BLOG, collection=writing, status=Site.Status.VERIFIED
+    )
+    item = note(user, "Trip plan")
+    item.collections.add(writing)
+
+    result = structured(call("publish_note", id=str(item.id), slug="trip"))
+
+    assert result["public_url"] == f"https://{BLOG}/trip"
+
+
+def test_no_tool_deletes_a_blog(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+
+    names = {tool["name"] for tool in response.json()["result"]["tools"]}
+    assert not any("delete" in name or "remove" in name for name in names)
