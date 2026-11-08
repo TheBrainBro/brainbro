@@ -65,6 +65,8 @@ function renderAt(path: string, { onSite = false } = {}) {
             title: 'Trip plan',
             published_at: plan.published_at,
             url: onSite ? '/trip-plan' : '/@ana/trip-plan',
+            excerpt: 'Ten days in Japan.',
+            image_url: '/api/public/notes/ana/trip-plan/images/1/?v=a',
           },
         ],
       })
@@ -145,6 +147,22 @@ describe('PublicIndexPage', () => {
   })
 })
 
+describe('the article', () => {
+  it("doesn't repeat a first heading that is its title", async () => {
+    renderAt('/@ana/trip-plan')
+
+    expect(await screen.findAllByRole('heading', { name: 'Trip plan' })).toHaveLength(1)
+  })
+
+  it('shows each note in a list with the start of its text and its cover', async () => {
+    renderAt('/@ana')
+
+    const card = await screen.findByRole('link', { name: /Trip plan/ })
+    expect(card).toHaveTextContent('Ten days in Japan.')
+    expect(card.querySelector('img')).toHaveAttribute('src', '/api/public/notes/ana/trip-plan/images/1/?v=a')
+  })
+})
+
 describe('PublicAuthorPage', () => {
   it('shows an author with their public notes', async () => {
     const fetchMock = renderAt('/@ana')
@@ -167,7 +185,7 @@ describe('PublicAuthorPage', () => {
   it('is reached from a note by its author', async () => {
     renderAt('/@ana/trip-plan')
 
-    expect(await screen.findByRole('link', { name: 'Carlos Lugones' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /Carlos Lugones/ })).toHaveAttribute(
       'href',
       '/@ana',
     )
