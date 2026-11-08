@@ -191,6 +191,9 @@ class Item(OwnedModel):
     # note keeps its slug, so publishing it again brings back the same address.
     public_slug = models.SlugField(max_length=80, null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
+    # Unlisted (False): read at its address, but in no list, feed or sitemap,
+    # and not indexed. Kept while private, for when it is published again.
+    public_listed = models.BooleanField(default=True, db_default=True)
     # How the page shows in search results and shared links (OpenGraph). Empty
     # means the default: the note's title, the start of its text, its first
     # image. `public_image` is the `src` of one of its images, or "none".

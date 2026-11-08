@@ -97,3 +97,17 @@ def test_unpublished_notes_hold_their_slug(user):
 def test_a_blog_s_own_pages_are_never_slugs(user):
     assert is_valid_slug("rss") is False
     assert suggested_slug(note(user, title="RSS")) == "rss-2"
+
+
+def test_publishing_unlisted_and_back(user):
+    item = publish(note(user, title="Trip"), listed=False)
+    assert item.public_listed is False
+
+    assert publish(item, listed=True).public_listed is True
+
+
+def test_publishing_again_keeps_it_unlisted(user):
+    item = publish(note(user, title="Trip"), listed=False)
+    unpublish(item)
+
+    assert publish(item).public_listed is False

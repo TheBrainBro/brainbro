@@ -174,6 +174,7 @@ def item_summary(item):
         summary["published_at"] = item.published_at
         if item.published_at:
             summary["public_url"] = absolute(public_url(item))
+            summary["listed"] = item.public_listed
     if item.body:
         excerpt = item.body[:EXCERPT_LENGTH]
         summary["excerpt"] = excerpt + ("…" if len(item.body) > EXCERPT_LENGTH else "")
@@ -740,6 +741,7 @@ def publication(note):
         "slug": note.public_slug,
         "published_at": note.published_at,
         "public_url": absolute(public_url(note)) if note.published_at else None,
+        "listed": note.public_listed,
     }
 
 
@@ -767,6 +769,7 @@ class PublishArguments(serializers.Serializer):
     id = serializers.UUIDField()
     slug = serializers.CharField(max_length=80, required=False)
     published_at = published_date()
+    listed = serializers.BooleanField(required=False)
 
     def validate_slug(self, value):
         if not is_valid_slug(value):
@@ -777,7 +780,7 @@ class PublishArguments(serializers.Serializer):
 def publish_note(user, data):
     note = owned_note(user, data["id"])
     try:
-        publish(note, data.get("slug"), data.get("published_at"))
+        publish(note, data.get("slug"), data.get("published_at"), data.get("listed"))
     except SlugTaken:
         raise ToolError(SLUG_TAKEN) from None
     return publication(note)
@@ -815,11 +818,12 @@ def get_page(user, data):
 class UpdatePageArguments(PageSerializer):
     id = serializers.UUIDField()
     published_at = published_date()
+    listed = serializers.BooleanField(required=False)
 
     def validate(self, data):
         if not set(data) - {"id"}:
             raise serializers.ValidationError(
-                "Send a slug, a title, a description, an image or published_at."
+                "Send a slug, a title, a description, an image, published_at or listed."
             )
         return data
 
@@ -992,6 +996,7 @@ def list_blog_posts(user, data):
                 "title": item_title(post),
                 "slug": post.public_slug or None,
                 "status": "published" if post.published_at else "draft",
+                "listed": post.public_listed,
                 "published_at": post.published_at,
                 # On the blog's domain, once it is verified and serving.
                 "url": (
@@ -1140,6 +1145,14 @@ IDS = {"type": "array", "items": UUID, "minItems": 1, "maxItems": MAX_IDS}
 LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT}
 OFFSET = {"type": "integer", "minimum": 0}
 MARKDOWN = {"type": "string", "description": "Markdown."}
+LISTED = {
+    "type": "boolean",
+    "description": (
+        "false makes it unlisted: anyone with its address can read it, but it "
+        "shows on no list, feed or sitemap and search engines don't index it. "
+        "true lists it. Without it, it stays as it was."
+    ),
+}
 PUBLISHED_AT = {
     "type": "string",
     "format": "date-time",
@@ -1498,7 +1511,8 @@ TOOLS = {
                 "one it had, or gets one made from its title. published_at "
                 "is the date it shows: give a post moved from another blog "
                 "its original date; without one it keeps the date it had, "
-                "or gets now. Returns public_url, its address.\n\n"
+                "or gets now. listed false keeps it off its blog, feeds and "
+                "search engines. Returns public_url, its address.\n\n"
                 'Example: {"id": "<id>", "slug": "trip-plan", "published_at": '
                 '"2021-05-03T10:00:00Z"}'
             ),
@@ -1511,6 +1525,7 @@ TOOLS = {
                     "description": "Lowercase letters, numbers and hyphens.",
                 },
                 "published_at": PUBLISHED_AT,
+                "listed": LISTED,
             },
             required=["id"],
             run_with=publish_note,
@@ -1557,7 +1572,9 @@ TOOLS = {
                 "slug changes its address, and links to the old one stop "
                 "working (on a blog, set_redirects can keep them). "
                 "published_at changes the date it shows, and where its blog "
-                "lists it. Only when the user asks for it.\n\n"
+                "lists it. listed false takes it off its blog, feeds and "
+                "search engines, at the same address. Only when the user "
+                "asks for it.\n\n"
                 'Example: {"id": "<id>", "description": "What we packed for '
                 'ten days in Japan."}'
             ),
@@ -1572,6 +1589,7 @@ TOOLS = {
                     "description": 'An image\'s src in the note, "none", or "".',
                 },
                 "published_at": PUBLISHED_AT,
+                "listed": LISTED,
             },
             required=["id"],
             run_with=update_page,

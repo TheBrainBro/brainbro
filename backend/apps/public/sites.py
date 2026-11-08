@@ -150,6 +150,14 @@ def site_notes(site, category=None):
     return filed_notes(site, category).filter(published_at__isnull=False)
 
 
+def listed_notes(notes):
+    """
+    Those of these published notes that lists and feeds show. Never for
+    finding a note to read: an unlisted one still opens at its address.
+    """
+    return notes.filter(public_listed=True)
+
+
 def site_url(site, path="/"):
     """
     A blog's address: HTTPS on its own domain in production; in development,

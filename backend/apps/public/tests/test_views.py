@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Profile
 from apps.items.models import Item, NoteImage, NoteLink
+from apps.public.handles import public_handle
 from apps.public.publishing import publish, unpublish
 
 
@@ -348,3 +349,45 @@ def test_an_author_s_photo_shows_while_they_publish(anyone, user):
 
     unpublish(item)
     assert anyone.get(url).status_code == 404
+
+
+def test_a_note_can_be_published_unlisted(api, user):
+    item = note(user, title="Trip")
+
+    response = api.put(
+        f"/api/items/{item.id}/publication/", {"listed": False}, format="json"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["public_listed"] is False
+    assert response.json()["public_url"] == f"/@{public_handle(user.id)}/trip"
+
+
+def test_notes_are_listed_unless_told_otherwise(api, user):
+    item = note(user, title="Trip")
+
+    response = api.put(f"/api/items/{item.id}/publication/", {}, format="json")
+
+    assert response.json()["public_listed"] is True
+
+
+def test_an_unlisted_note_opens_but_lists_nowhere(anyone, user):
+    publish(note(user, title="Hidden"), listed=False)
+    publish(note(user, title="Shown"))
+    handle = public_handle(user.id)
+
+    assert anyone.get(f"/api/public/notes/{handle}/hidden/").status_code == 200
+    everyone = anyone.get("/api/public/notes/").json()["results"]
+    theirs = anyone.get(f"/api/public/notes/?author={handle}").json()["results"]
+    assert [entry["title"] for entry in everyone] == ["Shown"]
+    assert [entry["title"] for entry in theirs] == ["Shown"]
+
+
+def test_links_to_an_unlisted_note_keep_working(anyone, user):
+    publish(note(user, title="Hidden"), listed=False)
+    publish(note(user, title="Shown", body="See [[Hidden]]"))
+    handle = public_handle(user.id)
+
+    data = anyone.get(f"/api/public/notes/{handle}/shown/").json()
+
+    assert {"url": f"/@{handle}/hidden", "title": "Hidden"} in data["notes"]

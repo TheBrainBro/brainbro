@@ -55,7 +55,9 @@ check fails and the blog stays where it is.
 Its notes are the **public** notes filed in its collection **or in any collection inside it**,
 at any depth. A note on a blog lives there: its address on the server (`/@<handle>/<slug>`)
 redirects to the blog, and its link in the app is the blog's. If it is on several blogs, the
-oldest one wins.
+oldest one wins. An **unlisted** note lives on the blog the same way, but is left out of its
+index, categories, RSS and sitemap (see [public-notes.md](public-notes.md)); a category with
+only unlisted notes doesn't show.
 
 **Categories** are the collections right inside the blog's, each at `/c/<slug>` with the slug
 made from its name (a number added when two make the same one). Their own collections belong
