@@ -55,6 +55,8 @@ INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     # First: it decides whether the request is for the app or a blog.
     "apps.public.sites.SiteMiddleware",
+    # A blog's old addresses, before its own pages.
+    "apps.public.redirects.RedirectMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

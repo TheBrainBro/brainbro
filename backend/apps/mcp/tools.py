@@ -4,13 +4,17 @@ owner, through the same code the app uses. Reading, capturing, editing notes,
 organizing, archiving, publishing notes and setting up blogs: nothing deletes.
 """
 
+import posixpath
 from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
+from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.boards.layout import migrate_layout
@@ -19,21 +23,33 @@ from apps.boards.placing import PlacingError, add_items
 from apps.collab.documents import body_written
 from apps.history.models import Revision
 from apps.items.capture import normalize_url
-from apps.items.models import Collection, CollectionItem, Item
+from apps.items.models import Collection, CollectionItem, Item, NoteImage
+from apps.items.note_images import MAX_PASTED_SIZE, UNUSED_GRACE
 from apps.items.notes import sync_images
+from apps.items.safe_http import FetchError, TransientFetchError, fetch
 from apps.items.search import find
 from apps.items.serializers import TriageSerializer
+from apps.items.tasks import make_note_image_display
 from apps.items.titles import note_title
+from apps.items.uploads import UploadTooLarge, inspect_upload
 from apps.items.views import PageSerializer, capture_text, page_settings, triage
-from apps.public.models import Site
+from apps.public.models import Redirect, Site
 from apps.public.publishing import (
+    NotPublished,
     SlugTaken,
     is_valid_slug,
     publish,
     save_page,
     unpublish,
 )
-from apps.public.sites import public_url, site_categories, site_url
+from apps.public.redirects import InvalidRedirect, save_redirects
+from apps.public.sites import (
+    filed_notes,
+    public_url,
+    public_urls,
+    site_categories,
+    site_url,
+)
 from apps.public.tasks import verify_site
 from apps.public.views import SiteSerializer
 
@@ -44,6 +60,7 @@ MAX_IDS = 500
 # Whole items are long: fewer of them per call than summaries.
 MAX_FULL_ITEMS = 50
 MAX_REPLACEMENTS = 50
+MAX_REDIRECTS = 200
 
 Action = TriageSerializer.Action
 
@@ -733,9 +750,23 @@ SLUG_TAKEN = (
 )
 
 
+def published_date(**options):
+    return serializers.DateTimeField(
+        required=False, validators=[not_in_the_future], **options
+    )
+
+
+def not_in_the_future(value):
+    if value > timezone.now():
+        raise serializers.ValidationError(
+            "It can't be in the future: a published note is public at once."
+        )
+
+
 class PublishArguments(serializers.Serializer):
     id = serializers.UUIDField()
     slug = serializers.CharField(max_length=80, required=False)
+    published_at = published_date()
 
     def validate_slug(self, value):
         if not is_valid_slug(value):
@@ -746,7 +777,7 @@ class PublishArguments(serializers.Serializer):
 def publish_note(user, data):
     note = owned_note(user, data["id"])
     try:
-        publish(note, data.get("slug"))
+        publish(note, data.get("slug"), data.get("published_at"))
     except SlugTaken:
         raise ToolError(SLUG_TAKEN) from None
     return publication(note)
@@ -783,11 +814,12 @@ def get_page(user, data):
 
 class UpdatePageArguments(PageSerializer):
     id = serializers.UUIDField()
+    published_at = published_date()
 
     def validate(self, data):
         if not set(data) - {"id"}:
             raise serializers.ValidationError(
-                "Send a slug, a title, a description or an image."
+                "Send a slug, a title, a description, an image or published_at."
             )
         return data
 
@@ -798,6 +830,12 @@ def update_page(user, data):
         save_page(note, data)
     except SlugTaken:
         raise ToolError(SLUG_TAKEN) from None
+    except NotPublished:
+        raise ToolError(
+            "published_at: This note is private now, and its date is when it "
+            "went public: publish_note takes published_at, when the user asks "
+            "to publish it. Nothing was saved."
+        ) from None
     return page(note)
 
 
@@ -920,11 +958,194 @@ def verify_blog(user, data):
     return blog_details(owned_site(user, site.id))
 
 
+class BlogPostsArguments(PageArguments):
+    id = serializers.UUIDField()
+
+
+def blog_posts(site):
+    """Its notes, published first (newest first), then its drafts."""
+    return (
+        filed_notes(site)
+        .filter(is_sample=False)
+        .order_by(F("published_at").desc(nulls_last=True), "-created_at")
+    )
+
+
+def list_blog_posts(user, data):
+    site = owned_site(user, data["id"])
+    posts = blog_posts(site)
+    start, end = data["offset"], data["offset"] + data["limit"]
+    page_of = list(posts[start:end])
+    public = [post for post in page_of if post.published_at]
+    readable = {
+        note_id: absolute(url) for note_id, url in public_urls(public).items() if url
+    }
+    return {
+        "blog": {"id": site.id, "domain": site.hostname, "status": site.status},
+        "total": posts.count(),
+        "posts": [
+            {
+                "id": post.id,
+                "title": item_title(post),
+                "slug": post.public_slug or None,
+                "status": "published" if post.published_at else "draft",
+                "published_at": post.published_at,
+                # On the blog's domain, once it is verified and serving.
+                "url": (
+                    site_url(site, f"/{post.public_slug}")
+                    if post.published_at
+                    else None
+                ),
+                # Where anyone reads it now.
+                "public_url": readable.get(post.id),
+                "created_at": post.created_at,
+                "updated_at": post.updated_at,
+            }
+            for post in page_of
+        ],
+    }
+
+
+# Redirects
+
+
+class RedirectPairArguments(serializers.Serializer):
+    from_path = serializers.CharField(max_length=2048)
+    to = serializers.CharField(max_length=2048)
+
+
+class SetRedirectsArguments(serializers.Serializer):
+    id = serializers.UUIDField()
+    redirects = serializers.ListField(
+        child=RedirectPairArguments(), allow_empty=False, max_length=MAX_REDIRECTS
+    )
+
+
+def redirect_summary(redirect):
+    return {
+        "from_path": redirect.path,
+        "to": redirect.target,
+        "updated_at": redirect.updated_at,
+    }
+
+
+def set_redirects(user, data):
+    site = owned_site(user, data["id"])
+    pairs = [(pair["from_path"], pair["to"]) for pair in data["redirects"]]
+    try:
+        saved = save_redirects(site, pairs)
+    except InvalidRedirect as invalid:
+        raise ToolError(f"{invalid} Nothing was saved.") from None
+    return {
+        "blog": {"id": site.id, "domain": site.hostname, "status": site.status},
+        "redirects": [redirect_summary(redirect) for redirect in saved],
+    }
+
+
+class ListRedirectsArguments(PageArguments):
+    id = serializers.UUIDField()
+
+
+def list_redirects(user, data):
+    site = owned_site(user, data["id"])
+    redirects = Redirect.objects.filter(site=site)
+    start, end = data["offset"], data["offset"] + data["limit"]
+    return {
+        "blog": {"id": site.id, "domain": site.hostname, "status": site.status},
+        "total": redirects.count(),
+        "redirects": [redirect_summary(r) for r in redirects[start:end]],
+    }
+
+
+# Images
+
+
+class ImportImageArguments(serializers.Serializer):
+    url = serializers.URLField(max_length=2048)
+
+    def validate_url(self, value):
+        if urlsplit(value).scheme not in ("http", "https"):
+            raise serializers.ValidationError("Use an http(s) URL.")
+        return value
+
+
+def imported_image(image):
+    return {
+        "id": image.id,
+        "src": image.src,
+        "markdown": f"![]({image.src})",
+        "source_url": image.metadata.get("source_url"),
+        "width": image.metadata.get("width"),
+        "height": image.metadata.get("height"),
+        "size": image.metadata.get("size"),
+    }
+
+
+def import_image(user, data):
+    url = data["url"]
+    # Asked twice (a retry): the copy no note uses yet, or one let go.
+    known = (
+        NoteImage.objects.filter(
+            Q(note__isnull=True) | Q(unused_since__isnull=False),
+            owner=user,
+            source=NoteImage.Source.PASTED,
+            metadata__source_url=url,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if known:
+        return imported_image(known)
+    try:
+        fetched = fetch(url, max_bytes=MAX_PASTED_SIZE, accept="image/*")
+    except TransientFetchError:
+        raise ToolError(
+            f"{url} didn't answer, or is busy: try again in a while. Nothing was saved."
+        ) from None
+    except FetchError as failed:
+        raise ToolError(
+            f"Couldn't download {url}: {failed}. Nothing was saved."
+        ) from None
+    name = posixpath.basename(urlsplit(fetched.url).path) or "image"
+    file = ContentFile(fetched.content, name=name)
+    limit = MAX_PASTED_SIZE // (1024 * 1024)
+    try:
+        upload = inspect_upload(file)
+    except UploadTooLarge:
+        raise ToolError(f"The image is over {limit} MB. Nothing was saved.") from None
+    if upload.kind != Item.Kind.IMAGE:
+        raise ToolError(
+            f"{url} isn't an image BrainBro can show (JPEG, PNG, GIF, WebP, AVIF "
+            f"or HEIC): it is {upload.mime}. Nothing was saved."
+        )
+    # As one pasted into a note: unused until a note links it.
+    image = NoteImage(
+        owner=user,
+        source=NoteImage.Source.PASTED,
+        metadata={**upload.metadata, "source_url": url},
+        unused_since=timezone.now(),
+    )
+    image.src = f"attachments/{image.id}.{upload.extension}"
+    image.original.save(f"original.{upload.extension}", file, save=False)
+    image.save()
+    transaction.on_commit(lambda: make_note_image_display.delay(str(image.id)))
+    return imported_image(image)
+
+
 UUID = {"type": "string", "format": "uuid"}
 IDS = {"type": "array", "items": UUID, "minItems": 1, "maxItems": MAX_IDS}
 LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT}
 OFFSET = {"type": "integer", "minimum": 0}
 MARKDOWN = {"type": "string", "description": "Markdown."}
+PUBLISHED_AT = {
+    "type": "string",
+    "format": "date-time",
+    "description": (
+        "The date its page shows and its blog sorts by, ISO 8601 (like "
+        "2021-05-03T10:00:00Z), not in the future. For a post moved from "
+        "elsewhere, the date it was first published there."
+    ),
+}
 LINKS = {
     "type": "array",
     "maxItems": 10,
@@ -1271,9 +1492,12 @@ TOOLS = {
                 "lives on the user's page on this server, or on their blog "
                 "if it is filed in a blog's collection (see list_blogs). "
                 "slug is the end of its address; without one it keeps the "
-                "one it had, or gets one made from its title. Returns "
-                "public_url, its address.\n\n"
-                'Example: {"id": "<id>", "slug": "trip-plan"}'
+                "one it had, or gets one made from its title. published_at "
+                "is the date it shows: give a post moved from another blog "
+                "its original date; without one it keeps the date it had, "
+                "or gets now. Returns public_url, its address.\n\n"
+                'Example: {"id": "<id>", "slug": "trip-plan", "published_at": '
+                '"2021-05-03T10:00:00Z"}'
             ),
             arguments=PublishArguments,
             schema={
@@ -1283,6 +1507,7 @@ TOOLS = {
                     "maxLength": 80,
                     "description": "Lowercase letters, numbers and hyphens.",
                 },
+                "published_at": PUBLISHED_AT,
             },
             required=["id"],
             run_with=publish_note,
@@ -1327,7 +1552,9 @@ TOOLS = {
                 "Changes some of a published note's page settings; an empty "
                 "title, description or image goes back to its default. A new "
                 "slug changes its address, and links to the old one stop "
-                "working. Only when the user asks for it.\n\n"
+                "working (on a blog, set_redirects can keep them). "
+                "published_at changes the date it shows, and where its blog "
+                "lists it. Only when the user asks for it.\n\n"
                 'Example: {"id": "<id>", "description": "What we packed for '
                 'ten days in Japan."}'
             ),
@@ -1341,6 +1568,7 @@ TOOLS = {
                     "type": "string",
                     "description": 'An image\'s src in the note, "none", or "".',
                 },
+                "published_at": PUBLISHED_AT,
             },
             required=["id"],
             run_with=update_page,
@@ -1433,6 +1661,103 @@ TOOLS = {
             required=["id"],
             run_with=verify_blog,
             idempotent=True,
+        ),
+        Tool(
+            name="list_blog_posts",
+            title="List a blog's posts",
+            description=(
+                "The notes on a blog: those filed in its collection or the "
+                "collections inside it, published ones first (newest first), "
+                "then drafts (filed there but private). Each has its id, "
+                "title, slug, status (published or draft), published_at, url "
+                "(its address on the blog's domain, once the blog is "
+                "verified) and public_url (where anyone reads it now). Use it "
+                "to check what is on a blog, and before moving posts in, so "
+                "none is added twice. Page with limit and offset."
+            ),
+            arguments=BlogPostsArguments,
+            schema={"id": UUID, "limit": LIMIT, "offset": OFFSET},
+            required=["id"],
+            run_with=list_blog_posts,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="set_redirects",
+            title="Set a blog's redirects",
+            description=(
+                "Sends readers of old addresses on a blog's domain to new "
+                "ones, for good (HTTP 301), which also tells search engines "
+                "a post moved. For posts moved from another blog on the same "
+                "domain whose address changed: keeping the old slug needs no "
+                "redirect. from_path is the old path (/old-post; a whole URL "
+                "is read as its path, without the query); to is a path on "
+                "the blog (/new-post) or an http(s) URL. A from_path already "
+                "there gets the new to. All or none: one wrong pair saves "
+                "nothing. They work once the blog is verified and serving. A "
+                "published post's address, the blog's index, /c/ categories, "
+                "/rss and /api can't redirect. Only when the user asks for "
+                f"it. Up to {MAX_REDIRECTS} per call.\n\n"
+                'Example: {"id": "<blog id>", "redirects": [{"from_path": '
+                '"/mi-viaje", "to": "/viaje-a-viena"}]}'
+            ),
+            arguments=SetRedirectsArguments,
+            schema={
+                "id": UUID,
+                "redirects": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": MAX_REDIRECTS,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "from_path": {"type": "string", "maxLength": 2048},
+                            "to": {"type": "string", "maxLength": 2048},
+                        },
+                        "required": ["from_path", "to"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            required=["id", "redirects"],
+            run_with=set_redirects,
+            idempotent=True,
+        ),
+        Tool(
+            name="list_redirects",
+            title="List a blog's redirects",
+            description=(
+                "A blog's redirects, by old path: where each one sends "
+                "readers. Page with limit and offset."
+            ),
+            arguments=ListRedirectsArguments,
+            schema={"id": UUID, "limit": LIMIT, "offset": OFFSET},
+            required=["id"],
+            run_with=list_redirects,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="import_image",
+            title="Import an image from a URL",
+            description=(
+                "Downloads an image into BrainBro, as if the user had pasted "
+                "it into a note, so a note no longer depends on the site it "
+                "came from (when moving posts from another blog, say). "
+                "Returns src, its address in BrainBro: put it in a note's "
+                "Markdown in place of the old URL, as in markdown "
+                "(![alt](attachments/<id>.jpg)), with capture or edit_note. "
+                "A note has to link it within "
+                f"{UNUSED_GRACE.days} days, or it is deleted. The same URL "
+                "asked again gives the same image while no note uses it. "
+                "JPEG, PNG, GIF, WebP, AVIF or HEIC, up to "
+                f"{MAX_PASTED_SIZE // (1024 * 1024)} MB.\n\n"
+                'Example: {"url": "https://example.com/photo.jpg"}'
+            ),
+            arguments=ImportImageArguments,
+            schema={"url": {"type": "string", "format": "uri"}},
+            required=["url"],
+            run_with=import_image,
         ),
     ]
 }
