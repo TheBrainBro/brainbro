@@ -199,6 +199,14 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | `list_boards` | Every board, with how many items are on it |
 | `get_board` | A board's items, sticky notes and groups, in reading order, without the layout |
 | `add_to_board` | Puts items on a board, where the app puts new cards |
+| `publish_note` | Makes a note public, optionally at a slug, and returns its address |
+| `unpublish_note` | Makes a public note private again |
+| `get_page` | A published note's page settings: slug, address, title, description, image |
+| `update_page` | Changes some of them, as *Page settings* in the app |
+| `list_blogs` | Every blog: domain, collection, status, categories and the DNS records to add |
+| `create_blog` | A new blog on the user's domain, unverified until its records are added |
+| `update_blog` | Changes a blog's domain, collection, title, description, links or *Powered by* |
+| `verify_blog` | Looks up a blog's TXT record and says how it went |
 
 A note saved without a title still comes back with one, worked out from its
 body as the app shows it: its first H1, or else its first line, shortened. It
@@ -219,6 +227,21 @@ assistants can tell their notes from yours.
 Every edit lands in the note's history (see [history.md](history.md)):
 assistants can read it with `list_revisions` and `get_revision`, and only you
 restore a version, in the app.
+
+Notes say whether they are public: `published_at` (null while private) and,
+once published, `public_url`, the whole address, on the server
+(`https://<host>/@<handle>/<slug>`) or on the note's blog (see
+[public-notes.md](public-notes.md) and [blogs.md](blogs.md)).
+
+Publishing makes a note readable by anyone. The instructions and the tool
+descriptions tell assistants to publish, change a page or set up a blog only
+when the user asks for it or agrees, never on their own. The tools go through
+the app's own code and checks: only the user's notes, collections and blogs,
+the same slug and domain rules, the same link checks. A blog's categories are
+the collections inside its own, so `create_collection` with `parent_id` adds
+one. `verify_blog` runs the lookup in the worker like the app does: a blog
+still `checking` says how it went in `list_blogs` a moment later. No tool
+deletes or turns off a blog: that is done in the app.
 
 `add_to_board` saves the board like the app does (its revision goes up), so a
 tab with the board open gets the usual conflict on its next save. Assistants
