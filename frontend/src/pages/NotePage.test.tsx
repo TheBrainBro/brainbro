@@ -180,6 +180,25 @@ describe('NotePage', () => {
     expect(view.contentDOM).toHaveAttribute('lang', '')
   })
 
+  it('shows the first line of an untitled note as its title, in the text', async () => {
+    items = [makeItem({ id: 'n1', title: '', body: 'test\nmore' })]
+    renderAt('/notes/n1')
+    const view = await editor()
+
+    expect(screen.queryByRole('textbox', { name: 'Note title' })).not.toBeInTheDocument()
+    expect(view.contentDOM.querySelector('.cm-note-title')).toHaveTextContent('test')
+    expect(view.state.doc.toString()).toBe('test\nmore')
+  })
+
+  it('keeps the first line as plain text when the note has a saved title', async () => {
+    items = [makeItem({ id: 'n1', title: 'Saved', body: 'test\nmore' })]
+    renderAt('/notes/n1')
+    const view = await editor()
+
+    expect(await screen.findByRole('textbox', { name: 'Note title' })).toHaveValue('Saved')
+    expect(view.contentDOM.querySelector('.cm-note-title')).toBeNull()
+  })
+
   it('lets people update a note title separately from its body', async () => {
     items = [makeItem({ id: 'n1', title: 'Start here: your second brain', body: 'The note body.' })]
     renderAt('/notes/n1')
