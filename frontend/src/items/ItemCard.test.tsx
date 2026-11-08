@@ -29,6 +29,7 @@ function fileItem(metadata: Item['metadata']): Item {
     public_slug: null,
     public_url: null,
     published_at: null,
+    public_listed: true,
   }
 }
 
