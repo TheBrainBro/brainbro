@@ -589,7 +589,7 @@ export const es: Messages = {
     updated: 'Actualizado {date}',
     feed: 'Feed',
     moreFrom: 'Más de {name}',
-    allNotes: 'Todas las notas',
+    allPosts: 'Todas las publicaciones',
   },
   pending: {
     failed: 'Falló: {name}',
