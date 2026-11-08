@@ -74,7 +74,8 @@ shows.
 
 `/@<handle>` is the author's page: their display name (or `@<handle>` without one) and all their
 public notes, newest first, each at its address (its blog's, if it is on one). A note's byline
-links to it. It is there with or without blogs.
+links to it. It is there with or without blogs. It, and notes read on the server's own domain,
+end with a small "Powered by BrainBro" line (blogs choose; see [blogs.md](blogs.md)).
 
 `/p` lists every published note on the server, the last published first, each at its address.
 Nothing links to it for now.
