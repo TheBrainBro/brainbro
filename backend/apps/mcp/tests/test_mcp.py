@@ -1014,6 +1014,8 @@ def test_create_a_blog(call, user):
             title="Field notes",
             links=[{"name": "GitHub", "url": "https://github.com/someone"}],
             powered_by=False,
+            author="BrainBro",
+            show_author=False,
         )
     )
 
@@ -1022,6 +1024,8 @@ def test_create_a_blog(call, user):
     assert site.hostname == BLOG
     assert site.collection == writing
     assert site.powered_by is False
+    assert site.author == "BrainBro"
+    assert site.show_author is False
     assert site.links == [{"name": "GitHub", "url": "https://github.com/someone"}]
     assert blog["status"] == "unverified"
     assert blog["name"] == "Field notes"

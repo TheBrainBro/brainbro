@@ -1,4 +1,8 @@
+import io
+
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Profile
@@ -522,6 +526,7 @@ def test_a_blog_says_what_it_is(anyone, user, blog):
         "title": "Carlos writes",
         "description": "",
         "author": "Carlos",
+        "show_author": True,
         "handle": "carlos",
         "avatar_url": None,
         "links": [],
@@ -713,6 +718,106 @@ def test_a_blog_has_ten_links_at_most(api, blog):
     response = api.patch(f"/api/sites/{blog.id}/", {"links": links}, format="json")
 
     assert response.status_code == 400
+
+
+# Who signs a blog
+
+
+def png():
+    output = io.BytesIO()
+    Image.new("RGB", (400, 300), "red").save(output, format="PNG")
+    return SimpleUploadedFile("logo.png", output.getvalue(), content_type="image/png")
+
+
+def test_a_blog_signs_as_its_owner_until_it_has_its_own_author(api, anyone, user, blog):
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    assert on_blog(anyone, "/api/public/site/").json()["author"] == "Carlos"
+
+    api.patch(f"/api/sites/{blog.id}/", {"author": "BrainBro"}, format="json")
+    assert on_blog(anyone, "/api/public/site/").json()["author"] == "BrainBro"
+
+    api.patch(f"/api/sites/{blog.id}/", {"author": ""}, format="json")
+    assert on_blog(anyone, "/api/public/site/").json()["author"] == "Carlos"
+
+
+def test_a_blogs_author_signs_its_notes_feed_and_shared_links(
+    api, anyone, user, blog, writing
+):
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    publish(note(user, "Update", collection=writing))
+    api.patch(f"/api/sites/{blog.id}/", {"author": "BrainBro"}, format="json")
+    slug = Item.objects.get().public_slug
+    handle = public_handle(user.id)
+
+    data = on_blog(anyone, f"/api/public/notes/{handle}/{slug}/").json()
+    assert data["author"] == "BrainBro"
+    assert "BrainBro" in on_blog(anyone, "/rss").content.decode()
+    page = on_blog(anyone, f"/{slug}").content.decode()
+    assert '<meta name="author" content="BrainBro" />' in page
+
+
+def test_the_author_line_can_be_hidden(api, anyone, blog):
+    api.patch(f"/api/sites/{blog.id}/", {"show_author": False}, format="json")
+
+    assert on_blog(anyone, "/api/public/site/").json()["show_author"] is False
+
+
+def test_a_blogs_photo_replaces_its_owners_on_that_blog_only(
+    api, anyone, user, blog, writing
+):
+    profile, _ = Profile.objects.get_or_create(user=user)
+    profile.avatar.save("me.webp", SimpleUploadedFile("me.webp", b"img"))
+    publish(note(user, "Update", collection=writing))
+    slug = Item.objects.get().public_slug
+    handle = public_handle(user.id)
+    before = on_blog(anyone, "/api/public/site/").json()["avatar_url"]
+    assert before.startswith(f"/api/public/authors/{handle}/avatar/")
+
+    response = api.post(f"/api/sites/{blog.id}/avatar/", {"file": png()})
+
+    assert response.status_code == 200
+    assert response.json()["avatar_url"].startswith(f"/api/sites/{blog.id}/avatar/")
+    url = on_blog(anyone, "/api/public/site/").json()["avatar_url"]
+    assert url.startswith("/api/public/site/avatar/")
+    assert on_blog(anyone, url).status_code == 200
+    data = on_blog(anyone, f"/api/public/notes/{handle}/{slug}/").json()
+    assert data["avatar_url"] == url
+    assert anyone.get(f"/api/public/authors/{handle}/").json()["avatar_url"] == before
+
+
+def test_removing_a_blogs_photo_goes_back_to_its_owners(api, anyone, blog, settings):
+    api.post(f"/api/sites/{blog.id}/avatar/", {"file": png()})
+
+    response = api.delete(f"/api/sites/{blog.id}/avatar/")
+
+    assert response.json()["avatar_url"] is None
+    assert on_blog(anyone, "/api/public/site/").json()["avatar_url"] is None
+    assert on_blog(anyone, "/api/public/site/avatar/").status_code == 404
+    assert list((settings.MEDIA_ROOT / "avatars" / "sites").rglob("*.webp")) == []
+
+
+def test_deleting_a_blog_deletes_its_photo(api, blog, settings):
+    api.post(f"/api/sites/{blog.id}/avatar/", {"file": png()})
+
+    api.delete(f"/api/sites/{blog.id}/")
+
+    assert list((settings.MEDIA_ROOT / "avatars" / "sites").rglob("*.webp")) == []
+
+
+def test_a_blogs_photo_must_be_an_image(api, blog):
+    file = SimpleUploadedFile("a.txt", b"nope", content_type="text/plain")
+
+    response = api.post(f"/api/sites/{blog.id}/avatar/", {"file": file})
+
+    assert response.status_code == 400
+
+
+def test_only_its_owner_changes_a_blogs_photo(api, other_user):
+    site = Site.objects.create(owner=other_user, hostname=BLOG)
+
+    response = api.post(f"/api/sites/{site.id}/avatar/", {"file": png()})
+
+    assert response.status_code == 404
 
 
 def test_powered_by_shows_until_it_is_turned_off(api, anyone, blog):
