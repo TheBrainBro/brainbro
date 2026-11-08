@@ -581,9 +581,8 @@ export const es: Messages = {
     seeAll: 'Ver todas las colecciones',
     collectionsInside: 'Colecciones dentro',
     empty: 'Aún no hay nada',
-    toInbox: 'Ir a la bandeja',
     emptyHint:
-      'Escribe una nota o graba una nota de voz en el cuadro de arriba, pega o suelta lo que quieras aquí, o elige <b>Organizar</b> en un elemento de la bandeja, para traerlo a esta colección.',
+      'Añade algo en el cuadro de arriba, o elige <b>Organizar</b> en un elemento de la bandeja para traerlo aquí.',
     name: 'Nombre de la colección',
   },
   graph: {

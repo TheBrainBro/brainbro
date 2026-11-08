@@ -571,9 +571,8 @@ export const en = {
     seeAll: 'See all collections',
     collectionsInside: 'Collections inside',
     empty: 'Nothing here yet',
-    toInbox: 'Go to the inbox',
     emptyHint:
-      'Write a note or record a voice memo in the box above, paste or drop anything here, or pick <b>Organize</b> on an inbox item, to bring it into this collection.',
+      'Add something in the box above, or pick <b>Organize</b> on an inbox item to bring it here.',
     name: 'Collection name',
   },
   graph: {

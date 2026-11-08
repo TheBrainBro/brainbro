@@ -654,15 +654,7 @@ export function CollectionPage() {
             {items.isPending && <ItemListSkeleton mode={mode} />}
             {items.isError && <ErrorState error={items.error} onRetry={() => items.refetch()} />}
             {items.isSuccess && all.length === 0 && pending.length === 0 && inside.length === 0 && (
-              <EmptyState
-                icon={FolderOpen}
-                title={t('collections.empty')}
-                action={
-                  <Link to="/" className="button-outline">
-                    {t('collections.toInbox')}
-                  </Link>
-                }
-              >
+              <EmptyState icon={FolderOpen} title={t('collections.empty')}>
                 {rich('collections.emptyHint', { b: (chunk) => <strong>{chunk}</strong> })}
               </EmptyState>
             )}
