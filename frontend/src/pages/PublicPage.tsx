@@ -304,7 +304,7 @@ function SiteFrame({ children }: { children: ReactNode }) {
         <Link to="/" className="text-2xl font-semibold hover:text-accent-700 dark:hover:text-accent-300">
           {site.data?.title || site.data?.hostname || ' '}
         </Link>
-        <a href="/rss.xml" className="button-icon size-8" aria-label={t('public.feed')}>
+        <a href="/rss" className="button-icon size-8" aria-label={t('public.feed')}>
           <Rss className="size-4" aria-hidden="true" />
         </a>
       </header>

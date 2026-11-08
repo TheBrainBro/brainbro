@@ -40,7 +40,7 @@ def rss(request):
         title=site.name,
         link=site_url(site),
         description=site.description or site.name,
-        feed_url=site_url(site, "/rss.xml"),
+        feed_url=site_url(site, "/rss"),
         author_name=author or None,
     )
     for note in newest_notes(site)[:FEED_SIZE]:
@@ -54,8 +54,10 @@ def rss(request):
             updateddate=note.edited_at,
             author_name=author or None,
         )
+    # Plain XML, not `application/rss+xml`: browsers show it instead of
+    # downloading it, and feed readers take either.
     return HttpResponse(
-        feed.writeString("utf-8"), content_type="application/rss+xml; charset=utf-8"
+        feed.writeString("utf-8"), content_type="application/xml; charset=utf-8"
     )
 
 

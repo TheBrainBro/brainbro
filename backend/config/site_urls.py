@@ -12,7 +12,7 @@ from apps.public.urls import public_patterns
 
 urlpatterns = [
     path("api/", include(public_patterns)),
-    path("rss.xml", feeds.rss, name="site-rss"),
+    path("rss", feeds.rss, name="site-rss"),
     path("sitemap.xml", feeds.sitemap, name="site-sitemap"),
     path("robots.txt", feeds.robots, name="site-robots"),
     # The index, and a note at its slug.
