@@ -21,8 +21,15 @@ export type Blog = {
   status: 'unverified' | 'checking' | 'failed' | 'verified'
   checked_at: string | null
   verified_at: string | null
+  /** The domain a serving blog is moving to, or empty. */
+  pending_hostname: string
+  /** How the check of `pending_hostname` went. */
+  pending_status: 'unverified' | 'checking' | 'failed'
   url: string
-  /** What to add at the domain's DNS: where it points, and the TXT proof. */
+  /**
+   * What to add at the DNS of the domain it is moving to, or else its own:
+   * where it points, and the TXT proof.
+   */
   records: DnsRecord[]
   created_at: string
 }
@@ -40,7 +47,11 @@ export function useBlogs() {
     queryKey: blogsKey,
     queryFn: () => api<Blog[]>('/sites/'),
     refetchInterval: (query) =>
-      query.state.data?.some((blog) => blog.status === 'checking') ? POLL_MS : false,
+      query.state.data?.some(
+        (blog) => blog.status === 'checking' || blog.pending_status === 'checking',
+      )
+        ? POLL_MS
+        : false,
   })
 }
 

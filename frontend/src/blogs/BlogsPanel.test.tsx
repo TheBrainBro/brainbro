@@ -24,6 +24,8 @@ const blog: Blog = {
   status: 'unverified',
   checked_at: null,
   verified_at: null,
+  pending_hostname: '',
+  pending_status: 'unverified',
   url: 'https://blog.example.com/',
   records: [
     { type: 'CNAME', name: 'blog.example.com', value: 'brainbro.example.com' },
