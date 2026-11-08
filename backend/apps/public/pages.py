@@ -136,16 +136,20 @@ def published_note_for_page(**lookup):
             "public_title",
             "public_description",
             "public_image",
+            "public_listed",
         )
         .first()
     )
 
 
-def render_tags(request, *, title, description, url, meta, author="", feed=None):
+def render_tags(
+    request, *, title, description, url, meta, author="", feed=None, noindex=False
+):
     tags = [
         f"<title>{escape(title)}</title>",
         f'<meta name="description" content="{escape(description)}" />',
         *([f'<meta name="author" content="{escape(author)}" />'] if author else []),
+        *(['<meta name="robots" content="noindex" />'] if noindex else []),
         f'<link rel="canonical" href="{escape(url)}" />',
         *(
             [
@@ -187,6 +191,7 @@ def note_head_tags(request, note, url):
         meta=meta,
         author=author_name(note),
         feed=site.name if site else None,
+        noindex=not note.public_listed,
     )
 
 

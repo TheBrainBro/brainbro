@@ -35,6 +35,7 @@ from .pages import (
 from .sites import (
     current_site,
     is_app_host,
+    listed_notes,
     normalize_hostname,
     public_urls,
     site_categories,
@@ -123,7 +124,7 @@ def linked_notes(request, note):
 
 class PublicNoteListView(generics.ListAPIView):
     """
-    `/p/`: every published note on the server, the last published first; on
+    `/p/`: every listed note on the server, the last published first; on
     a blog, its notes (`?category=<slug>`: those in one of its categories);
     with `?author=<handle>`, that author's. Each with its address.
     """
@@ -142,7 +143,8 @@ class PublicNoteListView(generics.ListAPIView):
         if handle := self.request.query_params.get("author"):
             notes = notes.filter(owner__profile__handle=handle)
         return (
-            notes.only(
+            listed_notes(notes)
+            .only(
                 "id",
                 "owner_id",
                 "title",
@@ -339,11 +341,11 @@ class PublicSiteView(APIView):
                 ),
                 "links": site.links,
                 "powered_by": site.powered_by,
-                # Those with something published in them.
+                # Those with something listed in them.
                 "categories": [
                     {"slug": category.slug, "name": category.name}
                     for category in site_categories(site)
-                    if site_notes(site, category).exists()
+                    if listed_notes(site_notes(site, category)).exists()
                 ],
             }
         )

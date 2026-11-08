@@ -40,6 +40,7 @@ from .serializers import (
     ItemSerializer,
     NoteImageSerializer,
     OwnedPrimaryKeyRelatedField,
+    PublicationSerializer,
     TriageSerializer,
     check_parent,
     note_image_url,
@@ -520,13 +521,16 @@ class ItemViewSet(
     def publication(self, request, pk=None):
         """
         PUT makes the note public at `/@<handle>/<slug>` (the slug it had, or one made
-        from its title); DELETE makes it private again. Both return the note.
+        from its title); `listed: false` makes it unlisted, without it stays as
+        it was. DELETE makes it private again. Both return the note.
         """
         note = self._note()
         if request.method == "DELETE":
             unpublish(note)
         else:
-            publish(note)
+            payload = PublicationSerializer(data=request.data)
+            payload.is_valid(raise_exception=True)
+            publish(note, listed=payload.validated_data.get("listed"))
         return Response(self.get_serializer(note).data)
 
     @action(detail=True, methods=["get", "patch"])

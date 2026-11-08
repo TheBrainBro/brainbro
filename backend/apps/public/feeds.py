@@ -11,7 +11,7 @@ from django.views.decorators.http import require_GET
 from apps.items.titles import note_title
 
 from .pages import excerpt, site_author
-from .sites import current_site, site_notes, site_url
+from .sites import current_site, listed_notes, site_notes, site_url
 
 FEED_SIZE = 50
 
@@ -25,7 +25,7 @@ def blog(request):
 
 def newest_notes(site):
     return (
-        site_notes(site)
+        listed_notes(site_notes(site))
         .only("id", "title", "body", "public_slug", "published_at", "edited_at")
         .order_by("-published_at")
     )
