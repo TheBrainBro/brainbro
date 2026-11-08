@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Profile
 from apps.items.models import Collection, Item
+from apps.public.handles import public_handle
 from apps.public.models import Redirect, Site
 from apps.public.publishing import publish, unpublish
 from apps.public.sites import normalize_hostname
@@ -473,6 +474,42 @@ def test_a_blog_lists_only_its_published_notes(anyone, user, blog, writing):
     assert [(entry["title"], entry["url"]) for entry in results] == [
         ("On the blog", "/on-the-blog")
     ]
+
+
+def test_an_unlisted_note_opens_on_the_blog_but_lists_nowhere(
+    anyone, client, user, blog, writing
+):
+    publish(note(user, title="Hidden", collection=writing), listed=False)
+    publish(note(user, title="Shown", collection=writing))
+
+    results = on_blog(anyone, "/api/public/notes/").json()["results"]
+    feed = on_blog(client, "/rss").content.decode()
+    sitemap = on_blog(client, "/sitemap.xml").content.decode()
+
+    assert [entry["title"] for entry in results] == ["Shown"]
+    assert "Hidden" not in feed
+    assert "/hidden" not in sitemap
+    assert "Shown" in feed
+    handle = public_handle(user.id)
+    assert on_blog(anyone, f"/api/public/notes/{handle}/hidden/").status_code == 200
+
+
+def test_search_engines_are_told_to_skip_only_unlisted_notes(
+    client, user, blog, writing
+):
+    publish(note(user, title="Hidden", collection=writing), listed=False)
+    publish(note(user, title="Shown", collection=writing))
+    noindex = '<meta name="robots" content="noindex" />'
+
+    assert noindex in on_blog(client, "/hidden").content.decode()
+    assert noindex not in on_blog(client, "/shown").content.decode()
+
+
+def test_a_category_of_only_unlisted_notes_does_not_show(anyone, user, blog, writing):
+    travel = Collection.objects.create(owner=user, name="Travel", parent=writing)
+    publish(note(user, title="Hidden", collection=travel), listed=False)
+
+    assert on_blog(anyone, "/api/public/site/").json()["categories"] == []
 
 
 def test_a_blog_says_what_it_is(anyone, user, blog):
