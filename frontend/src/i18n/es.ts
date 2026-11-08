@@ -553,7 +553,7 @@ export const es: Messages = {
     empty: 'Aún no hay nada',
     toInbox: 'Ir a la bandeja',
     emptyHint:
-      'Pega o suelta lo que quieras aquí, o elige <b>Organizar</b> en un elemento de la bandeja, para traerlo a esta colección.',
+      'Escribe una nota o graba una nota de voz en el cuadro de arriba, pega o suelta lo que quieras aquí, o elige <b>Organizar</b> en un elemento de la bandeja, para traerlo a esta colección.',
     name: 'Nombre de la colección',
   },
   graph: {

@@ -543,7 +543,7 @@ export const en = {
     empty: 'Nothing here yet',
     toInbox: 'Go to the inbox',
     emptyHint:
-      'Paste or drop anything here, or pick <b>Organize</b> on an inbox item, to bring it into this collection.',
+      'Write a note or record a voice memo in the box above, paste or drop anything here, or pick <b>Organize</b> on an inbox item, to bring it into this collection.',
     name: 'Collection name',
   },
   graph: {
