@@ -1,8 +1,8 @@
 """
-Publishing a note: it gets a public address, `/p/<slug>`, that anyone can
-read while it is published. The slug is made from its title and can be
-changed; slugs are unique across the whole server, every user's notes
-included, since they share the address space.
+Publishing a note: it gets a public address, `/@<handle>/<slug>` (or its
+blog's, see `apps.public.sites`), that anyone can read while it is
+published. The slug is made from its title and can be changed; slugs are
+unique among each user's notes, which share their handle's address space.
 """
 
 import re
@@ -13,6 +13,8 @@ from django.utils.text import slugify
 
 from apps.items.models import Item
 from apps.items.titles import note_title
+
+from .handles import public_handle
 
 MAX_SLUG = 80
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -26,13 +28,18 @@ def is_valid_slug(slug):
     return len(slug) <= MAX_SLUG and bool(SLUG.fullmatch(slug))
 
 
+def owner_slugs(note):
+    """The slugs of its owner's other notes."""
+    return Item.objects.filter(owner_id=note.owner_id).exclude(pk=note.pk)
+
+
 def suggested_slug(note):
-    """Its title as an address (`Trip plan` is `trip-plan`), free on the server."""
+    """Its title as an address (`Trip plan` is `trip-plan`), free among its owner's."""
     title = note.title or note_title(note.body)
     base = slugify(title)[:MAX_SLUG].strip("-") or "note"
     taken = set(
-        Item.objects.filter(public_slug__startswith=base)
-        .exclude(pk=note.pk)
+        owner_slugs(note)
+        .filter(public_slug__startswith=base)
         .values_list("public_slug", flat=True)
     )
     slug, number = base, 1
@@ -46,12 +53,14 @@ def suggested_slug(note):
 def publish(note, slug=None):
     """
     Publishes `note` at `slug`, or at the one it had, or at one made from its
-    title. Raises SlugTaken if another note has that slug.
+    title. Raises SlugTaken if another of its owner's notes has that slug.
     """
     if slug is None:
         slug = note.public_slug or suggested_slug(note)
-    elif Item.objects.filter(public_slug=slug).exclude(pk=note.pk).exists():
+    elif owner_slugs(note).filter(public_slug=slug).exists():
         raise SlugTaken
+    # Its address starts with the owner's handle.
+    public_handle(note.owner_id)
     note.public_slug = slug
     note.published_at = note.published_at or timezone.now()
     try:
@@ -74,15 +83,11 @@ def save_page(note, changes):
     """
     Saves the page settings in `changes` (`slug`, `title`, `description`,
     `image`); empty ones go back to their default. Raises SlugTaken if
-    another note has the slug.
+    another of its owner's notes has the slug.
     """
     fields = []
     if "slug" in changes and changes["slug"] != note.public_slug:
-        if (
-            Item.objects.filter(public_slug=changes["slug"])
-            .exclude(pk=note.pk)
-            .exists()
-        ):
+        if owner_slugs(note).filter(public_slug=changes["slug"]).exists():
             raise SlugTaken
         note.public_slug = changes["slug"]
         fields.append("public_slug")
