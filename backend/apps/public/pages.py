@@ -1,11 +1,12 @@
 """
-How a published note shows outside its page: in search results and when its
-link is shared (OpenGraph). Each part is the note's own setting or, left
-empty, a default: its title, the start of its text, its first image.
+How a published note, or a blog, shows outside its page: in search results
+and when its link is shared (OpenGraph). Each part of a note's is its own
+setting or, left empty, a default: its title, the start of its text, its
+first image.
 
 The page itself is rendered in the browser, so sites that read the link
 (chat apps, search engines) get these tags in the HTML the server sends for
-`/p/<slug>` (see `apps.core.views.spa`).
+it (see `apps.core.views.spa`).
 """
 
 import re
@@ -18,6 +19,9 @@ from apps.accounts.models import Profile
 from apps.items.models import Item, NoteImage
 from apps.items.note_images import image_sources, markdown
 from apps.items.titles import note_title
+
+from .handles import public_handle
+from .sites import current_site, site_url
 
 NO_IMAGE = "none"
 MAX_DESCRIPTION = 160
@@ -102,18 +106,16 @@ def page_preview(note):
     )
 
 
-def public_image_url(note, image):
-    path = reverse("public-note-image", args=[note.public_slug, image.id])
+def public_image_url(note, image, handle):
+    path = reverse("public-note-image", args=[handle, note.public_slug, image.id])
     # The file name changes with the file, so it doubles as a cache buster.
     return f"{path}?v={image.image.name.rsplit('/', 1)[-1]}"
 
 
-def head_tags(request, slug):
-    """The `<title>` and meta tags for `/p/<slug>`, or None if it isn't published."""
-    note = (
-        Item.objects.filter(
-            kind=Item.Kind.NOTE, published_at__isnull=False, public_slug=slug
-        )
+def published_note_for_page(**lookup):
+    """A published note with what its tags need, or None."""
+    return (
+        Item.objects.filter(kind=Item.Kind.NOTE, published_at__isnull=False, **lookup)
         .only(
             "id",
             "owner_id",
@@ -126,10 +128,33 @@ def head_tags(request, slug):
         )
         .first()
     )
-    if note is None:
-        return None
+
+
+def render_tags(request, *, title, description, url, meta, author="", feed=None):
+    tags = [
+        f"<title>{escape(title)}</title>",
+        f'<meta name="description" content="{escape(description)}" />',
+        *([f'<meta name="author" content="{escape(author)}" />'] if author else []),
+        f'<link rel="canonical" href="{escape(url)}" />',
+        *(
+            [
+                '<link rel="alternate" type="application/rss+xml" '
+                f'title="{escape(feed)}" href="/rss.xml" />'
+            ]
+            if feed
+            else []
+        ),
+        *(
+            f'<meta property="{name}" content="{escape(value)}" />'
+            for name, value in meta.items()
+        ),
+    ]
+    return "\n    ".join(tags)
+
+
+def note_head_tags(request, note, url):
+    """The `<title>` and meta tags for a published note's page, at `url` (absolute)."""
     preview = page_preview(note)
-    url = request.build_absolute_uri(f"/p/{slug}")
     meta = {
         "og:type": "article",
         "og:title": preview.title,
@@ -138,24 +163,48 @@ def head_tags(request, slug):
         "twitter:card": "summary_large_image" if preview.image else "summary",
     }
     if preview.image:
+        handle = public_handle(note.owner_id)
         meta["og:image"] = request.build_absolute_uri(
-            public_image_url(note, preview.image)
+            public_image_url(note, preview.image, handle)
         )
-    tags = [
-        f"<title>{escape(preview.title)}</title>",
-        f'<meta name="description" content="{escape(preview.description)}" />',
-        *(
-            [f'<meta name="author" content="{escape(author)}" />']
-            if (author := author_name(note))
-            else []
-        ),
-        f'<link rel="canonical" href="{escape(url)}" />',
-        *(
-            f'<meta property="{name}" content="{escape(value)}" />'
-            for name, value in meta.items()
-        ),
-    ]
-    return "\n    ".join(tags)
+    site = current_site(request)
+    return render_tags(
+        request,
+        title=preview.title,
+        description=preview.description,
+        url=url,
+        meta=meta,
+        author=author_name(note),
+        feed=site.name if site else None,
+    )
+
+
+def site_head_tags(request, site):
+    """The `<title>` and meta tags for a blog's index."""
+    url = site_url(site)
+    meta = {
+        "og:type": "website",
+        "og:title": site.name,
+        "og:description": site.description,
+        "og:url": url,
+        "twitter:card": "summary",
+    }
+    return render_tags(
+        request,
+        title=site.name,
+        description=site.description,
+        url=url,
+        meta=meta,
+        author=site_author(site),
+        feed=site.name,
+    )
+
+
+def site_author(site):
+    names = Profile.objects.filter(user_id=site.owner_id).values_list(
+        "display_name", flat=True
+    )
+    return next(iter(names), "")
 
 
 def with_head_tags(html, tags):

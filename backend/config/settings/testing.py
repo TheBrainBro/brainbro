@@ -4,7 +4,7 @@ DEBUG = False
 
 SECRET_KEY = "django-insecure-brainbro-testing-only-key"
 
-ALLOWED_HOSTS = ["testserver", "localhost"]
+APP_HOSTS = ["testserver", "localhost"]
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 

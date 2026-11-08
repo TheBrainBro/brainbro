@@ -13,7 +13,7 @@ APP_HOSTNAMES = [
 ]
 
 # "api" is the container name, used by the healthcheck and internal calls.
-ALLOWED_HOSTS = APP_HOSTNAMES + ["api", "localhost", "127.0.0.1"]
+APP_HOSTS = APP_HOSTNAMES + ["api", "localhost", "127.0.0.1"]
 
 CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in APP_HOSTNAMES]
 
