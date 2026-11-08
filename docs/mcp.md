@@ -224,7 +224,7 @@ See `apps/mcp/tools.py`. Nothing deletes.
 | `update_page` | Changes some of them, as *Page settings* in the app, and the date it shows |
 | `list_blogs` | Every blog: domain, collection, status, categories and the DNS records to add |
 | `create_blog` | A new blog on the user's domain, unverified until its records are added |
-| `update_blog` | Changes a blog's domain, collection, title, description, links or *Powered by* |
+| `update_blog` | Changes a blog's domain, collection, title, description, author, whether the author shows, links or *Powered by* |
 | `verify_blog` | Looks up a blog's TXT record and says how it went |
 | `list_blog_posts` | A blog's notes, published (newest first) and drafts, with slug, date and addresses |
 | `set_redirects` | Sends old addresses on a blog's domain to new ones (301) |

@@ -41,7 +41,7 @@ check fails and the blog stays where it is.
 
 ## What a blog shows
 
-- `/`: its photo (its owner's), name (the blog's title, or the collection's name), description
+- `/`: its photo (its own, or its owner's), name (the blog's title, or the collection's name), description
   and links, its categories as tabs, then its notes, newest first.
 - `/c/<slug>`: the notes of one category.
 - `/<slug>`: a note, as on its public page (see [public-notes.md](public-notes.md)). Links to
@@ -111,10 +111,12 @@ one or a few people on it.
 
 | Method | Path | |
 | --- | --- | --- |
-| `GET`, `POST` | `/api/sites/` | The user's blogs; a new one (`hostname`, `collection`, `title`, `description`, `links`, `powered_by`). |
+| `GET`, `POST` | `/api/sites/` | The user's blogs; a new one (`hostname`, `collection`, `title`, `description`, `author`, `show_author`, `links`, `powered_by`). |
 | `GET`, `PATCH`, `DELETE` | `/api/sites/<id>/` | One of them. A verified blog's new `hostname` goes to `pending_hostname` and it keeps serving; sending its current `hostname` calls that off. On a blog never verified, `hostname` just changes. |
+| `GET`, `POST`, `DELETE` | `/api/sites/<id>/avatar/` | The blog's own photo: its owner sees it, replaces it (multipart `file`) or removes it, going back to the profile's. |
 | `POST` | `/api/sites/<id>/verify/` | Checks its `TXT` record in the worker; `status` goes `checking`, then `verified` or `failed`. On a blog with a `pending_hostname` it checks that domain and `pending_status` says so instead; found, the blog moves there. |
-| `GET` | `/api/public/site/` | Anyone, on a blog's domain: `{hostname, title, description, author, handle, avatar_url, links, powered_by, categories}`; `categories` are `[{slug, name}]`. 404 elsewhere. |
+| `GET` | `/api/public/site/avatar/` | Anyone, on a blog's domain: its own photo. 404 elsewhere, or when it uses its owner's. |
+| `GET` | `/api/public/site/` | Anyone, on a blog's domain: `{hostname, title, description, author, show_author, handle, avatar_url, links, powered_by, categories}`; `categories` are `[{slug, name}]`. 404 elsewhere. |
 | `GET` | `/api/public/notes/?category=<slug>` | Anyone, on a blog's domain: the notes of one of its categories. |
 | `GET` | `/api/public/sites/check/?domain=` | Anyone: `200` for a verified blog's domain, `404` otherwise. For Caddy's `ask`. |
 
