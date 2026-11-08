@@ -64,10 +64,10 @@ read-only; embed links play, since the author picked them.
 
 ## How it looks
 
-A note reads as an article: its author on top, the date, its title, then its text in larger
-type with wide images. A first line `# Title` equal to its title isn't shown twice. Below,
-up to three more of the author's notes (on a blog, of the blog's) and a link back to all of
-them. Lists (`/@<handle>`, a blog's index, `/p`) show each note with its title, the start of
+A note reads as an article, under a bar with whose it is (the blog, or its author) that leads
+back to all their posts: the date, its title, then its text in larger type with wide images. A
+first line `# Title` equal to its title isn't shown twice. Below, up to three more of the
+author's notes (on a blog, of the blog's), when there are any, and a link to all posts. Lists (`/@<handle>`, a blog's index, `/p`) show each note with its title, the start of
 its text (or its page description), its date and its cover: the image its shared link
 shows.
 - The page never says which account owns the note, nor where it is filed.
