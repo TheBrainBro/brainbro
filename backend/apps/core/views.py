@@ -9,7 +9,6 @@ from django.http import (
     HttpResponseRedirect,
     JsonResponse,
 )
-from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
@@ -19,25 +18,14 @@ from apps.public.pages import (
     author_head_tags,
     note_head_tags,
     published_note_for_page,
-    site_head_tags,
     with_head_tags,
 )
-from apps.public.sites import (
-    current_site,
-    public_url,
-    site_categories,
-    site_notes,
-    site_url,
-)
+from apps.public.sites import public_url
 
 # A published note on the server, and where notes were before handles.
 NOTE_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/(?P<slug>[a-z0-9-]+)/?")
 AUTHOR_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/?")
 LEGACY_PAGE = re.compile(r"p/(?P<slug>[a-z0-9-]+)/?")
-# A note on a blog's domain, and one of its categories.
-SITE_PAGE = re.compile(r"(?P<slug>[a-z0-9-]+)/?")
-CATEGORY_PAGE = re.compile(r"c/(?P<slug>[a-z0-9-]+)/?")
-MANIFEST_LINK = re.compile(r"<link rel=\"manifest\"[^>]*>")
 
 # Build files that must live at the root: the service worker's scope can't be
 # wider than its own path, and the build's assets are under /static/.
@@ -56,24 +44,6 @@ def health(request):
     except Exception:
         return JsonResponse({"status": "error", "database": False}, status=503)
     return JsonResponse({"status": "ok", "database": True})
-
-
-def site_page_head(request, site, path):
-    """The tags of a blog's index, a category or one of its notes, on its domain."""
-    if path == "":
-        return site_head_tags(request, site)
-    if match := CATEGORY_PAGE.fullmatch(path):
-        categories = site_categories(site)
-        category = next((c for c in categories if c.slug == match["slug"]), None)
-        return site_head_tags(request, site, category) if category else None
-    if match := SITE_PAGE.fullmatch(path):
-        note = published_note_for_page(
-            id__in=site_notes(site).values("id"), public_slug=match["slug"]
-        )
-        if note:
-            url = site_url(site, f"/{note.public_slug}")
-            return note_head_tags(request, note, url)
-    return None
 
 
 def note_page_head(request, handle, slug):
@@ -104,8 +74,6 @@ def page_head(request, path):
     `/@<handle>` is its author's page, with all their public notes.
     `(tags, redirect)`, both None for the app's own routes.
     """
-    if (site := current_site(request)) is not None:
-        return site_page_head(request, site, path), None
     if match := NOTE_PAGE.fullmatch(path):
         return note_page_head(request, match["handle"], match["slug"])
     if match := AUTHOR_PAGE.fullmatch(path):
@@ -122,8 +90,8 @@ def spa(request, path=""):
     Serve the frontend's index.html for every client-side route.
 
     The React app handles routing and redirects to /login when the session is
-    missing, so this view is public on purpose. On a blog's domain it serves
-    the blog (`brainbro-site` tells the app so).
+    missing, so this view is public on purpose. A blog's domain never gets
+    here: it has its own pages (`apps.public.site_pages`).
     """
     tags, redirect = page_head(request, path)
     if redirect:
@@ -140,11 +108,6 @@ def spa(request, path=""):
     # A public page says what it is to sites that read its link.
     if tags:
         html = with_head_tags(html, tags)
-    if (site := current_site(request)) is not None:
-        # A blog is no app to install.
-        html = MANIFEST_LINK.sub("", html)
-        marker = f'<meta name="brainbro-site" content="{escape(site.hostname)}" />'
-        html = html.replace("</head>", f"    {marker}\n  </head>", 1)
     return HttpResponse(html, content_type="text/html")
 
 

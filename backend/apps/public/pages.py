@@ -4,11 +4,12 @@ and when its link is shared (OpenGraph). Each part of a note's is its own
 setting or, left empty, a default: its title, the start of its text, its
 first image.
 
-The page itself is rendered in the browser, so sites that read the link
-(chat apps, search engines) get these tags in the HTML the server sends for
-it (see `apps.core.views.spa`).
+Sites that read the link (chat apps, search engines) get these tags in the
+HTML the server sends for it (`apps.core.views.spa` on the app, and
+`apps.public.site_pages` on a blog).
 """
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -27,6 +28,7 @@ NO_IMAGE = "none"
 MAX_DESCRIPTION = 160
 WIKILINK = re.compile(r"(?<!!)\[\[([^\]|#\n]+)(?:#[^\]|\n]*)?(?:\|([^\]\n]*))?\]\]")
 TITLE_TAG = re.compile(r"<title>.*?</title>", re.DOTALL)
+JSON_SCRIPT_ESCAPES = {ord("<"): "\\u003C", ord(">"): "\\u003E", ord("&"): "\\u0026"}
 
 
 def excerpt(body, limit=MAX_DESCRIPTION):
@@ -146,13 +148,30 @@ def published_note_for_page(**lookup):
             "public_description",
             "public_image",
             "public_listed",
+            "published_at",
+            "edited_at",
         )
         .first()
     )
 
 
+def json_ld_tag(data):
+    """Structured data, safe inside a `<script>`."""
+    text = json.dumps(data, ensure_ascii=False).translate(JSON_SCRIPT_ESCAPES)
+    return f'<script type="application/ld+json">{text}</script>'
+
+
 def render_tags(
-    request, *, title, description, url, meta, author="", feed=None, noindex=False
+    request,
+    *,
+    title,
+    description,
+    url,
+    meta,
+    author="",
+    feed=None,
+    noindex=False,
+    structured=None,
 ):
     tags = [
         f"<title>{escape(title)}</title>",
@@ -172,6 +191,7 @@ def render_tags(
             f'<meta property="{name}" content="{escape(value)}" />'
             for name, value in meta.items()
         ),
+        *([json_ld_tag(structured)] if structured else []),
     ]
     return "\n    ".join(tags)
 
@@ -186,21 +206,43 @@ def note_head_tags(request, note, url):
         "og:url": url,
         "twitter:card": "summary_large_image" if preview.image else "summary",
     }
+    edited = (
+        note.edited_at
+        if note.edited_at and note.edited_at > note.published_at
+        else None
+    )
+    site = current_site(request)
+    author = site_author(site) if site else author_name(note)
+    meta["article:published_time"] = note.published_at.isoformat()
+    structured = {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": preview.title,
+        "description": preview.description,
+        "url": url,
+        "datePublished": note.published_at.isoformat(),
+    }
+    if edited:
+        meta["article:modified_time"] = edited.isoformat()
+        structured["dateModified"] = edited.isoformat()
+    if author:
+        structured["author"] = {"@type": "Person", "name": author}
     if preview.image:
         handle = public_handle(note.owner_id)
         meta["og:image"] = request.build_absolute_uri(
             public_image_url(note, preview.image, handle)
         )
-    site = current_site(request)
+        structured["image"] = meta["og:image"]
     return render_tags(
         request,
         title=preview.title,
         description=preview.description,
         url=url,
         meta=meta,
-        author=site_author(site) if site else author_name(note),
+        author=author,
         feed=site.name if site else None,
         noindex=not note.public_listed,
+        structured=structured,
     )
 
 
