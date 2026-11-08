@@ -1,6 +1,9 @@
 import secrets
+import uuid
 
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 from apps.core.models import OwnedModel
 from apps.items.models import Collection
@@ -8,6 +11,11 @@ from apps.items.models import Collection
 
 def new_token():
     return secrets.token_hex(16)
+
+
+def site_avatar_path(site, filename):
+    # A fresh name per upload, so a new photo never hits a stale cache.
+    return f"avatars/sites/{site.id}/{uuid.uuid4().hex}.webp"
 
 
 class Site(OwnedModel):
@@ -41,6 +49,14 @@ class Site(OwnedModel):
     # the collection's name, no description.
     title = models.CharField(max_length=120, blank=True, default="")
     description = models.CharField(max_length=300, blank=True, default="")
+    # Who signs it and its photo, for a blog that isn't its owner speaking as
+    # themselves. Empty: its owner's display name and photo.
+    author = models.CharField(max_length=80, blank=True, default="", db_default="")
+    # A square WebP, made from an upload like the profile's.
+    avatar = models.ImageField(upload_to=site_avatar_path, blank=True, db_default="")
+    # The author's line under the name on its index. Off, its feed and shared
+    # links still say who signs it.
+    show_author = models.BooleanField(default=True, db_default=True)
     # Shown on its index under the description: `[{"name", "url"}]`, up to 10.
     links = models.JSONField(default=list, blank=True)
     # A small "Powered by BrainBro" line at the end of its pages.
@@ -99,6 +115,12 @@ class Site(OwnedModel):
     @property
     def name(self):
         return self.title or (self.collection.name if self.collection else "")
+
+
+@receiver(post_delete, sender=Site)
+def delete_site_avatar(sender, instance, **kwargs):
+    if instance.avatar:
+        instance.avatar.delete(save=False)
 
 
 class Redirect(OwnedModel):

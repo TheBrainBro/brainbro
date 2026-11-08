@@ -41,6 +41,8 @@ export type PublicSite = {
   title: string
   description: string
   author: string
+  /** Whether its index shows the author under its name. */
+  show_author: boolean
   handle: string
   avatar_url: string | null
   /** Shown under its description. */

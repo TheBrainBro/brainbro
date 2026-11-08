@@ -2,22 +2,25 @@ import {
   CircleAlert,
   CircleCheck,
   ExternalLink,
+  ImagePlus,
   LoaderCircle,
   Pencil,
   Plus,
   Trash2,
   X,
 } from 'lucide-react'
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useT } from '../i18n/i18n'
 import { useCollections, type Collection } from '../items/api'
+import { squareImage } from '../lib/image'
 import { CopyField } from '../ui/CopyField'
 import { useFeedback } from '../ui/feedback'
 import {
   useBlogs,
   useCreateBlog,
   useDeleteBlog,
+  useSetBlogAvatar,
   useUpdateBlog,
   useVerifyBlog,
   type Blog,
@@ -232,6 +235,85 @@ function DnsSetup({
   )
 }
 
+/** The blog's own photo; without one, the profile's shows on the blog. */
+function BlogPhoto({ blog }: { blog: Blog }) {
+  const t = useT()
+  const setAvatar = useSetBlogAvatar(blog.id)
+  const [error, setError] = useState<string>()
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return
+    setError(undefined)
+    let square: Blob
+    try {
+      square = await squareImage(file)
+    } catch {
+      return setError(t('profile.notAnImage'))
+    }
+    setAvatar.mutate(square, { onError: (failure) => setError(failure.message) })
+  }
+
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium">{t('blogs.photo')}</p>
+      <div className="flex items-center gap-4">
+        {blog.avatar_url ? (
+          <img src={blog.avatar_url} alt="" className="size-16 shrink-0 rounded-full object-cover" />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 dark:bg-zinc-800"
+          >
+            <ImagePlus className="size-5" />
+          </span>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="button-outline"
+            disabled={setAvatar.isPending}
+            onClick={() => fileInput.current?.click()}
+          >
+            <ImagePlus className="size-4" aria-hidden="true" />
+            {blog.avatar_url ? t('profile.changePhoto') : t('profile.uploadPhoto')}
+          </button>
+          {blog.avatar_url && (
+            <button
+              type="button"
+              className="button-secondary inline-flex items-center gap-2"
+              disabled={setAvatar.isPending}
+              onClick={() =>
+                setAvatar.mutate(null, { onError: (failure) => setError(failure.message) })
+              }
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              {t('common.remove')}
+            </button>
+          )}
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            aria-label={t('blogs.photo')}
+            className="hidden"
+            onChange={(event) => {
+              void pickPhoto(event.target.files?.[0])
+              event.target.value = ''
+            }}
+          />
+        </div>
+      </div>
+      <p className="text-xs text-zinc-500">{t('blogs.photoHint')}</p>
+      {error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[] }) {
   const t = useT()
   const { confirm } = useFeedback()
@@ -241,16 +323,18 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
   const [editingDomain, setEditingDomain] = useState(false)
   const [title, setTitle] = useState(blog.title)
   const [description, setDescription] = useState(blog.description)
+  const [author, setAuthor] = useState(blog.author)
   const [links, setLinks] = useState(blog.links)
   // Rows left empty aren't links.
   const filled = links
     .map((link) => ({ name: link.name.trim(), url: link.url.trim() }))
     .filter((link) => link.name || link.url)
-  const ids = { collection: useId(), title: useId(), description: useId() }
+  const ids = { collection: useId(), title: useId(), description: useId(), author: useId() }
   const error = update.error ?? remove.error ?? verify.error
   const changed =
     title.trim() !== blog.title ||
     description.trim() !== blog.description ||
+    author.trim() !== blog.author ||
     JSON.stringify(filled) !== JSON.stringify(blog.links)
 
   async function deleteBlog() {
@@ -357,12 +441,19 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
         />
       </div>
 
+      <BlogPhoto blog={blog} />
+
       <form
         className="space-y-3"
         onSubmit={(event) => {
           event.preventDefault()
           if (!changed) return
-          update.mutate({ title: title.trim(), description: description.trim(), links: filled })
+          update.mutate({
+            title: title.trim(),
+            description: description.trim(),
+            author: author.trim(),
+            links: filled,
+          })
         }}
       >
         <div className="space-y-1">
@@ -389,6 +480,19 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
             maxLength={300}
             onChange={(event) => setDescription(event.target.value)}
           />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor={ids.author} className="block text-sm font-medium">
+            {t('blogs.author')}
+          </label>
+          <input
+            id={ids.author}
+            className="input"
+            value={author}
+            maxLength={80}
+            onChange={(event) => setAuthor(event.target.value)}
+          />
+          <p className="text-xs text-zinc-500">{t('blogs.authorHint')}</p>
         </div>
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
@@ -440,6 +544,20 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
           {t('common.save')}
         </button>
       </form>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={blog.show_author}
+          disabled={update.isPending}
+          onChange={(event) => update.mutate({ show_author: event.target.checked })}
+        />
+        <span>
+          <span className="block font-medium">{t('blogs.showAuthor')}</span>
+          <span className="block text-xs text-zinc-500">{t('blogs.showAuthorHint')}</span>
+        </span>
+      </label>
 
       <label className="flex items-start gap-2 text-sm">
         <input

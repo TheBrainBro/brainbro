@@ -867,6 +867,8 @@ def blog_details(site):
         "title": details["title"],
         "name": site.name,
         "description": details["description"],
+        "author": details["author"],
+        "show_author": details["show_author"],
         "links": details["links"],
         "powered_by": details["powered_by"],
         "categories": [
@@ -913,6 +915,8 @@ class BlogArguments(serializers.Serializer):
     collection_id = serializers.UUIDField(required=False, allow_null=True)
     title = serializers.CharField(required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
+    author = serializers.CharField(required=False, allow_blank=True)
+    show_author = serializers.BooleanField(required=False)
     links = serializers.ListField(child=LinkArguments(), required=False)
     powered_by = serializers.BooleanField(required=False)
 
@@ -1660,6 +1664,15 @@ TOOLS = {
                 "collection_id": UUID,
                 "title": {"type": "string", "maxLength": 120},
                 "description": {"type": "string", "maxLength": 300},
+                "author": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Who signs it. Empty: the user's display name.",
+                },
+                "show_author": {
+                    "type": "boolean",
+                    "description": "The author under its name, on by default.",
+                },
                 "links": LINKS,
                 "powered_by": {
                     "type": "boolean",
@@ -1689,6 +1702,8 @@ TOOLS = {
                 "collection_id": {**UUID, "type": ["string", "null"]},
                 "title": {"type": "string", "maxLength": 120},
                 "description": {"type": "string", "maxLength": 300},
+                "author": {"type": "string", "maxLength": 80},
+                "show_author": {"type": "boolean"},
                 "links": LINKS,
                 "powered_by": {"type": "boolean"},
             },

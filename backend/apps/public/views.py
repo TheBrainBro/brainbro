@@ -7,6 +7,7 @@ On a blog's domain (`current_site(request)`) only that blog's notes exist.
 """
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
@@ -18,6 +19,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Profile
+from apps.accounts.views import AvatarSerializer
+from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item, NoteImage, NoteLink
 from apps.items.serializers import note_link_preview
 from apps.items.titles import linkable_titles, note_title
@@ -30,6 +33,7 @@ from .pages import (
     excerpt,
     public_avatar_url,
     public_image_url,
+    public_site_avatar_url,
     site_author,
 )
 from .sites import (
@@ -203,6 +207,7 @@ class PublicNoteView(APIView):
             slug,
             published_notes(request).prefetch_related("note_images", "note_links"),
         )
+        site = current_site(request)
         return Response(
             {
                 "slug": note.public_slug,
@@ -211,10 +216,15 @@ class PublicNoteView(APIView):
                 "body": note.body,
                 "published_at": note.published_at,
                 "edited_at": note.edited_at,
-                # The owner's display name, never their username; "" without one.
-                "author": author_name(note),
-                "avatar_url": public_avatar_url(
-                    Profile.objects.filter(user_id=note.owner_id).first()
+                # The owner's display name, never their username; "" without
+                # one. On a blog, whoever signs it.
+                "author": site_author(site) if site else author_name(note),
+                "avatar_url": (
+                    public_site_avatar_url(site)
+                    if site
+                    else public_avatar_url(
+                        Profile.objects.filter(user_id=note.owner_id).first()
+                    )
                 ),
                 "images": public_images(note, handle),
                 "links": public_links(note, handle),
@@ -335,10 +345,9 @@ class PublicSiteView(APIView):
                 "title": site.name,
                 "description": site.description,
                 "author": site_author(site),
+                "show_author": site.show_author,
                 "handle": public_handle(site.owner_id),
-                "avatar_url": public_avatar_url(
-                    Profile.objects.filter(user_id=site.owner_id).first()
-                ),
+                "avatar_url": public_site_avatar_url(site),
                 "links": site.links,
                 "powered_by": site.powered_by,
                 # Those with something listed in them.
@@ -349,6 +358,19 @@ class PublicSiteView(APIView):
                 ],
             }
         )
+
+
+class PublicSiteAvatarView(APIView):
+    """The blog's own photo. 404 off a blog, or when it uses its owner's."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        site = current_site(request)
+        if site is None:
+            raise Http404
+        return image_response(site.avatar)
 
 
 class SiteCheckView(APIView):
@@ -390,6 +412,7 @@ class SiteSerializer(serializers.ModelSerializer):
     )
     url = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
     links = serializers.ListField(
         child=SiteLinkSerializer(), max_length=MAX_SITE_LINKS, required=False
     )
@@ -402,6 +425,9 @@ class SiteSerializer(serializers.ModelSerializer):
             "collection",
             "title",
             "description",
+            "author",
+            "show_author",
+            "avatar_url",
             "links",
             "powered_by",
             "status",
@@ -455,6 +481,12 @@ class SiteSerializer(serializers.ModelSerializer):
 
     def get_url(self, site):
         return site_url(site)
+
+    def get_avatar_url(self, site):
+        """Its own photo, for its owner; None when it uses the profile's."""
+        if not site.avatar:
+            return None
+        return versioned(reverse("site-avatar", args=[site.id]), site.avatar)
 
     def get_records(self, site):
         """
@@ -523,3 +555,32 @@ class SiteViewSet(
         verify_site.delay(str(site.id))
         site.refresh_from_db()
         return Response(self.get_serializer(site).data, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=["get", "post", "delete"])
+    def avatar(self, request, pk=None):
+        """GET the blog's own photo, POST a new one (multipart `file`), DELETE it."""
+        site = self.get_object()
+        if request.method == "GET":
+            if not site.avatar:
+                raise Http404
+            response = FileResponse(site.avatar.open("rb"), content_type="image/webp")
+            # The URL carries a per-file version, so the content never changes.
+            response["Cache-Control"] = "private, max-age=31536000, immutable"
+            return response
+
+        old = site.avatar.name if site.avatar else None
+        if request.method == "POST":
+            upload = AvatarSerializer(data=request.data)
+            upload.is_valid(raise_exception=True)
+            data = make_square_image(upload.validated_data["file"])
+            if data is None:
+                raise serializers.ValidationError(
+                    {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
+                )
+            site.avatar.save("avatar.webp", ContentFile(data), save=False)
+        else:
+            site.avatar = ""
+        site.save(update_fields=["avatar", "updated_at"])
+        if old:
+            site.avatar.storage.delete(old)
+        return Response(self.get_serializer(site).data)
