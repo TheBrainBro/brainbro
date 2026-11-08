@@ -14,6 +14,10 @@ export type Blog = {
   collection: string | null
   title: string
   description: string
+  /** Shown under the description on its index, up to 10. */
+  links: { name: string; url: string }[]
+  /** A small "Powered by BrainBro" line at the end of its pages. */
+  powered_by: boolean
   status: 'unverified' | 'checking' | 'failed' | 'verified'
   checked_at: string | null
   verified_at: string | null
@@ -23,7 +27,9 @@ export type Blog = {
   created_at: string
 }
 
-export type BlogChanges = Partial<Pick<Blog, 'hostname' | 'collection' | 'title' | 'description'>>
+export type BlogChanges = Partial<
+  Pick<Blog, 'hostname' | 'collection' | 'title' | 'description' | 'links' | 'powered_by'>
+>
 
 const blogsKey = ['blogs'] as const
 const POLL_MS = 2000

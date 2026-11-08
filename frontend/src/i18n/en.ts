@@ -281,7 +281,8 @@ export const en = {
     add: 'New blog',
     domain: 'Domain',
     collection: 'Collection',
-    collectionHint: 'The public notes filed in it are the blog.',
+    collectionHint:
+      'The public notes filed in it, or in the collections inside it, are the blog. Those collections are its categories.',
     noCollection: 'No collection',
     addButton: 'Add blog',
     dnsIntro:
@@ -301,6 +302,14 @@ export const en = {
     title: 'Blog name',
     description: 'Description',
     open: 'Open blog',
+    links: 'Links',
+    linkName: 'Link {number} name',
+    linkUrl: 'Link {number} address',
+    linkNamePlaceholder: 'Website',
+    removeLink: 'Remove link {number}',
+    addLink: 'Add link',
+    poweredBy: 'Show “Powered by BrainBro”',
+    poweredByHint: 'A small line at the end of the blog’s pages, linking to brainbro.app.',
     delete: 'Delete blog',
     deleteTitle: 'Delete the blog at {domain}?',
     deleteMessage: 'The domain stops showing it. Its notes stay as they are.',
@@ -579,6 +588,8 @@ export const en = {
     feed: 'Feed',
     moreFrom: 'More from {name}',
     allPosts: 'All posts',
+    categories: 'Categories',
+    poweredBy: 'Powered by {brand}',
   },
   pending: {
     failed: 'Failed: {name}',

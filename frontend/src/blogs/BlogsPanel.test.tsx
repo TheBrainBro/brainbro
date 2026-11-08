@@ -19,6 +19,8 @@ const blog: Blog = {
   collection: 'c1',
   title: '',
   description: '',
+  links: [],
+  powered_by: true,
   status: 'unverified',
   checked_at: null,
   verified_at: null,

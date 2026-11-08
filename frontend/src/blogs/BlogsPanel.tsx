@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, ExternalLink, LoaderCircle, Trash2 } from 'lucide-react'
+import { CircleAlert, CircleCheck, ExternalLink, LoaderCircle, Plus, Trash2, X } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 
 import { useT } from '../i18n/i18n'
@@ -13,6 +13,9 @@ import {
   useVerifyBlog,
   type Blog,
 } from './api'
+
+/** As many as the server takes. */
+const MAX_LINKS = 10
 
 /**
  * Blogs on the user's own domains: a collection's published notes, served at
@@ -133,9 +136,17 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
   const verify = useVerifyBlog(blog.id)
   const [title, setTitle] = useState(blog.title)
   const [description, setDescription] = useState(blog.description)
+  const [links, setLinks] = useState(blog.links)
+  // Rows left empty aren't links.
+  const filled = links
+    .map((link) => ({ name: link.name.trim(), url: link.url.trim() }))
+    .filter((link) => link.name || link.url)
   const ids = { collection: useId(), title: useId(), description: useId() }
   const error = update.error ?? remove.error ?? verify.error
-  const changed = title.trim() !== blog.title || description.trim() !== blog.description
+  const changed =
+    title.trim() !== blog.title ||
+    description.trim() !== blog.description ||
+    JSON.stringify(filled) !== JSON.stringify(blog.links)
 
   async function deleteBlog() {
     const confirmed = await confirm({
@@ -217,7 +228,8 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
         className="space-y-3"
         onSubmit={(event) => {
           event.preventDefault()
-          if (changed) update.mutate({ title: title.trim(), description: description.trim() })
+          if (!changed) return
+          update.mutate({ title: title.trim(), description: description.trim(), links: filled })
         }}
       >
         <div className="space-y-1">
@@ -245,10 +257,70 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
             onChange={(event) => setDescription(event.target.value)}
           />
         </div>
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
+          {links.map((link, index) => (
+            <div key={index} className="flex gap-2">
+              <input
+                className="input"
+                aria-label={t('blogs.linkName', { number: index + 1 })}
+                placeholder={t('blogs.linkNamePlaceholder')}
+                value={link.name}
+                maxLength={60}
+                onChange={(event) =>
+                  setLinks(links.map((each, at) => (at === index ? { ...each, name: event.target.value } : each)))
+                }
+              />
+              <input
+                className="input"
+                type="url"
+                aria-label={t('blogs.linkUrl', { number: index + 1 })}
+                placeholder="https://"
+                value={link.url}
+                maxLength={500}
+                onChange={(event) =>
+                  setLinks(links.map((each, at) => (at === index ? { ...each, url: event.target.value } : each)))
+                }
+              />
+              <button
+                type="button"
+                className="button-icon size-9 shrink-0"
+                aria-label={t('blogs.removeLink', { number: index + 1 })}
+                onClick={() => setLinks(links.filter((_, at) => at !== index))}
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+          {links.length < MAX_LINKS && (
+            <button
+              type="button"
+              className="button-ghost inline-flex items-center gap-1.5 text-sm"
+              onClick={() => setLinks([...links, { name: '', url: '' }])}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              {t('blogs.addLink')}
+            </button>
+          )}
+        </fieldset>
         <button type="submit" className="button-outline" disabled={!changed || update.isPending}>
           {t('common.save')}
         </button>
       </form>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={blog.powered_by}
+          disabled={update.isPending}
+          onChange={(event) => update.mutate({ powered_by: event.target.checked })}
+        />
+        <span>
+          <span className="block font-medium">{t('blogs.poweredBy')}</span>
+          <span className="block text-xs text-zinc-500">{t('blogs.poweredByHint')}</span>
+        </span>
+      </label>
 
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

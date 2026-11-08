@@ -81,6 +81,7 @@ function ProfileHeader({
   name,
   detail,
   description,
+  links = [],
   home,
   feed = false,
 }: {
@@ -88,6 +89,7 @@ function ProfileHeader({
   name: string
   detail?: string
   description?: string
+  links?: { name: string; url: string }[]
   /** Where the name leads; it is the page's heading when absent. */
   home?: string
   feed?: boolean
@@ -123,6 +125,22 @@ function ProfileHeader({
       {detail && <p className="mt-1 text-zinc-500">{detail}</p>}
       {description && (
         <p className="mt-4 max-w-md text-zinc-700 dark:text-zinc-300">{description}</p>
+      )}
+      {links.length > 0 && (
+        <ul className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+          {links.map((link) => (
+            <li key={`${link.name}-${link.url}`}>
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-accent-700 hover:underline dark:text-accent-300"
+              >
+                {link.name}
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
     </header>
   )
@@ -163,18 +181,21 @@ function NoteCard({ note }: { note: PublicNoteSummary }) {
  */
 function NoteList({
   author,
+  category,
   except,
   limit,
   empty = true,
 }: {
   author?: string
+  /** On a blog, one of its categories. */
+  category?: string
   except?: string
   limit?: number
   /** Says so when there are none; otherwise shows nothing. */
   empty?: boolean
 }) {
   useT()
-  const notes = usePublicNotes(author)
+  const notes = usePublicNotes({ author, category })
 
   if (notes.isPending) return empty ? <Loading /> : null
   if (notes.isError) {
@@ -199,7 +220,7 @@ export function PublicIndexPage() {
   useTitle(t('public.notes'))
 
   return (
-    <Frame>
+    <Frame poweredBy>
       <h1 className="mb-6 font-display text-3xl font-semibold">{t('public.notes')}</h1>
       <NoteList />
     </Frame>
@@ -223,7 +244,7 @@ function AuthorPage({ handle }: { handle: string }) {
   useTitle(name)
 
   return (
-    <Frame>
+    <Frame poweredBy>
       {author.isError ? (
         <Missing error={author.error} onRetry={() => author.refetch()} />
       ) : author.data && name ? (
@@ -291,7 +312,7 @@ function PublicNoteView({ handle, slug }: { handle: string; slug: string }) {
         name={note.data ? note.data.author || `@${note.data.handle}` : undefined}
         avatarUrl={note.data?.avatar_url ?? null}
       />
-      <Frame>
+      <Frame poweredBy>
         {note.isPending ? (
           <Loading />
         ) : note.isError ? (
@@ -418,7 +439,7 @@ function PublicArticle({ note, home, author }: { note: PublicNote; home: string;
 /** Up to three more of their notes, under a heading; nothing when there are none. */
 function MoreNotes({ author, except, name }: { author?: string; except: string; name: string }) {
   useT()
-  const notes = usePublicNotes(author)
+  const notes = usePublicNotes({ author })
   const more = (notes.data?.results ?? []).filter((note) => note.slug !== except).slice(0, 3)
   if (more.length === 0) return null
   return (
@@ -438,11 +459,13 @@ function MoreNotes({ author, except, name }: { author?: string; except: string; 
 /** A blog's index, at the root of its own domain. */
 export function SiteIndexPage() {
   useT()
+  const { category } = useParams()
   const site = usePublicSite()
-  useTitle(site.data?.title)
+  const current = site.data?.categories.find((each) => each.slug === category)
+  useTitle(site.data && (current ? `${current.name} · ${site.data.title}` : site.data.title))
 
   return (
-    <Frame>
+    <Frame poweredBy={site.data?.powered_by}>
       {site.isError ? (
         <Missing error={site.error} onRetry={() => site.refetch()} />
       ) : site.data ? (
@@ -454,17 +477,53 @@ export function SiteIndexPage() {
               site.data.author && site.data.author !== site.data.title ? site.data.author : undefined
             }
             description={site.data.description}
+            links={site.data.links}
             home="/"
             feed
           />
-          <div className="mt-12">
-            <NoteList />
+          {site.data.categories.length > 0 && (
+            <Categories categories={site.data.categories} current={category} />
+          )}
+          <div className={site.data.categories.length > 0 ? 'mt-6' : 'mt-12'}>
+            <NoteList category={category} />
           </div>
         </>
       ) : (
         <Loading />
       )}
     </Frame>
+  )
+}
+
+/** A blog's categories as tabs: all its posts, then each one's, at `/c/<slug>`. */
+function Categories({
+  categories,
+  current,
+}: {
+  categories: { slug: string; name: string }[]
+  current: string | undefined
+}) {
+  useT()
+  const tabs: { slug?: string; name: string; to: string }[] = [
+    { name: t('public.allPosts'), to: '/' },
+    ...categories.map((each) => ({ slug: each.slug, name: each.name, to: `/c/${each.slug}` })),
+  ]
+  return (
+    <nav
+      aria-label={t('public.categories')}
+      className="mt-12 flex gap-1 overflow-x-auto border-b border-zinc-100 dark:border-zinc-800/70"
+    >
+      {tabs.map((tab) => (
+        <Link
+          key={tab.to}
+          to={tab.to}
+          aria-current={tab.slug === current ? 'page' : undefined}
+          className="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-zinc-500 hover:text-zinc-900 aria-[current=page]:border-accent-500 aria-[current=page]:font-semibold aria-[current=page]:text-zinc-900 dark:hover:text-zinc-100 dark:aria-[current=page]:text-zinc-100"
+        >
+          {tab.name}
+        </Link>
+      ))}
+    </nav>
   )
 }
 
@@ -484,7 +543,7 @@ export function SiteNotePage() {
         avatarUrl={site.data?.avatar_url ?? null}
         feed
       />
-      <Frame>
+      <Frame poweredBy={site.data?.powered_by}>
         {site.isError ? (
           <Missing error={site.error} onRetry={() => site.refetch()} />
         ) : note.isError ? (
@@ -499,10 +558,28 @@ export function SiteNotePage() {
   )
 }
 
-function Frame({ children }: { children: ReactNode }) {
+/** A public page's column; `poweredBy` ends it with a small line about BrainBro. */
+function Frame({ children, poweredBy = false }: { children: ReactNode; poweredBy?: boolean }) {
+  useT()
   return (
     <div className="min-h-full bg-white dark:bg-zinc-950">
-      <div className="mx-auto max-w-2xl px-4 pt-14 pb-20 sm:pt-20">{children}</div>
+      <div className="mx-auto max-w-2xl px-4 pt-14 pb-20 sm:pt-20">
+        {children}
+        {poweredBy && (
+          <p className="mt-20 text-center text-xs text-zinc-400 dark:text-zinc-600">
+            {rich('public.poweredBy', {
+              brand: (
+                <a
+                  href="https://brainbro.app"
+                  className="font-medium hover:text-accent-700 dark:hover:text-accent-300"
+                >
+                  BrainBro
+                </a>
+              ),
+            })}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

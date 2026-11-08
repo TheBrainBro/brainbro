@@ -281,7 +281,8 @@ export const es: Messages = {
     add: 'Nuevo blog',
     domain: 'Dominio',
     collection: 'Colección',
-    collectionHint: 'Las notas públicas guardadas en ella forman el blog.',
+    collectionHint:
+      'Las notas públicas guardadas en ella, o en las colecciones dentro de ella, forman el blog. Esas colecciones son sus categorías.',
     noCollection: 'Ninguna colección',
     addButton: 'Añadir blog',
     dnsIntro:
@@ -301,6 +302,14 @@ export const es: Messages = {
     title: 'Nombre del blog',
     description: 'Descripción',
     open: 'Abrir blog',
+    links: 'Enlaces',
+    linkName: 'Nombre del enlace {number}',
+    linkUrl: 'Dirección del enlace {number}',
+    linkNamePlaceholder: 'Web',
+    removeLink: 'Quitar el enlace {number}',
+    addLink: 'Añadir enlace',
+    poweredBy: 'Mostrar “Funciona con BrainBro”',
+    poweredByHint: 'Una línea pequeña al final de las páginas del blog, con enlace a brainbro.app.',
     delete: 'Eliminar blog',
     deleteTitle: '¿Eliminar el blog de {domain}?',
     deleteMessage: 'El dominio deja de mostrarlo. Sus notas quedan como están.',
@@ -590,6 +599,8 @@ export const es: Messages = {
     feed: 'Feed',
     moreFrom: 'Más de {name}',
     allPosts: 'Todas las publicaciones',
+    categories: 'Categorías',
+    poweredBy: 'Funciona con {brand}',
   },
   pending: {
     failed: 'Falló: {name}',

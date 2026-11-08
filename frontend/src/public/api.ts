@@ -43,6 +43,12 @@ export type PublicSite = {
   author: string
   handle: string
   avatar_url: string | null
+  /** Shown under its description. */
+  links: { name: string; url: string }[]
+  /** Shows "Powered by BrainBro" at the end of its pages. */
+  powered_by: boolean
+  /** The collections inside the blog's, with something published, each at `/c/<slug>`. */
+  categories: { slug: string; name: string }[]
 }
 
 /** The blog's domain, when the server serves the app as one (`brainbro-site`). */
@@ -61,14 +67,17 @@ export function usePublicNote(handle: string, slug: string) {
   })
 }
 
-/** Published notes: all on the server, the blog's on a blog, or one author's. */
-export function usePublicNotes(author?: string) {
+/**
+ * Published notes: all on the server, the blog's on a blog (or one of its
+ * categories'), or one author's.
+ */
+export function usePublicNotes({ author, category }: { author?: string; category?: string } = {}) {
+  const params = new URLSearchParams({ limit: '200' })
+  if (author) params.set('author', author)
+  if (category) params.set('category', category)
   return useQuery({
-    queryKey: ['public', 'notes', { author }],
-    queryFn: () =>
-      api<Page<PublicNoteSummary>>(
-        `/public/notes/?limit=200${author ? `&author=${encodeURIComponent(author)}` : ''}`,
-      ),
+    queryKey: ['public', 'notes', { author, category }],
+    queryFn: () => api<Page<PublicNoteSummary>>(`/public/notes/?${params}`),
   })
 }
 
