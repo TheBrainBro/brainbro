@@ -1,17 +1,25 @@
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 
-import { useSaveDisplayName, useSession, useSetAvatar } from '../auth/session'
+import { useQueryClient } from '@tanstack/react-query'
+
+import { useSaveDisplayName, useSaveHandle, useSession, useSetAvatar } from '../auth/session'
 import { useT } from '../i18n/i18n'
 import { squareImage } from '../lib/image'
 import { Avatar } from './Avatar'
 
-/** The display name that signs public notes, and the photo the app shows. */
+/** The display name that signs public notes, their address, and the photo the app shows. */
 export function ProfilePanel() {
   const t = useT()
   const { data: session } = useSession()
   const profile = session?.profile ?? { display_name: '', avatar_url: null }
   const saveName = useSaveDisplayName()
+  const saveHandle = useSaveHandle()
+  const queryClient = useQueryClient()
+  // What is typed, over the saved one: the handle can arrive later (first publish).
+  const [typedHandle, setHandle] = useState<string | null>(null)
+  const handle = typedHandle ?? profile.handle ?? ''
+  const handleId = useId()
   const setAvatar = useSetAvatar()
   const [name, setName] = useState(profile.display_name)
   const [error, setError] = useState<string>()
@@ -106,6 +114,48 @@ export function ProfilePanel() {
         <p className="text-xs text-zinc-500">
           {t('profile.displayNameHint')}
         </p>
+      </form>
+
+      <form
+        className="space-y-1"
+        onSubmit={(event) => {
+          event.preventDefault()
+          setError(undefined)
+          saveHandle.mutate(handle.trim(), {
+            onSuccess: () => {
+              setHandle(null)
+              // Every published note's address changes with it.
+              void queryClient.invalidateQueries({ queryKey: ['items'] })
+            },
+            onError: (failure) => setError(failure.message),
+          })
+        }}
+      >
+        <label htmlFor={handleId} className="block text-sm font-medium">
+          {t('profile.handle')}
+        </label>
+        <div className="flex items-center gap-2">
+          <span className="text-sm whitespace-nowrap text-zinc-500">{window.location.host}/@</span>
+          <input
+            id={handleId}
+            className="input"
+            value={handle}
+            maxLength={40}
+            spellCheck={false}
+            autoCapitalize="none"
+            placeholder={t('profile.handlePlaceholder')}
+            onChange={(event) => setHandle(event.target.value.toLowerCase())}
+          />
+          <button
+            type="submit"
+            aria-label={t('profile.saveHandle')}
+            className="button-primary shrink-0"
+            disabled={!handle.trim() || handle.trim() === (profile.handle ?? '') || saveHandle.isPending}
+          >
+            {t('common.save')}
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500">{t('profile.handleHint')}</p>
       </form>
 
       {error && (

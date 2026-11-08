@@ -1,6 +1,7 @@
 import {
   Bot,
   FolderInput,
+  Globe,
   Languages,
   PackageOpen,
   Palette,
@@ -14,6 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 
 import { useSession } from '../auth/session'
+import { BlogsPanel } from '../blogs/BlogsPanel'
 import { SampleContentPanel } from './SampleContentPanel'
 import { ExportPanel } from '../exports/ExportPanel'
 import { useT, type MessageKey } from '../i18n/i18n'
@@ -34,6 +36,7 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
       { id: 'profile', label: 'settings.pages.profile', icon: UserRound, Panel: ProfilePanel },
       { id: 'appearance', label: 'settings.pages.appearance', icon: Palette, Panel: AppearancePanel },
       { id: 'language', label: 'settings.pages.language', icon: Languages, Panel: LanguagePanel },
+      { id: 'blogs', label: 'settings.pages.blogs', icon: Globe, Panel: BlogsPanel },
       { id: 'sample-content', label: 'settings.pages.sampleContent', icon: PackageOpen, Panel: SampleContentPanel },
     ],
   },

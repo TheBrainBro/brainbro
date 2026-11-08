@@ -257,6 +257,7 @@ export const en = {
       language: 'Language',
       sampleContent: 'Sample content',
       invitations: 'Invitations',
+      blogs: 'Blogs',
     },
   },
   profile: {
@@ -268,6 +269,41 @@ export const en = {
     yourName: 'Your name',
     displayNameHint:
       'Signs your public notes. Without one they show no author; your username never shows.',
+    handle: 'Public address',
+    saveHandle: 'Save public address',
+    handlePlaceholder: 'your-name',
+    handleHint:
+      'Your public notes live here. Changing it breaks links to the old address. Lowercase letters, numbers and hyphens.',
+  },
+  blogs: {
+    intro:
+      'Publish a collection as a blog on your own domain. Its public notes show at the domain, newest first, with a feed.',
+    add: 'New blog',
+    domain: 'Domain',
+    collection: 'Collection',
+    collectionHint: 'The public notes filed in it are the blog.',
+    noCollection: 'No collection',
+    addButton: 'Add blog',
+    dnsIntro:
+      'Add these records where your domain is managed, then verify. The blog shows once the domain is verified.',
+    recordCname: 'Point the domain at BrainBro',
+    recordA: 'Or, for a root domain (example.com) that can’t have a CNAME',
+    recordTxt: 'Prove the domain is yours',
+    recordName: '{type} record name',
+    recordValue: '{type} record value',
+    tunnelHint:
+      'Behind a tunnel (like Cloudflare Tunnel)? Add the domain to the tunnel, pointing at BrainBro, instead of the CNAME. The TXT record is still needed.',
+    verify: 'Verify',
+    verified: 'Verified',
+    checking: 'Checking…',
+    failed: 'TXT record not found',
+    unverified: 'Not verified',
+    title: 'Blog name',
+    description: 'Description',
+    open: 'Open blog',
+    delete: 'Delete blog',
+    deleteTitle: 'Delete the blog at {domain}?',
+    deleteMessage: 'The domain stops showing it. Its notes stay as they are.',
   },
   appearance: {
     light: 'Light',
@@ -541,6 +577,7 @@ export const en = {
     missingHint: 'It may have been taken down, or its address changed.',
     by: 'By {author}',
     updated: 'Updated {date}',
+    feed: 'Feed',
   },
   pending: {
     failed: 'Failed: {name}',

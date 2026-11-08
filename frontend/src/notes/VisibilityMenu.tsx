@@ -8,7 +8,7 @@ import { Dropdown } from '../ui/Dropdown'
 
 /**
  * Who can read the note: only its owner (private, the default) or anyone
- * with its link, at `/p/<slug>`. Choosing public publishes it at once; its
+ * with its link, at `/@<handle>/<slug>` or on its blog. Choosing public publishes it at once; its
  * link and page settings then show here.
  */
 export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: () => void }) {
@@ -16,7 +16,8 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
   const publication = usePublication()
   const [error, setError] = useState<string>()
   const isPublic = Boolean(note.published_at)
-  const path = `/p/${note.public_slug}`
+  // A path on the server, or its blog's full URL.
+  const url = new URL(note.public_url ?? '/', window.location.origin).href
 
   function choose(publish: boolean) {
     if (publish === isPublic || publication.isPending) return
@@ -78,9 +79,9 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
             <>
               <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
               <div className="space-y-1 p-2">
-                <CopyField label={t('visibility.link')} value={`${window.location.origin}${path}`} />
+                <CopyField label={t('visibility.link')} value={url} />
               </div>
-              <a href={path} target="_blank" rel="noopener noreferrer" className="menu-item">
+              <a href={url} target="_blank" rel="noopener noreferrer" className="menu-item">
                 <ExternalLink className="size-4" aria-hidden="true" />
                 {t('visibility.openPage')}
               </a>

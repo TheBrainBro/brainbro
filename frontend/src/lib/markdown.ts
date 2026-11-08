@@ -74,7 +74,7 @@ md.renderer.rules.wikilink = (tokens, idx, _options, env) => {
   const id = notes ? resolveWikilink(notes, link.target) : null
   // A public page links other public notes only; the rest is just words.
   if (isPublic) {
-    return id ? `<a class="wikilink" href="/p/${md.utils.escapeHtml(id)}">${label}</a>` : label
+    return id ? `<a class="wikilink" href="${md.utils.escapeHtml(id)}">${label}</a>` : label
   }
   if (!notes) return `<span class="wikilink">${label}</span>`
   if (!id) {
@@ -186,7 +186,7 @@ type RenderEnv = {
   embeds?: boolean
   /** Note ids by title, to resolve `[[Title]]`; without it links show unresolved. */
   notes?: NoteTitleIndex | null
-  /** A published note (`/p/<slug>`): `notes` holds slugs of the other published ones. */
+  /** A published note: `notes` holds the addresses of the other published ones. */
   isPublic?: boolean
 }
 
