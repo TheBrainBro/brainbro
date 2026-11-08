@@ -76,19 +76,30 @@ def default_image(note):
 
 
 def page_image(note):
-    """The image its link shows, or None."""
+    """
+    The image its link shows, or None: the one chosen, or (none chosen, or
+    taken out of the note) its first.
+    """
+    return cover_image(note, NoteImage.objects.filter(note=note))
+
+
+def cover_image(note, images):
+    """`page_image`, from the note's images already at hand (a list's notes)."""
     if note.public_image == NO_IMAGE:
         return None
-    if note.public_image:
-        chosen = (
-            NoteImage.objects.filter(note=note, src=note.public_image)
-            .exclude(image="")
-            .first()
-        )
-        # Taken out of the note: back to the default.
-        if chosen:
-            return chosen
-    return default_image(note)
+    ready = {image.src: image for image in images if image.image}
+    if note.public_image in ready:
+        return ready[note.public_image]
+    return next((ready[src] for src in image_sources(note.body) if src in ready), None)
+
+
+def public_avatar_url(profile):
+    """Where anyone sees the profile's photo, or None without one."""
+    if not profile or not profile.avatar or not profile.handle:
+        return None
+    path = reverse("public-author-avatar", args=[profile.handle])
+    # The file name changes with the photo, so it doubles as a cache buster.
+    return f"{path}?v={profile.avatar.name.rsplit('/', 1)[-1]}"
 
 
 @dataclass
