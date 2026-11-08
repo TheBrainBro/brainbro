@@ -5,7 +5,7 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import FileResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from apps.boards.models import Board
 from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item
+from apps.public.handles import MAX_HANDLE, handle_taken, is_valid_handle
 
 from .models import ApiToken, Invitation, Profile
 
@@ -47,7 +48,7 @@ class SampleContentSerializer(serializers.Serializer):
 
 
 def profile_data(profile):
-    """The profile as the app shows it: `{display_name, avatar_url}`."""
+    """The profile as the app shows it: `{display_name, handle, avatar_url}`."""
     avatar_url = None
     if profile and profile.avatar:
         # Authenticated, and the file name busts the cache.
@@ -55,6 +56,7 @@ def profile_data(profile):
         avatar_url = f"{reverse('auth-profile-avatar')}?v={name}"
     return {
         "display_name": profile.display_name if profile else "",
+        "handle": (profile.handle or "") if profile else "",
         "avatar_url": avatar_url,
     }
 
@@ -231,17 +233,41 @@ def language_view(request):
 
 
 class ProfileSerializer(serializers.Serializer):
-    display_name = serializers.CharField(max_length=80, allow_blank=True)
+    display_name = serializers.CharField(
+        max_length=80, allow_blank=True, required=False
+    )
+    handle = serializers.CharField(max_length=MAX_HANDLE, required=False)
+
+    def validate_handle(self, value):
+        if not is_valid_handle(value):
+            raise serializers.ValidationError(
+                "Use lowercase letters, numbers and hyphens, 2 or more."
+            )
+        if handle_taken(value, self.context["request"].user.id):
+            raise serializers.ValidationError("Someone else already has this name.")
+        return value
 
 
 @api_view(["PATCH"])
 def profile_view(request):
-    """`PATCH {"display_name"}`: how the user signs what they publish."""
-    payload = ProfileSerializer(data=request.data)
+    """
+    `PATCH {"display_name", "handle"}`, either: how the user signs what they
+    publish, and the address their notes are published at (`/@<handle>/`).
+    """
+    payload = ProfileSerializer(data=request.data, context={"request": request})
     payload.is_valid(raise_exception=True)
     profile, _ = Profile.objects.get_or_create(user=request.user)
-    profile.display_name = payload.validated_data["display_name"]
-    profile.save(update_fields=["display_name", "updated_at"])
+    fields = list(payload.validated_data)
+    for name, value in payload.validated_data.items():
+        setattr(profile, name, value)
+    try:
+        # Someone else may take the handle in between.
+        with transaction.atomic():
+            profile.save(update_fields=[*fields, "updated_at"])
+    except IntegrityError:
+        raise serializers.ValidationError(
+            {"handle": "Someone else already has this name."}
+        ) from None
     return Response(profile_data(profile))
 
 

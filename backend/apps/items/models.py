@@ -186,10 +186,10 @@ class Item(OwnedModel):
         max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
     )
     edited_at = models.DateTimeField(null=True, blank=True)
-    # Notes only: published at `/p/<public_slug>` while `published_at` is set
-    # (see `apps.public`). Unpublished, a note keeps its slug, so publishing it
-    # again brings back the same address.
-    public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
+    # Notes only: published at `/@<handle>/<public_slug>` while `published_at`
+    # is set (see `apps.public`). Slugs are unique per owner. Unpublished, a
+    # note keeps its slug, so publishing it again brings back the same address.
+    public_slug = models.SlugField(max_length=80, null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
     # How the page shows in search results and shared links (OpenGraph). Empty
     # means the default: the note's title, the start of its text, its first
@@ -221,6 +221,14 @@ class Item(OwnedModel):
                 fields=["search_text"],
                 opclasses=["gin_trgm_ops"],
                 name="item_search_text_trgm",
+            ),
+        ]
+        constraints = [
+            # Each user's published notes share `/@<handle>/`.
+            models.UniqueConstraint(
+                fields=["owner", "public_slug"],
+                condition=models.Q(public_slug__isnull=False),
+                name="unique_public_slug_per_owner",
             ),
         ]
 
