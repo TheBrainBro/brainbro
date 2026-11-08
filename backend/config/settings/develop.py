@@ -10,7 +10,7 @@ SECRET_KEY = "django-insecure-brainbro-develop-only-key"
 # cloudflared to :8000): service workers need HTTPS.
 TUNNEL_DOMAINS = [".ngrok-free.app", ".trycloudflare.com"]
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", *TUNNEL_DOMAINS]
+APP_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", *TUNNEL_DOMAINS]
 
 # Vite dev server proxies /api to Django, so requests arrive with its origin.
 CSRF_TRUSTED_ORIGINS = [
