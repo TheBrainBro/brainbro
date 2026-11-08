@@ -648,6 +648,25 @@ def test_get_a_revision(call, user):
     assert (revision["body"], revision["note_id"]) == ("first", str(item.id))
 
 
+def test_untitled_revisions_are_named_after_their_own_text(call, user):
+    item = note(user, "# First\nmore")
+    call("edit_note", id=str(item.id), body="Second\nmore")
+
+    revisions = structured(call("list_revisions", id=str(item.id)))["revisions"]
+    revision = structured(call("get_revision", revision_id=revisions[-1]["id"]))
+
+    assert [each["title"] for each in revisions] == ["Second", "First"]
+    assert revision["title"] == "First"
+
+
+def test_a_revision_keeps_its_saved_title(call, user):
+    item = note(user, "Text", title="Saved")
+
+    [revision] = structured(call("list_revisions", id=str(item.id)))["revisions"]
+
+    assert revision["title"] == "Saved"
+
+
 def test_revisions_are_of_your_notes(call, user, other_user):
     theirs = note(other_user, "theirs")
     link = Item.objects.create(owner=user, kind=Item.Kind.LINK, url="https://x.org")
