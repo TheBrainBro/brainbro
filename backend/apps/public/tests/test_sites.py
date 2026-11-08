@@ -301,7 +301,7 @@ def test_a_blog_s_index_is_the_app_as_a_blog(client, blog):
     assert f'<meta name="brainbro-site" content="{BLOG}" />' in html
     assert "<title>Carlos writes</title>" in html
     assert f'<link rel="canonical" href="https://{BLOG}/" />' in html
-    assert 'href="/rss.xml"' in html
+    assert 'href="/rss"' in html
     # A blog is no app to install.
     assert "manifest" not in html
 
@@ -409,10 +409,11 @@ def test_a_blog_has_a_feed_of_its_notes(client, user, blog, writing):
     publish(note(user, title="Hello <you>", body="First words.", collection=writing))
     publish(note(user, title="Elsewhere"))
 
-    response = on_blog(client, "/rss.xml")
+    response = on_blog(client, "/rss")
     feed = response.content.decode()
 
-    assert response["Content-Type"].startswith("application/rss+xml")
+    # Shown by browsers, not downloaded.
+    assert response["Content-Type"].startswith("application/xml")
     assert "<title>Carlos writes</title>" in feed
     assert "<title>Hello &lt;you&gt;</title>" in feed
     assert f"<link>https://{BLOG}/hello-you</link>" in feed

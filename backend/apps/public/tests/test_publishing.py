@@ -92,3 +92,8 @@ def test_unpublished_notes_hold_their_slug(user):
 
     with pytest.raises(SlugTaken):
         publish(note(user), "plan")
+
+
+def test_a_blog_s_own_pages_are_never_slugs(user):
+    assert is_valid_slug("rss") is False
+    assert suggested_slug(note(user, title="RSS")) == "rss-2"
