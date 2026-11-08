@@ -649,7 +649,7 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
             </button>
           )}
         </fieldset>
-        <button type="submit" className="button-outline" disabled={!changed || update.isPending}>
+        <button type="submit" className="button-outline cursor-pointer" disabled={!changed || update.isPending}>
           {t('common.save')}
         </button>
       </form>
