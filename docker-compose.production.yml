@@ -38,6 +38,8 @@ x-app: &app
     ADMIN_USERNAME: ${ADMIN_USERNAME:-}
     ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    SITE_CNAME_TARGET: ${SITE_CNAME_TARGET:-}
+    SITE_IPV4: ${SITE_IPV4:-}
   volumes:
     - storage:/data/storage
     - backups:/data/backups
@@ -134,6 +136,26 @@ services:
       redis:
         condition: service_healthy
 
+  # Optional, for servers with a public IP and ports 80/443 open: HTTPS for
+  # the app and for blogs on their own domains, with certificates issued on
+  # demand. Behind a tunnel it isn't needed. Start it with
+  # `--profile caddy` (or COMPOSE_PROFILES=caddy). See docs/blogs.md.
+  caddy:
+    build:
+      context: docker/caddy
+    profiles: ["caddy"]
+    restart: unless-stopped
+    environment:
+      APP_HOSTNAMES: ${APP_HOSTNAMES}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+
 # Fixed subnet so `firewall` knows which traffic to let through.
 networks:
   default:
@@ -147,3 +169,4 @@ volumes:
   storage:
   backups:
   exports:
+  caddy_data:
