@@ -44,10 +44,8 @@ def header(scope, name):
 
 
 def allowed_host(scope):
-    """The Host is one this site answers to, as Django checks for HTTP requests."""
-    hosts = settings.ALLOWED_HOSTS
-    if settings.DEBUG and not hosts:
-        hosts = [".localhost", "127.0.0.1", "[::1]"]
+    """The Host is the app's (never a blog's), as `SiteMiddleware` checks for HTTP."""
+    hosts = settings.APP_HOSTS
     domain, _ = split_domain_port(header(scope, b"host"))
     return bool(domain) and validate_host(domain, hosts)
 

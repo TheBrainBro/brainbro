@@ -53,6 +53,8 @@ LOCAL_APPS = [
 INSTALLED_APPS = ADDONS_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    # First: it decides whether the request is for the app or a blog.
+    "apps.public.sites.SiteMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -66,6 +68,22 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
+
+# Hosts: the app answers to `APP_HOSTS` (set per environment), and blogs to
+# their verified domains, which live in the database. Django can't list
+# those, so it accepts any host and `SiteMiddleware` turns away the rest.
+ALLOWED_HOSTS = ["*"]
+APP_HOSTS = []
+
+# Blogs on their own domains (apps.public.sites): what their DNS records
+# point at. The CNAME target defaults to the host the app is opened on; the
+# A record, for root domains that can't have a CNAME, is only shown when the
+# server's public IPv4 is set.
+SITE_CNAME_TARGET = get_env_variable("SITE_CNAME_TARGET", "")
+SITE_IPV4 = get_env_variable("SITE_IPV4", "")
+# How blogs' addresses start. Production serves them over HTTPS, on 443.
+SITE_SCHEME = "https"
+SITE_PORT = ""
 
 TEMPLATES = [
     {

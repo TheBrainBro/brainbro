@@ -1,0 +1,22 @@
+# BrainBro behind Caddy, for servers with a public IP and ports 80 and 443
+# open (a VPS, a hosted instance). Not needed behind a tunnel. See docs/blogs.md.
+{
+	# Before getting a certificate for a domain it has never seen, Caddy asks
+	# BrainBro whether it is a verified blog's: nobody else's domain gets one.
+	on_demand_tls {
+		ask http://api:8000/api/public/sites/check/
+	}
+}
+
+# The app, at its own hostname(s).
+{$APP_HOSTNAMES} {
+	reverse_proxy api:8000
+}
+
+# Blogs on their owners' domains: a certificate the first time each is visited.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy api:8000
+}

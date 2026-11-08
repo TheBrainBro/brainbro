@@ -22,6 +22,7 @@ from apps.public.publishing import (
     save_page,
     unpublish,
 )
+from apps.public.sites import public_url
 
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
@@ -118,8 +119,11 @@ def page_settings(note):
     """What the page settings show: the saved values, defaults and the preview."""
     preview = page_preview(note)
     default = default_image(note)
+    url = public_url(note)
     return {
         "slug": note.public_slug,
+        # What comes before the slug: `/@<handle>/`, or its blog's `https://<host>/`.
+        "address": url[: url.rindex("/") + 1],
         "title": note.public_title,
         "description": note.public_description,
         "image": note.public_image,
@@ -515,7 +519,7 @@ class ItemViewSet(
     @action(detail=True, methods=["put", "delete"])
     def publication(self, request, pk=None):
         """
-        PUT makes the note public at `/p/<slug>` (the slug it had, or one made
+        PUT makes the note public at `/@<handle>/<slug>` (the slug it had, or one made
         from its title); DELETE makes it private again. Both return the note.
         """
         note = self._note()

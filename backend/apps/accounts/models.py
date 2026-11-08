@@ -60,6 +60,10 @@ class Profile(TimestampedModel):
     display_name = models.CharField(
         max_length=80, blank=True, default="", db_default=""
     )
+    # The user's public address on the server: their published notes live at
+    # `/@<handle>/<slug>`. Given on first publish (see `apps.public.handles`);
+    # never the username, for the same reason as `display_name`.
+    handle = models.SlugField(max_length=40, unique=True, null=True, blank=True)
     # A square WebP, made from an upload like a collection's image.
     avatar = models.ImageField(upload_to=avatar_path, blank=True, db_default="")
 
