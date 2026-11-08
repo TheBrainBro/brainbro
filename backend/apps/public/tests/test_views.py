@@ -162,6 +162,7 @@ def test_anyone_reads_a_published_note(anyone, user):
         "published_at",
         "edited_at",
         "author",
+        "avatar_url",
         "images",
         "links",
         "notes",
@@ -203,6 +204,8 @@ def test_the_index_lists_published_notes_last_first(anyone, user, other_user):
         "title": "First",
         "published_at": first.published_at.isoformat().replace("+00:00", "Z"),
         "url": "/@author/first",
+        "excerpt": "text",
+        "image_url": None,
     }
     assert results[0]["url"] == "/@author-2/second"
 
@@ -289,7 +292,11 @@ def test_an_author_s_page_says_who_they_are(anyone, user):
 
     response = anyone.get("/api/public/authors/author/")
 
-    assert response.json() == {"handle": "author", "author": "Carlos Lugones"}
+    assert response.json() == {
+        "handle": "author",
+        "author": "Carlos Lugones",
+        "avatar_url": None,
+    }
     assert user.username not in response.content.decode()
 
 
@@ -307,3 +314,37 @@ def test_an_author_s_notes_are_listed_on_their_own(anyone, user, other_user):
     assert [(entry["title"], entry["url"]) for entry in results] == [
         ("Mine", "/@author/mine")
     ]
+
+
+def test_the_list_shows_the_start_of_each_note_and_its_cover(anyone, user):
+    body = "# Plan\n\nTen days.\n\n![a](https://x/a.png)"
+    item = publish(note(user, title="Plan", body=body))
+    image = stored_image(item, "https://x/a.png")
+
+    entry = anyone.get("/api/public/notes/").json()["results"][0]
+
+    assert entry["excerpt"] == "Ten days."
+    path = f"/api/public/notes/author/plan/images/{image.id}/"
+    assert entry["image_url"].startswith(path)
+
+
+def avatar(user):
+    profile = Profile.objects.get(user=user)
+    profile.avatar.save("me.webp", ContentFile(b"img"))
+    return profile
+
+
+def test_an_author_s_photo_shows_while_they_publish(anyone, user):
+    item = publish(note(user, title="Plan"))
+    avatar(user)
+
+    url = anyone.get("/api/public/authors/author/").json()["avatar_url"]
+
+    assert url.startswith("/api/public/authors/author/avatar/")
+    assert anyone.get("/api/public/notes/author/plan/").json()["avatar_url"] == url
+    response = anyone.get(url)
+    assert response.status_code == 200
+    assert b"".join(response.streaming_content) == b"img"
+
+    unpublish(item)
+    assert anyone.get(url).status_code == 404

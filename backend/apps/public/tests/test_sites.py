@@ -330,6 +330,7 @@ def test_a_blog_says_what_it_is(anyone, user, blog):
         "description": "",
         "author": "Carlos",
         "handle": "carlos",
+        "avatar_url": None,
     }
     assert anyone.get("/api/public/site/").status_code == 404
 
