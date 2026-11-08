@@ -39,6 +39,7 @@ function makeItem(overrides: Partial<Item>): Item {
     edited_via: '',
     edited_at: null,
     public_slug: null,
+    public_url: null,
     published_at: null,
     ...overrides,
   }

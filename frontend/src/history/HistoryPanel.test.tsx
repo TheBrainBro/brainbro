@@ -59,6 +59,7 @@ const note: Item = {
   edited_via: 'mcp',
   edited_at: minutesAgo(1),
   public_slug: null,
+  public_url: null,
   published_at: null,
 }
 

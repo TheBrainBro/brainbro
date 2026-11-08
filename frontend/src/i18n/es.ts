@@ -257,6 +257,7 @@ export const es: Messages = {
       language: 'Idioma',
       sampleContent: 'Contenido de ejemplo',
       invitations: 'Invitaciones',
+      blogs: 'Blogs',
     },
   },
   profile: {
@@ -268,6 +269,41 @@ export const es: Messages = {
     yourName: 'Tu nombre',
     displayNameHint:
       'Firma tus notas públicas. Sin él no muestran autor; tu usuario nunca se muestra.',
+    handle: 'Dirección pública',
+    saveHandle: 'Guardar dirección pública',
+    handlePlaceholder: 'tu-nombre',
+    handleHint:
+      'Tus notas públicas viven aquí. Cambiarla rompe los enlaces a la dirección anterior. Minúsculas, números y guiones.',
+  },
+  blogs: {
+    intro:
+      'Publica una colección como blog en tu propio dominio. Sus notas públicas se ven en el dominio, las más nuevas primero, con un feed.',
+    add: 'Nuevo blog',
+    domain: 'Dominio',
+    collection: 'Colección',
+    collectionHint: 'Las notas públicas guardadas en ella forman el blog.',
+    noCollection: 'Ninguna colección',
+    addButton: 'Añadir blog',
+    dnsIntro:
+      'Añade estos registros donde gestionas tu dominio y luego verifica. El blog se ve en cuanto el dominio está verificado.',
+    recordCname: 'Apunta el dominio a BrainBro',
+    recordA: 'O, para un dominio raíz (example.com) que no admite CNAME',
+    recordTxt: 'Demuestra que el dominio es tuyo',
+    recordName: 'Nombre del registro {type}',
+    recordValue: 'Valor del registro {type}',
+    tunnelHint:
+      '¿Detrás de un túnel (como Cloudflare Tunnel)? Añade el dominio al túnel, apuntando a BrainBro, en lugar del CNAME. El registro TXT sigue siendo necesario.',
+    verify: 'Verificar',
+    verified: 'Verificado',
+    checking: 'Comprobando…',
+    failed: 'No se encontró el registro TXT',
+    unverified: 'Sin verificar',
+    title: 'Nombre del blog',
+    description: 'Descripción',
+    open: 'Abrir blog',
+    delete: 'Eliminar blog',
+    deleteTitle: '¿Eliminar el blog de {domain}?',
+    deleteMessage: 'El dominio deja de mostrarlo. Sus notas quedan como están.',
   },
   appearance: {
     light: 'Claro',
@@ -552,6 +588,7 @@ export const es: Messages = {
     missingHint: 'Puede que la hayan retirado o que haya cambiado su dirección.',
     by: 'Por {author}',
     updated: 'Actualizado {date}',
+    feed: 'Feed',
   },
   pending: {
     failed: 'Falló: {name}',

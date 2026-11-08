@@ -97,7 +97,9 @@ function SettingsForm({
       <Field id={ids.slug} label={t('pageSettings.address')} hint={t('pageSettings.addressHint')}>
         <div className="flex items-center gap-1.5">
           <span className="text-sm whitespace-nowrap text-zinc-500">
-            {window.location.host}/p/
+            {page.address.startsWith('/')
+              ? `${window.location.host}${page.address}`
+              : page.address.replace(/^https?:\/\//, '')}
           </span>
           <input
             id={ids.slug}

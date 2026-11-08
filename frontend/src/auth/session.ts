@@ -44,6 +44,8 @@ export type TutorialUpdate = { action: 'start' } | { action: 'close' } | { actio
 export type Profile = {
   /** Signs their public notes; empty, they show no author. Never the username. */
   display_name: string
+  /** Their public address, `/@<handle>/`; empty until they first publish. */
+  handle?: string
   avatar_url: string | null
 }
 
@@ -137,6 +139,12 @@ function useProfileMutation<T>(save: (value: T) => Promise<Profile>) {
         session ? { ...session, profile } : session,
       ),
   })
+}
+
+export function useSaveHandle() {
+  return useProfileMutation((handle: string) =>
+    api<Profile>('/auth/profile/', { method: 'PATCH', body: JSON.stringify({ handle }) }),
+  )
 }
 
 export function useSaveDisplayName() {

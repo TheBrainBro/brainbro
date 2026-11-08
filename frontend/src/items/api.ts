@@ -67,10 +67,12 @@ export type Item = {
   edited_by: string
   edited_via: ItemSource
   edited_at: string | null
-  /** Notes only: its address, `/p/<slug>`, kept while unpublished. */
+  /** Notes only: the last part of its address, kept while unpublished. */
   public_slug: string | null
   /** When it was published; null while it isn't. */
   published_at: string | null
+  /** Where it is published: `/@<handle>/<slug>`, or its blog's full URL. */
+  public_url: string | null
 }
 
 /** Where an item came from; empty for items from before this was recorded. */
@@ -271,7 +273,7 @@ export function useSaveNoteBody() {
   })
 }
 
-/** Makes a note public at `/p/<slug>`, or private again. */
+/** Makes a note public at `/@<handle>/<slug>` (or on its blog), or private again. */
 export function usePublication() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -291,6 +293,8 @@ export function usePublication() {
  */
 export type PageSettings = {
   slug: string | null
+  /** What comes before the slug: `/@<handle>/`, or its blog's `https://<host>/`. */
+  address: string
   title: string
   description: string
   image: string
