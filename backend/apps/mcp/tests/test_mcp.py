@@ -800,6 +800,29 @@ def test_publish_a_note(call, user):
     assert result["public_url"].endswith("/trip-plan")
 
 
+def test_publish_a_note_unlisted(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id), listed=False))
+
+    item.refresh_from_db()
+    assert item.public_listed is False
+    assert result["listed"] is False
+
+
+def test_a_page_can_be_unlisted_and_listed_again(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+    call("publish_note", id=str(item.id))
+
+    assert (
+        structured(call("update_page", id=str(item.id), listed=False))["listed"]
+        is False
+    )
+    assert (
+        structured(call("update_page", id=str(item.id), listed=True))["listed"] is True
+    )
+
+
 def test_publish_a_note_at_a_slug(call, user):
     item = note(user, "Trip plan")
 
