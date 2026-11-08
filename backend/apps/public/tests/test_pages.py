@@ -40,15 +40,16 @@ def test_a_public_page_tells_what_it_is(client, user):
     item.body += "\n\n![a](https://x/a.png)"
     item.save()
 
-    html = client.get("/p/trip-plan").content.decode()
+    html = client.get("/@author/trip-plan").content.decode()
 
     assert "<title>Trip &lt;plan&gt;</title>" in html
     assert '<meta property="og:title" content="Trip &lt;plan&gt;" />' in html
     assert '<meta property="og:description" content="Ten days in Japan." />' in html
-    assert '<meta property="og:url" content="http://testserver/p/trip-plan" />' in html
+    url = "http://testserver/@author/trip-plan"
+    assert f'<meta property="og:url" content="{url}" />' in html
     assert (
         '<meta property="og:image" '
-        f'content="http://testserver/api/public/notes/trip-plan/images/{image.id}/'
+        f'content="http://testserver/api/public/notes/author/trip-plan/images/{image.id}/'
     ) in html
     assert '<meta property="twitter:card" content="summary_large_image" />' in html
 
@@ -57,7 +58,8 @@ def test_a_page_names_its_author(client, user):
     Profile.objects.create(user=user, display_name="Carlos <L>")
     publish(note(user, title="Plan"))
 
-    html = client.get("/p/plan").content.decode()
+    # The handle is made from the display name.
+    html = client.get("/@carlos-l/plan").content.decode()
 
     assert '<meta name="author" content="Carlos &lt;L&gt;" />' in html
 
@@ -65,6 +67,25 @@ def test_a_page_names_its_author(client, user):
 def test_pages_not_published_say_nothing(client, user):
     unpublish(publish(note(user, title="Plan")))
 
-    html = client.get("/p/plan").content.decode()
+    html = client.get("/@author/plan").content.decode()
 
     assert html == INDEX
+
+
+def test_an_address_from_before_handles_leads_to_the_note(client, user):
+    publish(note(user, title="Plan"))
+
+    response = client.get("/p/plan")
+
+    assert response.status_code == 301
+    assert response["Location"] == "/@author/plan"
+
+
+def test_an_old_address_two_notes_share_leads_nowhere(client, user, other_user):
+    publish(note(user, title="Plan"))
+    publish(note(other_user, title="Plan"))
+
+    response = client.get("/p/plan")
+
+    assert response.status_code == 200
+    assert response.content.decode() == INDEX
