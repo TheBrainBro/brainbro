@@ -22,14 +22,21 @@ from apps.public.pages import (
     site_head_tags,
     with_head_tags,
 )
-from apps.public.sites import current_site, public_url, site_notes, site_url
+from apps.public.sites import (
+    current_site,
+    public_url,
+    site_categories,
+    site_notes,
+    site_url,
+)
 
 # A published note on the server, and where notes were before handles.
 NOTE_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/(?P<slug>[a-z0-9-]+)/?")
 AUTHOR_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/?")
 LEGACY_PAGE = re.compile(r"p/(?P<slug>[a-z0-9-]+)/?")
-# A note on a blog's domain.
+# A note on a blog's domain, and one of its categories.
 SITE_PAGE = re.compile(r"(?P<slug>[a-z0-9-]+)/?")
+CATEGORY_PAGE = re.compile(r"c/(?P<slug>[a-z0-9-]+)/?")
 MANIFEST_LINK = re.compile(r"<link rel=\"manifest\"[^>]*>")
 
 # Build files that must live at the root: the service worker's scope can't be
@@ -52,9 +59,13 @@ def health(request):
 
 
 def site_page_head(request, site, path):
-    """The tags of a blog's index or of one of its notes, on its domain."""
+    """The tags of a blog's index, a category or one of its notes, on its domain."""
     if path == "":
         return site_head_tags(request, site)
+    if match := CATEGORY_PAGE.fullmatch(path):
+        categories = site_categories(site)
+        category = next((c for c in categories if c.slug == match["slug"]), None)
+        return site_head_tags(request, site, category) if category else None
     if match := SITE_PAGE.fullmatch(path):
         note = published_note_for_page(
             id__in=site_notes(site).values("id"), public_slug=match["slug"]

@@ -7,14 +7,16 @@ the request there (a reverse proxy issuing certificates on demand, a tunnel).
 
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 
 import dns.exception
 import dns.resolver
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.http.request import split_domain_port, validate_host
+from django.utils.text import slugify
 
-from apps.items.models import CollectionItem, Item
+from apps.items.models import Collection, CollectionItem, Item
 
 from .handles import public_handle
 from .models import Site
@@ -79,15 +81,68 @@ def current_site(request):
     return getattr(request, "site", None)
 
 
-def site_notes(site):
-    """The published notes on `site`: those filed in its collection."""
+def collection_tree(collection_id, owner_id):
+    """The collection and every one inside it, at any depth."""
+    if collection_id is None:
+        return set()
+    tree = level = {collection_id}
+    while level:
+        level = (
+            set(
+                Collection.objects.filter(
+                    owner_id=owner_id, parent_id__in=level
+                ).values_list("id", flat=True)
+            )
+            - tree
+        )
+        tree = tree | level
+    return tree
+
+
+@dataclass
+class Category:
+    slug: str
+    name: str
+    collection_id: object
+
+
+def site_categories(site):
+    """
+    The blog's categories: the collections right inside its own, each at
+    `/c/<slug>`, the slug made from its name. Their own sub-collections
+    belong to them.
+    """
     if site.collection_id is None:
+        return []
+    categories, used = [], set()
+    for child in Collection.objects.filter(
+        owner_id=site.owner_id, parent_id=site.collection_id
+    ):
+        base = slugify(child.name) or "category"
+        slug, number = base, 1
+        while slug in used:
+            number += 1
+            slug = f"{base}-{number}"
+        used.add(slug)
+        categories.append(Category(slug, child.name, child.id))
+    return categories
+
+
+def site_notes(site, category=None):
+    """
+    The published notes on `site`: those filed in its collection or any
+    inside it; with a `Category`, in that one's.
+    """
+    root = category.collection_id if category else site.collection_id
+    if root is None:
         return Item.objects.none()
     return Item.objects.filter(
         kind=Item.Kind.NOTE,
         published_at__isnull=False,
         owner_id=site.owner_id,
-        collections=site.collection_id,
+        id__in=CollectionItem.objects.filter(
+            collection_id__in=collection_tree(root, site.owner_id)
+        ).values("item_id"),
     )
 
 
@@ -117,21 +172,29 @@ def public_urls(notes, current_site=None):
             .filter(owner_id=owner_id, collection__isnull=False)
             .order_by("created_at")
         )
+        # Each blog has its collection and those inside it.
+        trees = {
+            site.id: collection_tree(site.collection_id, owner_id) for site in sites
+        }
+        if current_site is not None and current_site.id not in trees:
+            trees[current_site.id] = collection_tree(
+                current_site.collection_id, current_site.owner_id
+            )
         placed = defaultdict(set)
-        if sites:
+        if trees:
             rows = CollectionItem.objects.filter(
                 item__in=[note.id for note in owned],
-                collection_id__in=[site.collection_id for site in sites],
+                collection_id__in=set().union(*trees.values()),
             ).values_list("item_id", "collection_id")
             for item_id, collection_id in rows:
                 placed[item_id].add(collection_id)
         handle = None
         for note in owned:
             collections = placed[note.id]
-            if current_site is not None and current_site.collection_id in collections:
+            if current_site is not None and collections & trees[current_site.id]:
                 urls[note.id] = f"/{note.public_slug}"
                 continue
-            site = next((s for s in sites if s.collection_id in collections), None)
+            site = next((s for s in sites if collections & trees[s.id]), None)
             if site:
                 urls[note.id] = site_url(site, f"/{note.public_slug}")
             elif current_site is None:
