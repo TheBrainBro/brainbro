@@ -61,6 +61,10 @@ read-only; embed links play, since the author picked them.
   username, half of the login, never shows. The profile photo stays in the app.
 - The page never says which account owns the note, nor where it is filed.
 
+`/@<handle>` is the author's page: their display name (or `@<handle>` without one) and all their
+public notes, newest first, each at its address (its blog's, if it is on one). A note's byline
+links to it. It is there with or without blogs.
+
 `/p` lists every published note on the server, the last published first, each at its address.
 Nothing links to it for now.
 
@@ -73,7 +77,8 @@ Nothing links to it for now.
 | `GET` | `/api/items/<id>/page/` | `{slug, address, title, description, image, defaults, preview}`: the page settings, what comes before the slug, the defaults and the result. |
 | `PATCH` | `/api/items/<id>/page/` | Any of `slug`, `title`, `description`, `image` (a `src` of the note's images, or `"none"`); empty ones go back to their default. |
 | `PATCH` | `/api/auth/profile/` | `handle` (and `display_name`): the user's public address. |
-| `GET` | `/api/public/notes/` | Anyone: `{slug, title, published_at, url}`, paginated. On a blog's domain, its notes. |
+| `GET` | `/api/public/notes/` | Anyone: `{slug, title, published_at, url}`, paginated. On a blog's domain, its notes; with `?author=<handle>`, that author's. |
+| `GET` | `/api/public/authors/<handle>/` | Anyone: `{handle, author}`, the author's display name. |
 | `GET` | `/api/public/notes/<handle>/<slug>/` | Anyone: `{slug, handle, title, body, published_at, edited_at, author, images, links, notes}`; `notes` are the `[{url, title}]` its links can lead to. |
 | `GET` | `/api/public/notes/<handle>/<slug>/images/<id>/` | Anyone, while published: one of its images. |
 | `GET` | `/api/public/notes/<handle>/<slug>/links/<id>/image/` | Anyone, while published: a card's image. |
