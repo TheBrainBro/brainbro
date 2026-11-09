@@ -55,7 +55,7 @@ How it is reached:
 | `APP_BIND` | Empty, every interface | The address `api` is published on. `127.0.0.1` keeps the port on this machine, for a tunnel or proxy running on it. |
 | `APP_HTTPS` | `true` | `false` only on a local network without TLS. |
 
-With `APP_HTTPS=false`, list the address you open it on in `APP_HOSTNAMES` (e.g. `192.168.1.20`) and use `http://192.168.1.20:8420`. Passwords and sessions travel unencrypted, so keep it off the internet. Browsers reserve some features for HTTPS: without it there is no installing the app, no share target and no voice recording, and the Telegram bot needs `TELEGRAM_WEBHOOK_URL` pointing at an HTTPS address. With `APP_HTTPS=true`, opening the app over plain HTTP won't let you sign in, because the session cookie is only sent over HTTPS.
+With `APP_HTTPS=false`, list the address you open it on in `APP_HOSTNAMES` (e.g. `192.168.1.20`) and use `http://192.168.1.20:8420`. Passwords and sessions travel unencrypted, so keep it off the internet. Browsers reserve some features for HTTPS: without it there is no installing the app, no share target and no voice recording, and the Telegram bot needs `TELEGRAM_WEBHOOK_URL` pointing at an HTTPS address. With `APP_HTTPS=true`, opening the app over plain HTTP won't let you sign in, because the session cookie is only sent over HTTPS. Responses served over HTTPS also carry an HSTS header, so a hostname that has been opened over HTTPS keeps going to HTTPS for an hour, even after setting `APP_HTTPS=false`.
 
 From a terminal on the server instead:
 

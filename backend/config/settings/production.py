@@ -39,6 +39,13 @@ if APP_HTTPS:
     # The tunnel or Caddy terminates TLS and forwards the original scheme.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+    # Browsers remember this, so it starts short: one hour. It stays off
+    # subdomains and the preload list, because blogs on their owners' domains
+    # answer here too and those owners' other subdomains are not ours.
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+
 SESSION_COOKIE_SECURE = APP_HTTPS
 CSRF_COOKIE_SECURE = APP_HTTPS
 SECURE_CONTENT_TYPE_NOSNIFF = True
