@@ -118,8 +118,13 @@ class Site(OwnedModel):
         return self.status == self.Status.VERIFIED
 
     def start_check(self):
-        """Says its domain is being checked. A blog moving keeps serving."""
-        field = "pending_status" if self.pending_hostname else "status"
+        """Says its domain is being checked. A blog serving keeps serving."""
+        if self.pending_hostname:
+            field = "pending_status"
+        elif self.is_verified:
+            return
+        else:
+            field = "status"
         setattr(self, field, self.Status.CHECKING)
         self.save(update_fields=[field, "updated_at"])
 

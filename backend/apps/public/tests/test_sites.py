@@ -4,6 +4,8 @@ import re
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from dns.exception import Timeout
+from dns.resolver import NXDOMAIN, NoAnswer, NoNameservers
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -13,7 +15,7 @@ from apps.public.handles import public_handle
 from apps.public.models import Redirect, Site
 from apps.public.pages import NO_IMAGE
 from apps.public.publishing import publish, unpublish
-from apps.public.sites import normalize_hostname
+from apps.public.sites import DnsUnavailable, normalize_hostname, txt_values
 from apps.public.social_images import make_social_image
 from apps.public.tasks import verify_site
 
@@ -395,6 +397,74 @@ def test_a_move_called_off_during_the_lookup_stays_off(moving, monkeypatch):
     moving.refresh_from_db()
     assert moving.hostname == BLOG
     assert moving.status == Site.Status.VERIFIED
+
+
+# When DNS doesn't answer
+
+
+@pytest.fixture
+def dns_down(monkeypatch):
+    def lookup(name):
+        raise DnsUnavailable
+
+    monkeypatch.setattr("apps.public.tasks.txt_values", lookup)
+
+
+def test_a_serving_blog_keeps_serving_while_it_is_checked(api, blog, monkeypatch):
+    monkeypatch.setattr("apps.public.views.verify_site.delay", lambda site_id: None)
+
+    data = api.post(f"/api/sites/{blog.id}/verify/").json()
+
+    assert data["status"] == "verified"
+    assert on_blog(APIClient(), "/").status_code == 200
+
+
+def test_a_serving_blog_keeps_serving_if_dns_does_not_answer(api, blog, dns_down):
+    api.post(f"/api/sites/{blog.id}/verify/")
+
+    blog.refresh_from_db()
+    assert blog.status == Site.Status.VERIFIED
+    assert blog.checked_at is not None
+    assert on_blog(APIClient(), "/").status_code == 200
+
+
+def test_a_new_blog_fails_if_dns_does_not_answer(api, user, dns_down):
+    site = Site.objects.create(owner=user, hostname=BLOG)
+
+    api.post(f"/api/sites/{site.id}/verify/")
+
+    site.refresh_from_db()
+    assert site.status == Site.Status.FAILED
+
+
+def test_a_move_fails_and_the_blog_stays_if_dns_does_not_answer(api, moving, dns_down):
+    api.post(f"/api/sites/{moving.id}/verify/")
+
+    moving.refresh_from_db()
+    assert moving.hostname == BLOG
+    assert moving.status == Site.Status.VERIFIED
+    assert moving.pending_status == Site.Status.FAILED
+
+
+@pytest.mark.parametrize("answer", [NXDOMAIN, NoAnswer])
+def test_dns_saying_there_is_no_record_is_an_answer(monkeypatch, answer):
+    def resolve(*args, **kwargs):
+        raise answer
+
+    monkeypatch.setattr("apps.public.sites.dns.resolver.resolve", resolve)
+
+    assert txt_values(f"_brainbro.{BLOG}") == set()
+
+
+@pytest.mark.parametrize("failure", [Timeout, NoNameservers])
+def test_dns_failing_is_not_an_answer(monkeypatch, failure):
+    def resolve(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr("apps.public.sites.dns.resolver.resolve", resolve)
+
+    with pytest.raises(DnsUnavailable):
+        txt_values(f"_brainbro.{BLOG}")
 
 
 # Certificates on demand

@@ -265,8 +265,9 @@ the app's own code and checks: only the user's notes, collections and blogs,
 the same slug and domain rules, the same link checks. A blog's categories are
 the collections inside its own, so `create_collection` with `parent_id` adds
 one. `verify_blog` runs the lookup in the worker like the app does: a blog
-still `checking` says how it went in `list_blogs` a moment later. A verified
-blog given a new domain in `update_blog` keeps serving at its current one with
+still `checking` says how it went in `list_blogs` a moment later. A blog
+already serving stays `verified` during the lookup, and stops serving only if
+DNS answers that its record is gone. A verified blog given a new domain in `update_blog` keeps serving at its current one with
 the new one in `pending_domain`, until `verify_blog` finds its records and
 moves it; sending its current domain calls that off. No tool deletes or turns
 off a blog: that is done in the app.
