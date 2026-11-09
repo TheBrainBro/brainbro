@@ -23,6 +23,7 @@ from apps.items.titles import note_title
 
 from .handles import public_handle
 from .sites import current_site, site_url
+from .social_images import SIZE as SOCIAL_IMAGE_SIZE
 
 NO_IMAGE = "none"
 MAX_DESCRIPTION = 160
@@ -178,9 +179,11 @@ def meta_tag(name, value):
     return f'<meta {attribute}="{name}" content="{escape(value)}" />'
 
 
-def with_image(meta, url):
-    """`meta` showing the image at `url` when the link is shared."""
+def with_image(meta, url, size=None):
+    """`meta` showing the image at `url` (of `size`, if known) when shared."""
     meta["og:image"] = url
+    if size:
+        meta["og:image:width"], meta["og:image:height"] = size
     meta["twitter:image"] = url
     meta["twitter:card"] = "summary_large_image"
 
@@ -265,7 +268,7 @@ def note_head_tags(request, note, url):
         # For the link only: the blog's image doesn't illustrate the post, so
         # the structured data doesn't claim it does.
         if fallback := site_social_image_url(request, site):
-            with_image(meta, fallback)
+            with_image(meta, fallback, SOCIAL_IMAGE_SIZE)
     return render_tags(
         request,
         title=preview.title,
@@ -294,7 +297,7 @@ def site_head_tags(request, site, category=None):
         "twitter:card": "summary",
     }
     if image_url := site_social_image_url(request, site):
-        with_image(meta, image_url)
+        with_image(meta, image_url, SOCIAL_IMAGE_SIZE)
     return render_tags(
         request,
         title=title,
