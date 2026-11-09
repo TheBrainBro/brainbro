@@ -18,6 +18,11 @@ def site_avatar_path(site, filename):
     return f"avatars/sites/{site.id}/{uuid.uuid4().hex}.webp"
 
 
+def site_social_image_path(site, filename):
+    # A fresh name per upload, so a new image never hits a stale cache.
+    return f"social/sites/{site.id}/{uuid.uuid4().hex}.jpg"
+
+
 class Site(OwnedModel):
     """
     A blog on its owner's own domain: the published notes filed in
@@ -54,6 +59,12 @@ class Site(OwnedModel):
     author = models.CharField(max_length=80, blank=True, default="", db_default="")
     # A square WebP, made from an upload like the profile's.
     avatar = models.ImageField(upload_to=site_avatar_path, blank=True, db_default="")
+    # Where search engines learn who the author is. Empty: nothing says.
+    author_url = models.URLField(max_length=500, blank=True, default="", db_default="")
+    # A 1200 x 630 JPEG, for links to pages with no image of their own.
+    social_image = models.ImageField(
+        upload_to=site_social_image_path, blank=True, db_default=""
+    )
     # The author's line under the name on its index. Off, its feed and shared
     # links still say who signs it.
     show_author = models.BooleanField(default=True, db_default=True)
@@ -118,9 +129,11 @@ class Site(OwnedModel):
 
 
 @receiver(post_delete, sender=Site)
-def delete_site_avatar(sender, instance, **kwargs):
+def delete_site_images(sender, instance, **kwargs):
     if instance.avatar:
         instance.avatar.delete(save=False)
+    if instance.social_image:
+        instance.social_image.delete(save=False)
 
 
 class Redirect(OwnedModel):
