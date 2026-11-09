@@ -13,12 +13,11 @@ not modules, so it works from `file://` too).
   violets) and fonts (Fredoka for headings, Nunito for text, in `fonts/`), light
   and dark from the system setting, one column on phones.
 - `brand/`, the favicons and `og.png`: copied from the BrainBro brand kit. The
-  Blob never sits on violet or gold, so over the marble (top bar, footer) it
-  goes inside the app icon's near-black square.
+  Blob never sits on violet or gold; on those backgrounds it goes inside the
+  app icon's near-black square.
 - `js/stage.js`: what the scenes share (below).
-- `js/hero.js`: the liquid marble behind the hero and the footer (a WebGL
-  shader, with a CSS gradient when WebGL is missing) and the brain of linked
-  dots in front (canvas 2D), which leans toward the pointer.
+- `js/mascot.js`: the Blob in the hero, the 3D mascot, blinking and turning
+  toward the pointer.
 - `js/scenes.js`: the three scenes, the animated tiles, and the glow on each
   section's title when it comes into view.
 - `js/connect.js`: the tabs, the visitor's BrainBro address (filled into the
@@ -53,7 +52,7 @@ move while it plays (measured again when the width changes).
 elements, from the `path[data-from][data-to]` in the stage's `svg.links`, and
 redraws them when the stage changes size.
 
-The hero swings in on load (the text from the left, the brain from the
+The hero swings in on load (the text from the left, the mascot from the
 right), and each section of `main` swings in the same way the first time it
 comes into view, from alternating sides. Scripts set those classes, so
 without them everything just shows.
