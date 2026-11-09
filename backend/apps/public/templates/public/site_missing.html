@@ -1,0 +1,11 @@
+{% extends "public/site_base.html" %}
+
+{% block content %}
+  {% include "public/site_empty.html" with icon="file-question" title=text.public.missing hint=text.public.missingHint %}
+  <p class="text-center">
+    <a href="/" class="inline-flex items-center gap-1.5 text-sm font-medium text-accent-700 hover:underline dark:text-accent-300">
+      {% include "public/site_icon.html" with name="arrow-left" size="size-4" %}
+      {{ text.public.allPosts }}
+    </a>
+  </p>
+{% endblock %}

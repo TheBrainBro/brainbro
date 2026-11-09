@@ -1,0 +1,14 @@
+<ul class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+  {% for card in cards %}
+    <li>
+      <a href="{{ card.url }}" class="group -mx-4 flex gap-5 rounded-2xl px-4 py-5 transition hover:bg-zinc-50 dark:hover:bg-zinc-900">
+        <div class="min-w-0 flex-1">
+          <h2 class="font-display text-xl leading-snug font-semibold group-hover:text-accent-700 dark:group-hover:text-accent-300">{{ card.title }}</h2>
+          {% if card.excerpt %}<p class="mt-1.5 line-clamp-3 text-zinc-600 dark:text-zinc-400">{{ card.excerpt }}</p>{% endif %}
+          <time datetime="{{ card.published_at.isoformat }}" class="mt-3 block text-sm text-zinc-500">{{ card.day }}</time>
+        </div>
+        {% if card.image_url %}<img src="{{ card.image_url }}" alt="" loading="lazy" class="size-20 shrink-0 self-center rounded-xl object-cover sm:size-28" />{% endif %}
+      </a>
+    </li>
+  {% endfor %}
+</ul>

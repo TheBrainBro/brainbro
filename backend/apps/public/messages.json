@@ -1,0 +1,40 @@
+{
+  "en": {
+    "public": {
+      "none": "Nothing published yet",
+      "missing": "This page doesn't exist",
+      "missingHint": "It may have been taken down, or its address changed.",
+      "updated": "Updated {date}",
+      "feed": "Feed",
+      "moreFrom": "More from {name}",
+      "allPosts": "All posts",
+      "categories": "Categories",
+      "poweredBy": "Powered by {brand}"
+    },
+    "markdown": {
+      "fetchingPreview": "Fetching preview…",
+      "imageFailed": "Couldn't load this image",
+      "taskDone": "Done",
+      "taskToDo": "To do"
+    }
+  },
+  "es": {
+    "public": {
+      "none": "Aún no hay nada publicado",
+      "missing": "Esta página no existe",
+      "missingHint": "Puede que la hayan retirado o que haya cambiado su dirección.",
+      "updated": "Actualizado {date}",
+      "feed": "Feed",
+      "moreFrom": "Más de {name}",
+      "allPosts": "Todas las publicaciones",
+      "categories": "Categorías",
+      "poweredBy": "Funciona con {brand}"
+    },
+    "markdown": {
+      "fetchingPreview": "Obteniendo la vista previa…",
+      "imageFailed": "No se pudo cargar esta imagen",
+      "taskDone": "Hecha",
+      "taskToDo": "Pendiente"
+    }
+  }
+}

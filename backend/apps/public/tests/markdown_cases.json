@@ -1,0 +1,177 @@
+{
+ "images": {
+  "photo.png": {
+   "status": "ready",
+   "url": "/api/public/i/1?v=a.webp"
+  },
+  "late.png": {
+   "status": "pending",
+   "url": null
+  },
+  "bad.png": {
+   "status": "failed",
+   "url": null
+  }
+ },
+ "links": {
+  "https://example.com/a": {
+   "status": "ready",
+   "title": "A \"page\"",
+   "description": "About <a>",
+   "site_name": "Example",
+   "image_url": "/api/public/l/1?v=b.webp"
+  }
+ },
+ "notes": [
+  {
+   "title": "Packing",
+   "url": "/packing"
+  },
+  {
+   "title": "Tokyo & co",
+   "url": "https://other.example.com/tokyo"
+  }
+ ],
+ "cases": [
+  {
+   "name": "headings and paragraphs",
+   "body": "# One\n\nSome *em*, **strong**, `code` and ~~gone~~.\n\n## Two\n\n> quoted\n\n---\n\nline  \nbreak",
+   "html": "<h1>One</h1>\n<p>Some <em>em</em>, <strong>strong</strong>, <code>code</code> and <s>gone</s>.</p>\n<h2>Two</h2>\n<blockquote>\n<p>quoted</p>\n</blockquote>\n<hr>\n<p>line<br>\nbreak</p>\n"
+  },
+  {
+   "name": "lists",
+   "body": "1. a\n2. b\n\n- c\n  - d\n\n3. starts at three\n4. next",
+   "html": "<ol>\n<li>a</li>\n<li>b</li>\n</ol>\n<ul>\n<li>c\n<ul>\n<li>d</li>\n</ul>\n</li>\n</ul>\n<ol start=\"3\">\n<li>starts at three</li>\n<li>next</li>\n</ol>\n"
+  },
+  {
+   "name": "code blocks",
+   "body": "```python\nprint(\"<hi>\")\n```\n\n    indented & more",
+   "html": "<pre><code class=\"language-python\">print(\"&lt;hi&gt;\")\n</code></pre>\n<pre><code>indented &amp; more\n</code></pre>\n"
+  },
+  {
+   "name": "tables",
+   "body": "|a|b|c|\n|:-|:-:|-:|\n|1|2|3|\n\n|x|\n|-|\n|y|",
+   "html": "<table>\n<thead>\n<tr>\n<th style=\"text-align:left\">a</th>\n<th style=\"text-align:center\">b</th>\n<th style=\"text-align:right\">c</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td style=\"text-align:left\">1</td>\n<td style=\"text-align:center\">2</td>\n<td style=\"text-align:right\">3</td>\n</tr>\n</tbody>\n</table>\n<table>\n<thead>\n<tr>\n<th>x</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>y</td>\n</tr>\n</tbody>\n</table>\n"
+  },
+  {
+   "name": "typographer",
+   "body": "\"quoted\" and 'single' -- dash --- long... (c) (r) (tm) +- ?.... !!!!!",
+   "html": "<p>“quoted” and ‘single’ – dash — long… © ® ™ ± ?.. !!!</p>\n"
+  },
+  {
+   "name": "linkify",
+   "body": "See www.example.com and https://example.com/x?a=1&b=2, or a@b.co.",
+   "html": "<p>See www.example.com and <a href=\"https://example.com/x?a=1&amp;b=2\" target=\"_blank\" rel=\"noopener noreferrer\">https://example.com/x?a=1&amp;b=2</a>, or <a href=\"mailto:a@b.co\" target=\"_blank\" rel=\"noopener noreferrer\">a@b.co</a>.</p>\n"
+  },
+  {
+   "name": "bare domains stay words",
+   "body": "README.md, example.com and español.es",
+   "html": "<p>README.md, example.com and español.es</p>\n"
+  },
+  {
+   "name": "links",
+   "body": "[plain](https://example.com \"A title\") and <https://auto.example.com> and [bad](javascript:alert(1))",
+   "html": "<p><a href=\"https://example.com\" title=\"A title\" target=\"_blank\" rel=\"noopener noreferrer\">plain</a> and <a href=\"https://auto.example.com\" target=\"_blank\" rel=\"noopener noreferrer\">https://auto.example.com</a> and [bad](javascript:alert(1))</p>\n"
+  },
+  {
+   "name": "raw html stays text",
+   "body": "<script>alert(1)</script>\n\n<b>bold</b> and <img src=x onerror=y>",
+   "html": "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>\n<p>&lt;b&gt;bold&lt;/b&gt; and &lt;img src=x onerror=y&gt;</p>\n"
+  },
+  {
+   "name": "emoji",
+   "body": ":smile: :heart: :not_an_emoji: and :) :-D <3 http://x.example/:/ a:)b",
+   "html": "<p>😄 ❤️ :not_an_emoji: and 😃 😄 ❤️ <a href=\"http://x.example/:/\" target=\"_blank\" rel=\"noopener noreferrer\">http://x.example/:/</a> a:)b</p>\n"
+  },
+  {
+   "name": "emoji in autolink",
+   "body": "https://example.com/:smile:",
+   "html": "<p><a href=\"https://example.com/:smile:\" target=\"_blank\" rel=\"noopener noreferrer\">https://example.com/:smile:</a></p>\n"
+  },
+  {
+   "name": "sub and sup",
+   "body": "H~2~O, x^2^, a~b c~d, x^y z^w, H~a\\ b~",
+   "html": "<p>H<sub>2</sub>O, x<sup>2</sup>, a~b c~d, x^y z^w, H<sub>a b</sub></p>\n"
+  },
+  {
+   "name": "ins and mark",
+   "body": "++ins++ and ==mark== and +++odd+++ and ===odd=== and ++ no ++ *==nested==*",
+   "html": "<p><ins>ins</ins> and <mark>mark</mark> and +<ins>odd</ins>+ and =<mark>odd</mark>= and ++ no ++ <em><mark>nested</mark></em></p>\n"
+  },
+  {
+   "name": "footnotes",
+   "body": "One[^a] two[^b] inline^[right here].\n\n[^a]: First.\n[^b]: Second\n\n    with more.",
+   "html": "<p>One<sup class=\"footnote-ref\"><a href=\"#fn1\" id=\"fnref1\">[1]</a></sup> two<sup class=\"footnote-ref\"><a href=\"#fn2\" id=\"fnref2\">[2]</a></sup> inline<sup class=\"footnote-ref\"><a href=\"#fn3\" id=\"fnref3\">[3]</a></sup>.</p>\n<hr class=\"footnotes-sep\">\n<section class=\"footnotes\">\n<ol class=\"footnotes-list\">\n<li id=\"fn1\" class=\"footnote-item\"><p>First. <a href=\"#fnref1\" class=\"footnote-backref\">↩︎</a></p>\n</li>\n<li id=\"fn2\" class=\"footnote-item\"><p>Second</p>\n<p>with more. <a href=\"#fnref2\" class=\"footnote-backref\">↩︎</a></p>\n</li>\n<li id=\"fn3\" class=\"footnote-item\"><p>right here <a href=\"#fnref3\" class=\"footnote-backref\">↩︎</a></p>\n</li>\n</ol>\n</section>\n"
+  },
+  {
+   "name": "definition lists",
+   "body": "Term\n: Def one\n: Def two\n\nOther\n~ Tilde def",
+   "html": "<dl>\n<dt>Term</dt>\n<dd>Def one</dd>\n<dd>Def two</dd>\n<dt>Other</dt>\n<dd>Tilde def</dd>\n</dl>\n"
+  },
+  {
+   "name": "abbreviations",
+   "body": "*[HTML]: Hyper Text\n*[W3C]: Web Consortium\n\nThe HTML spec by W3C, (HTML) HTMLish HTML.",
+   "html": "<p>The <abbr title=\"Hyper Text\">HTML</abbr> spec by <abbr title=\"Web Consortium\">W3C</abbr>, (<abbr title=\"Hyper Text\">HTML</abbr>) HTMLish <abbr title=\"Hyper Text\">HTML</abbr>.</p>\n"
+  },
+  {
+   "name": "containers",
+   "body": "::: note\nA *note*\n:::\n\n::: warning\nCareful\n:::\n\n::: unknown\nstays\n:::",
+   "html": "<div class=\"note\">\n<p>A <em>note</em></p>\n</div>\n<div class=\"warning\">\n<p>Careful</p>\n</div>\n<p>::: unknown\nstays\n:::</p>\n"
+  },
+  {
+   "name": "task lists",
+   "body": "- [ ] to do\n- [x] done\n- [X] done too\n- not a task\n- [ ]no space\n\n> - [ ] quoted task",
+   "html": "<ul>\n<li class=\"task-list-item\"><input type=\"checkbox\" data-task-line=\"0\" aria-label=\"To do\" disabled=\"\">to do</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" data-task-line=\"1\" aria-label=\"Done\" checked=\"\" disabled=\"\">done</li>\n<li class=\"task-list-item\"><input type=\"checkbox\" data-task-line=\"2\" aria-label=\"Done\" checked=\"\" disabled=\"\">done too</li>\n<li>not a task</li>\n<li>[ ]no space</li>\n</ul>\n<blockquote>\n<ul>\n<li class=\"task-list-item\"><input type=\"checkbox\" data-task-line=\"6\" aria-label=\"To do\" disabled=\"\">quoted task</li>\n</ul>\n</blockquote>\n"
+  },
+  {
+   "name": "wikilinks",
+   "body": "[[Packing]], [[packing|the list]], [[Folder/Packing.md#Socks]], [[Tokyo & co]], [[Private note]], [[Nope#head|text]], ![[Packing]]",
+   "html": "<p><a class=\"wikilink\" href=\"/packing\">Packing</a>, <a class=\"wikilink\" href=\"/packing\">the list</a>, <a class=\"wikilink\" href=\"/packing\">Folder/Packing.md › Socks</a>, <a class=\"wikilink\" href=\"https://other.example.com/tokyo\">Tokyo &amp; co</a>, Private note, text, ![[Packing]]</p>\n"
+  },
+  {
+   "name": "wikilink label heading",
+   "body": "[[Secret#Part one]]",
+   "html": "<p>Secret › Part one</p>\n"
+  },
+  {
+   "name": "images",
+   "body": "![A cat](photo.png) ![Soon](late.png) ![Oops](bad.png) ![](unknown.png) ![with *em*](photo.png)",
+   "html": "<p><img class=\"markdown-img\" src=\"/api/public/i/1?v=a.webp\" alt=\"A cat\" loading=\"lazy\"> <span class=\"markdown-image\" data-status=\"pending\">Soon</span> <span class=\"markdown-image\" data-status=\"failed\" title=\"Couldn't load this image\">Oops</span> <span class=\"markdown-image\">image</span> <img class=\"markdown-img\" src=\"/api/public/i/1?v=a.webp\" alt=\"with em\" loading=\"lazy\"></p>\n"
+  },
+  {
+   "name": "card",
+   "body": "[A page](https://example.com/a \"card\")",
+   "html": "<a class=\"link-card\" data-status=\"ready\" href=\"https://example.com/a\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"link-card-text\"><span class=\"link-card-title\">A \"page\"</span><span class=\"link-card-description\">About &lt;a&gt;</span><span class=\"link-card-site\">Example</span></span><img class=\"link-card-image\" src=\"/api/public/l/1?v=b.webp\" alt=\"\" loading=\"lazy\"></a>"
+  },
+  {
+   "name": "card without preview",
+   "body": "[Label](https://www.other.example/b \"card\")\n\n[https://z.example/c](https://z.example/c \"card\")",
+   "html": "<a class=\"link-card\" data-status=\"pending\" href=\"https://www.other.example/b\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"link-card-text\"><span class=\"link-card-title\">Label</span><span class=\"link-card-description\">Fetching preview…</span><span class=\"link-card-site\">other.example</span></span></a><a class=\"link-card\" data-status=\"pending\" href=\"https://z.example/c\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"link-card-text\"><span class=\"link-card-title\">https://z.example/c</span><span class=\"link-card-description\">Fetching preview…</span><span class=\"link-card-site\">z.example</span></span></a>"
+  },
+  {
+   "name": "embed youtube",
+   "body": "[Video](https://www.youtube.com/watch?v=dQw4w9WgXcQ \"embed\")\n\n[Short](https://youtu.be/dQw4w9WgXcQ \"embed\")",
+   "html": "<span class=\"link-embed\"><iframe src=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ\" title=\"Video\" loading=\"lazy\" allow=\"autoplay; encrypted-media; picture-in-picture; fullscreen\" allowfullscreen=\"\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span><span class=\"link-embed\"><iframe src=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ\" title=\"Short\" loading=\"lazy\" allow=\"autoplay; encrypted-media; picture-in-picture; fullscreen\" allowfullscreen=\"\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span>"
+  },
+  {
+   "name": "embed vimeo and loom",
+   "body": "[V](https://vimeo.com/12345 \"embed\")\n\n[L](https://www.loom.com/share/0123456789abcdef0123456789abcdef \"embed\")",
+   "html": "<span class=\"link-embed\"><iframe src=\"https://player.vimeo.com/video/12345\" title=\"V\" loading=\"lazy\" allow=\"autoplay; encrypted-media; picture-in-picture; fullscreen\" allowfullscreen=\"\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span><span class=\"link-embed\"><iframe src=\"https://www.loom.com/embed/0123456789abcdef0123456789abcdef\" title=\"L\" loading=\"lazy\" allow=\"autoplay; encrypted-media; picture-in-picture; fullscreen\" allowfullscreen=\"\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span>"
+  },
+  {
+   "name": "embed without a player",
+   "body": "[A page](https://example.com/a \"embed\")",
+   "html": "<a class=\"link-card\" data-status=\"ready\" href=\"https://example.com/a\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"link-card-text\"><span class=\"link-card-title\">A \"page\"</span><span class=\"link-card-description\">About &lt;a&gt;</span><span class=\"link-card-site\">Example</span></span><img class=\"link-card-image\" src=\"/api/public/l/1?v=b.webp\" alt=\"\" loading=\"lazy\"></a>"
+  },
+  {
+   "name": "preview not alone",
+   "body": "Text [A page](https://example.com/a \"card\") more",
+   "html": "<p>Text <a href=\"https://example.com/a\" title=\"card\" target=\"_blank\" rel=\"noopener noreferrer\">A page</a> more</p>\n"
+  },
+  {
+   "name": "preview with formatting",
+   "body": "[**A**](https://example.com/a \"card\")",
+   "html": "<p><a href=\"https://example.com/a\" title=\"card\" target=\"_blank\" rel=\"noopener noreferrer\"><strong>A</strong></a></p>\n"
+  }
+ ]
+}

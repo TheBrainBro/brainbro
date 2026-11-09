@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* A blog's pages come from the server, with the same styles. */
+@source '../../backend/apps/public/templates';
+
 /* Welcome screen: a glow that blooms from the center, then breathes. */
 @keyframes welcome-bloom {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.1); }
@@ -136,6 +139,11 @@ body,
 
 body {
   @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+/* A blog's page grows with its text, so its top bar sticks all the way down. */
+body.site-page {
+  @apply h-auto bg-white dark:bg-zinc-950;
 }
 
 h1,

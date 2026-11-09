@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="{{ language }}">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/static/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon-180x180.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141218" />
+    {{ head }}
+    {% if stylesheet %}<link rel="stylesheet" href="{{ stylesheet }}" />{% endif %}
+  </head>
+  <body class="site-page">
+    {% block top %}{% endblock %}
+    <div class="mx-auto max-w-2xl px-4 pt-14 pb-20 sm:pt-20">
+      {% block content %}{% endblock %}
+      {% if powered_by %}
+        <p class="mt-20 text-center text-xs text-zinc-400 dark:text-zinc-600">{{ powered_by }}</p>
+      {% endif %}
+    </div>
+  </body>
+</html>

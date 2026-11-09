@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AppRoutes, SiteRoutes } from '../App'
+import { AppRoutes } from '../App'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -39,30 +39,11 @@ const packing = {
   notes: [],
 }
 
-const site = {
-  hostname: 'blog.example.com',
-  title: 'Ana writes',
-  description: 'Notes on travel.',
-  author: 'Ana',
-  show_author: true,
-  handle: 'ana',
-  avatar_url: null,
-  links: [{ name: 'Website', url: 'https://ana.dev' }],
-  powered_by: true,
-  categories: [{ slug: 'travel', name: 'Travel' }],
-}
-
-function renderAt(
-  path: string,
-  { onSite = false, poweredBy = true, showAuthor = true, note = plan } = {},
-) {
+function renderAt(path: string, { note = plan } = {}) {
   const fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(note)
     if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
     if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
-    if (url === '/api/public/site/' && onSite) {
-      return jsonResponse({ ...site, powered_by: poweredBy, show_author: showAuthor })
-    }
     if (url === '/api/public/authors/ana/') return jsonResponse({ handle: 'ana', author: 'Ana' })
     if (url.startsWith('/api/public/notes/?')) {
       return jsonResponse({
@@ -74,7 +55,7 @@ function renderAt(
             slug: 'trip-plan',
             title: 'Trip plan',
             published_at: plan.published_at,
-            url: onSite ? '/trip-plan' : '/@ana/trip-plan',
+            url: '/@ana/trip-plan',
             excerpt: 'Ten days in Japan.',
             image_url: '/api/public/notes/ana/trip-plan/images/1/?v=a',
           },
@@ -88,7 +69,7 @@ function renderAt(
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
-        {onSite ? <SiteRoutes /> : <AppRoutes />}
+        <AppRoutes />
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -234,68 +215,5 @@ describe('PublicAuthorPage', () => {
       'href',
       '/@ana',
     )
-  })
-})
-
-describe('a blog on its own domain', () => {
-  it('lists its notes under its name, at their short addresses', async () => {
-    renderAt('/', { onSite: true })
-
-    expect(await screen.findByRole('link', { name: 'Ana writes' })).toHaveAttribute('href', '/')
-    expect(screen.getByText('Notes on travel.')).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
-      'href',
-      '/trip-plan',
-    )
-  })
-
-  it('shows its links, and its categories as tabs', async () => {
-    const fetchMock = renderAt('/c/travel', { onSite: true })
-
-    expect(await screen.findByRole('link', { name: 'Website' })).toHaveAttribute(
-      'href',
-      'https://ana.dev',
-    )
-    const tabs = screen.getByRole('navigation', { name: 'Categories' })
-    expect(within(tabs).getByRole('link', { name: 'All posts' })).toHaveAttribute('href', '/')
-    expect(within(tabs).getByRole('link', { name: 'Travel' })).toHaveAttribute('aria-current', 'page')
-    await vi.waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/public/notes/?limit=200&category=travel',
-        expect.anything(),
-      ),
-    )
-  })
-
-  it('shows who signs the blog, unless turned off', async () => {
-    renderAt('/', { onSite: true })
-    expect(await screen.findByText('Ana')).toBeInTheDocument()
-    cleanup()
-
-    renderAt('/', { onSite: true, showAuthor: false })
-    expect(await screen.findByText('Ana writes')).toBeInTheDocument()
-    expect(screen.queryByText('Ana')).not.toBeInTheDocument()
-  })
-
-  it('says it is powered by BrainBro, unless turned off', async () => {
-    renderAt('/', { onSite: true })
-    expect(await screen.findByRole('link', { name: 'BrainBro' })).toHaveAttribute(
-      'href',
-      'https://brainbro.app',
-    )
-  })
-
-  it("doesn't when turned off", async () => {
-    renderAt('/', { onSite: true, poweredBy: false })
-
-    expect(await screen.findByRole('link', { name: 'Website' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'BrainBro' })).not.toBeInTheDocument()
-  })
-
-  it('shows a note at /<slug>', async () => {
-    renderAt('/trip-plan', { onSite: true })
-
-    expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Feed' })).toHaveAttribute('href', '/rss')
   })
 })

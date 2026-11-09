@@ -126,6 +126,59 @@ def linked_notes(request, note):
     ]
 
 
+def note_list(notes):
+    """Those of `notes` that lists show, with what a card needs, newest first."""
+    return (
+        listed_notes(notes)
+        .only(
+            "id",
+            "owner_id",
+            "title",
+            "body",
+            "public_slug",
+            "published_at",
+            "public_description",
+            "public_image",
+        )
+        .prefetch_related("note_images")
+        .order_by("-published_at")
+    )
+
+
+def note_summaries(notes, site):
+    """Each note as a list shows it: its title, the start of its text, its cover."""
+    urls = public_urls(notes, site)
+    handles = dict(
+        Profile.objects.filter(
+            user_id__in={note.owner_id for note in notes}
+        ).values_list("user_id", "handle")
+    )
+    summaries = []
+    for note in notes:
+        cover = cover_image(note, note.note_images.all())
+        handle = handles.get(note.owner_id)
+        summaries.append(
+            {
+                "slug": note.public_slug,
+                "title": note.title or note_title(note.body),
+                "published_at": note.published_at,
+                "url": urls[note.id],
+                "excerpt": note.public_description or excerpt(note.body),
+                "image_url": public_image_url(note, cover, handle) if cover else None,
+            }
+        )
+    return summaries
+
+
+def listed_categories(site):
+    """The blog's categories with something listed in them."""
+    return [
+        category
+        for category in site_categories(site)
+        if listed_notes(site_notes(site, category)).exists()
+    ]
+
+
 class PublicNoteListView(generics.ListAPIView):
     """
     `/p/`: every listed note on the server, the last published first; on
@@ -146,48 +199,11 @@ class PublicNoteListView(generics.ListAPIView):
             notes = site_notes(site, category)
         if handle := self.request.query_params.get("author"):
             notes = notes.filter(owner__profile__handle=handle)
-        return (
-            listed_notes(notes)
-            .only(
-                "id",
-                "owner_id",
-                "title",
-                "body",
-                "public_slug",
-                "published_at",
-                "public_description",
-                "public_image",
-            )
-            .prefetch_related("note_images")
-            .order_by("-published_at")
-        )
+        return note_list(notes)
 
     def list(self, request, *args, **kwargs):
         notes = self.paginate_queryset(self.get_queryset())
-        urls = public_urls(notes, current_site(request))
-        handles = dict(
-            Profile.objects.filter(
-                user_id__in={note.owner_id for note in notes}
-            ).values_list("user_id", "handle")
-        )
-        return self.get_paginated_response(
-            [
-                self.summary(note, urls[note.id], handles.get(note.owner_id))
-                for note in notes
-            ]
-        )
-
-    def summary(self, note, url, handle):
-        """A note in the list: its title, the start of its text and its cover."""
-        cover = cover_image(note, note.note_images.all())
-        return {
-            "slug": note.public_slug,
-            "title": note.title or note_title(note.body),
-            "published_at": note.published_at,
-            "url": url,
-            "excerpt": note.public_description or excerpt(note.body),
-            "image_url": public_image_url(note, cover, handle) if cover else None,
-        }
+        return self.get_paginated_response(note_summaries(notes, current_site(request)))
 
 
 class PublicNoteView(APIView):
@@ -353,8 +369,7 @@ class PublicSiteView(APIView):
                 # Those with something listed in them.
                 "categories": [
                     {"slug": category.slug, "name": category.name}
-                    for category in site_categories(site)
-                    if listed_notes(site_notes(site, category)).exists()
+                    for category in listed_categories(site)
                 ],
             }
         )

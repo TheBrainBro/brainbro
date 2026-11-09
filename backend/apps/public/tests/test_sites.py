@@ -437,11 +437,13 @@ def test_a_blog_s_domain_never_reaches_the_app(client, blog, path):
     assert on_blog(client, path).status_code == 404
 
 
-def test_a_slug_like_an_app_route_is_the_blog_s(client, blog):
+def test_a_slug_like_an_app_route_is_the_blog_s(client, user, blog, writing):
+    publish(note(user, title="Admin", collection=writing))
+
     response = on_blog(client, "/admin/")
 
     assert response.status_code == 200
-    assert "brainbro-site" in response.content.decode()
+    assert "<title>Admin</title>" in response.content.decode()
 
 
 def test_a_blog_never_sees_the_app_s_session(client, user, blog):
@@ -456,10 +458,10 @@ def test_a_blog_never_sees_the_app_s_session(client, user, blog):
 # Reading a blog
 
 
-def test_a_blog_s_index_is_the_app_as_a_blog(client, blog):
+def test_a_blog_s_index_is_not_the_app(client, blog):
     html = on_blog(client, "/").content.decode()
 
-    assert f'<meta name="brainbro-site" content="{BLOG}" />' in html
+    assert "<script" not in html
     assert "<title>Carlos writes</title>" in html
     assert f'<link rel="canonical" href="https://{BLOG}/" />' in html
     assert 'href="/rss"' in html

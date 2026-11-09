@@ -27,6 +27,9 @@ uvicorn = "^0.54.0"
 pycrdt = "^0.14.10"
 websockets = "^17.4"
 dnspython = "^2.9.2"
+mdit-py-plugins = "^0.6.1"
+linkify-it-py = "^2.2.0"
+nh3 = "^0.3.7"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.17.3"
