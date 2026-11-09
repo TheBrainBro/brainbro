@@ -54,6 +54,7 @@ How it is reached:
 |---|---|---|
 | `APP_BIND` | Empty, every interface | The address `api` is published on. `127.0.0.1` keeps the port on this machine, for a tunnel or proxy running on it. |
 | `APP_HTTPS` | `true` | `false` only on a local network without TLS. |
+| `APP_PROXY` | `none` | What is in front of the app: `cloudflare` for a Cloudflare Tunnel, `caddy` for the Caddy service, `none` when clients connect directly. See [Rate limits](#rate-limits). |
 
 With `APP_HTTPS=false`, list the address you open it on in `APP_HOSTNAMES` (e.g. `192.168.1.20`) and use `http://192.168.1.20:8420`. Passwords and sessions travel unencrypted, so keep it off the internet. Browsers reserve some features for HTTPS: without it there is no installing the app, no share target and no voice recording, and the Telegram bot needs `TELEGRAM_WEBHOOK_URL` pointing at an HTTPS address. With `APP_HTTPS=true`, opening the app over plain HTTP won't let you sign in, because the session cookie is only sent over HTTPS. Responses served over HTTPS also carry an HSTS header, so a hostname that has been opened over HTTPS keeps going to HTTPS for an hour, even after setting `APP_HTTPS=false`.
 
@@ -74,9 +75,31 @@ In Zero Trust → Networks → Tunnels, add a *public hostname*:
 Blogs on their owners' own domains are added to the tunnel the same way, one public hostname
 each: see [blogs.md](blogs.md).
 
+Set `APP_PROXY=cloudflare` in the stack, so rate limits see each visitor's address.
+
 ## 3. Updating
 
 In Portainer, **Pull and redeploy** with "Re-pull image and redeploy" checked. `migrate` runs automatically and backs up the database before any migration.
+
+## Rate limits
+
+Counted per client address and per minute, in Redis, so every `api` process shares the count. Over the limit, the answer is a 429 with `Retry-After`, for at most a minute.
+
+| What | Limit | What counts |
+|---|---|---|
+| Sign-in, in the app and in `/admin/` | 5 | Failed attempts. Once reached, even the right password has to wait. |
+| Invitation links | 20 | Every request |
+| OAuth register | 20 | Every request |
+| OAuth token | 20 | Failed requests |
+| API and MCP tokens | 30 | Tokens that were never issued. A valid token always gets through, and an expired one doesn't count. |
+
+If Redis doesn't answer, nothing is limited and the `api` log says so.
+
+The client's address depends on `APP_PROXY`:
+
+- `cloudflare` reads `CF-Connecting-IP`, `caddy` reads the last `X-Forwarded-For` value, and `none` uses the address of the connection.
+- With `none` behind a proxy, every visitor looks like the proxy and they all share one limit, so a few wrong passwords from anyone block sign-in for everybody for a minute.
+- With a proxy set, anyone who reaches the published port directly can write any address in that header and escape the limits. Keep the port reachable only by the proxy, for example with `APP_BIND=127.0.0.1` when the proxy runs on the same machine, or with a firewall.
 
 ## Install on a phone (PWA)
 
