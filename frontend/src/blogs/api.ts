@@ -16,10 +16,14 @@ export type Blog = {
   description: string
   /** Who signs it; empty, the owner's display name. */
   author: string
+  /** The author's website, for search engines; empty, none. */
+  author_url: string
   /** Whether its index shows the author under its name. */
   show_author: boolean
   /** Its own photo, for its owner; null when it uses the profile's. */
   avatar_url: string | null
+  /** What links to its pages with no image of their own show, or null. */
+  social_image_url: string | null
   /** Shown under the description on its index, up to 10. */
   links: { name: string; url: string }[]
   /** A small "Powered by BrainBro" line at the end of its pages. */
@@ -48,6 +52,7 @@ export type BlogChanges = Partial<
     | 'title'
     | 'description'
     | 'author'
+    | 'author_url'
     | 'show_author'
     | 'links'
     | 'powered_by'
@@ -106,6 +111,21 @@ export function useSetBlogAvatar(id: string) {
       const form = new FormData()
       form.append('file', image, 'avatar.webp')
       return api<Blog>(`/sites/${id}/avatar/`, { method: 'POST', body: form })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+/** Sets the image shared links to the blog show; null takes it away. */
+export function useSetBlogSocialImage(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (image: Blob | null) => {
+      const url = `/sites/${id}/social-image/`
+      if (!image) return api<Blog>(url, { method: 'DELETE' })
+      const form = new FormData()
+      form.append('file', image, 'social.jpg')
+      return api<Blog>(url, { method: 'POST', body: form })
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
   })

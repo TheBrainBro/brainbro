@@ -315,6 +315,13 @@ export const es: Messages = {
     authorHint: 'Quién firma el blog, en sus páginas y su feed. Vacío: el nombre de tu perfil.',
     photo: 'Foto',
     photoHint: 'Vacía: la foto de tu perfil.',
+    authorUrl: 'Web del autor',
+    authorUrlHint: 'Opcional. Indica a los buscadores quién es el autor.',
+    socialImage: 'Imagen para compartir',
+    socialImageHint:
+      'Se ve al compartir un enlace al blog o a un artículo sin imagen propia. Se recorta a 1200 × 630.',
+    uploadImage: 'Subir imagen',
+    changeImage: 'Cambiar imagen',
     showAuthor: 'Mostrar el autor bajo el nombre del blog',
     showAuthorHint: 'Su feed y los enlaces compartidos siguen diciendo quién lo firma.',
     open: 'Abrir blog',

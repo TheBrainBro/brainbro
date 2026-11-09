@@ -315,6 +315,13 @@ export const en = {
     authorHint: 'Who signs the blog, on its pages and feed. Empty: your profile’s display name.',
     photo: 'Photo',
     photoHint: 'Empty: your profile’s photo.',
+    authorUrl: 'Author’s website',
+    authorUrlHint: 'Optional. Tells search engines who the author is.',
+    socialImage: 'Social image',
+    socialImageHint:
+      'Shown when a link to the blog, or to a post with no image of its own, is shared. Cropped to 1200 × 630.',
+    uploadImage: 'Upload image',
+    changeImage: 'Change image',
     showAuthor: 'Show the author under the blog’s name',
     showAuthorHint: 'Its feed and shared links still say who signs it.',
     open: 'Open blog',
