@@ -975,6 +975,30 @@ def test_a_post_with_no_image_shows_the_blogs_only_when_shared(
     assert "image" not in structured(html)
 
 
+def test_a_page_with_the_blogs_image_says_its_size(api, client, user, blog, writing):
+    publish(note(user, "Hello", collection=writing))
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    for html in (page(client), page(client, "/hello")):
+        assert tag(html, "property", "og:image:width") == "1200"
+        assert tag(html, "property", "og:image:height") == "630"
+        assert html.index('"og:image"') < html.index('"og:image:width"')
+
+
+def test_a_posts_own_image_doesnt_claim_a_size(api, client, user, blog, writing):
+    published_with_image(user, writing)
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    html = page(client, "/trip")
+
+    assert tag(html, "property", "og:image:width") is None
+    assert tag(html, "property", "og:image:height") is None
+
+
+def test_without_an_image_a_page_says_no_size(client, blog):
+    assert tag(page(client), "property", "og:image:width") is None
+
+
 def test_a_posts_own_image_wins_over_the_blogs(api, client, user, blog, writing):
     published_with_image(user, writing)
     api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
