@@ -67,6 +67,13 @@ category's address.
 **Links**: up to 10, each a name and a web address (`https://` or `http://`), shown under the
 description.
 
+**In search results and shared links**: every page says what it is, and which blog it is on. A
+blog with no description uses a generated one ("Posts from <name>."), in its page tags only. Its
+**social image** (Settings › Blogs, cropped to 1200 × 630) shows when a link to its index, a
+category or a post with no image of its own is shared. A post set to no image stays without one,
+and the blog's image is never given to search engines as the post's. The **author's website**,
+optional, identifies the author of its posts to search engines.
+
 Nothing of the app is reachable from a blog's domain: it has URLs of its own
 (`config/site_urls.py`), with no login, admin or private API, and no cookies reach the server
 from there.
@@ -111,11 +118,13 @@ one or a few people on it.
 
 | Method | Path | |
 | --- | --- | --- |
-| `GET`, `POST` | `/api/sites/` | The user's blogs; a new one (`hostname`, `collection`, `title`, `description`, `author`, `show_author`, `links`, `powered_by`). |
+| `GET`, `POST` | `/api/sites/` | The user's blogs; a new one (`hostname`, `collection`, `title`, `description`, `author`, `author_url`, `show_author`, `links`, `powered_by`). |
 | `GET`, `PATCH`, `DELETE` | `/api/sites/<id>/` | One of them. A verified blog's new `hostname` goes to `pending_hostname` and it keeps serving; sending its current `hostname` calls that off. On a blog never verified, `hostname` just changes. |
 | `GET`, `POST`, `DELETE` | `/api/sites/<id>/avatar/` | The blog's own photo: its owner sees it, replaces it (multipart `file`) or removes it, going back to the profile's. |
+| `GET`, `POST`, `DELETE` | `/api/sites/<id>/social-image/` | The blog's social image: its owner sees it, replaces it (multipart `file`) or removes it. |
 | `POST` | `/api/sites/<id>/verify/` | Checks its `TXT` record in the worker; `status` goes `checking`, then `verified` or `failed`. On a blog with a `pending_hostname` it checks that domain and `pending_status` says so instead; found, the blog moves there. |
 | `GET` | `/api/public/site/avatar/` | Anyone, on a blog's domain: its own photo. 404 elsewhere, or when it uses its owner's. |
+| `GET` | `/api/public/site/social-image/` | Anyone, on a blog's domain: its social image. 404 elsewhere, or without one. |
 | `GET` | `/api/public/site/` | Anyone, on a blog's domain: `{hostname, title, description, author, show_author, handle, avatar_url, links, powered_by, categories}`; `categories` are `[{slug, name}]`. 404 elsewhere. |
 | `GET` | `/api/public/notes/?category=<slug>` | Anyone, on a blog's domain: the notes of one of its categories. |
 | `GET` | `/api/public/sites/check/?domain=` | Anyone: `200` for a verified blog's domain, `404` otherwise. For Caddy's `ask`. |
