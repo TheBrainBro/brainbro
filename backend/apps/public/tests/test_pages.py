@@ -51,7 +51,7 @@ def test_a_public_page_tells_what_it_is(client, user):
         '<meta property="og:image" '
         f'content="http://testserver/api/public/notes/author/trip-plan/images/{image.id}/'
     ) in html
-    assert '<meta property="twitter:card" content="summary_large_image" />' in html
+    assert '<meta name="twitter:card" content="summary_large_image" />' in html
 
 
 def test_a_page_names_its_author(client, user):

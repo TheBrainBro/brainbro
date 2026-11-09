@@ -868,6 +868,7 @@ def blog_details(site):
         "name": site.name,
         "description": details["description"],
         "author": details["author"],
+        "author_url": details["author_url"],
         "show_author": details["show_author"],
         "links": details["links"],
         "powered_by": details["powered_by"],
@@ -916,6 +917,7 @@ class BlogArguments(serializers.Serializer):
     title = serializers.CharField(required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
     author = serializers.CharField(required=False, allow_blank=True)
+    author_url = serializers.CharField(required=False, allow_blank=True)
     show_author = serializers.BooleanField(required=False)
     links = serializers.ListField(child=LinkArguments(), required=False)
     powered_by = serializers.BooleanField(required=False)
@@ -1669,6 +1671,11 @@ TOOLS = {
                     "maxLength": 80,
                     "description": "Who signs it. Empty: the user's display name.",
                 },
+                "author_url": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "The author's website, for search engines.",
+                },
                 "show_author": {
                     "type": "boolean",
                     "description": "The author under its name, on by default.",
@@ -1703,6 +1710,7 @@ TOOLS = {
                 "title": {"type": "string", "maxLength": 120},
                 "description": {"type": "string", "maxLength": 300},
                 "author": {"type": "string", "maxLength": 80},
+                "author_url": {"type": "string", "maxLength": 500},
                 "show_author": {"type": "boolean"},
                 "links": LINKS,
                 "powered_by": {"type": "boolean"},

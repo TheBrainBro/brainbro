@@ -95,6 +95,17 @@ def cover_image(note, images):
     return next((ready[src] for src in image_sources(note.body) if src in ready), None)
 
 
+def site_social_image_url(request, site):
+    """The blog's social image as an absolute URL, or None without one."""
+    if not site.social_image:
+        return None
+    # The file name changes with the file, so it doubles as a cache buster.
+    version = site.social_image.name.rsplit("/", 1)[-1]
+    return request.build_absolute_uri(
+        f"{reverse('public-site-social-image')}?v={version}"
+    )
+
+
 def public_avatar_url(profile):
     """Where anyone sees the profile's photo, or None without one."""
     if not profile or not profile.avatar or not profile.handle:
@@ -161,6 +172,19 @@ def json_ld_tag(data):
     return f'<script type="application/ld+json">{text}</script>'
 
 
+def meta_tag(name, value):
+    # X reads its own tags by `name`; Open Graph's go by `property`.
+    attribute = "name" if name.startswith("twitter:") else "property"
+    return f'<meta {attribute}="{name}" content="{escape(value)}" />'
+
+
+def with_image(meta, url):
+    """`meta` showing the image at `url` when the link is shared."""
+    meta["og:image"] = url
+    meta["twitter:image"] = url
+    meta["twitter:card"] = "summary_large_image"
+
+
 def render_tags(
     request,
     *,
@@ -187,10 +211,7 @@ def render_tags(
             if feed
             else []
         ),
-        *(
-            f'<meta property="{name}" content="{escape(value)}" />'
-            for name, value in meta.items()
-        ),
+        *(meta_tag(name, value) for name, value in meta.items()),
         *([json_ld_tag(structured)] if structured else []),
     ]
     return "\n    ".join(tags)
@@ -199,26 +220,30 @@ def render_tags(
 def note_head_tags(request, note, url):
     """The `<title>` and meta tags for a published note's page, at `url` (absolute)."""
     preview = page_preview(note)
+    site = current_site(request)
+    # A note can be all pictures, with no words to start from.
+    description = preview.description or (site_description(site) if site else "")
     meta = {
         "og:type": "article",
         "og:title": preview.title,
-        "og:description": preview.description,
+        "og:description": description,
         "og:url": url,
-        "twitter:card": "summary_large_image" if preview.image else "summary",
+        "twitter:card": "summary",
     }
+    if site:
+        meta["og:site_name"] = blog_name(site)
     edited = (
         note.edited_at
         if note.edited_at and note.edited_at > note.published_at
         else None
     )
-    site = current_site(request)
     author = site_author(site) if site else author_name(note)
     meta["article:published_time"] = note.published_at.isoformat()
     structured = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
         "headline": preview.title,
-        "description": preview.description,
+        "description": description,
         "url": url,
         "datePublished": note.published_at.isoformat(),
     }
@@ -227,16 +252,24 @@ def note_head_tags(request, note, url):
         structured["dateModified"] = edited.isoformat()
     if author:
         structured["author"] = {"@type": "Person", "name": author}
+        if site and site.author_url:
+            structured["author"]["url"] = site.author_url
     if preview.image:
         handle = public_handle(note.owner_id)
-        meta["og:image"] = request.build_absolute_uri(
+        image_url = request.build_absolute_uri(
             public_image_url(note, preview.image, handle)
         )
-        structured["image"] = meta["og:image"]
+        with_image(meta, image_url)
+        structured["image"] = image_url
+    elif site and note.public_image != NO_IMAGE:
+        # For the link only: the blog's image doesn't illustrate the post, so
+        # the structured data doesn't claim it does.
+        if fallback := site_social_image_url(request, site):
+            with_image(meta, fallback)
     return render_tags(
         request,
         title=preview.title,
-        description=preview.description,
+        description=description,
         url=url,
         meta=meta,
         author=author,
@@ -249,18 +282,23 @@ def note_head_tags(request, note, url):
 def site_head_tags(request, site, category=None):
     """The `<title>` and meta tags for a blog's index, or one of its categories."""
     url = site_url(site, f"/c/{category.slug}" if category else "/")
-    title = f"{category.name} · {site.name}" if category else site.name
+    name = blog_name(site)
+    title = f"{category.name} · {name}" if category else name
+    description = site_description(site)
     meta = {
         "og:type": "website",
+        "og:site_name": name,
         "og:title": title,
-        "og:description": site.description,
+        "og:description": description,
         "og:url": url,
         "twitter:card": "summary",
     }
+    if image_url := site_social_image_url(request, site):
+        with_image(meta, image_url)
     return render_tags(
         request,
         title=title,
-        description=site.description,
+        description=description,
         url=url,
         meta=meta,
         author=site_author(site),
@@ -288,6 +326,15 @@ def author_head_tags(request, profile):
         meta=meta,
         author=profile.display_name,
     )
+
+
+def blog_name(site):
+    return site.name or site.hostname
+
+
+def site_description(site):
+    """Its blurb, or else one made up: its pages never describe themselves as empty."""
+    return site.description or f"Posts from {blog_name(site)}."
 
 
 def site_author(site):

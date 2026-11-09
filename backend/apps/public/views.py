@@ -47,6 +47,7 @@ from .sites import (
     site_url,
     verified_sites,
 )
+from .social_images import make_social_image
 from .tasks import verify_site
 
 # Long enough to spare the server, short enough that a note taken down stops
@@ -269,10 +270,10 @@ class LegacyPublicNoteView(APIView):
         return Response({"url": public_urls(notes)[notes[0].id]})
 
 
-def image_response(file):
+def image_response(file, content_type="image/webp"):
     if not file:
         raise Http404
-    response = FileResponse(file.open("rb"), content_type="image/webp")
+    response = FileResponse(file.open("rb"), content_type=content_type)
     response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = f"public, max-age={IMAGE_MAX_AGE}"
     return response
@@ -388,6 +389,19 @@ class PublicSiteAvatarView(APIView):
         return image_response(site.avatar)
 
 
+class PublicSiteSocialImageView(APIView):
+    """The blog's social image. 404 off a blog, or when it has none."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        site = current_site(request)
+        if site is None:
+            raise Http404
+        return image_response(site.social_image, content_type="image/jpeg")
+
+
 class SiteCheckView(APIView):
     """
     `?domain=<hostname>`: 200 if it is a verified blog's, 404 otherwise. A
@@ -405,15 +419,19 @@ class SiteCheckView(APIView):
         return HttpResponse(status=200)
 
 
+def web_address(value):
+    # Nothing that runs: `javascript:` and the like never reach a page.
+    if not value.lower().startswith(("https://", "http://")):
+        raise serializers.ValidationError("Use a web address (https://...).")
+    return value
+
+
 class SiteLinkSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=60)
     url = serializers.URLField(max_length=500)
 
     def validate_url(self, value):
-        # Nothing that runs: `javascript:` and the like never reach a page.
-        if not value.lower().startswith(("https://", "http://")):
-            raise serializers.ValidationError("Use a web address (https://...).")
-        return value
+        return web_address(value)
 
 
 MAX_SITE_LINKS = 10
@@ -428,6 +446,7 @@ class SiteSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
+    social_image_url = serializers.SerializerMethodField()
     links = serializers.ListField(
         child=SiteLinkSerializer(), max_length=MAX_SITE_LINKS, required=False
     )
@@ -441,8 +460,10 @@ class SiteSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "author",
+            "author_url",
             "show_author",
             "avatar_url",
+            "social_image_url",
             "links",
             "powered_by",
             "status",
@@ -491,6 +512,9 @@ class SiteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Another blog already uses this domain.")
         return hostname
 
+    def validate_author_url(self, value):
+        return web_address(value) if value else value
+
     def validate_links(self, value):
         return [{"name": link["name"], "url": link["url"]} for link in value]
 
@@ -502,6 +526,14 @@ class SiteSerializer(serializers.ModelSerializer):
         if not site.avatar:
             return None
         return versioned(reverse("site-avatar", args=[site.id]), site.avatar)
+
+    def get_social_image_url(self, site):
+        """Its social image, for its owner; None without one."""
+        if not site.social_image:
+            return None
+        return versioned(
+            reverse("site-social-image", args=[site.id]), site.social_image
+        )
 
     def get_records(self, site):
         """
@@ -571,31 +603,43 @@ class SiteViewSet(
         site.refresh_from_db()
         return Response(self.get_serializer(site).data, status=status.HTTP_202_ACCEPTED)
 
-    @action(detail=True, methods=["get", "post", "delete"])
-    def avatar(self, request, pk=None):
-        """GET the blog's own photo, POST a new one (multipart `file`), DELETE it."""
+    def own_image(self, request, field, content_type, make):
+        """GET one of the blog's images, POST a new one (`file`), DELETE it."""
         site = self.get_object()
+        image = getattr(site, field)
         if request.method == "GET":
-            if not site.avatar:
+            if not image:
                 raise Http404
-            response = FileResponse(site.avatar.open("rb"), content_type="image/webp")
+            response = FileResponse(image.open("rb"), content_type=content_type)
             # The URL carries a per-file version, so the content never changes.
             response["Cache-Control"] = "private, max-age=31536000, immutable"
             return response
 
-        old = site.avatar.name if site.avatar else None
+        old = image.name if image else None
+        storage = image.storage
         if request.method == "POST":
             upload = AvatarSerializer(data=request.data)
             upload.is_valid(raise_exception=True)
-            data = make_square_image(upload.validated_data["file"])
+            data = make(upload.validated_data["file"])
             if data is None:
                 raise serializers.ValidationError(
                     {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
                 )
-            site.avatar.save("avatar.webp", ContentFile(data), save=False)
+            # The name comes from the field's `upload_to`.
+            image.save(field, ContentFile(data), save=False)
         else:
-            site.avatar = ""
-        site.save(update_fields=["avatar", "updated_at"])
+            setattr(site, field, "")
+        site.save(update_fields=[field, "updated_at"])
         if old:
-            site.avatar.storage.delete(old)
+            storage.delete(old)
         return Response(self.get_serializer(site).data)
+
+    @action(detail=True, methods=["get", "post", "delete"])
+    def avatar(self, request, pk=None):
+        """The blog's own photo."""
+        return self.own_image(request, "avatar", "image/webp", make_square_image)
+
+    @action(detail=True, methods=["get", "post", "delete"], url_path="social-image")
+    def social_image(self, request, pk=None):
+        """What links to its pages with no image of their own show."""
+        return self.own_image(request, "social_image", "image/jpeg", make_social_image)

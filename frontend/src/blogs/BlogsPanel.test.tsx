@@ -20,8 +20,10 @@ const blog: Blog = {
   title: '',
   description: '',
   author: '',
+  author_url: '',
   show_author: true,
   avatar_url: null,
+  social_image_url: null,
   links: [],
   powered_by: true,
   status: 'unverified',
@@ -266,6 +268,7 @@ describe('BlogsPanel', () => {
             title: '',
             description: '',
             author: '',
+            author_url: '',
             links: [{ name: 'Website', url: 'https://carlos.dev' }],
           }),
         }),
@@ -287,8 +290,62 @@ describe('BlogsPanel', () => {
         '/api/sites/s1/',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ title: '', description: '', author: 'BrainBro', links: [] }),
+          body: JSON.stringify({
+            title: '',
+            description: '',
+            author: 'BrainBro',
+            author_url: '',
+            links: [],
+          }),
         }),
+      ),
+    )
+  })
+
+  it('saves the author’s website', async () => {
+    const url = 'https://carlos.example.com/'
+    const fetchMock = renderPanel([blog], {
+      'PATCH /api/sites/s1/': () => jsonResponse({ ...blog, author_url: url }),
+    })
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+
+    fireEvent.change(within(card).getByLabelText('Author’s website'), { target: { value: url } })
+    fireEvent.click(within(card).getByRole('button', { name: 'Save' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({
+            title: '',
+            description: '',
+            author: '',
+            author_url: url,
+            links: [],
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('removes the blog’s social image', async () => {
+    const fetchMock = renderPanel(
+      [{ ...blog, social_image_url: '/api/sites/s1/social-image/?v=a' }],
+      {
+        'DELETE /api/sites/s1/social-image/': () =>
+          jsonResponse({ ...blog, social_image_url: null }),
+      },
+    )
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+
+    expect(card.querySelector('img')).toHaveAttribute('src', '/api/sites/s1/social-image/?v=a')
+    fireEvent.click(within(card).getByRole('button', { name: 'Remove' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/social-image/',
+        expect.objectContaining({ method: 'DELETE' }),
       ),
     )
   })

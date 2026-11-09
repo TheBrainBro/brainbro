@@ -50,6 +50,11 @@ public_patterns = [
         name="public-site-avatar",
     ),
     path(
+        "public/site/social-image/",
+        views.PublicSiteSocialImageView.as_view(),
+        name="public-site-social-image",
+    ),
+    path(
         "public/sites/check/", views.SiteCheckView.as_view(), name="public-site-check"
     ),
 ]

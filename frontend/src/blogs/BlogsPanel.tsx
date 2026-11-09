@@ -13,7 +13,7 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useT } from '../i18n/i18n'
 import { useCollections, type Collection } from '../items/api'
-import { squareImage } from '../lib/image'
+import { socialImage, squareImage } from '../lib/image'
 import { CopyField } from '../ui/CopyField'
 import { useFeedback } from '../ui/feedback'
 import {
@@ -21,6 +21,7 @@ import {
   useCreateBlog,
   useDeleteBlog,
   useSetBlogAvatar,
+  useSetBlogSocialImage,
   useUpdateBlog,
   useVerifyBlog,
   type Blog,
@@ -314,6 +315,89 @@ function BlogPhoto({ blog }: { blog: Blog }) {
   )
 }
 
+/** What links to the blog, and to its posts with no image of their own, show. */
+function BlogSocialImage({ blog }: { blog: Blog }) {
+  const t = useT()
+  const setImage = useSetBlogSocialImage(blog.id)
+  const [error, setError] = useState<string>()
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  async function pickImage(file: File | undefined) {
+    if (!file) return
+    setError(undefined)
+    let image: Blob
+    try {
+      image = await socialImage(file)
+    } catch {
+      return setError(t('profile.notAnImage'))
+    }
+    setImage.mutate(image, { onError: (failure) => setError(failure.message) })
+  }
+
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium">{t('blogs.socialImage')}</p>
+      <div className="flex flex-wrap items-center gap-4">
+        {blog.social_image_url ? (
+          <img
+            src={blog.social_image_url}
+            alt=""
+            className="aspect-[1200/630] h-16 shrink-0 rounded-md object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex aspect-[1200/630] h-16 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-400 dark:bg-zinc-800"
+          >
+            <ImagePlus className="size-5" />
+          </span>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="button-outline"
+            disabled={setImage.isPending}
+            onClick={() => fileInput.current?.click()}
+          >
+            <ImagePlus className="size-4" aria-hidden="true" />
+            {blog.social_image_url ? t('blogs.changeImage') : t('blogs.uploadImage')}
+          </button>
+          {blog.social_image_url && (
+            <button
+              type="button"
+              className="button-secondary inline-flex items-center gap-2"
+              disabled={setImage.isPending}
+              onClick={() =>
+                setImage.mutate(null, { onError: (failure) => setError(failure.message) })
+              }
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              {t('common.remove')}
+            </button>
+          )}
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            aria-label={t('blogs.socialImage')}
+            className="hidden"
+            onChange={(event) => {
+              void pickImage(event.target.files?.[0])
+              event.target.value = ''
+            }}
+          />
+        </div>
+      </div>
+      <p className="text-xs text-zinc-500">{t('blogs.socialImageHint')}</p>
+      {error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[] }) {
   const t = useT()
   const { confirm } = useFeedback()
@@ -324,17 +408,25 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
   const [title, setTitle] = useState(blog.title)
   const [description, setDescription] = useState(blog.description)
   const [author, setAuthor] = useState(blog.author)
+  const [authorUrl, setAuthorUrl] = useState(blog.author_url)
   const [links, setLinks] = useState(blog.links)
   // Rows left empty aren't links.
   const filled = links
     .map((link) => ({ name: link.name.trim(), url: link.url.trim() }))
     .filter((link) => link.name || link.url)
-  const ids = { collection: useId(), title: useId(), description: useId(), author: useId() }
+  const ids = {
+    collection: useId(),
+    title: useId(),
+    description: useId(),
+    author: useId(),
+    authorUrl: useId(),
+  }
   const error = update.error ?? remove.error ?? verify.error
   const changed =
     title.trim() !== blog.title ||
     description.trim() !== blog.description ||
     author.trim() !== blog.author ||
+    authorUrl.trim() !== blog.author_url ||
     JSON.stringify(filled) !== JSON.stringify(blog.links)
 
   async function deleteBlog() {
@@ -442,6 +534,7 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
       </div>
 
       <BlogPhoto blog={blog} />
+      <BlogSocialImage blog={blog} />
 
       <form
         className="space-y-3"
@@ -452,6 +545,7 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
             title: title.trim(),
             description: description.trim(),
             author: author.trim(),
+            author_url: authorUrl.trim(),
             links: filled,
           })
         }}
@@ -493,6 +587,21 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
             onChange={(event) => setAuthor(event.target.value)}
           />
           <p className="text-xs text-zinc-500">{t('blogs.authorHint')}</p>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor={ids.authorUrl} className="block text-sm font-medium">
+            {t('blogs.authorUrl')}
+          </label>
+          <input
+            id={ids.authorUrl}
+            className="input"
+            type="url"
+            value={authorUrl}
+            maxLength={500}
+            placeholder="https://"
+            onChange={(event) => setAuthorUrl(event.target.value)}
+          />
+          <p className="text-xs text-zinc-500">{t('blogs.authorUrlHint')}</p>
         </div>
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
