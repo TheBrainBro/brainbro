@@ -2,6 +2,7 @@ import { Check, Copy, TriangleAlert } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { rich, t, useT } from '../i18n/i18n'
+import { copyText } from '../lib/dom'
 import { timeAgo } from '../lib/time'
 import { CopyField } from '../ui/CopyField'
 import {
@@ -66,7 +67,7 @@ function Prompt() {
           type="button"
           className="button-ghost inline-flex items-center gap-2"
           onClick={() => {
-            void navigator.clipboard.writeText(prompt).then(() => setCopied(true))
+            void copyText(prompt).then(() => setCopied(true))
           }}
         >
           {copied ? (

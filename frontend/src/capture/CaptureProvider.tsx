@@ -5,7 +5,7 @@ import { useSession } from '../auth/session'
 import { t, useT } from '../i18n/i18n'
 import { itemsKey, makeAlbum, ungroupAlbum, type Item } from '../items/api'
 import { api, ApiError, upload } from '../lib/api'
-import { isEditable } from '../lib/dom'
+import { isEditable, randomId } from '../lib/dom'
 import { formatBytes } from '../lib/format'
 import { useFeedback, type Toast } from '../ui/feedback'
 import { isClaimed } from './claims'
@@ -235,7 +235,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     found: CaptureInputs,
     { undo = true, retryLater = false, album = true, into, onQueued, onSettled }: CaptureOptions = {},
   ) {
-    const batchId = crypto.randomUUID()
+    const batchId = randomId()
     const entries: PendingCapture[] = []
     const promises: Promise<CaptureResult>[] = []
     const refused: { label: string; error: string }[] = []
@@ -244,7 +244,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
       const error = precheck(input)
       const isImage = input.kind === 'file' && input.file.type.startsWith('image/')
       const entry: PendingCapture = {
-        id: crypto.randomUUID(),
+        id: randomId(),
         batch: batchId,
         label: labelOf(input),
         input,
@@ -266,7 +266,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     for (const skipped of found.skipped) {
       const error = skipped.reason
       entries.push({
-        id: crypto.randomUUID(),
+        id: randomId(),
         batch: batchId,
         label: skipped.name,
         state: 'error',
