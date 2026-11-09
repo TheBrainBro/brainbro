@@ -14,6 +14,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 const plan = {
   slug: 'trip-plan',
+  handle: 'ana',
   title: 'Trip plan',
   body: '# Trip plan\n\nSee [[Packing]] and [[Diary]].\n\n![map](https://x.example/map.png)',
   published_at: '2026-10-01T10:00:00Z',
@@ -22,11 +23,11 @@ const plan = {
   images: {
     'https://x.example/map.png': {
       status: 'ready',
-      url: '/api/public/notes/trip-plan/images/1/?v=a',
+      url: '/api/public/notes/ana/trip-plan/images/1/?v=a',
     },
   },
   links: {},
-  notes: [{ slug: 'packing', title: 'Packing' }],
+  notes: [{ url: '/@ana/packing', title: 'Packing' }],
 }
 
 const packing = {
@@ -38,16 +39,27 @@ const packing = {
   notes: [],
 }
 
-function renderAt(path: string) {
+function renderAt(path: string, { note = plan } = {}) {
   const fetchMock = vi.fn(async (url: string) => {
-    if (url === '/api/public/notes/trip-plan/') return jsonResponse(plan)
-    if (url === '/api/public/notes/packing/') return jsonResponse(packing)
+    if (url === '/api/public/notes/ana/trip-plan/') return jsonResponse(note)
+    if (url === '/api/public/notes/ana/packing/') return jsonResponse(packing)
+    if (url === '/api/public/legacy/trip-plan/') return jsonResponse({ url: '/@ana/trip-plan' })
+    if (url === '/api/public/authors/ana/') return jsonResponse({ handle: 'ana', author: 'Ana' })
     if (url.startsWith('/api/public/notes/?')) {
       return jsonResponse({
         count: 1,
         next: null,
         previous: null,
-        results: [{ slug: 'trip-plan', title: 'Trip plan', published_at: plan.published_at }],
+        results: [
+          {
+            slug: 'trip-plan',
+            title: 'Trip plan',
+            published_at: plan.published_at,
+            url: '/@ana/trip-plan',
+            excerpt: 'Ten days in Japan.',
+            image_url: '/api/public/notes/ana/trip-plan/images/1/?v=a',
+          },
+        ],
       })
     }
     return jsonResponse({ detail: 'Not found.' }, 404)
@@ -68,12 +80,12 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('PublicNotePage', () => {
   it('shows a published note without signing in', async () => {
-    const fetchMock = renderAt('/p/trip-plan')
+    const fetchMock = renderAt('/@ana/trip-plan')
 
     expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'map' })).toHaveAttribute(
       'src',
-      '/api/public/notes/trip-plan/images/1/?v=a',
+      '/api/public/notes/ana/trip-plan/images/1/?v=a',
     )
     expect(screen.getByText('Carlos Lugones')).toBeInTheDocument()
     expect(screen.getByText('October 1, 2026')).toBeInTheDocument()
@@ -83,10 +95,10 @@ describe('PublicNotePage', () => {
   })
 
   it('links published notes and leaves the rest as words', async () => {
-    renderAt('/p/trip-plan')
+    renderAt('/@ana/trip-plan')
 
     const packingLink = await screen.findByRole('link', { name: 'Packing' })
-    expect(packingLink).toHaveAttribute('href', '/p/packing')
+    expect(packingLink).toHaveAttribute('href', '/@ana/packing')
     expect(screen.queryByRole('link', { name: 'Diary' })).not.toBeInTheDocument()
 
     fireEvent.click(packingLink)
@@ -97,6 +109,18 @@ describe('PublicNotePage', () => {
   })
 
   it('says when the page is not there', async () => {
+    renderAt('/@ana/gone')
+
+    expect(await screen.findByText("This page doesn't exist")).toBeInTheDocument()
+  })
+
+  it('follows an address from before handles to where the note is now', async () => {
+    renderAt('/p/trip-plan')
+
+    expect(await screen.findByRole('heading', { name: 'Trip plan' })).toBeInTheDocument()
+  })
+
+  it('says when an old address leads nowhere', async () => {
     renderAt('/p/gone')
 
     expect(await screen.findByText("This page doesn't exist")).toBeInTheDocument()
@@ -109,7 +133,87 @@ describe('PublicIndexPage', () => {
 
     expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
       'href',
-      '/p/trip-plan',
+      '/@ana/trip-plan',
+    )
+  })
+})
+
+describe('the article', () => {
+  it("doesn't repeat a first heading that is its title", async () => {
+    renderAt('/@ana/trip-plan')
+
+    expect(await screen.findAllByRole('heading', { name: 'Trip plan' })).toHaveLength(1)
+  })
+
+  it("doesn't repeat a plain first line that is its title", async () => {
+    renderAt('/@ana/trip-plan', { note: { ...plan, body: 'Trip plan\n\nTen days in Japan.' } })
+
+    expect(await screen.findByText('Ten days in Japan.')).toBeInTheDocument()
+    expect(screen.getAllByText('Trip plan')).toHaveLength(1)
+  })
+
+  it('keeps a first line that is not its title', async () => {
+    renderAt('/@ana/trip-plan', { note: { ...plan, body: 'Before we go\n\nTen days.' } })
+
+    expect(await screen.findByText(/Before we go/)).toBeInTheDocument()
+  })
+
+  it('shows each note in a list with the start of its text and its cover', async () => {
+    renderAt('/@ana')
+
+    const card = await screen.findByRole('link', { name: /Trip plan/ })
+    expect(card).toHaveTextContent('Ten days in Japan.')
+    expect(card.querySelector('img')).toHaveAttribute('src', '/api/public/notes/ana/trip-plan/images/1/?v=a')
+  })
+})
+
+describe('more from the author', () => {
+  it("isn't there when the note is their only one", async () => {
+    renderAt('/@ana/trip-plan')
+
+    expect(await screen.findByRole('link', { name: 'All posts' })).toHaveAttribute('href', '/@ana')
+    expect(screen.queryByText(/More from/)).not.toBeInTheDocument()
+  })
+
+  it('shows their other notes', async () => {
+    renderAt('/@ana/packing')
+
+    expect(await screen.findByText('More from @ana')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
+      'href',
+      '/@ana/trip-plan',
+    )
+  })
+})
+
+describe('PublicAuthorPage', () => {
+  it('shows an author with their public notes', async () => {
+    const fetchMock = renderAt('/@ana')
+
+    expect(await screen.findByRole('heading', { name: 'Ana' })).toBeInTheDocument()
+    expect(screen.getByText('@ana')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Trip plan/ })).toHaveAttribute(
+      'href',
+      '/@ana/trip-plan',
+    )
+    expect(fetchMock).toHaveBeenCalledWith('/api/public/notes/?limit=200&author=ana', expect.anything())
+    // On the server's own domain, always.
+    expect(screen.getByRole('link', { name: 'BrainBro' })).toBeInTheDocument()
+  })
+
+  it('says when there is no such author', async () => {
+    renderAt('/@nobody')
+
+    expect(await screen.findByText("This page doesn't exist")).toBeInTheDocument()
+  })
+
+  it('is reached from a note by its author', async () => {
+    renderAt('/@ana/trip-plan')
+
+    // The bar on top leads to their page.
+    expect(await screen.findByRole('link', { name: /Carlos Lugones/ })).toHaveAttribute(
+      'href',
+      '/@ana',
     )
   })
 })

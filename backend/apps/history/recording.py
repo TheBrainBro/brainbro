@@ -56,7 +56,7 @@ def record(owner_id, content, made, **target):
         latest
         and restored is None
         and latest.restored_from_id is None
-        and (latest.by, latest.via) == (made.by, made.via)
+        and (latest.by, latest.via, latest.logo) == (made.by, made.via, made.logo)
         and timezone.now() - latest.created_at < WINDOW
     ):
         for name, value in content.items():
@@ -67,6 +67,7 @@ def record(owner_id, content, made, **target):
         owner_id=owner_id,
         by=made.by,
         via=made.via,
+        logo=made.logo,
         restored_from=restored,
         **target,
         **content,

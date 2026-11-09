@@ -34,3 +34,12 @@ Items carry `created_by` and `edited_by` (the app's name, empty for you),
 
 MCP summaries say it too: `created_by` and `edited_by` are `"user"` or the
 app's name, so assistants can tell their notes from yours.
+
+## Logos
+
+An assistant's logo comes from the address it went back to when it was allowed
+(`apps/accounts/logos.py`), never from the name it registered with, which any
+app can make up. Items and revisions keep the logo next to the name. Anything
+from before, and any app we don't know, gets the generic icon. Grok Bot
+connects through Cursor's address, so it is told apart by the name it gives in
+the MCP handshake, and only there. Live cursors only show the name.

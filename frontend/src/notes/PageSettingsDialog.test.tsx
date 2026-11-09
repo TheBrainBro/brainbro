@@ -31,15 +31,20 @@ const privateNote: Item = {
   created_via: 'web',
   edited_by: '',
   edited_via: '',
+  edited_logo: '',
+  created_logo: '',
   edited_at: null,
   public_slug: null,
+  public_url: null,
   published_at: null,
+  public_listed: true,
 }
 
 const note: Item = {
   ...privateNote,
   public_slug: 'trip-plan',
   published_at: '2026-11-01T10:00:00Z',
+  public_listed: true,
   images: {
     'https://x.example/map.png': { status: 'ready', url: '/api/note-images/1/file/?v=a' },
     'https://x.example/sea.png': { status: 'ready', url: '/api/note-images/2/file/?v=b' },
@@ -48,6 +53,7 @@ const note: Item = {
 
 const page: PageSettings = {
   slug: 'trip-plan',
+  address: '/@ana/',
   title: '',
   description: '',
   image: '',

@@ -10,7 +10,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-# One scope: everything the MCP tools do.
+# One OAuth scope for every app. What each one may do is chosen by the user
+# when allowing it (`ApiToken.permissions`), not asked for by the app.
 SCOPE = "brainbro"
 AUTH_METHODS = ("none", "client_secret_post", "client_secret_basic")
 

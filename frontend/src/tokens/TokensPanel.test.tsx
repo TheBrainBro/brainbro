@@ -17,6 +17,7 @@ const existing: ApiToken = {
   name: 'Script',
   prefix: 'brainbro_ab12',
   connected_app: false,
+  permissions: ['read', 'capture', 'edit', 'publish'],
   created_at: '2026-01-01T00:00:00Z',
   last_used_at: null,
 }
@@ -31,6 +32,7 @@ function renderPanel(tokens: ApiToken[]) {
       )
     }
     if (init?.method === 'DELETE') return new Response(null, { status: 204 })
+    if (init?.method === 'PATCH') return jsonResponse(existing)
     return jsonResponse(url === '/api/auth/tokens/' ? tokens : [])
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -119,6 +121,28 @@ describe('TokensPanel', () => {
         expect.objectContaining({ method: 'DELETE' }),
       ),
     )
+  })
+
+  it('changes what a connected app may do', async () => {
+    const fetchMock = renderPanel([{ ...existing, name: 'ChatGPT', connected_app: true }])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Permissions' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Publish/ }))
+
+    await vi.waitFor(() => {
+      const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')!
+      expect(patch[0]).toBe('/api/auth/tokens/t1/')
+      expect(JSON.parse(String(patch[1]!.body))).toEqual({
+        permissions: ['read', 'capture', 'edit'],
+      })
+    })
+  })
+
+  it('has no permissions to change on a personal token', async () => {
+    renderPanel([existing])
+
+    await screen.findByRole('button', { name: 'Revoke' })
+    expect(screen.queryByRole('button', { name: 'Permissions' })).not.toBeInTheDocument()
   })
 
   it('shows connected apps and disconnects them', async () => {

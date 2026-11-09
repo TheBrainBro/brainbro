@@ -1,11 +1,19 @@
+import io
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.test import Client
+from django.utils import timezone
+from PIL import Image
 
-from apps.accounts.models import ApiToken
+from apps.accounts.models import ApiToken, Permission
 from apps.boards.models import Board
-from apps.items.models import Collection, Item
+from apps.items.models import Collection, Item, NoteImage
+from apps.items.safe_http import BlockedURL, Fetched, TransientFetchError
+from apps.mcp.tools import TOOLS
+from apps.public.models import Redirect, Site
+from apps.public.publishing import publish
 
 
 @pytest.fixture(autouse=True)
@@ -212,6 +220,18 @@ def test_tools_are_listed_with_their_schemas(mcp):
         "list_boards",
         "get_board",
         "add_to_board",
+        "publish_note",
+        "unpublish_note",
+        "get_page",
+        "update_page",
+        "list_blogs",
+        "create_blog",
+        "update_blog",
+        "verify_blog",
+        "list_blog_posts",
+        "set_redirects",
+        "list_redirects",
+        "import_image",
     }
     assert tools["capture"]["inputSchema"]["required"] == ["text"]
     assert tools["get_item"]["annotations"]["readOnlyHint"] is True
@@ -230,6 +250,7 @@ def test_the_instructions_say_how_to_use_brain(mcp):
         "partial edits",
         "inbox",
         "do not mention or reveal unrelated items",
+        "only when the user asks for it or",
     ):
         assert advice in instructions
 
@@ -282,7 +303,7 @@ def test_assistant_lists_exclude_sample_collections_and_boards(call, user):
 
 
 def test_untitled_notes_are_named_after_their_body(call, user):
-    Item.objects.create(owner=user, kind="note", body="Intro\n# Garden plan\nbeds")
+    Item.objects.create(owner=user, kind="note", body="# Garden plan\nbeds")
     Item.objects.create(owner=user, kind="note", title="Seeds", body="# Garden")
 
     found = structured(call("search_items", query="garden"))["items"]
@@ -627,6 +648,25 @@ def test_get_a_revision(call, user):
     assert (revision["body"], revision["note_id"]) == ("first", str(item.id))
 
 
+def test_untitled_revisions_are_named_after_their_own_text(call, user):
+    item = note(user, "# First\nmore")
+    call("edit_note", id=str(item.id), body="Second\nmore")
+
+    revisions = structured(call("list_revisions", id=str(item.id)))["revisions"]
+    revision = structured(call("get_revision", revision_id=revisions[-1]["id"]))
+
+    assert [each["title"] for each in revisions] == ["Second", "First"]
+    assert revision["title"] == "First"
+
+
+def test_a_revision_keeps_its_saved_title(call, user):
+    item = note(user, "Text", title="Saved")
+
+    [revision] = structured(call("list_revisions", id=str(item.id)))["revisions"]
+
+    assert revision["title"] == "Saved"
+
+
 def test_revisions_are_of_your_notes(call, user, other_user):
     theirs = note(other_user, "theirs")
     link = Item.objects.create(owner=user, kind=Item.Kind.LINK, url="https://x.org")
@@ -748,3 +788,834 @@ def test_add_to_someone_else_s_board(call, user, other_user):
     result = call("add_to_board", board_id=str(theirs.id), item_ids=[str(item.id)])
 
     assert "list_boards" in failure(result)
+
+
+# Publishing
+
+
+def test_items_say_whether_a_note_is_public_and_where(call, user):
+    private = note(user, "Draft")
+    public = publish(note(user, "Trip plan", title="Trip plan"))
+
+    found = structured(call("get_items", ids=[str(private.id), str(public.id)]))
+    draft, trip = found["items"]
+
+    assert draft["published_at"] is None
+    assert "public_url" not in draft
+    assert trip["published_at"] is not None
+    assert trip["public_url"].startswith("http://testserver/@")
+    assert trip["public_url"].endswith("/trip-plan")
+    search = structured(call("search_items", query="Trip plan"))["items"][0]
+    assert search["public_url"] == trip["public_url"]
+
+
+def test_publish_a_note(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id)))
+
+    item.refresh_from_db()
+    assert item.published_at is not None
+    assert result["slug"] == "trip-plan"
+    assert result["public_url"].endswith("/trip-plan")
+
+
+def test_publish_a_note_unlisted(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id), listed=False))
+
+    item.refresh_from_db()
+    assert item.public_listed is False
+    assert result["listed"] is False
+
+
+def test_a_page_can_be_unlisted_and_listed_again(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+    call("publish_note", id=str(item.id))
+
+    assert (
+        structured(call("update_page", id=str(item.id), listed=False))["listed"]
+        is False
+    )
+    assert (
+        structured(call("update_page", id=str(item.id), listed=True))["listed"] is True
+    )
+
+
+def test_publish_a_note_at_a_slug(call, user):
+    item = note(user, "Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id), slug="japan"))
+
+    assert result["slug"] == "japan"
+    assert result["public_url"].endswith("/japan")
+
+
+def test_a_slug_is_used_once_and_must_be_one(call, user):
+    publish(note(user, "Other"), "japan")
+    item = note(user, "Trip plan")
+
+    assert "already has this address" in failure(
+        call("publish_note", id=str(item.id), slug="japan")
+    )
+    assert "lowercase letters" in failure(
+        call("publish_note", id=str(item.id), slug="Not a slug")
+    )
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+def test_only_notes_are_published(call, user):
+    link = Item.objects.create(owner=user, kind=Item.Kind.LINK, url="https://a.com")
+
+    assert "Only notes" in failure(call("publish_note", id=str(link.id)))
+
+
+def test_someone_else_s_note_is_not_published(call, other_user):
+    item = note(other_user, "Theirs")
+
+    assert "No item" in failure(call("publish_note", id=str(item.id)))
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+def test_unpublish_a_note(call, user):
+    item = publish(note(user, "Trip plan"), "japan")
+
+    result = structured(call("unpublish_note", id=str(item.id)))
+
+    item.refresh_from_db()
+    assert item.published_at is None
+    assert item.public_slug == "japan"
+    assert result["public_url"] is None
+
+
+def test_publishing_says_it_makes_notes_public(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+
+    tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
+    assert "anyone" in tools["publish_note"]["description"]
+    assert "never on your own" in tools["publish_note"]["description"]
+
+
+# Page settings
+
+
+def test_get_a_page(call, user):
+    item = publish(note(user, "# Trip plan\nTen days in Japan."), "japan")
+
+    page = structured(call("get_page", id=str(item.id)))
+
+    assert page["slug"] == "japan"
+    assert page["address"].startswith("http://testserver/@")
+    assert page["address"].endswith("/")
+    assert page["title"] == ""
+    assert page["defaults"]["title"] == "Trip plan"
+    assert page["preview"] == {
+        "title": "Trip plan",
+        "description": page["defaults"]["description"],
+    }
+
+
+def test_a_note_never_published_has_no_page(call, user):
+    item = note(user, "Draft")
+
+    assert "publish_note first" in failure(call("get_page", id=str(item.id)))
+    assert "publish_note first" in failure(
+        call("update_page", id=str(item.id), title="Draft")
+    )
+
+
+def test_update_a_page(call, user):
+    item = publish(note(user, "Trip plan"), "japan")
+
+    page = structured(
+        call(
+            "update_page",
+            id=str(item.id),
+            slug="japan-2026",
+            title="Japan",
+            description="Ten days.",
+        )
+    )
+
+    item.refresh_from_db()
+    assert item.public_slug == "japan-2026"
+    assert item.public_title == "Japan"
+    assert page["preview"]["description"] == "Ten days."
+    assert page["public_url"].endswith("/japan-2026")
+
+
+def test_a_page_update_needs_something_to_change(call, user):
+    item = publish(note(user, "Trip plan"))
+
+    assert "Send a slug" in failure(call("update_page", id=str(item.id)))
+
+
+def test_a_page_can_t_take_another_note_s_slug(call, user):
+    publish(note(user, "Other"), "japan")
+    item = publish(note(user, "Trip plan"), "trip")
+
+    assert "already has this address" in failure(
+        call("update_page", id=str(item.id), slug="japan")
+    )
+
+
+# Blogs
+
+BLOG = "blog.example.com"
+
+
+@pytest.fixture
+def dns(monkeypatch):
+    """The TXT records public DNS answers with, by name."""
+    records = {}
+    monkeypatch.setattr(
+        "apps.public.tasks.txt_values", lambda name: set(records.get(name, []))
+    )
+    return records
+
+
+def test_list_blogs(call, user, other_user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+    Collection.objects.create(owner=user, name="Travel", parent=writing)
+    site = Site.objects.create(owner=user, hostname=BLOG, collection=writing)
+    Site.objects.create(owner=other_user, hostname="theirs.example.com")
+
+    blogs = structured(call("list_blogs"))["blogs"]
+
+    assert len(blogs) == 1
+    blog = blogs[0]
+    assert blog["id"] == str(site.id)
+    assert blog["domain"] == BLOG
+    assert blog["url"] == f"https://{BLOG}/"
+    assert blog["status"] == "unverified"
+    assert blog["collection"] == {"id": str(writing.id), "name": "Writing"}
+    assert blog["name"] == "Writing"
+    assert blog["categories"][0]["name"] == "Travel"
+    assert blog["categories"][0]["url"] == f"https://{BLOG}/c/travel"
+    assert {"type": "CNAME", "name": BLOG, "value": "testserver"} in blog["records"]
+    assert {
+        "type": "TXT",
+        "name": f"_brainbro.{BLOG}",
+        "value": f"brainbro-site-verification={site.token}",
+    } in blog["records"]
+
+
+def test_create_a_blog(call, user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+
+    blog = structured(
+        call(
+            "create_blog",
+            domain="Blog.Example.com",
+            collection_id=str(writing.id),
+            title="Field notes",
+            links=[{"name": "GitHub", "url": "https://github.com/someone"}],
+            powered_by=False,
+            author="BrainBro",
+            author_url="https://brainbro.app/",
+            show_author=False,
+        )
+    )
+
+    site = Site.objects.get()
+    assert site.owner == user
+    assert site.hostname == BLOG
+    assert site.collection == writing
+    assert site.powered_by is False
+    assert site.author == "BrainBro"
+    assert site.author_url == "https://brainbro.app/"
+    assert blog["author_url"] == "https://brainbro.app/"
+    assert site.show_author is False
+    assert site.links == [{"name": "GitHub", "url": "https://github.com/someone"}]
+    assert blog["status"] == "unverified"
+    assert blog["name"] == "Field notes"
+
+
+def test_a_blog_is_checked_as_in_the_app(call, user, other_user):
+    Site.objects.create(owner=other_user, hostname=BLOG, status=Site.Status.VERIFIED)
+
+    assert "domain: Another blog" in failure(call("create_blog", domain=BLOG))
+    assert "domain: Enter a domain" in failure(call("create_blog", domain="nope"))
+    assert "url" in failure(
+        call(
+            "create_blog",
+            domain="other.example.com",
+            links=[{"name": "Bad", "url": "javascript:alert(1)"}],
+        )
+    )
+    assert not Site.objects.filter(owner=user).exists()
+
+
+def test_a_blog_can_t_show_someone_else_s_collection(call, user, other_user):
+    theirs = Collection.objects.create(owner=other_user, name="Theirs")
+
+    assert "No collection" in failure(
+        call("create_blog", domain=BLOG, collection_id=str(theirs.id))
+    )
+    assert not Site.objects.exists()
+
+
+def test_update_a_blog(call, user):
+    site = Site.objects.create(
+        owner=user, hostname=BLOG, status=Site.Status.VERIFIED, title="Old"
+    )
+
+    blog = structured(call("update_blog", id=str(site.id), description="Notes."))
+
+    site.refresh_from_db()
+    assert site.description == "Notes."
+    assert site.title == "Old"
+    assert site.status == Site.Status.VERIFIED
+    assert blog["description"] == "Notes."
+
+
+def test_a_verified_blog_s_new_domain_stays_pending(call, user):
+    site = Site.objects.create(owner=user, hostname=BLOG, status=Site.Status.VERIFIED)
+
+    blog = structured(call("update_blog", id=str(site.id), domain="new.example.com"))
+
+    assert blog["domain"] == BLOG
+    assert blog["status"] == "verified"
+    assert blog["pending_domain"] == "new.example.com"
+    assert blog["pending_status"] == "unverified"
+
+
+def test_a_blog_not_moving_has_no_pending_domain(call, user):
+    site = Site.objects.create(owner=user, hostname=BLOG, status=Site.Status.VERIFIED)
+
+    blog = structured(call("update_blog", id=str(site.id), title="Mine"))
+
+    assert blog["pending_domain"] is None
+    assert blog["pending_status"] is None
+
+
+def test_verifying_a_pending_domain_moves_the_blog(call, user, dns):
+    site = Site.objects.create(
+        owner=user,
+        hostname=BLOG,
+        status=Site.Status.VERIFIED,
+        pending_hostname="new.example.com",
+    )
+    dns["_brainbro.new.example.com"] = [f"brainbro-site-verification={site.token}"]
+
+    blog = structured(call("verify_blog", id=str(site.id)))
+
+    assert blog["domain"] == "new.example.com"
+    assert blog["status"] == "verified"
+    assert blog["pending_domain"] is None
+
+
+def test_someone_else_s_blog_is_out_of_reach(call, other_user, dns):
+    site = Site.objects.create(owner=other_user, hostname=BLOG)
+
+    assert "No blog" in failure(call("update_blog", id=str(site.id), title="Mine"))
+    assert "No blog" in failure(call("verify_blog", id=str(site.id)))
+    site.refresh_from_db()
+    assert site.title == ""
+    assert site.status == Site.Status.UNVERIFIED
+
+
+def test_verify_a_blog(call, user, dns):
+    site = Site.objects.create(owner=user, hostname=BLOG)
+    dns[f"_brainbro.{BLOG}"] = [f"brainbro-site-verification={site.token}"]
+
+    # The worker runs at once in tests.
+    blog = structured(call("verify_blog", id=str(site.id)))
+
+    assert blog["status"] == "verified"
+    assert blog["verified_at"] is not None
+
+
+def test_a_blog_without_its_record_fails_to_verify(call, user, dns):
+    site = Site.objects.create(owner=user, hostname=BLOG)
+
+    assert structured(call("verify_blog", id=str(site.id)))["status"] == "failed"
+
+
+def test_a_note_on_a_blog_lives_there(call, user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+    Site.objects.create(
+        owner=user, hostname=BLOG, collection=writing, status=Site.Status.VERIFIED
+    )
+    item = note(user, "Trip plan")
+    item.collections.add(writing)
+
+    result = structured(call("publish_note", id=str(item.id), slug="trip"))
+
+    assert result["public_url"] == f"https://{BLOG}/trip"
+
+
+def test_no_tool_deletes_a_blog(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+
+    names = {tool["name"] for tool in response.json()["result"]["tools"]}
+    assert not any("delete" in name or "remove" in name for name in names)
+
+
+# Moving a blog in
+
+
+ORIGINAL = "2021-05-03T10:00:00Z"
+ORIGINAL_DATE = datetime(2021, 5, 3, 10, tzinfo=UTC)
+
+
+def test_publish_a_note_with_its_original_date(call, user):
+    item = note(user, "Trip plan", title="Trip plan")
+
+    result = structured(call("publish_note", id=str(item.id), published_at=ORIGINAL))
+
+    item.refresh_from_db()
+    assert item.published_at == ORIGINAL_DATE
+    assert result["published_at"] == "2021-05-03T10:00:00Z"
+    # The note itself is still from when it was made.
+    assert item.created_at > ORIGINAL_DATE
+
+
+def test_publishing_again_keeps_the_date(call, user):
+    item = note(user, "Trip plan")
+    publish(item, published_at=ORIGINAL_DATE)
+
+    structured(call("publish_note", id=str(item.id)))
+
+    item.refresh_from_db()
+    assert item.published_at == ORIGINAL_DATE
+
+
+def test_change_a_published_note_s_date(call, user):
+    item = note(user, "Trip plan")
+    publish(item)
+
+    page = structured(call("update_page", id=str(item.id), published_at=ORIGINAL))
+
+    item.refresh_from_db()
+    assert item.published_at == ORIGINAL_DATE
+    assert page["published_at"] == "2021-05-03T10:00:00Z"
+
+
+def test_a_date_doesn_t_publish_a_private_note(call, user):
+    item = note(user, "Trip plan")
+    publish(item)
+    item.published_at = None
+    item.save()
+
+    assert "private" in failure(
+        call("update_page", id=str(item.id), published_at=ORIGINAL)
+    )
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+def test_a_date_can_t_be_in_the_future(call, user):
+    item = note(user, "Trip plan")
+    tomorrow = (timezone.now() + timedelta(days=1)).isoformat()
+
+    assert "future" in failure(
+        call("publish_note", id=str(item.id), published_at=tomorrow)
+    )
+    item.refresh_from_db()
+    assert item.published_at is None
+
+
+@pytest.fixture
+def blog(user):
+    writing = Collection.objects.create(owner=user, name="Writing")
+    travel = Collection.objects.create(owner=user, name="Travel", parent=writing)
+    site = Site.objects.create(owner=user, hostname=BLOG, collection=writing)
+    site.travel = travel
+    return site
+
+
+def test_list_a_blog_s_posts(call, user, other_user, blog):
+    old = note(user, "Vienna", title="Vienna")
+    old.collections.add(blog.travel)
+    publish(old, "viaje-a-viena", ORIGINAL_DATE)
+    new = note(user, "Lisbon", title="Lisbon")
+    new.collections.add(blog.collection)
+    publish(new, "lisbon")
+    draft = note(user, "Porto", title="Porto")
+    draft.collections.add(blog.collection)
+    # Not filed on the blog.
+    publish(note(user, "Elsewhere"))
+
+    result = structured(call("list_blog_posts", id=str(blog.id)))
+
+    assert result["total"] == 3
+    posts = result["posts"]
+    assert [post["id"] for post in posts] == [str(new.id), str(old.id), str(draft.id)]
+    assert posts[1] == {
+        **posts[1],
+        "title": "Vienna",
+        "slug": "viaje-a-viena",
+        "status": "published",
+        "published_at": "2021-05-03T10:00:00Z",
+        # Its address once the blog serves; until then, the user's page.
+        "url": f"https://{BLOG}/viaje-a-viena",
+    }
+    assert posts[1]["public_url"].endswith("/viaje-a-viena")
+    assert posts[2]["status"] == "draft"
+    assert posts[2]["url"] is None
+    assert posts[2]["public_url"] is None
+
+
+def test_blog_posts_come_in_pages(call, user, blog):
+    for number in range(3):
+        item = note(user, f"Post {number}")
+        item.collections.add(blog.collection)
+
+    result = structured(call("list_blog_posts", id=str(blog.id), limit=2, offset=2))
+
+    assert result["total"] == 3
+    assert len(result["posts"]) == 1
+
+
+def test_someone_else_s_blog_posts_are_out_of_reach(call, other_user):
+    site = Site.objects.create(owner=other_user, hostname="theirs.example.com")
+
+    assert "No blog" in failure(call("list_blog_posts", id=str(site.id)))
+    assert "No blog" in failure(call("list_redirects", id=str(site.id)))
+    assert "No blog" in failure(
+        call(
+            "set_redirects",
+            id=str(site.id),
+            redirects=[{"from_path": "/a", "to": "/b"}],
+        )
+    )
+    assert not Redirect.objects.exists()
+
+
+def test_set_and_list_redirects(call, user, blog):
+    result = structured(
+        call(
+            "set_redirects",
+            id=str(blog.id),
+            redirects=[
+                {"from_path": "/mi-viaje", "to": "/viaje-a-viena"},
+                {"from_path": f"https://{BLOG}/Caf%C3%A9/?ref=x", "to": "/cafe"},
+            ],
+        )
+    )
+
+    assert {(r["from_path"], r["to"]) for r in result["redirects"]} == {
+        ("/mi-viaje", "/viaje-a-viena"),
+        ("/Café", "/cafe"),
+    }
+    # The same path again points elsewhere.
+    structured(
+        call(
+            "set_redirects",
+            id=str(blog.id),
+            redirects=[{"from_path": "/mi-viaje/", "to": "https://example.com/a"}],
+        )
+    )
+    listed = structured(call("list_redirects", id=str(blog.id)))
+    assert listed["total"] == 2
+    assert {"from_path": "/mi-viaje", "to": "https://example.com/a"}.items() <= {
+        r["from_path"]: r for r in listed["redirects"]
+    }["/mi-viaje"].items()
+
+
+@pytest.mark.parametrize(
+    ("pair", "error"),
+    [
+        ({"from_path": "/", "to": "/a"}, "blog's own"),
+        ({"from_path": "/rss", "to": "/a"}, "blog's own"),
+        ({"from_path": "/c/travel", "to": "/a"}, "blog's own"),
+        ({"from_path": "/api/public/notes", "to": "/a"}, "blog's own"),
+        ({"from_path": "/a", "to": "a"}, "isn't a path"),
+        ({"from_path": "/a", "to": "//evil.example.com"}, "isn't a path"),
+        ({"from_path": "/a", "to": "javascript:alert(1)"}, "isn't a path"),
+        ({"from_path": "/a/", "to": "/a"}, "itself"),
+    ],
+)
+def test_what_can_t_redirect(call, blog, pair, error):
+    result = call(
+        "set_redirects",
+        id=str(blog.id),
+        redirects=[{"from_path": "/fine", "to": "/ok"}, pair],
+    )
+
+    assert error in failure(result)
+    # All or none.
+    assert not Redirect.objects.exists()
+
+
+def test_a_published_post_s_address_can_t_redirect(call, user, blog):
+    item = note(user, "Vienna")
+    item.collections.add(blog.travel)
+    publish(item, "viaje-a-viena")
+
+    assert "published post lives" in failure(
+        call(
+            "set_redirects",
+            id=str(blog.id),
+            redirects=[{"from_path": "/viaje-a-viena", "to": "/other"}],
+        )
+    )
+
+
+PNG = "https://teletype.example/files/photo.png"
+
+
+def png():
+    data = io.BytesIO()
+    Image.new("RGB", (4, 3), "red").save(data, "PNG")
+    return data.getvalue()
+
+
+@pytest.fixture
+def web(monkeypatch, settings, tmp_path):
+    """What each URL answers with: bytes, or an exception to raise."""
+    settings.MEDIA_ROOT = tmp_path / "media"
+    answers = {}
+    asked = []
+
+    def fetch(url, **options):
+        asked.append(url)
+        answer = answers[url]
+        if isinstance(answer, Exception):
+            raise answer
+        return Fetched(url=url, content_type="image/png", charset=None, content=answer)
+
+    monkeypatch.setattr("apps.mcp.tools.fetch", fetch)
+    answers["asked"] = asked
+    return answers
+
+
+def test_import_an_image(call, user, web):
+    web[PNG] = png()
+
+    result = structured(call("import_image", url=PNG))
+
+    image = NoteImage.objects.get()
+    assert image.owner == user
+    assert image.source == NoteImage.Source.PASTED
+    assert result["src"] == f"attachments/{image.id}.png"
+    assert result["markdown"] == f"![](attachments/{image.id}.png)"
+    assert (result["width"], result["height"]) == (4, 3)
+    assert image.original.read() == web[PNG]
+    # Unused until a note links it.
+    assert image.note is None
+    assert image.unused_since is not None
+
+
+def test_a_note_that_links_an_imported_image_keeps_it(call, user, web):
+    web[PNG] = png()
+    src = structured(call("import_image", url=PNG))["src"]
+
+    item = structured(call("capture", text=f"Vienna\n\n![Ring]({src})"))
+
+    image = NoteImage.objects.get()
+    assert str(image.note_id) == item["id"]
+    assert image.unused_since is None
+
+
+def test_the_same_url_twice_is_one_image(call, user, web):
+    web[PNG] = png()
+
+    first = structured(call("import_image", url=PNG))
+    again = structured(call("import_image", url=PNG))
+
+    assert first["src"] == again["src"]
+    assert web["asked"] == [PNG]
+
+
+def test_an_image_a_note_uses_is_downloaded_again(call, user, web):
+    web[PNG] = png()
+    src = structured(call("import_image", url=PNG))["src"]
+    call("capture", text=f"![]({src})")
+
+    again = structured(call("import_image", url=PNG))
+
+    # Another note gets its own copy.
+    assert again["src"] != src
+    assert NoteImage.objects.count() == 2
+
+
+@pytest.mark.parametrize(
+    ("answer", "error"),
+    [
+        (b"<html>not an image</html>", "isn't an image"),
+        (BlockedURL("Refusing to connect"), "Couldn't download"),
+        (TransientFetchError("timeout"), "try again"),
+    ],
+)
+def test_what_isn_t_imported(call, web, answer, error):
+    web[PNG] = answer
+
+    assert error in failure(call("import_image", url=PNG))
+    assert not NoteImage.objects.exists()
+
+
+def test_only_web_addresses_are_imported(call, web):
+    assert "url" in failure(call("import_image", url="ftp://example.com/a.png"))
+
+
+# Permissions
+
+
+@pytest.fixture
+def limit(user, key):
+    """Leaves the connection with only these permissions."""
+
+    def limit(*permissions):
+        ApiToken.objects.filter(key_hash=ApiToken.hash(key)).update(
+            permissions=list(permissions)
+        )
+
+    return limit
+
+
+def listed_tools(mcp):
+    response = mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    return {tool["name"] for tool in response.json()["result"]["tools"]}
+
+
+def test_a_personal_token_sees_every_tool(mcp):
+    assert listed_tools(mcp) == set(TOOLS)
+
+
+def test_read_only_tools_are_exactly_the_read_permission():
+    for tool in TOOLS.values():
+        assert (tool.permission == Permission.READ) == tool.read_only, tool.name
+
+
+def test_only_allowed_tools_are_listed(mcp, limit):
+    limit("read", "capture")
+
+    tools = listed_tools(mcp)
+
+    assert {"search_items", "get_item", "capture", "import_image"} <= tools
+    assert not tools & {"edit_note", "archive", "publish_note", "create_blog"}
+
+
+def test_a_tool_not_allowed_fails_saying_why(call, limit, user):
+    limit("read")
+
+    result = call("capture", text="Nope")
+
+    assert result["isError"] is True
+    assert '"Capture" permission' in result["content"][0]["text"]
+    assert not Item.objects.filter(owner=user).exists()
+
+
+def test_publishing_needs_its_own_permission(call, limit, user):
+    note = Item.objects.create(owner=user, kind=Item.Kind.NOTE, body="Private")
+    limit("read", "capture", "edit")
+
+    result = call("publish_note", id=str(note.id))
+
+    assert result["isError"] is True
+    assert '"Publish" permission' in result["content"][0]["text"]
+    note.refresh_from_db()
+    assert note.published_at is None
+
+
+# Logos
+
+
+@pytest.fixture
+def connected(key):
+    """Makes the connection one that went back to `host`."""
+
+    def connected(host):
+        ApiToken.objects.filter(key_hash=ApiToken.hash(key)).update(redirect_host=host)
+
+    return connected
+
+
+def handshake(mcp, **client_info):
+    response = mcp(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "clientInfo": {"version": "1", **client_info},
+            },
+        }
+    )
+    assert response.status_code == 200
+
+
+def test_what_an_assistant_makes_keeps_its_logo(call, connected, user):
+    connected("claude.ai")
+
+    structured(call("capture", text="A thought"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_logo) == ("Claude", "claude")
+    assert item.revisions.get().logo == "claude"
+
+
+def test_a_personal_token_has_no_logo(call, user):
+    structured(call("capture", text="A thought"))
+
+    assert Item.objects.get(owner=user).created_logo == ""
+
+
+def test_an_edit_keeps_the_logo_of_who_made_it(call, connected, user):
+    connected("claude.ai")
+    note = Item.objects.get(id=structured(call("capture", text="Old"))["id"])
+    connected("chatgpt.com")
+
+    structured(call("edit_note", id=str(note.id), body="New"))
+
+    note.refresh_from_db()
+    assert note.created_logo == "claude"
+    assert note.edited_logo == "chatgpt"
+
+
+def test_the_handshake_is_remembered(mcp, key):
+    handshake(mcp, name="grok-bot", title="Grok Bot")
+
+    assert ApiToken.objects.get(key_hash=ApiToken.hash(key)).client_app == (
+        "grok-bot Grok Bot"
+    )
+
+
+@pytest.mark.parametrize("info", [None, "text", {"name": 3}, {}])
+def test_a_strange_handshake_changes_nothing(mcp, key, info):
+    response = mcp(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "clientInfo": info},
+        }
+    )
+
+    assert response.status_code == 200
+    assert ApiToken.objects.get(key_hash=ApiToken.hash(key)).client_app == ""
+
+
+def test_grok_bot_is_told_apart_from_cursor(mcp, call, connected, user):
+    connected("www.cursor.com")
+    handshake(mcp, name="Grok Bot")
+
+    structured(call("capture", text="A thought"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_logo) == ("Grok Bot", "grokbot")
+
+
+def test_cursor_stays_cursor(mcp, call, connected, user):
+    connected("www.cursor.com")
+    handshake(mcp, name="cursor-agent")
+
+    structured(call("capture", text="A thought"))
+
+    assert Item.objects.get(owner=user).created_logo == "cursor"
+
+
+def test_only_cursors_address_can_claim_grok_bot(mcp, call, connected, user):
+    connected("evil.example")
+    handshake(mcp, name="Grok Bot")
+
+    structured(call("capture", text="A thought"))
+
+    item = Item.objects.get(owner=user)
+    assert (item.created_by, item.created_logo) == ("Claude", "")

@@ -179,18 +179,23 @@ class Item(OwnedModel):
     created_via = models.CharField(
         max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
     )
+    created_logo = models.CharField(max_length=32, blank=True)
     # The same for the last edit of its content (title, body, name); null
     # until it is edited. Triage and previews don't count.
     edited_by = models.CharField(max_length=200, blank=True)
     edited_via = models.CharField(
         max_length=16, choices=origin.Source, default=origin.Source.UNKNOWN, blank=True
     )
+    edited_logo = models.CharField(max_length=32, blank=True)
     edited_at = models.DateTimeField(null=True, blank=True)
-    # Notes only: published at `/p/<public_slug>` while `published_at` is set
-    # (see `apps.public`). Unpublished, a note keeps its slug, so publishing it
-    # again brings back the same address.
-    public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
+    # Notes only: published at `/@<handle>/<public_slug>` while `published_at`
+    # is set (see `apps.public`). Slugs are unique per owner. Unpublished, a
+    # note keeps its slug, so publishing it again brings back the same address.
+    public_slug = models.SlugField(max_length=80, null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
+    # Unlisted (False): read at its address, but in no list, feed or sitemap,
+    # and not indexed. Kept while private, for when it is published again.
+    public_listed = models.BooleanField(default=True, db_default=True)
     # How the page shows in search results and shared links (OpenGraph). Empty
     # means the default: the note's title, the start of its text, its first
     # image. `public_image` is the `src` of one of its images, or "none".
@@ -223,6 +228,14 @@ class Item(OwnedModel):
                 name="item_search_text_trgm",
             ),
         ]
+        constraints = [
+            # Each user's published notes share `/@<handle>/`.
+            models.UniqueConstraint(
+                fields=["owner", "public_slug"],
+                condition=models.Q(public_slug__isnull=False),
+                name="unique_public_slug_per_owner",
+            ),
+        ]
 
     def __str__(self):
         return self.title or self.url or self.body[:60] or str(self.id)
@@ -231,15 +244,17 @@ class Item(OwnedModel):
         if self._state.adding and not self.created_via:
             made = origin.current()
             self.created_by, self.created_via = made.by, made.via
+            self.created_logo = made.logo
         super().save(*args, **kwargs)
 
     # What `mark_edited` sets, for `save(update_fields=...)`.
-    EDIT_FIELDS = ("edited_by", "edited_via", "edited_at")
+    EDIT_FIELDS = ("edited_by", "edited_via", "edited_logo", "edited_at")
 
     def mark_edited(self, by=None):
         """Its content was just edited, by `by` (an `Origin`) or who is acting now."""
         made = by or origin.current()
         self.edited_by, self.edited_via = made.by, made.via
+        self.edited_logo = made.logo
         self.edited_at = timezone.now()
 
     @property

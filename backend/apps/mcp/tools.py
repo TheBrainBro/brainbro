@@ -1,28 +1,58 @@
 """
 What an assistant can do in BrainBro through MCP. Everything acts as the token's
 owner, through the same code the app uses. Reading, capturing, editing notes,
-organizing and archiving: nothing deletes.
+organizing, archiving, publishing notes and setting up blogs: nothing deletes.
 """
 
+import posixpath
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
+from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.utils import timezone
 from rest_framework import serializers
 
+from apps.accounts.models import Permission
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
 from apps.collab.documents import body_written
 from apps.history.models import Revision
 from apps.items.capture import normalize_url
-from apps.items.models import Collection, CollectionItem, Item
+from apps.items.models import Collection, CollectionItem, Item, NoteImage
+from apps.items.note_images import MAX_PASTED_SIZE, UNUSED_GRACE
 from apps.items.notes import sync_images
+from apps.items.safe_http import FetchError, TransientFetchError, fetch
 from apps.items.search import find
 from apps.items.serializers import TriageSerializer
+from apps.items.tasks import make_note_image_display
 from apps.items.titles import note_title
-from apps.items.views import capture_text, triage
+from apps.items.uploads import UploadTooLarge, inspect_upload
+from apps.items.views import PageSerializer, capture_text, page_settings, triage
+from apps.public.models import Redirect, Site
+from apps.public.publishing import (
+    NotPublished,
+    SlugTaken,
+    is_valid_slug,
+    publish,
+    save_page,
+    unpublish,
+)
+from apps.public.redirects import InvalidRedirect, save_redirects
+from apps.public.sites import (
+    filed_notes,
+    public_url,
+    public_urls,
+    site_categories,
+    site_url,
+)
+from apps.public.tasks import verify_site
+from apps.public.views import SiteSerializer
 
 # How much of a body lists show; `get_item` has all of it.
 EXCERPT_LENGTH = 300
@@ -31,8 +61,26 @@ MAX_IDS = 500
 # Whole items are long: fewer of them per call than summaries.
 MAX_FULL_ITEMS = 50
 MAX_REPLACEMENTS = 50
+MAX_REDIRECTS = 200
 
 Action = TriageSerializer.Action
+
+# The request the tools run in: for whole addresses, and the app's own checks.
+current_request = ContextVar("mcp_request")
+
+
+@contextmanager
+def serving(request):
+    token = current_request.set(request)
+    try:
+        yield
+    finally:
+        current_request.reset(token)
+
+
+def absolute(url):
+    """`/@ana/trip` on this server as `https://<host>/@ana/trip`; a blog's as is."""
+    return current_request.get().build_absolute_uri(url)
 
 
 class ToolError(ValueError):
@@ -49,6 +97,7 @@ class Tool:
     arguments: type[serializers.Serializer]
     schema: dict
     run_with: Callable
+    permission: Permission
     read_only: bool = False
     idempotent: bool = False
     required: list = field(default_factory=list)
@@ -122,6 +171,12 @@ def item_summary(item):
         summary["edited_at"] = item.edited_at
     if item.url:
         summary["url"] = item.url
+    if item.kind == Item.Kind.NOTE:
+        # Null while private; published, where anyone reads it.
+        summary["published_at"] = item.published_at
+        if item.published_at:
+            summary["public_url"] = absolute(public_url(item))
+            summary["listed"] = item.public_listed
     if item.body:
         excerpt = item.body[:EXCERPT_LENGTH]
         summary["excerpt"] = excerpt + ("…" if len(item.body) > EXCERPT_LENGTH else "")
@@ -493,7 +548,8 @@ class RevisionsArguments(PageArguments):
 def revision_summary(revision):
     summary = {
         "id": revision.id,
-        "title": revision.title,
+        # Named after its text if untitled, as `get_item` names the note.
+        "title": revision.title or note_title(revision.body, fallback=""),
         # Who saved it and through what: "user", or the app's name.
         "by": revision.by or "user",
         "via": revision.via or "unknown",
@@ -669,17 +725,473 @@ def add_to_board(user, data):
     }
 
 
+# Publishing
+
+
+def owned_note(user, note_id):
+    note = owned_items(user).filter(id=note_id).first()
+    if note is None:
+        raise no_item([note_id])
+    if note.kind != Item.Kind.NOTE:
+        raise ToolError(f"Only notes can be published, and this item is a {note.kind}.")
+    return note
+
+
+def publication(note):
+    return {
+        "id": note.id,
+        "title": item_title(note),
+        "slug": note.public_slug,
+        "published_at": note.published_at,
+        "public_url": absolute(public_url(note)) if note.published_at else None,
+        "listed": note.public_listed,
+    }
+
+
+SLUG_RULE = "Use lowercase letters, numbers and hyphens."
+SLUG_TAKEN = (
+    "slug: Another of the user's notes already has this address: pick another. "
+    "Nothing was saved."
+)
+
+
+def published_date(**options):
+    return serializers.DateTimeField(
+        required=False, validators=[not_in_the_future], **options
+    )
+
+
+def not_in_the_future(value):
+    if value > timezone.now():
+        raise serializers.ValidationError(
+            "It can't be in the future: a published note is public at once."
+        )
+
+
+class PublishArguments(serializers.Serializer):
+    id = serializers.UUIDField()
+    slug = serializers.CharField(max_length=80, required=False)
+    published_at = published_date()
+    listed = serializers.BooleanField(required=False)
+
+    def validate_slug(self, value):
+        if not is_valid_slug(value):
+            raise serializers.ValidationError(SLUG_RULE)
+        return value
+
+
+def publish_note(user, data):
+    note = owned_note(user, data["id"])
+    try:
+        publish(note, data.get("slug"), data.get("published_at"), data.get("listed"))
+    except SlugTaken:
+        raise ToolError(SLUG_TAKEN) from None
+    return publication(note)
+
+
+def unpublish_note(user, data):
+    return publication(unpublish(owned_note(user, data["id"])))
+
+
+def page(note):
+    settings = page_settings(note)
+    # Its image is in the app, behind the user's sign-in: no use to an assistant.
+    settings["preview"].pop("image_url")
+    return {
+        **publication(note),
+        **settings,
+        "address": absolute(settings["address"]),
+    }
+
+
+def note_with_page(user, note_id):
+    note = owned_note(user, note_id)
+    if not note.public_slug:
+        raise ToolError(
+            "This note was never published, so it has no page yet: publish_note "
+            "first, when the user asks for it."
+        )
+    return note
+
+
+def get_page(user, data):
+    return page(note_with_page(user, data["id"]))
+
+
+class UpdatePageArguments(PageSerializer):
+    id = serializers.UUIDField()
+    published_at = published_date()
+    listed = serializers.BooleanField(required=False)
+
+    def validate(self, data):
+        if not set(data) - {"id"}:
+            raise serializers.ValidationError(
+                "Send a slug, a title, a description, an image, published_at or listed."
+            )
+        return data
+
+
+def update_page(user, data):
+    note = note_with_page(user, data.pop("id"))
+    try:
+        save_page(note, data)
+    except SlugTaken:
+        raise ToolError(SLUG_TAKEN) from None
+    except NotPublished:
+        raise ToolError(
+            "published_at: This note is private now, and its date is when it "
+            "went public: publish_note takes published_at, when the user asks "
+            "to publish it. Nothing was saved."
+        ) from None
+    return page(note)
+
+
+# Blogs
+
+FIND_BLOGS = "list_blogs gives every blog's id."
+# The app's names for what the tools call otherwise.
+BLOG_FIELDS = {"domain": "hostname", "collection_id": "collection"}
+
+
+def blog_details(site):
+    details = SiteSerializer(site, context={"request": current_request.get()}).data
+    collection = site.collection
+    return {
+        "id": details["id"],
+        "domain": details["hostname"],
+        "url": details["url"],
+        "status": details["status"],
+        "collection": (
+            {"id": collection.id, "name": collection.name} if collection else None
+        ),
+        "title": details["title"],
+        "name": site.name,
+        "description": details["description"],
+        "author": details["author"],
+        "author_url": details["author_url"],
+        "show_author": details["show_author"],
+        "links": details["links"],
+        "powered_by": details["powered_by"],
+        "categories": [
+            {
+                "name": category.name,
+                "collection_id": category.collection_id,
+                "url": site_url(site, f"/c/{category.slug}"),
+            }
+            for category in site_categories(site)
+        ],
+        "records": details["records"],
+        "pending_domain": details["pending_hostname"] or None,
+        "pending_status": (
+            details["pending_status"] if details["pending_hostname"] else None
+        ),
+        "checked_at": details["checked_at"],
+        "verified_at": details["verified_at"],
+        "created_at": details["created_at"],
+    }
+
+
+def owned_sites(user):
+    return Site.objects.filter(owner=user).select_related("collection")
+
+
+def owned_site(user, site_id):
+    site = owned_sites(user).filter(id=site_id).first()
+    if site is None:
+        raise ToolError(f"No blog with id {site_id}. {FIND_BLOGS}")
+    return site
+
+
+def list_blogs(user, data):
+    return {"blogs": [blog_details(site) for site in owned_sites(user)]}
+
+
+class LinkArguments(serializers.Serializer):
+    name = serializers.CharField()
+    url = serializers.CharField()
+
+
+class BlogArguments(serializers.Serializer):
+    domain = serializers.CharField(max_length=253)
+    collection_id = serializers.UUIDField(required=False, allow_null=True)
+    title = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+    author = serializers.CharField(required=False, allow_blank=True)
+    author_url = serializers.CharField(required=False, allow_blank=True)
+    show_author = serializers.BooleanField(required=False)
+    links = serializers.ListField(child=LinkArguments(), required=False)
+    powered_by = serializers.BooleanField(required=False)
+
+
+def save_blog(user, data, site=None):
+    """Through the app's own checks: the domain, the collection, the links."""
+    if data.get("collection_id"):
+        owned_collection(user, data["collection_id"])
+    fields = {BLOG_FIELDS.get(name, name): value for name, value in data.items()}
+    payload = SiteSerializer(
+        site,
+        data=fields,
+        partial=site is not None,
+        context={"request": current_request.get()},
+    )
+    if not payload.is_valid():
+        names = {field: name for name, field in BLOG_FIELDS.items()}
+        errors = {
+            names.get(name, name): value for name, value in payload.errors.items()
+        }
+        raise ToolError(f"{describe(errors)} Nothing was saved.")
+    return blog_details(payload.save(owner=user))
+
+
+def create_blog(user, data):
+    return save_blog(user, data)
+
+
+class UpdateBlogArguments(BlogArguments):
+    id = serializers.UUIDField()
+    domain = serializers.CharField(max_length=253, required=False)
+
+    def validate(self, data):
+        if not set(data) - {"id"}:
+            raise serializers.ValidationError("Send at least one setting to change.")
+        return data
+
+
+def update_blog(user, data):
+    site = owned_site(user, data.pop("id"))
+    return save_blog(user, data, site)
+
+
+class BlogIdArguments(serializers.Serializer):
+    id = serializers.UUIDField()
+
+
+def verify_blog(user, data):
+    # As the app does: the lookup runs in the worker, and the blog says how it went.
+    site = owned_site(user, data["id"])
+    site.start_check()
+    verify_site.delay(str(site.id))
+    return blog_details(owned_site(user, site.id))
+
+
+class BlogPostsArguments(PageArguments):
+    id = serializers.UUIDField()
+
+
+def blog_posts(site):
+    """Its notes, published first (newest first), then its drafts."""
+    return (
+        filed_notes(site)
+        .filter(is_sample=False)
+        .order_by(F("published_at").desc(nulls_last=True), "-created_at")
+    )
+
+
+def list_blog_posts(user, data):
+    site = owned_site(user, data["id"])
+    posts = blog_posts(site)
+    start, end = data["offset"], data["offset"] + data["limit"]
+    page_of = list(posts[start:end])
+    public = [post for post in page_of if post.published_at]
+    readable = {
+        note_id: absolute(url) for note_id, url in public_urls(public).items() if url
+    }
+    return {
+        "blog": {"id": site.id, "domain": site.hostname, "status": site.status},
+        "total": posts.count(),
+        "posts": [
+            {
+                "id": post.id,
+                "title": item_title(post),
+                "slug": post.public_slug or None,
+                "status": "published" if post.published_at else "draft",
+                "listed": post.public_listed,
+                "published_at": post.published_at,
+                # On the blog's domain, once it is verified and serving.
+                "url": (
+                    site_url(site, f"/{post.public_slug}")
+                    if post.published_at
+                    else None
+                ),
+                # Where anyone reads it now.
+                "public_url": readable.get(post.id),
+                "created_at": post.created_at,
+                "updated_at": post.updated_at,
+            }
+            for post in page_of
+        ],
+    }
+
+
+# Redirects
+
+
+class RedirectPairArguments(serializers.Serializer):
+    from_path = serializers.CharField(max_length=2048)
+    to = serializers.CharField(max_length=2048)
+
+
+class SetRedirectsArguments(serializers.Serializer):
+    id = serializers.UUIDField()
+    redirects = serializers.ListField(
+        child=RedirectPairArguments(), allow_empty=False, max_length=MAX_REDIRECTS
+    )
+
+
+def redirect_summary(redirect):
+    return {
+        "from_path": redirect.path,
+        "to": redirect.target,
+        "updated_at": redirect.updated_at,
+    }
+
+
+def set_redirects(user, data):
+    site = owned_site(user, data["id"])
+    pairs = [(pair["from_path"], pair["to"]) for pair in data["redirects"]]
+    try:
+        saved = save_redirects(site, pairs)
+    except InvalidRedirect as invalid:
+        raise ToolError(f"{invalid} Nothing was saved.") from None
+    return {
+        "blog": {"id": site.id, "domain": site.hostname, "status": site.status},
+        "redirects": [redirect_summary(redirect) for redirect in saved],
+    }
+
+
+class ListRedirectsArguments(PageArguments):
+    id = serializers.UUIDField()
+
+
+def list_redirects(user, data):
+    site = owned_site(user, data["id"])
+    redirects = Redirect.objects.filter(site=site)
+    start, end = data["offset"], data["offset"] + data["limit"]
+    return {
+        "blog": {"id": site.id, "domain": site.hostname, "status": site.status},
+        "total": redirects.count(),
+        "redirects": [redirect_summary(r) for r in redirects[start:end]],
+    }
+
+
+# Images
+
+
+class ImportImageArguments(serializers.Serializer):
+    url = serializers.URLField(max_length=2048)
+
+    def validate_url(self, value):
+        if urlsplit(value).scheme not in ("http", "https"):
+            raise serializers.ValidationError("Use an http(s) URL.")
+        return value
+
+
+def imported_image(image):
+    return {
+        "id": image.id,
+        "src": image.src,
+        "markdown": f"![]({image.src})",
+        "source_url": image.metadata.get("source_url"),
+        "width": image.metadata.get("width"),
+        "height": image.metadata.get("height"),
+        "size": image.metadata.get("size"),
+    }
+
+
+def import_image(user, data):
+    url = data["url"]
+    # Asked twice (a retry): the copy no note uses yet, or one let go.
+    known = (
+        NoteImage.objects.filter(
+            Q(note__isnull=True) | Q(unused_since__isnull=False),
+            owner=user,
+            source=NoteImage.Source.PASTED,
+            metadata__source_url=url,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if known:
+        return imported_image(known)
+    try:
+        fetched = fetch(url, max_bytes=MAX_PASTED_SIZE, accept="image/*")
+    except TransientFetchError:
+        raise ToolError(
+            f"{url} didn't answer, or is busy: try again in a while. Nothing was saved."
+        ) from None
+    except FetchError as failed:
+        raise ToolError(
+            f"Couldn't download {url}: {failed}. Nothing was saved."
+        ) from None
+    name = posixpath.basename(urlsplit(fetched.url).path) or "image"
+    file = ContentFile(fetched.content, name=name)
+    limit = MAX_PASTED_SIZE // (1024 * 1024)
+    try:
+        upload = inspect_upload(file)
+    except UploadTooLarge:
+        raise ToolError(f"The image is over {limit} MB. Nothing was saved.") from None
+    if upload.kind != Item.Kind.IMAGE:
+        raise ToolError(
+            f"{url} isn't an image BrainBro can show (JPEG, PNG, GIF, WebP, AVIF "
+            f"or HEIC): it is {upload.mime}. Nothing was saved."
+        )
+    # As one pasted into a note: unused until a note links it.
+    image = NoteImage(
+        owner=user,
+        source=NoteImage.Source.PASTED,
+        metadata={**upload.metadata, "source_url": url},
+        unused_since=timezone.now(),
+    )
+    image.src = f"attachments/{image.id}.{upload.extension}"
+    image.original.save(f"original.{upload.extension}", file, save=False)
+    image.save()
+    transaction.on_commit(lambda: make_note_image_display.delay(str(image.id)))
+    return imported_image(image)
+
+
 UUID = {"type": "string", "format": "uuid"}
 IDS = {"type": "array", "items": UUID, "minItems": 1, "maxItems": MAX_IDS}
 LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT}
 OFFSET = {"type": "integer", "minimum": 0}
 MARKDOWN = {"type": "string", "description": "Markdown."}
+LISTED = {
+    "type": "boolean",
+    "description": (
+        "false makes it unlisted: anyone with its address can read it, but it "
+        "shows on no list, feed or sitemap and search engines don't index it. "
+        "true lists it. Without it, it stays as it was."
+    ),
+}
+PUBLISHED_AT = {
+    "type": "string",
+    "format": "date-time",
+    "description": (
+        "The date its page shows and its blog sorts by, ISO 8601 (like "
+        "2021-05-03T10:00:00Z), not in the future. For a post moved from "
+        "elsewhere, the date it was first published there."
+    ),
+}
+LINKS = {
+    "type": "array",
+    "maxItems": 10,
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "maxLength": 60},
+            "url": {"type": "string", "format": "uri"},
+        },
+        "required": ["name", "url"],
+        "additionalProperties": False,
+    },
+    "description": "Shown on its index, under the description. Replaces them all.",
+}
 
 TOOLS = {
     tool.name: tool
     for tool in [
         Tool(
             name="search_items",
+            permission=Permission.READ,
             title="Search items",
             description=(
                 "Search the user's notes, links, images, recordings and files, "
@@ -711,6 +1223,7 @@ TOOLS = {
         ),
         Tool(
             name="get_item",
+            permission=Permission.READ,
             title="Get an item",
             description=(
                 "One item in full: a note's whole Markdown body and its "
@@ -727,6 +1240,7 @@ TOOLS = {
         ),
         Tool(
             name="get_items",
+            permission=Permission.READ,
             title="Get several items",
             description=(
                 f"Up to {MAX_FULL_ITEMS} items in full, in one call, in the "
@@ -745,6 +1259,7 @@ TOOLS = {
         ),
         Tool(
             name="list_inbox",
+            permission=Permission.READ,
             title="List the inbox",
             description=(
                 "What is waiting in the inbox to be sorted, newest first, as "
@@ -761,6 +1276,7 @@ TOOLS = {
         ),
         Tool(
             name="list_collections",
+            permission=Permission.READ,
             title="List collections",
             description=(
                 "Every collection: its id, name, kind (project, area or "
@@ -777,6 +1293,7 @@ TOOLS = {
         ),
         Tool(
             name="list_collection_items",
+            permission=Permission.READ,
             title="List a collection's items",
             description=(
                 "The items organized in a collection, in the order the user "
@@ -792,6 +1309,7 @@ TOOLS = {
         ),
         Tool(
             name="create_collection",
+            permission=Permission.EDIT,
             title="Create a collection",
             description=(
                 "Makes a new, empty collection. Kinds follow PARA: project "
@@ -813,6 +1331,7 @@ TOOLS = {
         ),
         Tool(
             name="capture",
+            permission=Permission.CAPTURE,
             title="Capture a note or link",
             description=(
                 "Saves a new note (Markdown) or link into the inbox, or "
@@ -841,6 +1360,7 @@ TOOLS = {
         ),
         Tool(
             name="edit_note",
+            permission=Permission.EDIT,
             title="Edit a note",
             description=(
                 "Changes a note. Prefer the partial edits, which leave the "
@@ -886,6 +1406,7 @@ TOOLS = {
         ),
         Tool(
             name="list_revisions",
+            permission=Permission.READ,
             title="List a note's revisions",
             description=(
                 "The history of a note, newest first: each revision says who "
@@ -906,6 +1427,7 @@ TOOLS = {
         ),
         Tool(
             name="get_revision",
+            permission=Permission.READ,
             title="Get a revision",
             description=(
                 "One revision of a note in full: its title and Markdown body "
@@ -921,6 +1443,7 @@ TOOLS = {
         ),
         Tool(
             name="organize",
+            permission=Permission.EDIT,
             title="Organize into collections",
             description=(
                 "Adds items to one or more collections and takes them out of "
@@ -937,6 +1460,7 @@ TOOLS = {
         ),
         Tool(
             name="archive",
+            permission=Permission.EDIT,
             title="Archive items",
             description=(
                 "Keeps items but takes them out of the way: out of the inbox "
@@ -951,6 +1475,7 @@ TOOLS = {
         ),
         Tool(
             name="list_boards",
+            permission=Permission.READ,
             title="List boards",
             description=(
                 "Every board (a canvas where the user lays items out in "
@@ -964,6 +1489,7 @@ TOOLS = {
         ),
         Tool(
             name="get_board",
+            permission=Permission.READ,
             title="Get a board",
             description=(
                 "What is on a board, in reading order (top to bottom, left to "
@@ -981,6 +1507,7 @@ TOOLS = {
         ),
         Tool(
             name="add_to_board",
+            permission=Permission.EDIT,
             title="Add items to a board",
             description=(
                 "Puts existing items on a board, where the app puts new "
@@ -995,6 +1522,326 @@ TOOLS = {
             required=["board_id", "item_ids"],
             run_with=add_to_board,
             idempotent=True,
+        ),
+        Tool(
+            name="publish_note",
+            permission=Permission.PUBLISH,
+            title="Publish a note",
+            description=(
+                "Makes a note public: anyone with its address can read it, "
+                "signed in or not, and so can search engines. Only when the "
+                "user asks for it or agrees to it, never on your own. It "
+                "lives on the user's page on this server, or on their blog "
+                "if it is filed in a blog's collection (see list_blogs). "
+                "slug is the end of its address; without one it keeps the "
+                "one it had, or gets one made from its title. published_at "
+                "is the date it shows: give a post moved from another blog "
+                "its original date; without one it keeps the date it had, "
+                "or gets now. listed false keeps it off its blog, feeds and "
+                "search engines. Returns public_url, its address.\n\n"
+                'Example: {"id": "<id>", "slug": "trip-plan", "published_at": '
+                '"2021-05-03T10:00:00Z"}'
+            ),
+            arguments=PublishArguments,
+            schema={
+                "id": UUID,
+                "slug": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Lowercase letters, numbers and hyphens.",
+                },
+                "published_at": PUBLISHED_AT,
+                "listed": LISTED,
+            },
+            required=["id"],
+            run_with=publish_note,
+            idempotent=True,
+        ),
+        Tool(
+            name="unpublish_note",
+            permission=Permission.PUBLISH,
+            title="Unpublish a note",
+            description=(
+                "Makes a public note private again: its address stops "
+                "working at once. It keeps its slug and page settings for "
+                "when it is published again. Only when the user asks for it."
+            ),
+            arguments=ItemArguments,
+            schema={"id": UUID},
+            required=["id"],
+            run_with=unpublish_note,
+            idempotent=True,
+        ),
+        Tool(
+            name="get_page",
+            permission=Permission.READ,
+            title="Get a note's page settings",
+            description=(
+                "A published note's page settings, as Page settings in the "
+                "app: its slug and address, and the title, description and "
+                "image its page shows in search results and shared links. "
+                "Empty ones use the defaults listed; preview is what shows "
+                'now. image is the src of one of the note\'s images, "none" '
+                "for no image, or empty for its first."
+            ),
+            arguments=ItemArguments,
+            schema={"id": UUID},
+            required=["id"],
+            run_with=get_page,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="update_page",
+            permission=Permission.PUBLISH,
+            title="Update a note's page settings",
+            description=(
+                "Changes some of a published note's page settings; an empty "
+                "title, description or image goes back to its default. A new "
+                "slug changes its address, and links to the old one stop "
+                "working (on a blog, set_redirects can keep them). "
+                "published_at changes the date it shows, and where its blog "
+                "lists it. listed false takes it off its blog, feeds and "
+                "search engines, at the same address. Only when the user "
+                "asks for it.\n\n"
+                'Example: {"id": "<id>", "description": "What we packed for '
+                'ten days in Japan."}'
+            ),
+            arguments=UpdatePageArguments,
+            schema={
+                "id": UUID,
+                "slug": {"type": "string", "maxLength": 80},
+                "title": {"type": "string", "maxLength": 200},
+                "description": {"type": "string", "maxLength": 300},
+                "image": {
+                    "type": "string",
+                    "description": 'An image\'s src in the note, "none", or "".',
+                },
+                "published_at": PUBLISHED_AT,
+                "listed": LISTED,
+            },
+            required=["id"],
+            run_with=update_page,
+            idempotent=True,
+        ),
+        Tool(
+            name="list_blogs",
+            permission=Permission.READ,
+            title="List blogs",
+            description=(
+                "The user's blogs on their own domains: each one's domain, "
+                "address, status, the collection whose published notes it "
+                "shows, its title, description, links and categories (the "
+                "collections right inside its own; create_collection with "
+                "parent_id adds one). records are the DNS records the user "
+                "adds at their domain provider. status: unverified (records "
+                "not checked yet), checking, failed (the TXT record wasn't "
+                "found) or verified (serving). pending_domain is the domain "
+                "a serving blog is moving to, if any: records are that "
+                "domain's, and pending_status says how its check went."
+            ),
+            arguments=NoArguments,
+            schema={},
+            run_with=list_blogs,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="create_blog",
+            permission=Permission.PUBLISH,
+            title="Create a blog",
+            description=(
+                "Sets up a blog on a domain the user owns, showing the "
+                "published notes filed in collection_id and the collections "
+                "inside it. Only when the user asks for it. It serves "
+                "nothing until verified: tell the user to add the records "
+                "in the result at their domain provider, then verify_blog. "
+                "Without a title it is named after its collection.\n\n"
+                'Example: {"domain": "blog.example.com", "collection_id": '
+                '"<id>", "title": "Field notes"}'
+            ),
+            arguments=BlogArguments,
+            schema={
+                "domain": {"type": "string", "description": "Like blog.example.com."},
+                "collection_id": UUID,
+                "title": {"type": "string", "maxLength": 120},
+                "description": {"type": "string", "maxLength": 300},
+                "author": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "Who signs it. Empty: the user's display name.",
+                },
+                "author_url": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "The author's website, for search engines.",
+                },
+                "show_author": {
+                    "type": "boolean",
+                    "description": "The author under its name, on by default.",
+                },
+                "links": LINKS,
+                "powered_by": {
+                    "type": "boolean",
+                    "description": "A small Powered by BrainBro line, on by default.",
+                },
+            },
+            required=["domain"],
+            run_with=create_blog,
+        ),
+        Tool(
+            name="update_blog",
+            permission=Permission.PUBLISH,
+            title="Update a blog",
+            description=(
+                "Changes some of a blog's settings: the same ones as "
+                "create_blog. links replaces all of them. A verified blog's "
+                "new domain stays pending and the blog keeps serving at its "
+                "current one: tell the user to add the records in the result, "
+                "then verify_blog moves it. Sending its current domain calls "
+                "the move off. Only when the user asks for it. Blogs are "
+                "turned off or removed in the app only."
+            ),
+            arguments=UpdateBlogArguments,
+            schema={
+                "id": UUID,
+                "domain": {"type": "string"},
+                "collection_id": {**UUID, "type": ["string", "null"]},
+                "title": {"type": "string", "maxLength": 120},
+                "description": {"type": "string", "maxLength": 300},
+                "author": {"type": "string", "maxLength": 80},
+                "author_url": {"type": "string", "maxLength": 500},
+                "show_author": {"type": "boolean"},
+                "links": LINKS,
+                "powered_by": {"type": "boolean"},
+            },
+            required=["id"],
+            run_with=update_blog,
+            idempotent=True,
+        ),
+        Tool(
+            name="verify_blog",
+            permission=Permission.PUBLISH,
+            title="Verify a blog's domain",
+            description=(
+                "Looks up the blog's TXT record, once the user says they "
+                "added its records. verified: it is serving at its url. "
+                "failed: the record wasn't found; DNS changes can take a "
+                "while to show, so the user can try again later. checking: "
+                "the lookup is still running, call list_blogs in a few "
+                "seconds to see how it went. A blog already serving stays "
+                "verified during the lookup, and stops only if DNS answers "
+                "that its record is gone. On a blog moving to a new "
+                "domain it checks that one and says so in pending_status; "
+                "found, the blog moves there, and until then nothing changes "
+                "where it serves."
+            ),
+            arguments=BlogIdArguments,
+            schema={"id": UUID},
+            required=["id"],
+            run_with=verify_blog,
+            idempotent=True,
+        ),
+        Tool(
+            name="list_blog_posts",
+            permission=Permission.READ,
+            title="List a blog's posts",
+            description=(
+                "The notes on a blog: those filed in its collection or the "
+                "collections inside it, published ones first (newest first), "
+                "then drafts (filed there but private). Each has its id, "
+                "title, slug, status (published or draft), published_at, url "
+                "(its address on the blog's domain, once the blog is "
+                "verified) and public_url (where anyone reads it now). Use it "
+                "to check what is on a blog, and before moving posts in, so "
+                "none is added twice. Page with limit and offset."
+            ),
+            arguments=BlogPostsArguments,
+            schema={"id": UUID, "limit": LIMIT, "offset": OFFSET},
+            required=["id"],
+            run_with=list_blog_posts,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="set_redirects",
+            permission=Permission.PUBLISH,
+            title="Set a blog's redirects",
+            description=(
+                "Sends readers of old addresses on a blog's domain to new "
+                "ones, for good (HTTP 301), which also tells search engines "
+                "a post moved. For posts moved from another blog on the same "
+                "domain whose address changed: keeping the old slug needs no "
+                "redirect. from_path is the old path (/old-post; a whole URL "
+                "is read as its path, without the query); to is a path on "
+                "the blog (/new-post) or an http(s) URL. A from_path already "
+                "there gets the new to. All or none: one wrong pair saves "
+                "nothing. They work once the blog is verified and serving. A "
+                "published post's address, the blog's index, /c/ categories, "
+                "/rss and /api can't redirect. Only when the user asks for "
+                f"it. Up to {MAX_REDIRECTS} per call.\n\n"
+                'Example: {"id": "<blog id>", "redirects": [{"from_path": '
+                '"/mi-viaje", "to": "/viaje-a-viena"}]}'
+            ),
+            arguments=SetRedirectsArguments,
+            schema={
+                "id": UUID,
+                "redirects": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": MAX_REDIRECTS,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "from_path": {"type": "string", "maxLength": 2048},
+                            "to": {"type": "string", "maxLength": 2048},
+                        },
+                        "required": ["from_path", "to"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            required=["id", "redirects"],
+            run_with=set_redirects,
+            idempotent=True,
+        ),
+        Tool(
+            name="list_redirects",
+            permission=Permission.READ,
+            title="List a blog's redirects",
+            description=(
+                "A blog's redirects, by old path: where each one sends "
+                "readers. Page with limit and offset."
+            ),
+            arguments=ListRedirectsArguments,
+            schema={"id": UUID, "limit": LIMIT, "offset": OFFSET},
+            required=["id"],
+            run_with=list_redirects,
+            read_only=True,
+            idempotent=True,
+        ),
+        Tool(
+            name="import_image",
+            permission=Permission.CAPTURE,
+            title="Import an image from a URL",
+            description=(
+                "Downloads an image into BrainBro, as if the user had pasted "
+                "it into a note, so a note no longer depends on the site it "
+                "came from (when moving posts from another blog, say). "
+                "Returns src, its address in BrainBro: put it in a note's "
+                "Markdown in place of the old URL, as in markdown "
+                "(![alt](attachments/<id>.jpg)), with capture or edit_note. "
+                "A note has to link it within "
+                f"{UNUSED_GRACE.days} days, or it is deleted. The same URL "
+                "asked again gives the same image while no note uses it. "
+                "JPEG, PNG, GIF, WebP, AVIF or HEIC, up to "
+                f"{MAX_PASTED_SIZE // (1024 * 1024)} MB.\n\n"
+                'Example: {"url": "https://example.com/photo.jpg"}'
+            ),
+            arguments=ImportImageArguments,
+            schema={"url": {"type": "string", "format": "uri"}},
+            required=["url"],
+            run_with=import_image,
         ),
     ]
 }

@@ -1,0 +1,240 @@
+"""
+Blogs on their owners' own domains. BrainBro routes by the host a request
+arrives with (`SiteMiddleware`): the server's own hostnames (`APP_HOSTS`)
+get the app, and a verified site's hostname gets that blog, whatever brought
+the request there (a reverse proxy issuing certificates on demand, a tunnel).
+"""
+
+import re
+from collections import defaultdict
+from dataclasses import dataclass
+
+import dns.exception
+import dns.resolver
+from django.conf import settings
+from django.http import HttpResponseBadRequest
+from django.http.request import split_domain_port, validate_host
+from django.utils.text import slugify
+
+from apps.items.models import Collection, CollectionItem, Item
+
+from .handles import public_handle
+from .models import Site
+
+# Labels of letters, digits and inner hyphens, and at least two of them.
+HOSTNAME = re.compile(
+    r"(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
+    r"(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})"
+)
+DNS_TIMEOUT = 5  # seconds
+SITE_URLCONF = "config.site_urls"
+
+
+def normalize_hostname(value):
+    """
+    `Blog.Example.com.` as `blog.example.com`, punycode for other scripts;
+    "" if it isn't a domain.
+    """
+    value = value.strip().lower().rstrip(".")
+    try:
+        value = value.encode("idna").decode("ascii")
+    except UnicodeError:
+        return ""
+    return value if HOSTNAME.fullmatch(value) else ""
+
+
+def is_app_host(host):
+    return validate_host(host, settings.APP_HOSTS)
+
+
+def verified_sites():
+    return Site.objects.filter(status=Site.Status.VERIFIED)
+
+
+class SiteMiddleware:
+    """
+    Sends each request to the app or to a blog by its host. Unknown hosts
+    get 400, as `ALLOWED_HOSTS` would give them (it is `*`: this checks).
+    A blog has URLs of its own (`config.site_urls`), so nothing of the app
+    is reachable from its domain, and cookies are dropped: no session ever
+    reaches the app from there.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host, _ = split_domain_port(request._get_raw_host())
+        request.site = None
+        if not is_app_host(host):
+            site = verified_sites().filter(hostname=host).first() if host else None
+            if site is None:
+                return HttpResponseBadRequest("Unknown host.")
+            request.META.pop("HTTP_COOKIE", None)
+            request.urlconf = SITE_URLCONF
+            request.site = site
+        return self.get_response(request)
+
+
+def current_site(request):
+    """The blog this request is for, or None for the app."""
+    return getattr(request, "site", None)
+
+
+def collection_tree(collection_id, owner_id):
+    """The collection and every one inside it, at any depth."""
+    if collection_id is None:
+        return set()
+    tree = level = {collection_id}
+    while level:
+        level = (
+            set(
+                Collection.objects.filter(
+                    owner_id=owner_id, parent_id__in=level
+                ).values_list("id", flat=True)
+            )
+            - tree
+        )
+        tree = tree | level
+    return tree
+
+
+@dataclass
+class Category:
+    slug: str
+    name: str
+    collection_id: object
+
+
+def site_categories(site):
+    """
+    The blog's categories: the collections right inside its own, each at
+    `/c/<slug>`, the slug made from its name. Their own sub-collections
+    belong to them.
+    """
+    if site.collection_id is None:
+        return []
+    categories, used = [], set()
+    for child in Collection.objects.filter(
+        owner_id=site.owner_id, parent_id=site.collection_id
+    ):
+        base = slugify(child.name) or "category"
+        slug, number = base, 1
+        while slug in used:
+            number += 1
+            slug = f"{base}-{number}"
+        used.add(slug)
+        categories.append(Category(slug, child.name, child.id))
+    return categories
+
+
+def filed_notes(site, category=None):
+    """
+    The notes filed on `site`, private ones too: those in its collection or
+    any inside it; with a `Category`, in that one's.
+    """
+    root = category.collection_id if category else site.collection_id
+    if root is None:
+        return Item.objects.none()
+    return Item.objects.filter(
+        kind=Item.Kind.NOTE,
+        owner_id=site.owner_id,
+        id__in=CollectionItem.objects.filter(
+            collection_id__in=collection_tree(root, site.owner_id)
+        ).values("item_id"),
+    )
+
+
+def site_notes(site, category=None):
+    """The published notes on `site` (see `filed_notes`)."""
+    return filed_notes(site, category).filter(published_at__isnull=False)
+
+
+def listed_notes(notes):
+    """
+    Those of these published notes that lists and feeds show. Never for
+    finding a note to read: an unlisted one still opens at its address.
+    """
+    return notes.filter(public_listed=True)
+
+
+def site_url(site, path="/"):
+    """
+    A blog's address: HTTPS on its own domain in production; in development,
+    `http://<hostname>:8000`, where Django serves it (`SITE_SCHEME`, `SITE_PORT`).
+    """
+    port = f":{settings.SITE_PORT}" if settings.SITE_PORT else ""
+    return f"{settings.SITE_SCHEME}://{site.hostname}{port}{path}"
+
+
+def public_urls(notes, current_site=None):
+    """
+    Where each of these published notes lives, by id: its blog if it is on
+    one (`https://<hostname>/<slug>`), `/@<handle>/<slug>` on the server
+    otherwise. Read on `current_site`, its own notes are `/<slug>` and those
+    on no blog have no address there (their links read as plain text).
+    """
+    urls = {}
+    by_owner = defaultdict(list)
+    for note in notes:
+        by_owner[note.owner_id].append(note)
+    for owner_id, owned in by_owner.items():
+        sites = list(
+            verified_sites()
+            .filter(owner_id=owner_id, collection__isnull=False)
+            .order_by("created_at")
+        )
+        # Each blog has its collection and those inside it.
+        trees = {
+            site.id: collection_tree(site.collection_id, owner_id) for site in sites
+        }
+        if current_site is not None and current_site.id not in trees:
+            trees[current_site.id] = collection_tree(
+                current_site.collection_id, current_site.owner_id
+            )
+        placed = defaultdict(set)
+        if trees:
+            rows = CollectionItem.objects.filter(
+                item__in=[note.id for note in owned],
+                collection_id__in=set().union(*trees.values()),
+            ).values_list("item_id", "collection_id")
+            for item_id, collection_id in rows:
+                placed[item_id].add(collection_id)
+        handle = None
+        for note in owned:
+            collections = placed[note.id]
+            if current_site is not None and collections & trees[current_site.id]:
+                urls[note.id] = f"/{note.public_slug}"
+                continue
+            site = next((s for s in sites if collections & trees[s.id]), None)
+            if site:
+                urls[note.id] = site_url(site, f"/{note.public_slug}")
+            elif current_site is None:
+                handle = handle or public_handle(owner_id)
+                urls[note.id] = f"/@{handle}/{note.public_slug}"
+            else:
+                urls[note.id] = None
+    return urls
+
+
+def public_url(note):
+    """Where a published note lives: on its blog (absolute) or `/@<handle>/<slug>`."""
+    return public_urls([note])[note.id]
+
+
+class DnsUnavailable(Exception):
+    """DNS didn't answer: nothing is known about the record."""
+
+
+def txt_values(name):
+    """
+    The TXT records at `name`, as strings; none if DNS says it has none.
+    Raises DnsUnavailable if DNS doesn't answer either way.
+    """
+    try:
+        answer = dns.resolver.resolve(name, "TXT", lifetime=DNS_TIMEOUT)
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+        return set()
+    except dns.exception.DNSException as failed:
+        raise DnsUnavailable from failed
+    return {b"".join(record.strings).decode(errors="replace") for record in answer}

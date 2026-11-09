@@ -24,6 +24,7 @@ class RevisionSerializer(serializers.ModelSerializer):
             "title",
             "by",
             "via",
+            "logo",
             "restored_from",
             "restored_from_at",
             "created_at",

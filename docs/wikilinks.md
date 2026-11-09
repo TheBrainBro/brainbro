@@ -7,8 +7,8 @@ A note links another by its title, as Obsidian does: `[[Title]]`,
 ## Which note a link finds
 
 The same everywhere (the graph, the editor and the viewer): saved titles are
-tried first, then the title an untitled note gets from its body (its first H1,
-or else its first line). Case doesn't matter; if several notes share a title,
+tried first, then the title an untitled note gets from its body (its first
+line). Case doesn't matter; if several notes share a title,
 the oldest wins.
 
 The server keeps the rule in `apps/items/titles.py` (`linkable_titles`,

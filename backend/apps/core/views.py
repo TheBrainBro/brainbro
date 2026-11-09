@@ -2,13 +2,30 @@ import re
 
 from django.conf import settings
 from django.db import connection
-from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponsePermanentRedirect,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
-from apps.public.pages import head_tags, with_head_tags
+from apps.accounts.models import Profile
+from apps.items.models import Item
+from apps.public.pages import (
+    author_head_tags,
+    note_head_tags,
+    published_note_for_page,
+    with_head_tags,
+)
+from apps.public.sites import public_url
 
-PUBLIC_PAGE = re.compile(r"p/(?P<slug>[a-z0-9-]+)/?")
+# A published note on the server, and where notes were before handles.
+NOTE_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/(?P<slug>[a-z0-9-]+)/?")
+AUTHOR_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/?")
+LEGACY_PAGE = re.compile(r"p/(?P<slug>[a-z0-9-]+)/?")
 
 # Build files that must live at the root: the service worker's scope can't be
 # wider than its own path, and the build's assets are under /static/.
@@ -29,14 +46,56 @@ def health(request):
     return JsonResponse({"status": "ok", "database": True})
 
 
+def note_page_head(request, handle, slug):
+    """A note's tags at `/@<handle>/<slug>`, or a redirect to its blog."""
+    note = published_note_for_page(owner__profile__handle=handle, public_slug=slug)
+    if note is None:
+        return None, None
+    url = public_url(note)
+    if not url.startswith("/"):
+        return None, url
+    return note_head_tags(request, note, request.build_absolute_uri(url)), None
+
+
+def legacy_redirect(slug):
+    """Where `/p/<slug>` lives now, while one published note has that slug."""
+    notes = list(
+        Item.objects.filter(
+            kind=Item.Kind.NOTE, published_at__isnull=False, public_slug=slug
+        ).only("id", "owner_id", "public_slug")[:2]
+    )
+    return public_url(notes[0]) if len(notes) == 1 else None
+
+
+def page_head(request, path):
+    """
+    The tags of a public page at `path`, or a redirect to where it lives
+    now: `/@<handle>/<slug>` on its blog, `/p/<slug>` at its new address.
+    `/@<handle>` is its author's page, with all their public notes.
+    `(tags, redirect)`, both None for the app's own routes.
+    """
+    if match := NOTE_PAGE.fullmatch(path):
+        return note_page_head(request, match["handle"], match["slug"])
+    if match := AUTHOR_PAGE.fullmatch(path):
+        profile = Profile.objects.filter(handle=match["handle"]).first()
+        return (author_head_tags(request, profile) if profile else None), None
+    if match := LEGACY_PAGE.fullmatch(path):
+        return None, legacy_redirect(match["slug"])
+    return None, None
+
+
 @require_GET
 def spa(request, path=""):
     """
     Serve the frontend's index.html for every client-side route.
 
     The React app handles routing and redirects to /login when the session is
-    missing, so this view is public on purpose.
+    missing, so this view is public on purpose. A blog's domain never gets
+    here: it has its own pages (`apps.public.site_pages`).
     """
+    tags, redirect = page_head(request, path)
+    if redirect:
+        return HttpResponsePermanentRedirect(redirect)
     index = settings.FRONTEND_DIST_DIR / "index.html"
     if not index.exists():
         return HttpResponse(
@@ -46,10 +105,9 @@ def spa(request, path=""):
             content_type="text/plain",
         )
     html = index.read_text()
-    # A published note's page says what it is to sites that read its link.
-    if match := PUBLIC_PAGE.fullmatch(path):
-        if tags := head_tags(request, match["slug"]):
-            html = with_head_tags(html, tags)
+    # A public page says what it is to sites that read its link.
+    if tags:
+        html = with_head_tags(html, tags)
     return HttpResponse(html, content_type="text/html")
 
 

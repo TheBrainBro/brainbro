@@ -1,0 +1,141 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
+import { api } from '../lib/api'
+
+export type DnsRecord = { type: 'CNAME' | 'A' | 'TXT'; name: string; value: string }
+
+/**
+ * A blog on the user's own domain: the published notes of `collection`, at
+ * `url`. It serves nothing until its TXT record proves the domain is theirs.
+ */
+export type Blog = {
+  id: string
+  hostname: string
+  collection: string | null
+  title: string
+  description: string
+  /** Who signs it; empty, the owner's display name. */
+  author: string
+  /** The author's website, for search engines; empty, none. */
+  author_url: string
+  /** Whether its index shows the author under its name. */
+  show_author: boolean
+  /** Its own photo, for its owner; null when it uses the profile's. */
+  avatar_url: string | null
+  /** What links to its pages with no image of their own show, or null. */
+  social_image_url: string | null
+  /** Shown under the description on its index, up to 10. */
+  links: { name: string; url: string }[]
+  /** A small "Powered by BrainBro" line at the end of its pages. */
+  powered_by: boolean
+  status: 'unverified' | 'checking' | 'failed' | 'verified'
+  checked_at: string | null
+  verified_at: string | null
+  /** The domain a serving blog is moving to, or empty. */
+  pending_hostname: string
+  /** How the check of `pending_hostname` went. */
+  pending_status: 'unverified' | 'checking' | 'failed'
+  url: string
+  /**
+   * What to add at the DNS of the domain it is moving to, or else its own:
+   * where it points, and the TXT proof.
+   */
+  records: DnsRecord[]
+  created_at: string
+}
+
+export type BlogChanges = Partial<
+  Pick<
+    Blog,
+    | 'hostname'
+    | 'collection'
+    | 'title'
+    | 'description'
+    | 'author'
+    | 'author_url'
+    | 'show_author'
+    | 'links'
+    | 'powered_by'
+  >
+>
+
+const blogsKey = ['blogs'] as const
+const POLL_MS = 2000
+
+/** The user's blogs; polled while one is being checked. */
+export function useBlogs() {
+  return useQuery({
+    queryKey: blogsKey,
+    queryFn: () => api<Blog[]>('/sites/'),
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (blog) => blog.status === 'checking' || blog.pending_status === 'checking',
+      )
+        ? POLL_MS
+        : false,
+  })
+}
+
+export function useCreateBlog() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (blog: BlogChanges) =>
+      api<Blog>('/sites/', { method: 'POST', body: JSON.stringify(blog) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+export function useUpdateBlog(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (changes: BlogChanges) =>
+      api<Blog>(`/sites/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+export function useDeleteBlog(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<void>(`/sites/${id}/`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+/** Sets the blog's own photo; null goes back to the profile's. */
+export function useSetBlogAvatar(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (image: Blob | null) => {
+      if (!image) return api<Blog>(`/sites/${id}/avatar/`, { method: 'DELETE' })
+      const form = new FormData()
+      form.append('file', image, 'avatar.webp')
+      return api<Blog>(`/sites/${id}/avatar/`, { method: 'POST', body: form })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+/** Sets the image shared links to the blog show; null takes it away. */
+export function useSetBlogSocialImage(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (image: Blob | null) => {
+      const url = `/sites/${id}/social-image/`
+      if (!image) return api<Blog>(url, { method: 'DELETE' })
+      const form = new FormData()
+      form.append('file', image, 'social.jpg')
+      return api<Blog>(url, { method: 'POST', body: form })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}
+
+/** Looks the TXT record up; the blog's status says how it went. */
+export function useVerifyBlog(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<Blog>(`/sites/${id}/verify/`, { method: 'POST' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: blogsKey }),
+  })
+}

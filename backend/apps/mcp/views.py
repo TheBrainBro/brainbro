@@ -6,10 +6,11 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from apps.accounts.authentication import McpAuthentication
+from apps.accounts.logos import token_logo
 from apps.events.changes import collect
 from apps.items.origin import Source, acting, app_name
 
-from . import server
+from . import server, tools
 
 
 class McpView(APIView):
@@ -46,10 +47,33 @@ class McpView(APIView):
         if "id" not in message or "method" not in message:
             # A notification, or a response to us: nothing to answer.
             return HttpResponse(status=202)
+        if message["method"] == "initialize":
+            remember_client(request.auth, message.get("params"))
         # Open tabs name the assistant on what it changed, and so do items.
         name = app_name(request.auth)
-        with collect(by=name), acting(Source.MCP, by=name):
-            return JsonResponse(server.handle(request.user, message))
+        # The tools give whole addresses on this host, and check as the app does.
+        logo = token_logo(request.auth)
+        with (
+            collect(by=name),
+            acting(Source.MCP, by=name, logo=logo),
+            tools.serving(request),
+        ):
+            return JsonResponse(
+                server.handle(request.user, message, request.auth.permissions)
+            )
+
+
+def remember_client(token, params):
+    """Keeps what the client calls itself, from the MCP handshake."""
+    info = params.get("clientInfo") if isinstance(params, dict) else None
+    if not isinstance(info, dict):
+        return
+    words = [info.get(key) for key in ("name", "title")]
+    # Two fields of up to 200 characters, and the space between them.
+    said = " ".join(word[:200] for word in words if isinstance(word, str))
+    if said and said != token.client_app:
+        token.client_app = said
+        token.save(update_fields=["client_app", "updated_at"])
 
 
 def rpc_error(code, text):

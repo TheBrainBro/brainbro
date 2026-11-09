@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -32,6 +32,12 @@ beforeEach(() => {
     if (url.startsWith('/api/collections/work/') && init?.method === 'DELETE') {
       collections = []
       return new Response(null, { status: 204 })
+    }
+    if (url === '/api/items/capture/' && init?.method === 'POST') {
+      const { text, collection } = JSON.parse(String(init.body))
+      const created = note('captured', text, collection)
+      collectionItems = [created, ...collectionItems]
+      return jsonResponse(created, 201)
     }
     if (url.startsWith('/api/items/')) {
       const results = collectionItems.filter((item) => url.includes(`collection=${item.collections[0]}`))
@@ -235,6 +241,55 @@ describe('CollectionPage', () => {
     expect(JSON.parse(String((init as RequestInit).body))).toMatchObject({ parent: 'home' })
   })
 
+  it('points to the capture box when it is empty', async () => {
+    collections = [work]
+    renderCollection()
+    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument()
+    expect(screen.getByText(/in the box above/)).toBeInTheDocument()
+  })
+
+  it('captures a note into it from the box', async () => {
+    collections = [work]
+    renderCollection()
+    const box = await screen.findByLabelText('Capture')
+    fireEvent.keyDown(document.body, { key: '/' })
+    expect(box).toHaveFocus()
+    fireEvent.change(box, { target: { value: 'Call the client' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+
+    expect(await screen.findByText('Call the client')).toBeInTheDocument()
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === '/api/items/capture/')!
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      text: 'Call the client',
+      collection: 'work',
+    })
+    expect(box).toHaveValue('')
+  })
+
+  it('captures a voice memo into it from the box', async () => {
+    collections = [work]
+    vi.stubGlobal('MediaRecorder', FakeRecorder)
+    vi.stubGlobal('XMLHttpRequest', FakeXHR)
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => undefined }] }) },
+      configurable: true,
+    })
+    try {
+      renderCollection()
+      fireEvent.click(await screen.findByRole('button', { name: 'Voice note' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
+
+      await waitFor(() => expect(FakeXHR.sent).toHaveLength(1))
+      const [request] = FakeXHR.sent
+      expect(request.url).toBe('/api/items/capture/')
+      expect((request.body!.get('file') as File).name).toMatch(/^Voice note\./)
+      expect(request.body!.get('collection')).toBe('work')
+    } finally {
+      FakeXHR.sent = []
+      Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true })
+    }
+  })
+
   it('says the collections inside move up when it is deleted', async () => {
     collections = [work, clients]
     renderCollection()
@@ -248,6 +303,41 @@ describe('CollectionPage', () => {
 const clients: Collection = { ...work, id: 'clients', name: 'Clients', parent: 'work', item_count: 1 }
 const acme: Collection = { ...work, id: 'acme', name: 'Acme', parent: 'clients', item_count: 0 }
 const home: Collection = { ...work, id: 'home', name: 'Home', item_count: 0 }
+
+class FakeRecorder {
+  static isTypeSupported = () => true
+  state: 'inactive' | 'recording' = 'inactive'
+  mimeType = 'audio/webm'
+  ondataavailable: ((event: { data: Blob }) => void) | null = null
+  onstop: (() => void) | null = null
+  start() {
+    this.state = 'recording'
+  }
+  stop() {
+    this.state = 'inactive'
+    act(() => {
+      this.ondataavailable?.({ data: new Blob(['voice'], { type: this.mimeType }) })
+      this.onstop?.()
+    })
+  }
+}
+
+/** XMLHttpRequest double: keeps each upload without answering it. */
+class FakeXHR {
+  static sent: FakeXHR[] = []
+  upload = { onprogress: null }
+  url = ''
+  body: FormData | null = null
+  open(_method: string, url: string) {
+    this.url = url
+  }
+  setRequestHeader() {}
+  send(body: FormData) {
+    this.body = body
+    FakeXHR.sent.push(this)
+  }
+  abort() {}
+}
 
 function note(id: string, body: string, collection: string): Item {
   return {
@@ -269,9 +359,13 @@ function note(id: string, body: string, collection: string): Item {
     created_via: 'web',
     edited_by: '',
     edited_via: '',
+    edited_logo: '',
+    created_logo: '',
     edited_at: null,
     public_slug: null,
+    public_url: null,
     published_at: null,
+    public_listed: true,
   }
 }
 

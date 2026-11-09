@@ -1,0 +1,55 @@
+{% extends "public/site_base.html" %}
+
+{% block content %}
+  <header class="relative flex flex-col items-center text-center">
+    <a
+      href="/rss"
+      class="button-icon absolute top-0 right-0 size-9 text-zinc-400"
+      aria-label="{{ text.public.feed }}"
+      title="{{ text.public.feed }}"
+    >{% include "public/site_icon.html" with name="rss" size="size-4" %}</a>
+    {% include "public/site_avatar.html" with size="size-24 text-3xl shadow-sm ring-4 ring-white dark:ring-zinc-900" %}
+    <h1 class="mt-5 font-display text-3xl font-semibold tracking-tight">
+      <a href="/" class="hover:text-accent-700 dark:hover:text-accent-300">{{ name }}</a>
+    </h1>
+    {% if detail %}<p class="mt-1 text-zinc-500">{{ detail }}</p>{% endif %}
+    {% if description %}<p class="mt-4 max-w-md text-zinc-700 dark:text-zinc-300">{{ description }}</p>{% endif %}
+    {% if links %}
+      <ul class="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+        {% for link in links %}
+          <li>
+            <a
+              href="{{ link.url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-medium text-accent-700 hover:underline dark:text-accent-300"
+            >{{ link.name }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </header>
+
+  {% if tabs %}
+    <nav
+      aria-label="{{ text.public.categories }}"
+      class="mt-12 flex gap-1 overflow-x-auto border-b border-zinc-100 dark:border-zinc-800/70"
+    >
+      {% for tab in tabs %}
+        <a
+          href="{{ tab.url }}"
+          {% if tab.current %}aria-current="page"{% endif %}
+          class="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-zinc-500 hover:text-zinc-900 aria-[current=page]:border-accent-500 aria-[current=page]:font-semibold aria-[current=page]:text-zinc-900 dark:hover:text-zinc-100 dark:aria-[current=page]:text-zinc-100"
+        >{{ tab.name }}</a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+
+  <div class="{% if tabs %}mt-6{% else %}mt-12{% endif %}">
+    {% if notes %}
+      {% include "public/site_cards.html" with cards=notes %}
+    {% else %}
+      {% include "public/site_empty.html" with icon="globe" title=text.public.none %}
+    {% endif %}
+  </div>
+{% endblock %}

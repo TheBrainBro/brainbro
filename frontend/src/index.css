@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* A blog's pages come from the server, with the same styles. */
+@source '../../backend/apps/public/templates';
+
 /* Welcome screen: a glow that blooms from the center, then breathes. */
 @keyframes welcome-bloom {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.1); }
@@ -136,6 +139,11 @@ body,
 
 body {
   @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+/* A blog's page grows with its text, so its top bar sticks all the way down. */
+body.site-page {
+  @apply h-auto bg-white dark:bg-zinc-950;
 }
 
 h1,
@@ -419,6 +427,44 @@ h3 {
     }
     & .markdown-img {
       @apply inline-block max-h-96 max-w-full rounded-md align-bottom;
+    }
+  }
+}
+
+/* A published note, read as an article: larger text, more air, wide images. */
+@layer components {
+  .markdown.markdown-article {
+    @apply text-[1.0625rem] leading-[1.8] text-zinc-800 dark:text-zinc-200;
+
+    & > * + * {
+      @apply mt-5;
+    }
+    & h1 {
+      @apply mt-12 text-2xl;
+    }
+    & h2 {
+      @apply mt-10 text-xl;
+    }
+    & h3 {
+      @apply mt-8 text-lg;
+    }
+    & :is(h1, h2, h3, h4) {
+      @apply leading-snug text-zinc-900 dark:text-zinc-50;
+    }
+    & :is(ul, ol) {
+      @apply space-y-1.5;
+    }
+    & blockquote {
+      @apply border-l-4 border-accent-300 pl-5 italic dark:border-accent-700;
+    }
+    & pre {
+      @apply p-4 text-sm;
+    }
+    & .markdown-img {
+      @apply block max-h-none w-full rounded-xl;
+    }
+    & hr {
+      @apply my-10;
     }
   }
 }

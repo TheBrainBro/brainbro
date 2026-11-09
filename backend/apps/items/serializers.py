@@ -4,6 +4,8 @@ from django.db import models
 from django.urls import reverse
 from rest_framework import serializers
 
+from apps.public.sites import public_url
+
 from .models import Collection, Item, NoteImage, rank_now
 from .uploads import clean_filename
 
@@ -160,6 +162,8 @@ class ItemSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     # Notes only: the preview of each card or embed link, by URL.
     links = serializers.SerializerMethodField()
+    # Notes with a slug: where they are (or were) published.
+    public_url = serializers.SerializerMethodField()
     # Files and images only: renames them, on cards and on download.
     filename = serializers.CharField(write_only=True, required=False, max_length=255)
 
@@ -188,11 +192,15 @@ class ItemSerializer(serializers.ModelSerializer):
             "updated_at",
             "created_by",
             "created_via",
+            "created_logo",
             "edited_by",
             "edited_via",
+            "edited_logo",
             "edited_at",
             "public_slug",
             "published_at",
+            "public_listed",
+            "public_url",
         ]
         # Markdown is stored exactly as written: leading indentation and
         # trailing newlines are part of it.
@@ -209,12 +217,15 @@ class ItemSerializer(serializers.ModelSerializer):
             "updated_at",
             "created_by",
             "created_via",
+            "created_logo",
             "edited_by",
             "edited_via",
+            "edited_logo",
             "edited_at",
             # Set through `PUT/DELETE /items/<id>/publication/`.
             "public_slug",
             "published_at",
+            "public_listed",
         ]
 
     def validate_filename(self, value):
@@ -244,6 +255,10 @@ class ItemSerializer(serializers.ModelSerializer):
         ):
             instance.mark_edited()
         return super().update(instance, validated_data)
+
+    def get_public_url(self, item):
+        """Its blog's address (absolute), or `/@<handle>/<slug>` on the server."""
+        return public_url(item) if item.public_slug else None
 
     def get_album_items(self, item):
         if item.kind != Item.Kind.ALBUM:
@@ -299,6 +314,10 @@ class AlbumSerializer(serializers.Serializer):
         if len(found) != len(ids):
             raise serializers.ValidationError("No such item.")
         return [found[item_id] for item_id in ids]
+
+
+class PublicationSerializer(serializers.Serializer):
+    listed = serializers.BooleanField(required=False)
 
 
 class TriageSerializer(serializers.Serializer):

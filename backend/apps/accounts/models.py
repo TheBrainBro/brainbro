@@ -60,6 +60,10 @@ class Profile(TimestampedModel):
     display_name = models.CharField(
         max_length=80, blank=True, default="", db_default=""
     )
+    # The user's public address on the server: their published notes live at
+    # `/@<handle>/<slug>`. Given on first publish (see `apps.public.handles`);
+    # never the username, for the same reason as `display_name`.
+    handle = models.SlugField(max_length=40, unique=True, null=True, blank=True)
     # A square WebP, made from an upload like a collection's image.
     avatar = models.ImageField(upload_to=avatar_path, blank=True, db_default="")
 
@@ -138,6 +142,19 @@ class Invitation(TimestampedModel):
         return cls.pending().filter(token_hash=ApiToken.hash(token)).first()
 
 
+class Permission(models.TextChoices):
+    """What a connected assistant may do. Every MCP tool needs one of these."""
+
+    READ = "read", "Read"
+    CAPTURE = "capture", "Capture"
+    EDIT = "edit", "Edit and organize"
+    PUBLISH = "publish", "Publish"
+
+
+def all_permissions():
+    return list(Permission.values)
+
+
 class OAuthClient(TimestampedModel):
     """
     An app that connects through "Sign in to BrainBro" (OAuth): ChatGPT, Claude,
@@ -165,6 +182,8 @@ class AuthorizationCode(OwnedModel):
     # PKCE (S256): only who started the sign-in can use the code.
     code_challenge = models.CharField(max_length=128)
     expires_at = models.DateTimeField()
+    # What the user allowed; the token gets it.
+    permissions = models.JSONField(default=all_permissions)
 
 
 class ApiToken(OwnedModel):
@@ -188,6 +207,14 @@ class ApiToken(OwnedModel):
     )
     expires_at = models.DateTimeField(null=True, blank=True)
     refresh_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    # Which MCP tools it can use. The user picks them for a connected app; a
+    # personal token has them all, as it can use the whole API anyway.
+    permissions = models.JSONField(default=all_permissions)
+    # Where a connected app went back to when allowed: what its logo comes
+    # from (see `logos`). Empty if that isn't known.
+    redirect_host = models.CharField(max_length=255, blank=True)
+    # What the client calls itself when it starts talking to the MCP server.
+    client_app = models.CharField(max_length=401, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

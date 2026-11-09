@@ -38,9 +38,13 @@ function makeItem(overrides: Partial<Item>): Item {
     created_via: 'web',
     edited_by: '',
     edited_via: '',
+    edited_logo: '',
+    created_logo: '',
     edited_at: null,
     public_slug: null,
+    public_url: null,
     published_at: null,
+    public_listed: true,
     ...overrides,
   }
 }
@@ -174,6 +178,25 @@ describe('NotePage', () => {
 
     expect(view.contentDOM).toHaveAttribute('spellcheck', 'true')
     expect(view.contentDOM).toHaveAttribute('lang', '')
+  })
+
+  it('shows the first line of an untitled note as its title, in the text', async () => {
+    items = [makeItem({ id: 'n1', title: '', body: 'test\nmore' })]
+    renderAt('/notes/n1')
+    const view = await editor()
+
+    expect(screen.queryByRole('textbox', { name: 'Note title' })).not.toBeInTheDocument()
+    expect(view.contentDOM.querySelector('.cm-note-title')).toHaveTextContent('test')
+    expect(view.state.doc.toString()).toBe('test\nmore')
+  })
+
+  it('keeps the first line as plain text when the note has a saved title', async () => {
+    items = [makeItem({ id: 'n1', title: 'Saved', body: 'test\nmore' })]
+    renderAt('/notes/n1')
+    const view = await editor()
+
+    expect(await screen.findByRole('textbox', { name: 'Note title' })).toHaveValue('Saved')
+    expect(view.contentDOM.querySelector('.cm-note-title')).toBeNull()
   })
 
   it('lets people update a note title separately from its body', async () => {

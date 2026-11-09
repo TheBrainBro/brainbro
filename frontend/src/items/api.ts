@@ -63,14 +63,21 @@ export type Item = {
   /** The app that made it (its OAuth name or the token's); empty for the user. */
   created_by: string
   created_via: ItemSource
+  /** Which assistant's logo goes with it; empty for the generic icon. */
+  created_logo: string
   /** The same for the last edit of its content; `edited_at` is null until then. */
   edited_by: string
   edited_via: ItemSource
+  edited_logo: string
   edited_at: string | null
-  /** Notes only: its address, `/p/<slug>`, kept while unpublished. */
+  /** Notes only: the last part of its address, kept while unpublished. */
   public_slug: string | null
   /** When it was published; null while it isn't. */
   published_at: string | null
+  /** False while unlisted: read at its address, but on no list or feed. */
+  public_listed: boolean
+  /** Where it is published: `/@<handle>/<slug>`, or its blog's full URL. */
+  public_url: string | null
 }
 
 /** Where an item came from; empty for items from before this was recorded. */
@@ -271,12 +278,19 @@ export function useSaveNoteBody() {
   })
 }
 
-/** Makes a note public at `/p/<slug>`, or private again. */
+export type Visibility = 'private' | 'unlisted' | 'public'
+
+/** Makes a note public or unlisted at `/@<handle>/<slug>` (or on its blog), or private again. */
 export function usePublication() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, publish }: { id: string; publish: boolean }) =>
-      api<Item>(`/items/${id}/publication/`, { method: publish ? 'PUT' : 'DELETE' }),
+    mutationFn: ({ id, visibility }: { id: string; visibility: Visibility }) =>
+      api<Item>(
+        `/items/${id}/publication/`,
+        visibility === 'private'
+          ? { method: 'DELETE' }
+          : { method: 'PUT', body: JSON.stringify({ listed: visibility === 'public' }) },
+      ),
     onSuccess: (item) => {
       patchCachedItem(queryClient, item)
       void queryClient.invalidateQueries({ queryKey: pageKey(item.id) })
@@ -291,6 +305,8 @@ export function usePublication() {
  */
 export type PageSettings = {
   slug: string | null
+  /** What comes before the slug: `/@<handle>/`, or its blog's `https://<host>/`. */
+  address: string
   title: string
   description: string
   image: string

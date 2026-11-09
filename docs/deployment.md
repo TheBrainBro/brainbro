@@ -62,6 +62,9 @@ In Zero Trust → Networks → Tunnels, add a *public hostname*:
 - Hostname: the same as `APP_HOSTNAMES`
 - Service: `http://<umbrel-ip>:8420` (or your `APP_PORT`)
 
+Blogs on their owners' own domains are added to the tunnel the same way, one public hostname
+each: see [blogs.md](blogs.md).
+
 ## 3. Updating
 
 In Portainer, **Pull and redeploy** with "Re-pull image and redeploy" checked. `migrate` runs automatically and backs up the database before any migration.
