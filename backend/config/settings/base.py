@@ -240,6 +240,23 @@ REST_FRAMEWORK = {
 
 REDIS_URL = get_env_variable("REDIS_URL", "redis://localhost:6389/0")
 
+# Shared by every `api` process: rate limits (apps.accounts.limits). The short
+# timeouts keep a sign-in from waiting on a Redis that doesn't answer.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "brainbro",
+        "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1},
+    }
+}
+
+# What sits in front of the app, which decides where the client's address is
+# read from: "cloudflare", "caddy", or "none" (the connection's own address).
+# Anything else counts as "none", because trusting a header nobody overwrites
+# would let clients write any address they like.
+APP_PROXY = get_env_variable("APP_PROXY", "none").strip().lower()
+
 # Celery
 
 CELERY_BROKER_URL = REDIS_URL
