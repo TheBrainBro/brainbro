@@ -2,6 +2,7 @@ import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 
 import { useT } from '../i18n/i18n'
+import { copyText } from '../lib/dom'
 
 /** A read-only value, selected on focus, with a button that copies it. */
 export function CopyField({
@@ -40,7 +41,7 @@ export function CopyField({
         aria-label={t('ui.copy', { what: label.toLowerCase() })}
         className="button-icon shrink-0"
         onClick={() => {
-          void navigator.clipboard.writeText(value).then(() => setCopied(true))
+          void copyText(value).then(() => setCopied(true))
         }}
       >
         {copied ? (

@@ -49,7 +49,7 @@ import { useCapturePipeline } from '../capture/context'
 import type { CaptureInput, CaptureInputs } from '../capture/inputs'
 import { rich, useT, type MessageKey } from '../i18n/i18n'
 import { itemKey, itemsKey, type Item } from '../items/api'
-import { isEditable } from '../lib/dom'
+import { isEditable, randomId } from '../lib/dom'
 import { combo, MOD } from '../lib/keys'
 import { whenReachable } from '../lib/network'
 import { useSaveOnLeave } from '../lib/useSaveOnLeave'
@@ -304,7 +304,7 @@ export function BoardCanvas({ board, readOnly }: { board: Board; readOnly: boole
     )
     if (exists) return
     const edge: BoardEdge = {
-      id: `e-${crypto.randomUUID()}`,
+      id: `e-${randomId()}`,
       type: 'floating',
       source,
       target,

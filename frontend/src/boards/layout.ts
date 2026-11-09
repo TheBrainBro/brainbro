@@ -1,6 +1,7 @@
 import type { Edge, Node, Viewport } from '@xyflow/react'
 
 import type { ItemKind } from '../items/api'
+import { randomId } from '../lib/dom'
 import type { EdgeArrow, EdgeStroke, Layout, LayoutEdge, LayoutGroup, LayoutNode } from './api'
 
 export type StickyNodeData = { text: string; color: string; editing?: boolean }
@@ -197,7 +198,7 @@ function normalEdge(edge: LayoutEdge): LayoutEdge {
 }
 
 export function newNodeId() {
-  return `n-${crypto.randomUUID()}`
+  return `n-${randomId()}`
 }
 
 // Sub-pixel positions are noise in the stored JSON.

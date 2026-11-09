@@ -21,6 +21,7 @@ x-app: &app
     ENVIRONMENT: production
     SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required (openssl rand -base64 48)}
     APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brainbro.example.com}
+    APP_HTTPS: ${APP_HTTPS:-true}
     TIME_ZONE: ${TIME_ZONE:-UTC}
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
@@ -114,7 +115,8 @@ services:
     <<: *app
     command: ["api"]
     ports:
-      - "${APP_PORT:-8420}:8000"
+      # Without APP_BIND, on every interface (IPv4 and IPv6).
+      - "${APP_BIND:+${APP_BIND}:}${APP_PORT:-8420}:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
