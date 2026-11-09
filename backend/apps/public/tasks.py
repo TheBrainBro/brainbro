@@ -3,14 +3,23 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import Site
-from .sites import txt_values
+from .sites import DnsUnavailable, txt_values
+
+
+def has_record(site):
+    """Whether its TXT record is there; None if DNS doesn't answer either way."""
+    try:
+        return site.verification_value in txt_values(site.verification_name)
+    except DnsUnavailable:
+        return None
 
 
 @shared_task
 def verify_site(site_id):
     """
     Looks up the site's TXT record. Found, the site is verified and starts
-    serving; missing, it fails (and stops, if it was serving). A domain
+    serving; missing, it fails (and stops, if it was serving). If DNS doesn't
+    answer, a site serving keeps serving and any other fails. A domain
     another blog already verified fails too. A site moving to a new domain
     is checked on that one instead.
     """
@@ -22,7 +31,11 @@ def verify_site(site_id):
         return
     now = timezone.now()
     site.checked_at = now
-    if site.verification_value in txt_values(site.verification_name):
+    found = has_record(site)
+    if found is None and site.is_verified:
+        site.save(update_fields=["checked_at", "updated_at"])
+        return
+    if found:
         site.status = Site.Status.VERIFIED
         site.verified_at = site.verified_at or now
     else:
@@ -45,7 +58,7 @@ def check_move(site):
     leaves it serving where it is.
     """
     hostname = site.pending_hostname
-    found = site.verification_value in txt_values(site.verification_name)
+    found = has_record(site)
     now = timezone.now()
     # Only if it is still moving there: the lookup can take a while, and its
     # owner may have changed their mind by now.

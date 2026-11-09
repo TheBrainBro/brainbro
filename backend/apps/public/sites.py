@@ -222,10 +222,19 @@ def public_url(note):
     return public_urls([note])[note.id]
 
 
+class DnsUnavailable(Exception):
+    """DNS didn't answer: nothing is known about the record."""
+
+
 def txt_values(name):
-    """The TXT records at `name`, as strings; none if it has none or DNS fails."""
+    """
+    The TXT records at `name`, as strings; none if DNS says it has none.
+    Raises DnsUnavailable if DNS doesn't answer either way.
+    """
     try:
         answer = dns.resolver.resolve(name, "TXT", lifetime=DNS_TIMEOUT)
-    except dns.exception.DNSException:
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
         return set()
+    except dns.exception.DNSException as failed:
+        raise DnsUnavailable from failed
     return {b"".join(record.strings).decode(errors="replace") for record in answer}
