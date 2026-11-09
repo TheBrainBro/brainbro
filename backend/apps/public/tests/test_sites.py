@@ -1,4 +1,6 @@
 import io
+import json
+import re
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -6,11 +8,13 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Profile
-from apps.items.models import Collection, Item
+from apps.items.models import Collection, Item, NoteImage
 from apps.public.handles import public_handle
 from apps.public.models import Redirect, Site
+from apps.public.pages import NO_IMAGE
 from apps.public.publishing import publish, unpublish
 from apps.public.sites import normalize_hostname
+from apps.public.social_images import make_social_image
 from apps.public.tasks import verify_site
 
 INDEX = (
@@ -863,3 +867,218 @@ def test_a_blog_s_own_pages_never_redirect(anyone, user, blog):
     Redirect.objects.create(owner=user, site=blog, path="/rss", target="/elsewhere")
 
     assert on_blog(anyone, "/rss").status_code == 200
+
+
+# How its pages show in search results and shared links
+
+
+def tag(html, attribute, name):
+    """What the meta tag says, or None without one."""
+    found = re.search(rf'<meta {attribute}="{name}" content="([^"]*)" />', html)
+    return found[1] if found else None
+
+
+def page(client, path="/"):
+    return on_blog(client, path).content.decode()
+
+
+def structured(html):
+    found = re.search(r'<script type="application/ld\+json">(.*?)</script>', html)
+    return json.loads(found[1])
+
+
+def published_with_image(user, writing, public_image=""):
+    item = note(user, "Trip", "![](https://x.test/a.png)\n\ntext", writing)
+    item.public_image = public_image
+    item.save(update_fields=["public_image"])
+    publish(item)
+    NoteImage.objects.create(
+        owner=user,
+        note=item,
+        src="https://x.test/a.png",
+        image=SimpleUploadedFile("a.webp", b"img"),
+    )
+    return item
+
+
+def test_a_blog_with_no_description_describes_itself(client, blog):
+    html = page(client)
+
+    assert tag(html, "name", "description") == "Posts from Carlos writes."
+    assert tag(html, "property", "og:description") == "Posts from Carlos writes."
+
+
+def test_a_blogs_own_description_wins_and_is_all_its_index_shows(client, blog):
+    assert "Posts from" not in page(client).split("</head>")[1]
+    blog.description = "On trains."
+    blog.save(update_fields=["description"])
+
+    assert tag(page(client), "name", "description") == "On trains."
+
+
+def test_a_post_with_no_words_uses_the_blogs_description(client, user, blog, writing):
+    publish(note(user, "Pictures", "# Pictures", writing))
+
+    html = page(client, "/pictures")
+
+    assert tag(html, "name", "description") == "Posts from Carlos writes."
+    assert structured(html)["description"] == "Posts from Carlos writes."
+
+
+def test_every_page_names_the_blog(client, user, blog, writing):
+    publish(note(user, "Hello", collection=writing))
+
+    assert tag(page(client), "property", "og:site_name") == "Carlos writes"
+    assert tag(page(client, "/hello"), "property", "og:site_name") == "Carlos writes"
+
+
+def test_x_reads_its_tags_by_name(client, blog):
+    html = page(client)
+
+    assert tag(html, "name", "twitter:card") == "summary"
+    assert 'property="twitter:' not in html
+
+
+def test_without_a_social_image_a_page_shows_none(client, user, blog, writing):
+    publish(note(user, "Hello", collection=writing))
+
+    for html in (page(client), page(client, "/hello")):
+        assert tag(html, "property", "og:image") is None
+        assert tag(html, "name", "twitter:image") is None
+        assert tag(html, "name", "twitter:card") == "summary"
+
+
+def test_a_blogs_social_image_shows_on_its_index_and_categories(
+    api, client, user, blog, writing
+):
+    trips = Collection.objects.create(owner=user, name="Trips", parent=writing)
+    publish(note(user, "Hello", collection=trips))
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    for html in (page(client), page(client, "/c/trips")):
+        url = tag(html, "property", "og:image")
+        assert url.startswith(f"http://{BLOG}/api/public/site/social-image/?v=")
+        assert tag(html, "name", "twitter:image") == url
+        assert tag(html, "name", "twitter:card") == "summary_large_image"
+
+
+def test_a_post_with_no_image_shows_the_blogs_only_when_shared(
+    api, client, user, blog, writing
+):
+    publish(note(user, "Hello", collection=writing))
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    html = page(client, "/hello")
+
+    assert "/api/public/site/social-image/" in tag(html, "property", "og:image")
+    assert tag(html, "name", "twitter:card") == "summary_large_image"
+    assert "image" not in structured(html)
+
+
+def test_a_posts_own_image_wins_over_the_blogs(api, client, user, blog, writing):
+    published_with_image(user, writing)
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    html = page(client, "/trip")
+
+    url = tag(html, "property", "og:image")
+    assert "/api/public/notes/" in url
+    assert tag(html, "name", "twitter:image") == url
+    assert structured(html)["image"] == url
+
+
+def test_a_post_set_to_no_image_stays_without_one(api, client, user, blog, writing):
+    published_with_image(user, writing, public_image=NO_IMAGE)
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    html = page(client, "/trip")
+
+    assert tag(html, "property", "og:image") is None
+    assert tag(html, "name", "twitter:card") == "summary"
+
+
+def test_the_author_url_identifies_the_author_of_a_post(
+    api, client, user, blog, writing
+):
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    publish(note(user, "Hello", collection=writing))
+    assert "url" not in structured(page(client, "/hello"))["author"]
+
+    response = api.patch(
+        f"/api/sites/{blog.id}/",
+        {"author_url": "https://carlos.example.com/"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert structured(page(client, "/hello"))["author"] == {
+        "@type": "Person",
+        "name": "Carlos",
+        "url": "https://carlos.example.com/",
+    }
+
+
+def test_the_author_url_is_a_web_address(api, blog):
+    response = api.patch(
+        f"/api/sites/{blog.id}/", {"author_url": "ftp://x.example.com"}, format="json"
+    )
+
+    assert response.status_code == 400
+
+
+def test_a_social_image_is_a_1200_by_630_jpeg_anyone_can_read(api, anyone, blog):
+    response = api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    assert response.status_code == 200
+    assert response.json()["social_image_url"].startswith(
+        f"/api/sites/{blog.id}/social-image/"
+    )
+    served = on_blog(anyone, "/api/public/site/social-image/")
+    assert served.status_code == 200
+    assert served["Content-Type"] == "image/jpeg"
+    image = Image.open(io.BytesIO(b"".join(served.streaming_content)))
+    assert (image.format, image.size) == ("JPEG", (1200, 630))
+
+
+def test_a_see_through_social_image_turns_white():
+    output = io.BytesIO()
+    Image.new("RGBA", (400, 300), (0, 0, 0, 0)).save(output, format="PNG")
+    file = SimpleUploadedFile("a.png", output.getvalue(), content_type="image/png")
+
+    image = Image.open(io.BytesIO(make_social_image(file)))
+
+    assert all(band > 250 for band in image.getpixel((600, 300)))
+
+
+def test_a_social_image_must_be_an_image(api, blog):
+    file = SimpleUploadedFile("a.txt", b"nope", content_type="text/plain")
+
+    response = api.post(f"/api/sites/{blog.id}/social-image/", {"file": file})
+
+    assert response.status_code == 400
+
+
+def test_removing_a_social_image(api, anyone, blog, settings):
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    response = api.delete(f"/api/sites/{blog.id}/social-image/")
+
+    assert response.json()["social_image_url"] is None
+    assert on_blog(anyone, "/api/public/site/social-image/").status_code == 404
+    assert list((settings.MEDIA_ROOT / "social" / "sites").rglob("*.jpg")) == []
+
+
+def test_deleting_a_blog_deletes_its_social_image(api, blog, settings):
+    api.post(f"/api/sites/{blog.id}/social-image/", {"file": png()})
+
+    api.delete(f"/api/sites/{blog.id}/")
+
+    assert list((settings.MEDIA_ROOT / "social" / "sites").rglob("*.jpg")) == []
+
+
+def test_only_its_owner_changes_a_blogs_social_image(api, other_user):
+    site = Site.objects.create(owner=other_user, hostname=BLOG)
+
+    response = api.post(f"/api/sites/{site.id}/social-image/", {"file": png()})
+
+    assert response.status_code == 404
