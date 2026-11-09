@@ -17,7 +17,8 @@ repos:
         args: [--config, backend/pyproject.toml]
         files: ^backend/
 
-  # Frontend: the same checks CI runs, with the project's own tools.
+  # Frontend lint, as in CI. No type check here: it reads the whole project, and
+  # a commit can hold part of a change (tests go in their own). CI runs it.
   - repo: local
     hooks:
       - id: oxlint
@@ -25,10 +26,4 @@ repos:
         entry: npm --prefix frontend exec -- oxlint
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx)$
-        pass_filenames: false
-      - id: tsc
-        name: tsc
-        entry: npm --prefix frontend run typecheck
-        language: system
-        files: ^frontend/.*\.(ts|tsx)$|^frontend/tsconfig.*\.json$
         pass_filenames: false
