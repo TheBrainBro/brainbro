@@ -22,8 +22,9 @@ notes filed in it, newest first, and each one is at `https://blog.example.com/<s
 
 Only someone who controls a domain's DNS can add its `TXT` record, so nobody can put a blog on
 someone else's domain. A domain is unique once verified: adding one that isn't yours, unverified,
-never keeps its owner out. Verify again after changing the records; if the `TXT` record is gone
-by then, the blog stops showing.
+never keeps its owner out. Verify again after changing the records. A blog already showing keeps
+showing during the check, and stops only if DNS answers that the `TXT` record is gone: when DNS
+doesn't answer at all, nothing changes.
 
 ## Changing a blog's domain
 
@@ -98,6 +99,9 @@ domain with a certificate it gets the first time the domain is visited, from Let
 getting one, it asks BrainBro (`GET /api/public/sites/check/?domain=<domain>`, `200` or `404`)
 whether the domain is a verified blog's, so nobody can make it request certificates for domains
 that aren't. The first visit to a new blog takes a few seconds longer.
+
+With more than one hostname in `APP_HOSTNAMES`, separate them with a comma and a space
+(`a.example.com, b.example.com`): without the space, Caddy doesn't start.
 
 Set `SITE_CNAME_TARGET` to the hostname blogs point their `CNAME` at, and `SITE_IPV4` to the
 server's public IPv4 for root domains.
