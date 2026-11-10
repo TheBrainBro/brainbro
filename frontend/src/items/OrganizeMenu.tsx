@@ -189,7 +189,7 @@ function Menu({
   const all = collections.data ?? []
   const needle = query.trim().toLowerCase()
   const visible = needle ? all.filter((c) => c.name.toLowerCase().includes(needle)) : all
-  const exact = all.find((c) => c.name.toLowerCase() === needle)
+  const named = all.filter((c) => c.name.toLowerCase() === needle)
 
   /** Into it, or out of it when it's already in it (and that's allowed). */
   function toggle(collection: Collection) {
@@ -234,7 +234,9 @@ function Menu({
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return
           event.preventDefault()
-          const match = exact ?? (visible.length === 1 ? visible[0] : undefined)
+          // Several with this name, in different places: left to a click.
+          if (named.length > 1) return
+          const match = named[0] ?? (visible.length === 1 ? visible[0] : undefined)
           if (match) toggle(match)
           else if (needle) createAndPick()
         }}
@@ -273,7 +275,7 @@ function Menu({
         {collections.isSuccess && all.length === 0 && !needle && (
           <p className="px-3 py-2 text-sm text-zinc-500">{t('organize.first')}</p>
         )}
-        {needle && !exact && (
+        {needle && named.length === 0 && (
           <button
             type="button"
             role="menuitem"
