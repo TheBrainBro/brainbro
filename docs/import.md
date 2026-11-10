@@ -8,8 +8,9 @@ and brings it into BrainBro. The other direction needs nothing special: the
 
 - **Folders** become collections, nested as they were. A collection is only
   made for a folder that ends up holding something (a folder with nothing but
-  images that notes embed doesn't get one). A name that's already taken gets
-  ` 2`, ` 3`… (collection names are unique per account).
+  images that notes embed doesn't get one). A top-level folder whose name is
+  already taken at the top of your collections gets ` 2`, ` 3`… (collections
+  side by side can't share a name).
 - **Where things land:** what sits in a folder is organized into its
   collection; what sits at the top of the vault lands in the inbox.
 - **Markdown files** become notes, titled with the file name.

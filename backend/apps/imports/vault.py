@@ -31,7 +31,14 @@ from apps.boards.canvas import from_canvas
 from apps.boards.layout import LayoutError, item_ids, validate_layout
 from apps.boards.models import Board
 from apps.items.capture import normalize_url
-from apps.items.models import Collection, CollectionItem, Item, NoteImage, rank_now
+from apps.items.models import (
+    Collection,
+    CollectionItem,
+    Item,
+    NoteImage,
+    free_name,
+    rank_now,
+)
 from apps.items.note_images import (
     IMAGE_DESTINATION,
     MAX_IMAGES,
@@ -150,9 +157,14 @@ class _Importer:
         self.vault = vault
         self.stored = stored
         self.collections = {}
-        self.taken_names = set(
-            Collection.objects.filter(owner=owner).values_list("name", flat=True)
-        )
+        # Lowercase names in use, by parent. Those it makes start out empty.
+        self.taken_names = defaultdict(set)
+        self.taken_names[None] = {
+            name.lower()
+            for name in Collection.objects.filter(owner=owner, parent=None).values_list(
+                "name", flat=True
+            )
+        }
         self.counts = defaultdict(int)
         # Vault paths of the images stored as some note's own.
         self.attached = set()
@@ -209,12 +221,9 @@ class _Importer:
         if folder in self.collections:
             return self.collections[folder]
         parent = self._collection(posixpath.dirname(folder))
-        base = posixpath.basename(folder)[:120]
-        name, n = base, 1
-        while name in self.taken_names:
-            n += 1
-            name = f"{base[:115]} {n}"
-        self.taken_names.add(name)
+        taken = self.taken_names[parent.id if parent else None]
+        name = free_name(posixpath.basename(folder)[:120], taken)
+        taken.add(name.lower())
         collection = Collection.objects.create(
             owner=self.owner, name=name, parent=parent, rank=self.rank
         )

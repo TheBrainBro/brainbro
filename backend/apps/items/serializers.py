@@ -34,6 +34,17 @@ def check_parent(collection, parent):
         node = parents.get(node)
 
 
+def check_name_free(owner, name, parent, collection=None):
+    """Raises if a collection next to where this one goes has `name`, in any case."""
+    clash = Collection.objects.filter(owner=owner, parent=parent, name__iexact=name)
+    if collection:
+        clash = clash.exclude(pk=collection.pk)
+    if clash.exists():
+        raise serializers.ValidationError(
+            "There's already a collection with this name here."
+        )
+
+
 class CollectionSerializer(serializers.ModelSerializer):
     # Annotated by the viewset; absent on freshly created collections.
     item_count = serializers.IntegerField(read_only=True, default=0)
@@ -60,6 +71,9 @@ class CollectionSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["is_sample", "created_at", "updated_at"]
+        # `validate` checks the name; the one DRF derives from the database
+        # rule would make `parent` required and ignore case.
+        validators = []
 
     def get_image_url(self, collection):
         if not collection.image:
@@ -88,14 +102,20 @@ class CollectionSerializer(serializers.ModelSerializer):
             validated_data["rank"] = rank_now()
         return super().update(instance, validated_data)
 
-    def validate_name(self, value):
-        owner = self.context["request"].user
-        clash = Collection.objects.filter(owner=owner, name__iexact=value)
-        if self.instance:
-            clash = clash.exclude(pk=self.instance.pk)
-        if clash.exists():
-            raise serializers.ValidationError("A collection with this name exists.")
-        return value
+    def validate(self, attrs):
+        collection = self.instance
+        name = attrs["name"] if "name" in attrs else collection.name
+        if "parent" in attrs:
+            parent = attrs["parent"]
+        else:
+            parent = collection.parent if collection else None
+        # Saving other fields, it stays where it is under the name it has.
+        if collection is None or (name, parent) != (collection.name, collection.parent):
+            try:
+                check_name_free(self.context["request"].user, name, parent, collection)
+            except serializers.ValidationError as error:
+                raise serializers.ValidationError({"name": error.detail}) from error
+        return attrs
 
 
 def album_images(album):
