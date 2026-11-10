@@ -535,7 +535,8 @@ def test_a_blog_never_sees_the_app_s_session(client, user, blog):
 def test_a_blog_s_index_is_not_the_app(client, blog):
     html = on_blog(client, "/").content.decode()
 
-    assert "<script" not in html
+    # The app's bundle stays out: the page reads without JavaScript.
+    assert '<script type="module"' not in html
     assert "<title>Carlos writes</title>" in html
     assert f'<link rel="canonical" href="https://{BLOG}/" />' in html
     assert 'href="/rss"' in html
