@@ -1,7 +1,18 @@
 {% extends "public/site_base.html" %}
 
+{% block top %}
+  {# The same bar as on a post, shown once the header below scrolls away. #}
+  <nav
+    id="site-topbar"
+    inert
+    class="fixed inset-x-0 top-0 z-10 -translate-y-full border-b border-zinc-100 bg-white/85 opacity-0 backdrop-blur transition duration-200 data-shown:translate-y-0 data-shown:opacity-100 motion-reduce:transition-none dark:border-zinc-800/70 dark:bg-zinc-950/85"
+  >
+    {% include "public/site_topbar.html" %}
+  </nav>
+{% endblock %}
+
 {% block content %}
-  <header class="relative flex flex-col items-center text-center">
+  <header id="site-header" class="relative flex flex-col items-center text-center">
     <a
       href="/rss"
       class="button-icon absolute top-0 right-0 size-9 text-zinc-400"
@@ -52,4 +63,17 @@
       {% include "public/site_empty.html" with icon="globe" title=text.public.none %}
     {% endif %}
   </div>
+
+  <script>
+    (() => {
+      const bar = document.getElementById("site-topbar");
+      const header = document.getElementById("site-header");
+      if (!bar || !header || !("IntersectionObserver" in window)) return;
+      new IntersectionObserver(([entry]) => {
+        const shown = !entry.isIntersecting;
+        bar.toggleAttribute("data-shown", shown);
+        bar.inert = !shown;
+      }).observe(header);
+    })();
+  </script>
 {% endblock %}

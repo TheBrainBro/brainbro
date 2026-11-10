@@ -1,0 +1,7 @@
+<div class="mx-auto flex min-h-14 max-w-2xl items-center justify-between gap-4 px-4 py-3">
+  <a href="/" class="flex min-w-0 items-center gap-2.5 font-semibold hover:text-accent-700 dark:hover:text-accent-300">
+    {% include "public/site_avatar.html" with size="size-7 text-xs" %}
+    <span class="truncate">{{ name }}</span>
+  </a>
+  <a href="/rss" class="button-icon size-8" aria-label="{{ text.public.feed }}">{% include "public/site_icon.html" with name="rss" size="size-4" %}</a>
+</div>
