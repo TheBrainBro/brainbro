@@ -1,4 +1,5 @@
 {% extends "public/site_base.html" %}
+{% load static %}
 
 {% block top %}
   {# The same bar as on a post, shown once the header below scrolls away. #}
@@ -64,16 +65,5 @@
     {% endif %}
   </div>
 
-  <script>
-    (() => {
-      const bar = document.getElementById("site-topbar");
-      const header = document.getElementById("site-header");
-      if (!bar || !header || !("IntersectionObserver" in window)) return;
-      new IntersectionObserver(([entry]) => {
-        const shown = !entry.isIntersecting;
-        bar.toggleAttribute("data-shown", shown);
-        bar.inert = !shown;
-      }).observe(header);
-    })();
-  </script>
+  <script src="{% static 'public/site-topbar.js' %}"></script>
 {% endblock %}
