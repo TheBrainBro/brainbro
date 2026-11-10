@@ -12,17 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="BrainBro" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>BrainBro</title>
-    <script>
-      // The theme picked in settings (theme/theme.ts), before the first paint.
-      try {
-        const theme = localStorage.getItem('brainbro:theme')
-        if (theme === 'light' || theme === 'dark') {
-          document.documentElement.dataset.theme = theme
-          const bar = theme === 'dark' ? '#141218' : '#ffffff'
-          document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => (meta.content = bar))
-        }
-      } catch {}
-    </script>
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>
