@@ -33,11 +33,13 @@ def test_collections_default_to_resource(user):
     assert collection.kind == Collection.Kind.RESOURCE
 
 
-def test_collection_names_are_unique_per_owner(user, other_user):
-    Collection.objects.create(owner=user, name="Work")
-    Collection.objects.create(owner=other_user, name="Work")
+def test_collection_names_are_unique_inside_a_parent(user):
+    parent = Collection.objects.create(owner=user, name="Parent")
+    other = Collection.objects.create(owner=user, name="Other")
+    Collection.objects.create(owner=user, name="Work", parent=parent)
+    Collection.objects.create(owner=user, name="Work", parent=other)
     with pytest.raises(IntegrityError):
-        Collection.objects.create(owner=user, name="Work")
+        Collection.objects.create(owner=user, name="Work", parent=parent)
 
 
 def test_item_serializer_rejects_other_users_collections(user, other_user, context):

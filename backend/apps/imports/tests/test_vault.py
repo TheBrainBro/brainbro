@@ -55,6 +55,20 @@ def test_folders_become_collections_and_the_top_goes_to_the_inbox(user):
     assert (clients.name, clients.parent.name) == ("Clients", "Work 2")
 
 
+def test_folders_named_alike_in_different_places_keep_their_names(user):
+    import_vault(
+        user,
+        vault({"Work/Notes/a.md": "a", "Life/Notes/b.md": "b", "Life/notes/c.md": "c"}),
+    )
+
+    work = Item.objects.get(title="a").collections.get()
+    life = Item.objects.get(title="b").collections.get()
+    assert (work.name, work.parent.name) == ("Notes", "Work")
+    assert (life.name, life.parent.name) == ("Notes", "Life")
+    # Side by side they can't match, even in another case.
+    assert Item.objects.get(title="c").collections.get().name == "notes 2"
+
+
 def test_a_vault_zipped_as_its_folder_and_hidden_files(user):
     import_vault(
         user,

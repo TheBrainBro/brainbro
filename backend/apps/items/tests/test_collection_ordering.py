@@ -67,6 +67,25 @@ def test_move_refuses_loops(api, top):
     assert Collection.objects.get(id=a.id).parent is None
 
 
+def test_move_refuses_a_name_already_there(api, top):
+    a, b, c = top
+    Collection.objects.create(owner=a.owner, name="B", parent=a)
+
+    response = move(api, b, parent=a)
+
+    assert response.status_code == 400
+    assert "parent" in response.json()
+    assert Collection.objects.get(id=b.id).parent is None
+
+
+def test_move_accepts_a_name_used_elsewhere(api, top):
+    a, b, c = top
+    Collection.objects.create(owner=a.owner, name="inner", parent=a)
+    twin = Collection.objects.create(owner=a.owner, name="inner", parent=b)
+
+    assert move(api, twin, parent=c).status_code == 204
+
+
 def test_move_refuses_other_lists(api, user, top, other_user):
     a, b, c = top
     inner = Collection.objects.create(owner=user, name="inner", parent=a)

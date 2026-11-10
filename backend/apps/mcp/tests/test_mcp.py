@@ -415,6 +415,18 @@ def test_a_collection_name_is_used_once(call, user):
     assert Collection.objects.count() == 1
 
 
+def test_a_collection_name_can_repeat_in_another_place(call, user):
+    existing = Collection.objects.create(owner=user, name="Reading")
+    blog = Collection.objects.create(owner=user, name="Blog")
+
+    created = structured(
+        call("create_collection", name="Reading", parent_id=str(blog.id))
+    )
+
+    assert created["id"] != str(existing.id)
+    assert created["parent"] == str(blog.id)
+
+
 def test_a_collection_can_t_go_in_someone_else_s(call, other_user):
     theirs = Collection.objects.create(owner=other_user, name="Theirs")
 
