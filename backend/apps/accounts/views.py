@@ -1,12 +1,13 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -25,6 +26,7 @@ from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item
 from apps.public.handles import MAX_HANDLE, handle_taken, is_valid_handle
 
+from .limits import INVITATION, LOGIN, TOO_MANY, WINDOW
 from .models import ApiToken, Invitation, Profile
 from .oauth import PermissionsSerializer
 
@@ -117,14 +119,34 @@ def login_view(request):
     SessionAuthentication().enforce_csrf(request)
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    LOGIN.enforce(request)
     user = authenticate(request, **serializer.validated_data)
     if user is None:
         return Response(
             {"detail": "Invalid username or password."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    LOGIN.refund(request)
     login(request, user)
     return Response(signed_in(user))
+
+
+def admin_login(request):
+    """Django admin's sign-in: the same passwords, so the same limit."""
+    if request.method != "POST":
+        return admin.site.login(request)
+    if LOGIN.exceeded(request):
+        return HttpResponse(
+            TOO_MANY,
+            status=429,
+            content_type="text/plain",
+            headers={"Retry-After": str(WINDOW)},
+        )
+    response = admin.site.login(request)
+    # A failed sign-in renders the form again, a good one redirects.
+    if response.status_code == 302:
+        LOGIN.refund(request)
+    return response
 
 
 @api_view(["POST"])
@@ -465,6 +487,7 @@ def join_view(request, token):
     `POST {"username", "password"}` makes the account, uses up the link and
     signs the new user in.
     """
+    INVITATION.enforce(request)
     if request.method == "GET":
         if Invitation.find(token) is None:
             return Response({"detail": INVALID_INVITATION}, status=404)

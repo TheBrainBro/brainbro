@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 
 from apps.accounts import discovery
+from apps.accounts import views as account_views
 from apps.core import views as core_views
 
 api_patterns = [
@@ -20,6 +21,8 @@ api_patterns = [
 ]
 
 urlpatterns = [
+    # Before the admin's own urls, to take over its sign-in.
+    path("admin/login/", account_views.admin_login),
     path("admin/", admin.site.urls),
     path("api/", include(api_patterns)),
     re_path(

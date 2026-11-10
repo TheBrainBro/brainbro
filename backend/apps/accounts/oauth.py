@@ -32,6 +32,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .discovery import AUTH_METHODS, SCOPE, base_url, same_resource
+from .limits import OAUTH_REGISTER, OAUTH_TOKEN, TOO_MANY, WINDOW
 from .logos import host_logo
 from .models import ApiToken, AuthorizationCode, OAuthClient, Permission
 
@@ -88,6 +89,9 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        # Every call that gets through writes a row, so all of them count.
+        if OAUTH_REGISTER.exceeded(request):
+            return too_many_attempts()
         payload = RegistrationSerializer(data=request.data)
         if not payload.is_valid():
             error = (
@@ -222,6 +226,15 @@ class TokenView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        if OAUTH_TOKEN.exceeded(request):
+            return too_many_attempts()
+        response = self._answer(request)
+        # Only failures count: apps renew their token every hour.
+        if response.status_code < 400:
+            OAUTH_TOKEN.refund(request)
+        return response
+
+    def _answer(self, request):
         data = request.data
         client = self._client(request)
         if client is None:
@@ -340,6 +353,12 @@ def oauth_error(error, description, status=400):
         {"error": error, "error_description": description}, status=status
     )
     return no_store(response)
+
+
+def too_many_attempts():
+    response = oauth_error("temporarily_unavailable", TOO_MANY, status=429)
+    response["Retry-After"] = str(WINDOW)
+    return response
 
 
 def no_store(response):
