@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from celery.schedules import crontab
+from django.utils.csp import CSP
 from dotenv import load_dotenv
 
 from config.env import get_env_variable
@@ -57,6 +58,9 @@ MIDDLEWARE = [
     "apps.public.sites.SiteMiddleware",
     # A blog's old addresses, before its own pages.
     "apps.public.redirects.RedirectMiddleware",
+    # Before WhiteNoise, so the build's index.html, which the service worker
+    # opens offline, gets the app's policy too.
+    "apps.core.csp.ContentSecurityPolicyMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -70,6 +74,63 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
+
+# Content Security Policy: what each page may load, one policy per kind of
+# page (apps.core.csp). Every script is a file of our own: none is written
+# into the HTML. A view that sets its own policy keeps it (uploaded files).
+
+# The players a note can embed (lib/linkPreviews, apps.public.note_html).
+CSP_EMBEDS = [
+    "https://www.youtube-nocookie.com",
+    "https://player.vimeo.com",
+    "https://www.loom.com",
+]
+CSP_BASE = {
+    "default-src": [CSP.SELF],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.NONE],
+    "frame-ancestors": [CSP.NONE],
+}
+# The app. WebAssembly and a worker made from a blob: the 3D mascot's Draco
+# decoder. Inline styles: the editor adds <style> tags, and tables align
+# their cells with `style`. Blobs: files shown before they are uploaded,
+# the 3D model's textures, audio waveforms and the PDF viewer.
+CSP_APP = {
+    **CSP_BASE,
+    "script-src": [CSP.SELF, CSP.WASM_UNSAFE_EVAL],
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "blob:", "data:"],
+    "media-src": [CSP.SELF, "blob:"],
+    "font-src": [CSP.SELF, "data:"],
+    "connect-src": [CSP.SELF, "blob:"],
+    "worker-src": [CSP.SELF, "blob:"],
+    "frame-src": ["blob:", *CSP_EMBEDS],
+    "form-action": [CSP.SELF],
+}
+# A blog on its owner's domain: its pages, styles and images, and the
+# players in its posts. Inline styles only as attributes (table cells).
+CSP_SITE = {
+    **CSP_BASE,
+    "default-src": [CSP.NONE],
+    "script-src": [CSP.SELF],
+    "style-src": [CSP.SELF],
+    "style-src-attr": [CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF],
+    "font-src": [CSP.SELF, "data:"],
+    "frame-src": CSP_EMBEDS,
+    "form-action": [CSP.NONE],
+}
+# Django's admin (Unfold): its Alpine.js runs expressions written in the
+# templates, which needs eval, and the templates use inline styles.
+CSP_ADMIN = {
+    **CSP_BASE,
+    "script-src": [CSP.SELF, CSP.UNSAFE_EVAL],
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "data:"],
+    "font-src": [CSP.SELF, "data:"],
+    "form-action": [CSP.SELF],
+}
+SECURE_CSP = CSP_APP
 
 # Hosts: the app answers to `APP_HOSTS` (set per environment), and blogs to
 # their verified domains, which live in the database. Django can't list
