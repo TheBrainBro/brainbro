@@ -39,6 +39,7 @@ export default defineConfig(({ command }) => ({
         globPatterns: [
           'index.html',
           'favicon.{svg,ico}',
+          'theme.js',
           'icons/*.png',
           'assets/{index,rolldown-runtime,markdown}-*.{js,css}',
         ],
