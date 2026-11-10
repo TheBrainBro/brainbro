@@ -27,7 +27,15 @@ from apps.public.sites import public_url
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .collection_images import make_square_image
-from .models import Collection, CollectionItem, Item, NoteImage, NoteLink, rank_now
+from .models import (
+    Collection,
+    CollectionItem,
+    Item,
+    NoteImage,
+    NoteLink,
+    free_name,
+    rank_now,
+)
 from .note_images import MAX_PASTED_SIZE
 from .notes import sync_images
 from .ordering import move_collection, move_in_collection, move_in_inbox
@@ -42,6 +50,7 @@ from .serializers import (
     OwnedPrimaryKeyRelatedField,
     PublicationSerializer,
     TriageSerializer,
+    check_name_free,
     check_parent,
     note_image_url,
 )
@@ -703,6 +712,23 @@ class CollectionImageSerializer(serializers.Serializer):
     file = serializers.FileField(allow_empty_file=False)
 
 
+def move_children_up(children, parent, owner):
+    """Puts `children` inside `parent`, numbering any whose name is taken there."""
+    taken = {
+        name.lower()
+        for name in Collection.objects.filter(owner=owner, parent=parent)
+        .exclude(id__in=[child.id for child in children])
+        .values_list("name", flat=True)
+    }
+    now = timezone.now()
+    for child in children:
+        child.name = free_name(child.name, taken)
+        taken.add(child.name.lower())
+        child.parent = parent
+        child.updated_at = now
+    Collection.objects.bulk_update(children, ["name", "parent", "updated_at"])
+
+
 class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
 
@@ -753,10 +779,11 @@ class CollectionViewSet(viewsets.ModelViewSet):
                 orphans.filter(status=Item.Status.ORGANIZED).update(
                     status=new_status, updated_at=timezone.now()
                 )
-            collection.children.update(
-                parent=collection.parent, updated_at=timezone.now()
-            )
+            children = list(collection.children.all())
+            parent = collection.parent
+            # Gone first: a child can be named like it.
             collection.delete()
+            move_children_up(children, parent, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
@@ -773,6 +800,8 @@ class CollectionViewSet(viewsets.ModelViewSet):
         parent = payload.validated_data["parent"]
         try:
             check_parent(collection, parent)
+            if parent != collection.parent:
+                check_name_free(request.user, collection.name, parent)
         except serializers.ValidationError as error:
             raise serializers.ValidationError({"parent": error.detail}) from error
         if not move_collection(collection, parent, payload.validated_data["after"]):

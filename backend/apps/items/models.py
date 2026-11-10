@@ -28,6 +28,16 @@ def rank_now():
     return timezone.now().timestamp()
 
 
+def free_name(name, taken):
+    """`name`, numbered ("Name 2") if `taken` (lowercase names) already has it."""
+    candidate, number = name, 1
+    while candidate.lower() in taken:
+        number += 1
+        suffix = f" {number}"
+        candidate = f"{name[: 120 - len(suffix)]}{suffix}"
+    return candidate
+
+
 class Collection(OwnedModel):
     """
     A named group of items, following PARA: a project (a goal with an end),
@@ -64,8 +74,11 @@ class Collection(OwnedModel):
     class Meta:
         ordering = ["-rank", "name"]
         constraints = [
+            # Only collections side by side can't share a name. At the top
+            # (no parent) only the API checks it: `SET_NULL` above can land
+            # several children there at once when something else deletes them.
             models.UniqueConstraint(
-                fields=["owner", "name"], name="unique_collection_name_per_owner"
+                fields=["parent", "name"], name="unique_collection_name_per_parent"
             ),
         ]
         indexes = [models.Index(fields=["owner", "-rank"])]
