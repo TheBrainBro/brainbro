@@ -20,7 +20,7 @@ Internet ── Cloudflare Tunnel ──► api :8420 (uvicorn + Django + static
 | `postgres` | `pgvector/pgvector:0.8.1-pg17`, internal network only. |
 | `redis` | Celery broker, the pub/sub that tells open tabs what changed (`api` and `worker` publish, `api` streams it), and the one that keeps a note's live edits in step across `api` processes. Internal network only. |
 | `embedder` | Semantic search: turns text into vectors for `api` (search queries) and `worker` (items' text). The model (`paraphrase-multilingual-MiniLM-L12-v2`) is downloaded when the image is built, so the running container never goes online. Takes ~600 MB of memory. Internal network only. If it is down, search goes by words alone. See [search.md](search.md). |
-| `firewall` | Umbrel workaround, host network with `NET_ADMIN`. Adds `DOCKER-USER` accept rules for the stack's subnet (`10.77.0.0/24`) and re-checks them every minute. `migrate` waits for it. |
+| `firewall` | Umbrel only, in `docker-compose.umbrel.yml`. Host network with `NET_ADMIN`. Adds `DOCKER-USER` accept rules for the stack's subnet (`10.77.0.0/24`) and re-checks them every minute. `migrate` waits for it. |
 
 **Why `firewall`:** on Umbrel, Portainer's Docker shares the host network namespace with umbrelOS's Docker. umbrelOS's Docker sets the nftables `FORWARD` policy to drop, and Portainer's Docker writes its accept rules with iptables-legacy, which that policy ignores. Without the extra rules, containers in a new stack can't reach each other or the internet (DNS resolves, but `postgres` times out). Older stacks only work because of nftables rules left from before Portainer's Docker switched to legacy, and those are gone after a host reboot. On other hosts the chain may not exist: the service logs a warning and the stack starts anyway.
 
@@ -28,7 +28,17 @@ Volumes: `postgres_data`, `redis_data`, `storage` (uploaded files, `/data/storag
 
 **Why no nginx/Caddy:** Cloudflare terminates TLS and the tunnel points straight at `api`. Django serves static files with whitenoise, and uploaded files will go through authenticated views.
 
-**Why everything uses `build: context:` and no bind mounts:** Portainer's "Pull and redeploy" does not reliably materialize new repo files on disk (seen in simmers-app). Everything the image needs is copied at build time.
+## Compose files
+
+| File | What it is |
+|---|---|
+| `docker-compose.production.yml` | The stack, from the images published to GHCR on each release (`ghcr.io/thebrainbro/brainbro`, `brainbro-embedder`, `brainbro-caddy`, for amd64 and arm64). `BRAINBRO_VERSION` picks the version, the latest release by default. |
+| `docker-compose.build.yml` | Builds those images from the checkout instead of pulling them. `make prod-up` uses it. |
+| `docker-compose.umbrel.yml` | Adds the `firewall` service and the fixed subnet it opens. Only for Umbrel. |
+
+The overrides go after the main file, as more `-f` options (in Portainer, "Additional paths").
+
+**Why no bind mounts:** Portainer's "Pull and redeploy" does not reliably materialize new repo files on disk. Everything the images need is copied at build time.
 
 ## 1. Prepare the environment
 
@@ -37,6 +47,7 @@ In Portainer: **Stacks → Add stack → Repository**:
 - Repository URL: `https://github.com/TheBrainBro/brainbro`
 - Reference: `refs/heads/main`
 - Compose path: `docker-compose.production.yml`
+- Additional paths: `docker-compose.build.yml` and `docker-compose.umbrel.yml`, in that order. Without `docker-compose.build.yml` the stack pulls the published images instead of building them.
 - Environment variables: those in [`stack.env.example`](../stack.env.example)
 
 The required ones:
@@ -62,8 +73,10 @@ From a terminal on the server instead:
 
 ```bash
 cp stack.env.example stack.env   # then edit it
-make prod-up
+make prod-up                     # builds from this checkout
 ```
+
+Or, from the published images: `docker compose --env-file stack.env -f docker-compose.production.yml up -d`.
 
 ## 2. Cloudflare Tunnel
 
@@ -143,6 +156,6 @@ These restore the app. To take your data somewhere else, use **Export everything
   scripts/restore-db.sh backups/brainbro-db-YYYYMMDD-HHMMSS.dump
   ```
 
-For a stack with another name or env file: `COMPOSE="docker compose -p <name> --env-file <env> -f docker-compose.production.yml" scripts/...`
+For a stack with another name, env file or overrides: `COMPOSE="docker compose -p <name> --env-file <env> -f docker-compose.production.yml" scripts/...`
 
 > ⚠️ Automatic dumps live on the same disk as the database. They protect against app bugs and bad migrations, not against losing the disk. Copy `backups/` (or the volume) somewhere else periodically.
