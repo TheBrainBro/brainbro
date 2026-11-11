@@ -1,0 +1,6 @@
+# Vulnerabilities pip-audit should not fail on, one per line: the ID
+# (PYSEC, GHSA or CVE), then "#" and why it does not affect us. A line
+# without a reason fails the audit. Remove the line once the fix is in.
+#
+# Example:
+# GHSA-xxxx-xxxx-xxxx  # only in the CLI, which the app never runs

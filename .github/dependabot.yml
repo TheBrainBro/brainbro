@@ -58,6 +58,16 @@ updates:
     commit-message:
       prefix: build(infra)
 
+  - package-ecosystem: pip
+    directory: /.github/pip-audit
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+
   - package-ecosystem: docker
     directories:
       - /
