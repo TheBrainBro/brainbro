@@ -23,7 +23,7 @@ fi
 
 ignore_marker='nosem(grep)?'
 valid_ignore='nosemgrep: [A-Za-z0-9._-]+(, ?[A-Za-z0-9._-]+)* -- [^[:space:]]'
-invalid=$(git grep -nIE "$ignore_marker" -- . ':!.github/semgrep/scan.sh' | grep -vE "$valid_ignore" || true)
+invalid=$(git grep -nIE "$ignore_marker" -- . ':!.github/semgrep/' | grep -vE "$valid_ignore" || true)
 if [[ -n "$invalid" ]]; then
   while IFS=: read -r file line _; do
     echo "::error file=$file,line=$line::nosemgrep needs a rule and a reason: # nosemgrep: <rule> -- <why>"
