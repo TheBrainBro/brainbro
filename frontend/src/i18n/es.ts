@@ -876,6 +876,7 @@ export const es: Messages = {
     version: 'Versión',
     server: 'Servidor',
     docs: 'Documentación',
+    sourceCode: 'Código fuente',
   },
   visibility: {
     label: 'Visibilidad',

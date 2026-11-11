@@ -865,6 +865,7 @@ export const en = {
     version: 'Version',
     server: 'Server',
     docs: 'Docs',
+    sourceCode: 'Source code',
   },
   visibility: {
     label: 'Visibility',

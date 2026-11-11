@@ -87,3 +87,10 @@ def test_ensure_admin_creates_once(monkeypatch):
     admin = get_user_model().objects.get(username="admin")
     assert admin.is_superuser
     assert admin.check_password("first-pass")
+
+
+def test_session_links_the_source_code(client, user, settings):
+    settings.SOURCE_CODE_URL = "https://git.example.com/me/brainbro"
+    client.force_login(user)
+    session = client.get("/api/auth/session/").json()
+    assert session["source_code_url"] == "https://git.example.com/me/brainbro"

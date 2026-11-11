@@ -81,6 +81,10 @@ Set `APP_PROXY=cloudflare` in the stack, so rate limits see each visitor's addre
 
 In Portainer, **Pull and redeploy** with "Re-pull image and redeploy" checked. `migrate` runs automatically and backs up the database before any migration.
 
+## Source code link
+
+The About dialog links to the code the server runs, taken from `SOURCE_CODE_URL` (default: this repository). BrainBro is AGPL-3.0: if you run a modified version that other people use over the network, its section 13 asks you to offer them the source of your version. Set `SOURCE_CODE_URL` to where it can be downloaded, for example your fork, and redeploy. No rebuild is needed.
+
 ## Rate limits
 
 Counted per client address and per minute, in Redis, so every `api` process shares the count. Over the limit, the answer is a 429 with `Retry-After`, for at most a minute.
