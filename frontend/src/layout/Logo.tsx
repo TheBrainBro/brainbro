@@ -1,5 +1,7 @@
 import { useId } from 'react'
 
+// The artwork in this file is a BrainBro brand asset, not covered by the AGPL: see TRADEMARKS.md.
+
 /** BrainBro's mark: the Blob's head, the simplified one from the brand kit (favicon.svg). */
 export function Logo({ className = 'size-7' }: { className?: string }) {
   const id = useId()
