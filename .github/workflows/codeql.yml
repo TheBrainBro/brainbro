@@ -1,0 +1,50 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions: {}
+
+jobs:
+  # Code scanning on a private repository needs a paid GitHub Code Security
+  # license, so the analysis only runs once the repository is public. The
+  # check reads the repository itself because scheduled runs carry no
+  # repository data in their event.
+  visibility:
+    runs-on: ubuntu-latest
+    outputs:
+      public: ${{ steps.check.outputs.public }}
+    steps:
+      - id: check
+        run: echo "public=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private | not')" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  analyze:
+    needs: visibility
+    if: needs.visibility.outputs.public == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@52cf1852265d99e9bea071b03366fc777a602909 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/analyze@52cf1852265d99e9bea071b03366fc777a602909 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}
