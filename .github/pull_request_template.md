@@ -11,6 +11,7 @@ Refs #
 - [ ] Relevant automated tests pass
 - [ ] Lint and type checks pass
 - [ ] User-facing behavior was verified
+- [ ] I have signed the [Contributor License Agreement](https://github.com/TheBrainBro/brainbro/blob/develop/CLA.md) (the CLA Assistant bot asks on your first pull request)
 
 ## Issue lifecycle
 
