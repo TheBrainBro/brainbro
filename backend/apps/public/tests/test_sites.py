@@ -61,7 +61,7 @@ def blog(user, writing):
         owner=user,
         hostname=BLOG,
         collection=writing,
-        title="Carlos writes",
+        title="Alex writes",
         status=Site.Status.VERIFIED,
     )
 
@@ -335,7 +335,7 @@ def test_a_found_record_moves_the_blog_to_its_new_domain(api, moving, dns, user)
     assert moving.verified_at is not None
     assert moving.pending_hostname == ""
     assert moving.pending_status == Site.Status.UNVERIFIED
-    assert moving.title == "Carlos writes"
+    assert moving.title == "Alex writes"
     assert moving.redirects.count() == 1
     assert on_blog(APIClient(), "/", host=NEW).status_code == 200
     assert on_blog(APIClient(), "/").status_code == 400
@@ -504,7 +504,7 @@ def test_an_unverified_blog_serves_nothing(client, user):
         "/api/sites/",
         "/api/health/",
         "/sw.js",
-        "/@carlos/hello",
+        "/@alex/hello",
     ],
 )
 def test_a_blog_s_domain_never_reaches_the_app(client, blog, path):
@@ -537,7 +537,7 @@ def test_a_blog_s_index_is_not_the_app(client, blog):
 
     # The app's bundle stays out: the page reads without JavaScript.
     assert '<script type="module"' not in html
-    assert "<title>Carlos writes</title>" in html
+    assert "<title>Alex writes</title>" in html
     assert f'<link rel="canonical" href="https://{BLOG}/" />' in html
     assert 'href="/rss"' in html
     # A blog is no app to install.
@@ -594,17 +594,17 @@ def test_a_category_of_only_unlisted_notes_does_not_show(anyone, user, blog, wri
 
 
 def test_a_blog_says_what_it_is(anyone, user, blog):
-    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Alex"})
 
     data = on_blog(anyone, "/api/public/site/").json()
 
     assert data == {
         "hostname": BLOG,
-        "title": "Carlos writes",
+        "title": "Alex writes",
         "description": "",
-        "author": "Carlos",
+        "author": "Alex",
         "show_author": True,
-        "handle": "carlos",
+        "handle": "alex",
         "avatar_url": None,
         "links": [],
         "powered_by": True,
@@ -693,7 +693,7 @@ def test_a_blog_has_a_feed_of_its_notes(client, user, blog, writing):
 
     # Shown by browsers, not downloaded.
     assert response["Content-Type"].startswith("application/xml")
-    assert "<title>Carlos writes</title>" in feed
+    assert "<title>Alex writes</title>" in feed
     assert "<title>Hello &lt;you&gt;</title>" in feed
     assert f"<link>https://{BLOG}/hello-you</link>" in feed
     assert "First words." in feed
@@ -761,12 +761,12 @@ def test_a_category_page_says_what_it_is(client, user, blog, travel):
 
     html = on_blog(client, "/c/travel-trips").content.decode()
 
-    assert "<title>Travel &amp; Trips · Carlos writes</title>" in html
+    assert "<title>Travel &amp; Trips · Alex writes</title>" in html
     assert f'<link rel="canonical" href="https://{BLOG}/c/travel-trips" />' in html
 
 
 def test_a_blog_shows_its_links(api, anyone, blog):
-    links = [{"name": "Website", "url": "https://carlos.dev"}]
+    links = [{"name": "Website", "url": "https://alex.example.org"}]
 
     response = api.patch(f"/api/sites/{blog.id}/", {"links": links}, format="json")
 
@@ -778,9 +778,9 @@ def test_a_blog_shows_its_links(api, anyone, blog):
     "link",
     [
         {"name": "Bad", "url": "javascript:alert(1)"},
-        {"name": "Bad", "url": "ftp://carlos.dev"},
-        {"name": "", "url": "https://carlos.dev"},
-        {"name": "x" * 61, "url": "https://carlos.dev"},
+        {"name": "Bad", "url": "ftp://alex.example.org"},
+        {"name": "", "url": "https://alex.example.org"},
+        {"name": "x" * 61, "url": "https://alex.example.org"},
     ],
 )
 def test_a_link_must_be_a_web_address_with_a_name(api, blog, link):
@@ -807,20 +807,20 @@ def png():
 
 
 def test_a_blog_signs_as_its_owner_until_it_has_its_own_author(api, anyone, user, blog):
-    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
-    assert on_blog(anyone, "/api/public/site/").json()["author"] == "Carlos"
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Alex"})
+    assert on_blog(anyone, "/api/public/site/").json()["author"] == "Alex"
 
     api.patch(f"/api/sites/{blog.id}/", {"author": "BrainBro"}, format="json")
     assert on_blog(anyone, "/api/public/site/").json()["author"] == "BrainBro"
 
     api.patch(f"/api/sites/{blog.id}/", {"author": ""}, format="json")
-    assert on_blog(anyone, "/api/public/site/").json()["author"] == "Carlos"
+    assert on_blog(anyone, "/api/public/site/").json()["author"] == "Alex"
 
 
 def test_a_blogs_author_signs_its_notes_feed_and_shared_links(
     api, anyone, user, blog, writing
 ):
-    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Alex"})
     publish(note(user, "Update", collection=writing))
     api.patch(f"/api/sites/{blog.id}/", {"author": "BrainBro"}, format="json")
     slug = Item.objects.get().public_slug
@@ -975,8 +975,8 @@ def published_with_image(user, writing, public_image=""):
 def test_a_blog_with_no_description_describes_itself(client, blog):
     html = page(client)
 
-    assert tag(html, "name", "description") == "Posts from Carlos writes."
-    assert tag(html, "property", "og:description") == "Posts from Carlos writes."
+    assert tag(html, "name", "description") == "Posts from Alex writes."
+    assert tag(html, "property", "og:description") == "Posts from Alex writes."
 
 
 def test_a_blogs_own_description_wins_and_is_all_its_index_shows(client, blog):
@@ -992,15 +992,15 @@ def test_a_post_with_no_words_uses_the_blogs_description(client, user, blog, wri
 
     html = page(client, "/pictures")
 
-    assert tag(html, "name", "description") == "Posts from Carlos writes."
-    assert structured(html)["description"] == "Posts from Carlos writes."
+    assert tag(html, "name", "description") == "Posts from Alex writes."
+    assert structured(html)["description"] == "Posts from Alex writes."
 
 
 def test_every_page_names_the_blog(client, user, blog, writing):
     publish(note(user, "Hello", collection=writing))
 
-    assert tag(page(client), "property", "og:site_name") == "Carlos writes"
-    assert tag(page(client, "/hello"), "property", "og:site_name") == "Carlos writes"
+    assert tag(page(client), "property", "og:site_name") == "Alex writes"
+    assert tag(page(client, "/hello"), "property", "og:site_name") == "Alex writes"
 
 
 def test_x_reads_its_tags_by_name(client, blog):
@@ -1095,21 +1095,21 @@ def test_a_post_set_to_no_image_stays_without_one(api, client, user, blog, writi
 def test_the_author_url_identifies_the_author_of_a_post(
     api, client, user, blog, writing
 ):
-    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Alex"})
     publish(note(user, "Hello", collection=writing))
     assert "url" not in structured(page(client, "/hello"))["author"]
 
     response = api.patch(
         f"/api/sites/{blog.id}/",
-        {"author_url": "https://carlos.example.com/"},
+        {"author_url": "https://alex.example.com/"},
         format="json",
     )
 
     assert response.status_code == 200
     assert structured(page(client, "/hello"))["author"] == {
         "@type": "Person",
-        "name": "Carlos",
-        "url": "https://carlos.example.com/",
+        "name": "Alex",
+        "url": "https://alex.example.com/",
     }
 
 

@@ -31,10 +31,10 @@ def test_start_with_a_code_links_the_chat(user, fake_bot):
         owner=user, code="abc", code_expires_at=timezone.now() + timedelta(minutes=5)
     )
 
-    handle_update(update(1, text="/start abc", **{"from": {"username": "carlos"}}))
+    handle_update(update(1, text="/start abc", **{"from": {"username": "alex"}}))
 
     link = TelegramLink.objects.get()
-    assert (link.chat_id, link.telegram_name, link.code) == (42, "@carlos", None)
+    assert (link.chat_id, link.telegram_name, link.code) == (42, "@alex", None)
     assert link.linked_at is not None
     assert "Connected to BrainBro" in fake_bot.sent("sendMessage")[0]["text"]
 
