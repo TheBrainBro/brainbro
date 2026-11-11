@@ -19,11 +19,6 @@ install: ## Install backend and frontend dependencies and git hooks
 	cd frontend && npm install
 	$(POETRY) run pre-commit install
 
-.PHONY: exportdeps
-exportdeps: ## Export Poetry dependencies to backend/requirements*.txt
-	$(POETRY) export -f requirements.txt --output requirements.txt --without-hashes
-	$(POETRY) export -f requirements.txt --output requirements-dev.txt --without-hashes --only=dev
-
 .PHONY: services
 services: ## Start Postgres, Redis and the embedder for development
 	docker compose up -d --wait

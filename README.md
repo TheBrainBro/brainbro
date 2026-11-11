@@ -32,7 +32,7 @@ site/       landing page (static, see docs/landing.md)
 
 ## Development
 
-Requirements: Python 3.12, Poetry 2 (with `poetry-plugin-export`), Node 24, Docker and libmagic (`brew install libmagic`; preinstalled on most Linux distros).
+Requirements: Python 3.12, Poetry 2, Node 24, Docker and libmagic (`brew install libmagic`; preinstalled on most Linux distros).
 
 ```bash
 make install       # dependencies + pre-commit hooks
@@ -58,7 +58,6 @@ Open the tunnel's `https://` URL in Chrome (Android) or Safari (iOS), not in an 
 ```bash
 make test          # pytest + vitest
 make lint          # ruff + oxlint + tsc
-make exportdeps    # regenerate backend/requirements*.txt after changing dependencies
 make help          # everything else
 ```
 

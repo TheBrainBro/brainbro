@@ -33,12 +33,8 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
-      - run: pipx install poetry==2.3.2 && pipx inject poetry poetry-plugin-export
+      - run: pipx install poetry==2.3.2
       - run: poetry install --no-interaction
-      - name: requirements*.txt match poetry.lock
-        run: |
-          poetry export -f requirements.txt --without-hashes | diff - requirements.txt
-          poetry export -f requirements.txt --without-hashes --only=dev | diff - requirements-dev.txt
       - run: poetry run ruff check .
       - run: poetry run ruff format --check .
       - run: poetry run python manage.py makemigrations --check --dry-run

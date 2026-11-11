@@ -12,6 +12,15 @@ COPY backend/apps/public/ /backend/apps/public/
 RUN npm run build
 
 
+# The dependency list comes straight from poetry.lock, so the image installs
+# exactly what is locked and no exported file has to be kept in sync.
+FROM python:3.12-slim-trixie AS requirements
+RUN pip install --no-cache-dir poetry==2.3.2 poetry-plugin-export==1.10.0
+WORKDIR /backend
+COPY backend/pyproject.toml backend/poetry.lock ./
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
+
+
 FROM python:3.12-slim-trixie AS app
 
 ENV PYTHONUNBUFFERED=1 \
@@ -36,8 +45,7 @@ RUN groupadd --system --gid 1000 brainbro \
 
 WORKDIR /app
 
-# Exported from Poetry with `make exportdeps`.
-COPY backend/requirements.txt /tmp/requirements.txt
+COPY --from=requirements /backend/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
 COPY backend/ /app/
