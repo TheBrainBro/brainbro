@@ -39,7 +39,7 @@ export function ImportPanel() {
   )
 }
 
-/** Obsidian's mark, from Simple Icons, in its brand purple. */
+/** Obsidian's mark, from Simple Icons (CC0, see THIRD_PARTY_NOTICES.md), in its brand purple. */
 function ObsidianLogo() {
   return (
     <svg viewBox="0 0 24 24" className="size-5 fill-[#7c3aed]" aria-hidden="true">

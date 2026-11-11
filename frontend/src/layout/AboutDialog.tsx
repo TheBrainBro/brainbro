@@ -71,6 +71,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
+/** GitHub's mark, from Simple Icons (CC0, see THIRD_PARTY_NOTICES.md). */
 function GitHubLogo() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-current">
