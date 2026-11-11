@@ -27,7 +27,6 @@ frontend/   Vite + React
 docker/     image entrypoint
 scripts/    backup and restore
 docs/       documentation (deployment, etc.)
-site/       landing page (static, see docs/landing.md)
 ```
 
 ## Development

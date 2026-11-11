@@ -20,10 +20,6 @@ except for the permissions below.
 - `frontend/src/assets/brainbro-mascot.glb`
 - The `Logo` and `Wordmark` artwork in `frontend/src/layout/Logo.tsx` (the rest of the
   file is code, under the AGPL)
-- `site/brand/`
-- `site/models/`
-- `site/favicon.ico`, `site/favicon.svg`, `site/apple-touch-icon.png`, `site/og.png`,
-  `site/video-poster.jpg`
 - `docs/assets/readme-header-dark.png`, `docs/assets/readme-header-light.png`
 
 You may keep these files in copies and forks of this repository, unmodified, and use them
@@ -66,8 +62,7 @@ A modified version has to use its own name and artwork. To rebrand:
 3. Change the name in the app strings (`frontend/src/i18n/`), the PWA manifest in
    `frontend/vite.config.ts` and the page title in `frontend/index.html`.
 4. If you replace the mascot model, its idle animation must be named `BlinkIdle`, or
-   remove that animation from `frontend/src/onboarding/MascotStage.tsx` and
-   `site/js/mascot.js`.
+   remove that animation from `frontend/src/onboarding/MascotStage.tsx`.
 
 When you say your fork is based on BrainBro, also say, just as visibly, that it is not
 affiliated with or endorsed by BrainBro.

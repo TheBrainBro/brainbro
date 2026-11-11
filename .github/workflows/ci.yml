@@ -66,7 +66,5 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - name: The landing page carries the same third-party notices
-        run: cmp THIRD_PARTY_NOTICES.md site/THIRD_PARTY_NOTICES.md
       - run: docker build -t brainbro:ci .
       - run: docker build -t brainbro-embedder:ci docker/embedder

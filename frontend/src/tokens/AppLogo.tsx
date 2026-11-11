@@ -2,7 +2,7 @@ import { Bot } from 'lucide-react'
 
 type Brand = { name: string; className: string; evenOdd?: boolean; path: string }
 
-// The same marks as the landing page (LobeHub icons, MIT); Cursor's from Simple
+// LobeHub icons (MIT); Cursor's from Simple
 // Icons (CC0), see THIRD_PARTY_NOTICES.md. The backend says which one applies: see
 // apps.accounts.logos.
 const BRANDS: Record<string, Brand> = {
