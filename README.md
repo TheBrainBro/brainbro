@@ -79,4 +79,5 @@ See [docs/deployment.md](docs/deployment.md).
 
 The code is licensed under the [GNU AGPL v3](LICENSE) (`AGPL-3.0-only`). The BrainBro
 name, logo and mascot are not covered by it: see [TRADEMARKS.md](TRADEMARKS.md) for what is
-allowed.
+allowed. Files from other projects keep their own licenses, listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

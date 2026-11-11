@@ -12,6 +12,9 @@ not modules, so it works from `file://` too).
 - `styles.css`: the app's colors (zinc, the brand's off-white, near-black and
   violets) and fonts (Fredoka for headings, Nunito for text, in `fonts/`), light
   and dark from the system setting, one column on phones.
+- `THIRD_PARTY_NOTICES.md`: the licenses of the fonts, three.js, Draco, the icons and
+  the logos. A copy of the one at the root of the repository, so it is served with the
+  page; CI fails if they differ.
 - `brand/`, the favicons and `og.png`: copied from the BrainBro brand kit. The
   Blob never sits on violet or gold; on those backgrounds it goes inside the
   app icon's near-black square.
