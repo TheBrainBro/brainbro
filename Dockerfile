@@ -41,6 +41,7 @@ COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
 COPY backend/ /app/
+COPY LICENSE TRADEMARKS.md THIRD_PARTY_NOTICES.md /app/
 COPY --from=frontend /frontend/dist /app/frontend_dist
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 
