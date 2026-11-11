@@ -1,0 +1,2 @@
+# The pip-audit version CI runs, kept here so Dependabot updates it.
+pip-audit==2.10.1
