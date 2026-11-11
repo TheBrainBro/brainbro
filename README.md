@@ -74,3 +74,9 @@ its GitHub release, with notes built from the issues in the PR's `Ref` line
 ## Production
 
 See [docs/deployment.md](docs/deployment.md).
+
+## License
+
+The code is licensed under the [GNU AGPL v3](LICENSE) (`AGPL-3.0-only`). The BrainBro
+name, logo and mascot are not covered by it: see [TRADEMARKS.md](TRADEMARKS.md) for what is
+allowed.
