@@ -1,15 +1,19 @@
-import { BookOpen, X } from 'lucide-react'
+import { BookOpen, Code, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
+import { useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
 import { Logo, Wordmark } from './Logo'
 
 const REPO = 'https://github.com/TheBrainBro/brainbro'
 const DOCS = `${REPO}/tree/main/docs`
 
-/** The logo, which version runs on which server, and where the docs and the code live. */
+/** The logo, which version runs on which server, and where the docs and this server's code live. */
 export function AboutDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
+  const { data: session } = useSession()
+  // The server says where its code is, so a modified version can point at its own.
+  const source = session?.source_code_url || REPO
   const close = useRef<HTMLButtonElement>(null)
   useEffect(() => close.current?.focus(), [])
 
@@ -60,15 +64,23 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
               <BookOpen className="size-4" aria-hidden="true" />
               {t('about.docs')}
             </a>
-            <a href={REPO} target="_blank" rel="noreferrer" className="button-outline">
-              <GitHubLogo />
-              GitHub
+            <a href={source} target="_blank" rel="noreferrer" className="button-outline">
+              {onGitHub(source) ? <GitHubLogo /> : <Code className="size-4" aria-hidden="true" />}
+              {t('about.sourceCode')}
             </a>
           </div>
         </div>
       </div>
     </>
   )
+}
+
+function onGitHub(url: string) {
+  try {
+    return new URL(url).hostname === 'github.com'
+  } catch {
+    return false
+  }
 }
 
 /** GitHub's mark, from Simple Icons (CC0, see THIRD_PARTY_NOTICES.md). */

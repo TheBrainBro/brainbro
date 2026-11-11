@@ -15,6 +15,8 @@ export type Session = {
   authenticated: boolean
   user: User | null
   limits?: { upload_max_size: number }
+  /** Where the code this server runs can be downloaded (AGPL section 13). */
+  source_code_url?: string
   /** Whether this user already closed the welcome tour, on any device. */
   welcome_seen?: boolean
   /** Where the guided tour stands, the same on every device. */
