@@ -12,7 +12,7 @@ function renderPanel(ok = true) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   queryClient.setQueryData<Session>(sessionKey, {
     authenticated: true,
-    user: { id: 1, username: 'carlos', email: '', is_staff: false },
+    user: { id: 1, username: 'alex', email: '', is_staff: false },
     theme: 'system',
   })
   render(

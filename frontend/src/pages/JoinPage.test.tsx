@@ -76,7 +76,7 @@ describe('JoinPage', () => {
     })
 
     await screen.findByRole('heading', { name: 'Join BrainBro' })
-    fill('carlos', 'a-long-pass')
+    fill('alex', 'a-long-pass')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This username is taken.')
   })

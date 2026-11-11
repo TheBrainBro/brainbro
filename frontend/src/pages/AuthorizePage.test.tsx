@@ -22,7 +22,7 @@ function renderAt(
     if (url === '/api/auth/session/') {
       return jsonResponse(
         authenticated
-          ? { authenticated: true, user: { id: 1, username: 'carlos' }, welcome_seen: true }
+          ? { authenticated: true, user: { id: 1, username: 'alex' }, welcome_seen: true }
           : { authenticated: false, user: null },
       )
     }

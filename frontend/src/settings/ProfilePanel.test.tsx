@@ -21,7 +21,7 @@ function renderPanel(
     if (url === '/api/auth/session/') {
       return jsonResponse({
         authenticated: true,
-        user: { id: 1, username: 'carlos', email: '', is_staff: false },
+        user: { id: 1, username: 'alex', email: '', is_staff: false },
         profile,
       })
     }
@@ -55,7 +55,7 @@ describe('ProfilePanel', () => {
 
     const field = await screen.findByLabelText('Display name')
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
-    fireEvent.change(field, { target: { value: ' Carlos Lugones ' } })
+    fireEvent.change(field, { target: { value: ' Alex Rivera ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await vi.waitFor(() =>
@@ -63,7 +63,7 @@ describe('ProfilePanel', () => {
         '/api/auth/profile/',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ display_name: 'Carlos Lugones' }),
+          body: JSON.stringify({ display_name: 'Alex Rivera' }),
         }),
       ),
     )
@@ -77,13 +77,13 @@ describe('ProfilePanel', () => {
     await vi.waitFor(() => expect(field).toHaveValue('author'))
     const save = screen.getByRole('button', { name: 'Save public address' })
     expect(save).toBeDisabled()
-    fireEvent.change(field, { target: { value: 'Carlos' } })
+    fireEvent.change(field, { target: { value: 'Alex' } })
     fireEvent.click(save)
 
     await vi.waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/auth/profile/',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ handle: 'carlos' }) }),
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ handle: 'alex' }) }),
       ),
     )
   })
@@ -98,7 +98,7 @@ describe('ProfilePanel', () => {
   })
 
   it('shows the photo and removes it', async () => {
-    const fetchMock = renderPanel({ display_name: 'Carlos', avatar_url: '/api/auth/profile/avatar/?v=a' })
+    const fetchMock = renderPanel({ display_name: 'Alex', avatar_url: '/api/auth/profile/avatar/?v=a' })
 
     expect(await screen.findByRole('button', { name: 'Change photo' })).toBeInTheDocument()
     expect(document.querySelector('img')).toHaveAttribute('src', '/api/auth/profile/avatar/?v=a')

@@ -97,7 +97,7 @@ function setUp({ limit }: { limit?: number } = {}) {
     if (url === '/api/auth/session/') {
       return jsonResponse({
         authenticated: true,
-        user: { id: 1, username: 'carlos', email: '', is_staff: true },
+        user: { id: 1, username: 'alex', email: '', is_staff: true },
         ...(limit ? { limits: { upload_max_size: limit } } : {}),
       })
     }

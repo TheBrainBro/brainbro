@@ -100,7 +100,7 @@ beforeEach(() => {
     vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET'
       if (url === '/api/auth/session/') {
-        return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
+        return jsonResponse({ authenticated: true, user: { id: 1, username: 'alex' } })
       }
       if (url.startsWith('/api/boards/?')) return jsonResponse({ count: 1, results: [summary()] })
       if (url === '/api/boards/' && method === 'POST') {

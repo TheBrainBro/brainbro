@@ -13,7 +13,7 @@ function renderDialog(onClose = () => {}, { staff = false, hasSamples = false } 
         JSON.stringify({
           authenticated: true,
           has_sample_content: samplesPresent,
-          user: { id: 1, username: 'carlos', is_staff: staff },
+          user: { id: 1, username: 'alex', is_staff: staff },
         }),
         { headers: { 'Content-Type': 'application/json' } },
       )

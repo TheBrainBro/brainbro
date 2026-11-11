@@ -23,7 +23,7 @@ function renderAt(path: string) {
   )
 }
 
-const user = { id: 1, username: 'carlos', email: '', is_staff: true }
+const user = { id: 1, username: 'alex', email: '', is_staff: true }
 
 // Signed in, with no notes to link to.
 const signedIn = async (url: string) =>
@@ -51,7 +51,7 @@ describe('auth routing', () => {
     renderAt('/boards')
     expect(await screen.findByRole('heading', { name: 'Boards' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Account' }))
-    expect(screen.getByRole('menu')).toHaveTextContent('carlos')
+    expect(screen.getByRole('menu')).toHaveTextContent('alex')
   })
 
   it('says it is offline, not broken, when the session cannot be fetched without network', async () => {
@@ -121,7 +121,7 @@ describe('auth routing', () => {
     vi.stubGlobal('fetch', fetchMock)
     renderAt('/')
 
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'carlos' } })
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'alex' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 

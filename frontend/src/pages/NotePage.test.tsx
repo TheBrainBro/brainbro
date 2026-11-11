@@ -71,7 +71,7 @@ function setUp() {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/auth/session/') {
-      return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
+      return jsonResponse({ authenticated: true, user: { id: 1, username: 'alex' } })
     }
     if (url === '/api/items/triage/') {
       const payload = JSON.parse(String(init?.body))

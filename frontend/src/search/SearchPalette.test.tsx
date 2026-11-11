@@ -63,7 +63,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {
   fetchMock = vi.fn(async (url: string) => {
     if (url.startsWith('/api/auth/session/')) {
-      return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
+      return jsonResponse({ authenticated: true, user: { id: 1, username: 'alex' } })
     }
     if (url.startsWith('/api/items/note-titles/')) return jsonResponse([])
     if (url.startsWith('/api/items/search/')) {
