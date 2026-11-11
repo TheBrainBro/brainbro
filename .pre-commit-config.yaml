@@ -29,7 +29,8 @@ repos:
     hooks:
       - id: oxlint
         name: oxlint
-        entry: npm --prefix frontend exec -- oxlint
+        # The Semgrep rules submodule holds deliberately broken test code.
+        entry: npm --prefix frontend exec -- oxlint --ignore-pattern=.github/semgrep/rules/**
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx)$
         pass_filenames: false
