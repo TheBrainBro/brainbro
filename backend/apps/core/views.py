@@ -108,6 +108,7 @@ def spa(request, path=""):
     # A public page says what it is to sites that read its link.
     if tags:
         html = with_head_tags(html, tags)
+    # nosemgrep: direct-use-of-httpresponse -- built index.html, escaped head tags
     return HttpResponse(html, content_type="text/html")
 
 
@@ -127,6 +128,7 @@ def pwa_file(request, name):
     return response
 
 
+# nosemgrep: no-csrf-exempt -- the POST changes nothing, it only redirects
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def share(request):

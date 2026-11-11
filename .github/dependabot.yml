@@ -73,6 +73,7 @@ updates:
       - /
       - /docker/*
       - /.github/gitleaks
+      - /.github/semgrep
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
@@ -97,6 +98,15 @@ updates:
     groups:
       compose:
         update-types: [minor, patch]
+
+  # The semgrep-rules commit the Semgrep scan runs (.github/semgrep/rules).
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci
 
   - package-ecosystem: pre-commit
     directory: /

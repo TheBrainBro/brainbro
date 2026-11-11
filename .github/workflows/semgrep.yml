@@ -1,0 +1,25 @@
+name: Semgrep
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions: {}
+
+jobs:
+  # Static analysis with the security rules of a pinned semgrep-rules commit,
+  # run offline. No schedule: the engine and the rules only change through
+  # Dependabot pull requests, which run this check. Findings are in the log
+  # and the job summary; see .github/semgrep/scan.sh to ignore one.
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          submodules: true
+          persist-credentials: false
+      - run: .github/semgrep/scan.sh

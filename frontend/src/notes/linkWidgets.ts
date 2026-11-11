@@ -130,7 +130,7 @@ export class LinkPreviewWidget extends WidgetType {
     const box = document.createElement('div')
     box.className = 'cm-link-preview'
     const { url, label } = this.link
-    // Built from escaped text, and players only from known sites.
+    // nosemgrep: insecure-innerhtml, insecure-document-method -- built from escaped text, players only from known sites
     box.innerHTML =
       this.link.view === 'embed'
         ? linkEmbedHtml(url, label, this.preview)

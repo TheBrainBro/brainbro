@@ -22,6 +22,7 @@ from .handles import public_handle
 from .models import Site
 
 # Labels of letters, digits and inner hyphens, and at least two of them.
+# nosemgrep: regex_dos -- the lookahead caps the input at 253 characters
 HOSTNAME = re.compile(
     r"(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
     r"(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})"

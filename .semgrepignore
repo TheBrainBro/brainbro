@@ -1,0 +1,18 @@
+# Paths the Semgrep scan skips (.github/semgrep/scan.sh). This file replaces
+# Semgrep's built-in list, so it repeats what still applies.
+
+:include .gitignore
+
+# The rules themselves, with their vulnerable test fixtures.
+.github/semgrep/rules/
+
+# Third-party bundles we ship as-is, and generated migrations, as in CodeQL.
+site/js/vendor/
+frontend/public/draco/
+backend/apps/*/migrations/
+
+# Tests never run in production, and they build HTML and regexes from fixed
+# strings on purpose. Semgrep skips them by default too.
+backend/apps/*/tests/
+*.test.ts
+*.test.tsx
