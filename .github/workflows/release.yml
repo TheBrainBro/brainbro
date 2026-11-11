@@ -7,6 +7,7 @@ on:
     types: [closed]
     branches: [main]
 
+# Push the tag and create the release; read the PR and the issues it references.
 permissions:
   contents: write
   pull-requests: read
@@ -19,7 +20,7 @@ jobs:
       (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
       - run: |
