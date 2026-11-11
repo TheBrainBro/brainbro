@@ -3,7 +3,7 @@ unexport VIRTUAL_ENV
 
 POETRY = cd backend && poetry
 MANAGE = $(POETRY) run python manage.py
-PROD = docker compose --env-file stack.env -f docker-compose.production.yml
+PROD = docker compose --env-file stack.env -f docker-compose.production.yml -f docker-compose.build.yml
 
 .PHONY: help
 help: ## Show this help

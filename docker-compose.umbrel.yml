@@ -1,0 +1,37 @@
+# Umbrel (Portainer) only: the host firewall workaround. Goes after
+# docker-compose.production.yml (and docker-compose.build.yml, if used).
+# See "Why firewall" in docs/deployment.md.
+
+# The stack's network. `firewall` opens forwarding for exactly this subnet.
+x-subnet: &subnet 10.77.0.0/24
+
+services:
+  # Lets the stack's subnet through the host firewall, otherwise containers
+  # can't reach each other. See docker/firewall/entrypoint.sh.
+  firewall:
+    build:
+      context: docker/firewall
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      STACK_SUBNET: *subnet
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    depends_on:
+      firewall:
+        condition: service_healthy
+
+# Fixed subnet so `firewall` knows which traffic to let through.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: *subnet
