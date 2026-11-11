@@ -243,6 +243,12 @@ MEDIA_URL = "/media/"
 # FILE_UPLOAD_MAX_MEMORY_SIZE (Django's default, 2.5 MB) is spooled to disk.
 UPLOAD_MAX_SIZE = int(get_env_variable("UPLOAD_MAX_SIZE", str(50 * 1024 * 1024)))
 
+# Where the code this server runs can be downloaded, linked from the About
+# dialog (AGPL section 13). A modified version points it at its own source.
+SOURCE_CODE_URL = get_env_variable(
+    "SOURCE_CODE_URL", "https://github.com/TheBrainBro/brainbro"
+)
+
 # Database backups (apps.core.tasks.backup_database). Must live outside
 # MEDIA_ROOT so dumps can never be served.
 BACKUP_DIR = Path(get_env_variable("BACKUP_DIR", str(BASE_DIR / "backups")))

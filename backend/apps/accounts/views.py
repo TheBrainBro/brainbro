@@ -95,6 +95,8 @@ def signed_in(user):
         "profile": profile_data(profile),
         # Lets the frontend refuse a file before uploading it.
         "limits": {"upload_max_size": settings.UPLOAD_MAX_SIZE},
+        # The About dialog links it (AGPL section 13).
+        "source_code_url": settings.SOURCE_CODE_URL,
     }
 
 
