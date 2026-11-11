@@ -67,6 +67,10 @@ make help          # everything else
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the issue workflow, pull request conventions,
 development checks and Git flow.
 
+External contributions need a signed [Contributor License Agreement](CLA.md). The CLA
+Assistant bot asks for it on your first pull request; pull requests are not merged
+without it.
+
 Merging a `release/x.y.z` or `hotfix/x.y.z` PR into `main` tags `vx.y.z` and publishes
 its GitHub release, with notes built from the issues in the PR's `Ref` line
 (`.github/workflows/release.yml`). To redo one by hand: `scripts/release.sh <pr-number>`.
