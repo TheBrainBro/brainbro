@@ -54,7 +54,7 @@ as this policy allows.
 - Anything that suggests your project, service or company is official or endorsed by
   BrainBro.
 
-To ask for permission, open an issue in this repository.
+To ask for permission, email contact@carloslugones.com.
 
 ## Rebranding a fork
 
