@@ -32,16 +32,16 @@ def test_a_new_profile_has_no_name_or_photo(api):
 
 def test_the_display_name_is_saved(api):
     response = api.patch(
-        "/api/auth/profile/", {"display_name": "Carlos Lugones"}, format="json"
+        "/api/auth/profile/", {"display_name": "Alex Rivera"}, format="json"
     )
 
     assert response.status_code == 200
-    assert response.json()["display_name"] == "Carlos Lugones"
-    assert session(api)["profile"]["display_name"] == "Carlos Lugones"
+    assert response.json()["display_name"] == "Alex Rivera"
+    assert session(api)["profile"]["display_name"] == "Alex Rivera"
 
 
 def test_the_display_name_can_be_cleared(api):
-    api.patch("/api/auth/profile/", {"display_name": "Carlos"}, format="json")
+    api.patch("/api/auth/profile/", {"display_name": "Alex"}, format="json")
 
     response = api.patch("/api/auth/profile/", {"display_name": ""}, format="json")
 
@@ -49,15 +49,15 @@ def test_the_display_name_can_be_cleared(api):
 
 
 def test_the_handle_is_saved(api):
-    response = api.patch("/api/auth/profile/", {"handle": "carlos-l"}, format="json")
+    response = api.patch("/api/auth/profile/", {"handle": "alex-r"}, format="json")
 
     assert response.status_code == 200
-    assert response.json()["handle"] == "carlos-l"
+    assert response.json()["handle"] == "alex-r"
     # The display name is left as it was.
     assert response.json()["display_name"] == ""
 
 
-@pytest.mark.parametrize("handle", ["Carlos", "c", "carlos l", "-carlos", "x" * 41])
+@pytest.mark.parametrize("handle", ["Alex", "c", "alex l", "-alex", "x" * 41])
 def test_the_handle_is_an_address(api, handle):
     response = api.patch("/api/auth/profile/", {"handle": handle}, format="json")
 
@@ -66,9 +66,9 @@ def test_the_handle_is_an_address(api, handle):
 
 
 def test_someone_else_s_handle_is_refused(api, other_user):
-    Profile.objects.create(user=other_user, handle="carlos")
+    Profile.objects.create(user=other_user, handle="alex")
 
-    response = api.patch("/api/auth/profile/", {"handle": "carlos"}, format="json")
+    response = api.patch("/api/auth/profile/", {"handle": "alex"}, format="json")
 
     assert response.status_code == 400
     assert response.json() == {"handle": ["Someone else already has this name."]}

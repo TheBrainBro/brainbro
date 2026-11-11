@@ -35,7 +35,7 @@ def blog(user, writing):
         owner=user,
         hostname=BLOG,
         collection=writing,
-        title="Carlos writes",
+        title="Alex writes",
         status=Site.Status.VERIFIED,
     )
 
@@ -144,7 +144,7 @@ def test_a_post_links_its_published_notes_only(client, user, blog, writing):
 
 
 def test_a_post_describes_itself_to_search_engines(client, user, blog, writing):
-    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Alex"})
     item = publish(note(user, "Hello", "A claim </script> here.", writing))
     item.edited_at = timezone.now()
     item.save(update_fields=["edited_at"])
@@ -156,7 +156,7 @@ def test_a_post_describes_itself_to_search_engines(client, user, blog, writing):
     assert data["@type"] == "BlogPosting"
     assert data["headline"] == "Hello"
     assert data["url"] == f"https://{BLOG}/hello"
-    assert data["author"] == {"@type": "Person", "name": "Carlos"}
+    assert data["author"] == {"@type": "Person", "name": "Alex"}
     assert data["dateModified"]
     assert "</script> here" not in block
     assert 'property="article:published_time"' in html

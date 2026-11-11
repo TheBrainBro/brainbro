@@ -19,7 +19,7 @@ const plan = {
   body: '# Trip plan\n\nSee [[Packing]] and [[Diary]].\n\n![map](https://x.example/map.png)',
   published_at: '2026-10-01T10:00:00Z',
   edited_at: '2026-10-20T10:00:00Z',
-  author: 'Carlos Lugones',
+  author: 'Alex Rivera',
   images: {
     'https://x.example/map.png': {
       status: 'ready',
@@ -87,7 +87,7 @@ describe('PublicNotePage', () => {
       'src',
       '/api/public/notes/ana/trip-plan/images/1/?v=a',
     )
-    expect(screen.getByText('Carlos Lugones')).toBeInTheDocument()
+    expect(screen.getByText('Alex Rivera')).toBeInTheDocument()
     expect(screen.getByText('October 1, 2026')).toBeInTheDocument()
     expect(screen.getByText('October 20, 2026')).toBeInTheDocument()
     // Never asks who is signed in.
@@ -211,7 +211,7 @@ describe('PublicAuthorPage', () => {
     renderAt('/@ana/trip-plan')
 
     // The bar on top leads to their page.
-    expect(await screen.findByRole('link', { name: /Carlos Lugones/ })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /Alex Rivera/ })).toHaveAttribute(
       'href',
       '/@ana',
     )

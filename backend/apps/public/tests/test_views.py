@@ -176,10 +176,10 @@ def test_the_author_is_the_display_name_never_the_username(anyone, user):
 
     assert anyone.get("/api/public/notes/author/plan/").json()["author"] == ""
 
-    Profile.objects.filter(user=user).update(display_name="Carlos Lugones")
+    Profile.objects.filter(user=user).update(display_name="Alex Rivera")
     response = anyone.get("/api/public/notes/author/plan/")
 
-    assert response.json()["author"] == "Carlos Lugones"
+    assert response.json()["author"] == "Alex Rivera"
     assert user.username not in response.content.decode()
 
 
@@ -289,13 +289,13 @@ def test_other_notes_images_are_not_served_through_a_public_one(anyone, user):
 
 def test_an_author_s_page_says_who_they_are(anyone, user):
     publish(note(user, title="Plan"))
-    Profile.objects.filter(user=user).update(display_name="Carlos Lugones")
+    Profile.objects.filter(user=user).update(display_name="Alex Rivera")
 
     response = anyone.get("/api/public/authors/author/")
 
     assert response.json() == {
         "handle": "author",
-        "author": "Carlos Lugones",
+        "author": "Alex Rivera",
         "avatar_url": None,
     }
     assert user.username not in response.content.decode()

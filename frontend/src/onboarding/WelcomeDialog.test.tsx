@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from '../App'
 import { WelcomeDialog } from './WelcomeDialog'
 
-const user = { id: 1, username: 'carlos', email: '', is_staff: true }
+const user = { id: 1, username: 'alex', email: '', is_staff: true }
 
 const note = {
   id: 'tutorial-note',

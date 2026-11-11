@@ -24,7 +24,7 @@ def blog(user):
         owner=user,
         hostname=BLOG,
         collection=Collection.objects.create(owner=user, name="Writing"),
-        title="Carlos writes",
+        title="Alex writes",
         status=Site.Status.VERIFIED,
     )
 

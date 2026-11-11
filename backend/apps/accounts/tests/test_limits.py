@@ -18,7 +18,7 @@ PING = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
 def sign_in(client, password, **headers):
     return client.post(
         "/api/auth/login/",
-        json.dumps({"username": "carlos", "password": password}),
+        json.dumps({"username": "alex", "password": password}),
         content_type="application/json",
         **headers,
     )
@@ -165,7 +165,7 @@ def test_a_limited_invitation_says_nothing_about_usernames(client, user):
 
     response = client.post(
         "/api/auth/join/nope/",
-        json.dumps({"username": "carlos", "password": "a-long-new-pass"}),
+        json.dumps({"username": "alex", "password": "a-long-new-pass"}),
         content_type="application/json",
     )
 

@@ -7,9 +7,7 @@ from apps.accounts.models import Profile
 
 @pytest.fixture
 def user(db):
-    return get_user_model().objects.create_user(
-        username="carlos", password="s3cret-pass"
-    )
+    return get_user_model().objects.create_user(username="alex", password="s3cret-pass")
 
 
 @pytest.fixture
