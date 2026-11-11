@@ -36,6 +36,19 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: pip
+    directory: /backend
+    open-pull-requests-limit: 3
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build(backend)
+    groups:
+      backend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
     directory: /docker/embedder
     schedule:
       interval: monthly

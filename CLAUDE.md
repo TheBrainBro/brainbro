@@ -23,12 +23,12 @@ Roadmap: epic #1 on GitHub (`gh issue view 1`), sub-issues labeled `phase-0`…`
 
 ## Dependencies
 
-- Python: Poetry is the source of truth (`backend/pyproject.toml` + `poetry.lock`). After changing dependencies run `make exportdeps` to regenerate `backend/requirements.txt` and `backend/requirements-dev.txt`; the Docker image installs from `requirements.txt` and CI fails if they are out of sync.
+- Python: Poetry is the source of truth (`backend/pyproject.toml` + `poetry.lock`). The Docker image exports the requirements from `poetry.lock` at build time; no exported file is committed.
 - The Makefile does `unexport VIRTUAL_ENV` because the user's shell exports a global pyenv one. Outside make, use `env -u VIRTUAL_ENV poetry ...`.
 
 ## Commands
 
-`make dev`, `make test` (alias `tests`), `make lint`, `make format`, `make makemigrations` (alias `migrations`), `make exportdeps` (see `make help`). Dev Postgres is on port **5442**, Redis on **6389**.
+`make dev`, `make test` (alias `tests`), `make lint`, `make format`, `make makemigrations` (alias `migrations`) (see `make help`). Dev Postgres is on port **5442**, Redis on **6389**.
 
 ## Git workflow
 
