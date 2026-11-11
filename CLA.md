@@ -4,9 +4,9 @@ Contributions from outside the project are accepted only after their author sign
 agreement. It is the Harmony Individual Contributor License Agreement (HA-CLA-I), version
 1.0, with Outbound License Option Five: you keep the copyright in your contribution, it
 stays available under the license the project uses when you submit it (today the
-[GNU AGPL v3](LICENSE)), and We may also license it under other terms, for example in a
-hosted version of BrainBro. You sign it once, online, when you open your first pull
-request (see [How to sign](#how-to-sign)).
+[GNU AGPL v3](https://github.com/TheBrainBro/brainbro/blob/develop/LICENSE)), and We may
+also license it under other terms, for example in a hosted version of BrainBro. You sign
+it once, online, when you open your first pull request (see "How to sign" below).
 
 ---
 
