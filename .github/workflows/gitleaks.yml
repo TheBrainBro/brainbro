@@ -1,0 +1,27 @@
+name: gitleaks
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions: {}
+
+jobs:
+  # Scans the whole history behind the checked-out commit, not only the new
+  # commits: it takes seconds, and a secret stays readable in history even
+  # after a later commit deletes it. Known false positives are listed by
+  # fingerprint in .gitleaksignore.
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: docker build --quiet --tag gitleaks .github/gitleaks
+      # --redact keeps any secret it finds out of the logs.
+      - run: docker run --rm --volume "$PWD:/repo:ro" gitleaks git /repo --no-banner --redact --verbose

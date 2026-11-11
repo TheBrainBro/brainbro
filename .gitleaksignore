@@ -1,0 +1,6 @@
+# gitleaks findings that are not secrets, one fingerprint each
+# (commit:file:rule:line). A new finding is never covered by these.
+
+# Made-up API token in a test mock (brain_cd34secret, later brainbro_cd34secret)
+54089b115647992cfdb9694cf0f52c350de23a54:frontend/src/tokens/TokensPanel.test.tsx:generic-api-key:28
+8b251de360b383310e5ffdef6dc7640c229a8004:frontend/src/tokens/TokensPanel.test.tsx:generic-api-key:29
