@@ -290,6 +290,7 @@ CSRF_COOKIE_SAMESITE = "Lax"
 
 # Django REST Framework
 
+# nosemgrep: missing-throttle-config -- limits are per endpoint, in apps.accounts.limits
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",

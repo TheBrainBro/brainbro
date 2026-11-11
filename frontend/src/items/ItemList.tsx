@@ -467,6 +467,7 @@ export function ItemList({
       '#': () => run(targets, 'delete'),
       Escape: () => setSelected(new Set()),
     }
+    // nosemgrep: unsafe-dynamic-method -- looks up a fixed map of shortcuts
     const handler = handlers[event.key]
     if (handler) {
       event.preventDefault()

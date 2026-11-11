@@ -91,6 +91,7 @@ type Values = Record<string, string | number>
 function lookup(messages: Messages, key: string): string | Plural | undefined {
   let node: unknown = messages
   for (const part of key.split('.')) {
+    // nosemgrep: prototype-pollution-loop -- only reads the messages, never writes
     node = (node as Record<string, unknown> | undefined)?.[part]
   }
   return node as string | Plural | undefined

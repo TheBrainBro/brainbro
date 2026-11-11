@@ -63,6 +63,7 @@ MEANING_LIMIT = 50
 PARTIAL_MIN_LENGTH = 3
 
 
+# nosemgrep: extends-custom-expression -- a fixed SQL function, no user input
 class Unaccent(Func):
     """`unaccent()`, wrapped as immutable so generated columns can use it."""
 

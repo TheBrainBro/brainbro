@@ -62,6 +62,7 @@ def same_origin(scope):
 def user_of(scope):
     request = HttpRequest()
     cookies = parse_cookie(header(scope, b"cookie"))
+    # nosemgrep: non-literal-import -- the session engine from settings, not user input
     engine = import_module(settings.SESSION_ENGINE)
     request.session = engine.SessionStore(cookies.get(settings.SESSION_COOKIE_NAME))
     return get_user(request)

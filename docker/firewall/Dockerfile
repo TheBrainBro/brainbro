@@ -5,4 +5,5 @@ RUN apk add --no-cache iptables
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# nosemgrep: missing-user-entrypoint -- iptables needs root
 ENTRYPOINT ["/entrypoint.sh"]

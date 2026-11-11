@@ -5,6 +5,7 @@ it's shown (`noteTitle` in the frontend): its first line, as plain words.
 
 import re
 
+# nosemgrep: regex_dos -- no ambiguous nested repetition
 LINE_MARKERS = re.compile(
     r"^\s*(?:>\s*)*(?:#{1,6}\s+|[-*+]\s+(?:\[[ xX]\]\s+)?|\d{1,9}[.)]\s+)?"
 )
