@@ -1,17 +1,22 @@
 name: Release
 
 # Tags and publishes a GitHub release when a release/x.y.z or hotfix/x.y.z PR
-# is merged into main. Same script as by hand: scripts/release.sh <pr>.
+# is merged into main (same script as by hand: scripts/release.sh <pr>), then
+# publishes the images to GHCR for that version.
+#
+# The images are built here and not on the tag: a tag pushed with GITHUB_TOKEN
+# starts no other workflow. Run it by hand to publish an existing tag again.
 on:
   pull_request:
     types: [closed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish, as in its tag without the v (e.g. 0.10.0)
+        required: true
 
-# Push the tag and create the release; read the PR and the issues it references.
-permissions:
-  contents: write
-  pull-requests: read
-  issues: read
+permissions: {}
 
 jobs:
   release:
@@ -19,6 +24,13 @@ jobs:
       github.event.pull_request.merged &&
       (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))
     runs-on: ubuntu-latest
+    # Push the tag and create the release; read the PR and the issues it references.
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -29,3 +41,67 @@ jobs:
       - run: scripts/release.sh ${{ github.event.pull_request.number }}
         env:
           GH_TOKEN: ${{ github.token }}
+      - id: version
+        run: echo "version=${HEAD_REF#*/}" >> "$GITHUB_OUTPUT"
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+
+  images:
+    needs: release
+    # Also by hand, when release is skipped.
+    if: >-
+      always() &&
+      (needs.release.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: brainbro
+            context: .
+          - name: brainbro-embedder
+            context: docker/embedder
+          - name: brainbro-caddy
+            context: docker/caddy
+    env:
+      VERSION: ${{ inputs.version || needs.release.outputs.version }}
+    steps:
+      - name: Check the version
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a version: $VERSION" >&2; exit 1; }
+          # Registry paths are lowercase; a fork publishes under its own owner.
+          echo "IMAGE=ghcr.io/${OWNER,,}/$NAME" >> "$GITHUB_ENV"
+        env:
+          OWNER: ${{ github.repository_owner }}
+          NAME: ${{ matrix.name }}
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: v${{ env.VERSION }}
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # 1.2.3, 1.2 and latest. The source label links the package to the repo.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ env.VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ env.VERSION }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
