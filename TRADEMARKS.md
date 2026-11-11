@@ -75,5 +75,5 @@ affiliated with or endorsed by BrainBro.
 ## Other trademarks
 
 Names and logos of other products shown in BrainBro, such as Claude, ChatGPT, Grok,
-Cursor, Obsidian, Telegram, Docker and Umbrel, belong to their owners. They appear only
-to identify those products.
+Cursor, GitHub, Obsidian, Telegram, Docker and Umbrel, belong to their owners. They appear
+only to identify those products.
