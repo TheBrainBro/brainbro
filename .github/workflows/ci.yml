@@ -68,3 +68,13 @@ jobs:
           persist-credentials: false
       - run: docker build -t brainbro:ci .
       - run: docker build -t brainbro-embedder:ci docker/embedder
+      - name: Check the production compose files
+        run: |
+          prod="docker compose -f docker-compose.production.yml"
+          $prod config -q
+          $prod -f docker-compose.build.yml config -q
+          $prod -f docker-compose.build.yml -f docker-compose.umbrel.yml config -q
+        env:
+          SECRET_KEY: ci
+          APP_HOSTNAMES: ci
+          POSTGRES_PASSWORD: ci

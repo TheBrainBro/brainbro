@@ -1,21 +1,20 @@
 ##########################################################################
-# PRODUCTION stack (Umbrel / Portainer git stack).                       #
+# PRODUCTION stack, from the images published to GHCR.                   #
 #                                                                        #
-#   docker compose --env-file stack.env -f docker-compose.production.yml up -d --build
+#   docker compose --env-file stack.env -f docker-compose.production.yml up -d
 #                                                                        #
-# Only `api` publishes a port; point the Cloudflare Tunnel at it.        #
-# Postgres and Redis stay on the internal network. See docs/deployment.md.
+# Overrides, added with more -f options:                                 #
+#   docker-compose.build.yml   builds the images from this checkout      #
+#   docker-compose.umbrel.yml  the Umbrel firewall workaround            #
+#                                                                        #
+# Only `api` publishes a port. Postgres and Redis stay on the internal   #
+# network. See docs/deployment.md.                                       #
 ##########################################################################
 
 name: "brain"
 
-# The stack's network. `firewall` opens forwarding for exactly this subnet.
-x-subnet: &subnet 10.77.0.0/24
-
 x-app: &app
-  build:
-    context: .
-    dockerfile: Dockerfile
+  image: ghcr.io/thebrainbro/brainbro:${BRAINBRO_VERSION:-latest}
   restart: unless-stopped
   environment:
     ENVIRONMENT: production
@@ -80,27 +79,8 @@ services:
   # image (nothing leaves the server). ~600 MB of memory. Without it, search
   # still works by words.
   embedder:
-    build:
-      context: docker/embedder
+    image: ghcr.io/thebrainbro/brainbro-embedder:${BRAINBRO_VERSION:-latest}
     restart: unless-stopped
-
-  # Umbrel only needs it: lets the stack's subnet through the host firewall,
-  # otherwise containers can't reach each other. See docker/firewall/entrypoint.sh.
-  firewall:
-    build:
-      context: docker/firewall
-    restart: unless-stopped
-    network_mode: host
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    environment:
-      STACK_SUBNET: *subnet
-    healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
 
   # One-shot: backup if needed, migrate, ensure admin. api/worker wait for it.
   migrate:
@@ -108,8 +88,6 @@ services:
     restart: "no"
     command: ["migrate"]
     depends_on:
-      firewall:
-        condition: service_healthy
       postgres:
         condition: service_healthy
 
@@ -145,8 +123,7 @@ services:
   # demand. Behind a tunnel it isn't needed. Start it with
   # `--profile caddy` (or COMPOSE_PROFILES=caddy). See docs/blogs.md.
   caddy:
-    build:
-      context: docker/caddy
+    image: ghcr.io/thebrainbro/brainbro-caddy:${BRAINBRO_VERSION:-latest}
     profiles: ["caddy"]
     restart: unless-stopped
     environment:
@@ -159,13 +136,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-
-# Fixed subnet so `firewall` knows which traffic to let through.
-networks:
-  default:
-    ipam:
-      config:
-        - subnet: *subnet
 
 volumes:
   postgres_data:
