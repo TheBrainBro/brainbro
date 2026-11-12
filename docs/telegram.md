@@ -8,16 +8,18 @@ reaction on each message it saved, or 👎 and a reply saying why it couldn't.
 
 1. In Telegram, talk to [@BotFather](https://t.me/BotFather), send `/newbot`
    and follow the steps. It gives you the bot's token and username.
-2. In Portainer, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (without
-   the `@`) in the stack's environment, and redeploy.
+2. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (without the `@`) in
+   `stack.env` (on Umbrel, in the stack's environment in Portainer), and start
+   the stack again (see [deployment.md](deployment.md#settings)).
 3. In BrainBro, account menu → *Telegram* → *Connect Telegram*, then *Open
    @your_bot in Telegram* and press *Start*. The dialog shows the chat as
    connected.
 
 When the worker starts it points the bot at
 `https://<first APP_HOSTNAMES>/api/telegram/webhook/` (`setWebhook`), so
-updates come in through the Cloudflare Tunnel like everything else.
-`TELEGRAM_WEBHOOK_URL` overrides that address. If Cloudflare Access ever sits
+updates come in the same way as every other request. `TELEGRAM_WEBHOOK_URL`
+overrides that address; with `APP_HTTPS=false` there is no default, and
+Telegram only delivers to HTTPS. If Cloudflare Access ever sits
 in front of BrainBro, bypass it for `/api/telegram/webhook/`: Telegram can't log
 in.
 
