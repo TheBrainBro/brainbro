@@ -3,7 +3,7 @@
 Everything a user has, as a zip they can take anywhere: notes and links as
 Markdown, boards as JSON plus a readable outline, and uploads as the original
 files. It is not a backup of the app (that's the `pg_dump` in
-[deployment.md](deployment.md#backups)): it's for the user, and has to make
+[backups.md](backups.md)): it's for the user, and has to make
 sense without BrainBro.
 
 ## The format
