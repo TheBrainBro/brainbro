@@ -89,7 +89,8 @@ Every pull request runs these workflows:
 - **pip-audit:** known vulnerabilities in the Python dependencies. One that does not affect
   the project goes in `.github/pip-audit/ignore.txt`, with the reason.
 - **Semgrep:** security rules. A finding that does not apply is ignored on its line, naming
-  the rule and the reason: `# nosemgrep: <rule> -- <why>`. To run it locally:
+  the rule and the reason, as in `# nosemgrep: avoid-mark-safe -- sanitized by nh3`
+  (see `.github/semgrep/scan.sh`). To run it locally:
   `git submodule update --init .github/semgrep/rules`, then `.github/semgrep/scan.sh`.
 - **CodeQL:** code scanning.
 
