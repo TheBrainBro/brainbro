@@ -1,96 +1,127 @@
 # Contributing to BrainBro
 
-Issues, pull requests, commits, code and documentation are written in English.
+Thanks for helping. Issues, pull requests, commits, code and documentation are written in
+English.
 
-## Issue workflow
+## Before you start
 
-Every open issue must have exactly one workflow label:
+- **Bugs, small fixes and docs:** open a pull request directly.
+- **New features or larger changes:** open an issue first, or comment on an existing one,
+  so we can agree on the approach before you spend time on it.
+- **Security vulnerabilities:** do not open a public issue. Follow [SECURITY.md](SECURITY.md).
 
-- `status: pending`: implementation has not started.
-- `status: in-progress`: implementation or validation has started, but the issue is not ready to close.
-- `status: blocked`: work started and cannot continue until a concrete dependency or decision is resolved. Record the blocker in an issue comment.
+## Contributor License Agreement
 
-An assignment by itself does not mean work has started. Change `status: pending` to
-`status: in-progress` when implementation, research or validation actually begins.
+Every author of the commits in a pull request signs the [Contributor License Agreement](CLA.md)
+once. The CLA Assistant bot comments on your first pull request with a link to sign it with
+your GitHub account. Pull requests are not merged until it is signed.
 
-Close an issue only when all of its required scope is on `main`. If a pull request
-implements only part of an issue, keep the issue open and update its checklist or add
-a comment describing what remains.
+## Development setup
 
-When choosing work, start from open issues with `status: pending`. Exclude issues with
-the `epic` label unless the work is to maintain the epic itself, and use the epic's
-unchecked child issues instead.
+Requirements: Python 3.12, Poetry 2, Node 24, Docker with Compose v2, and libmagic
+(`brew install libmagic` on macOS; preinstalled on most Linux distributions).
 
-Useful GitHub searches:
+Fork the repository and clone your fork (it opens on `develop`):
 
-- Next work: `is:issue is:open label:"status: pending" -label:epic`
-- Active work: `is:issue is:open label:"status: in-progress"`
-- Needs unblocking: `is:issue is:open label:"status: blocked"`
+```bash
+git clone git@github.com:<you>/brainbro.git
+cd brainbro
+make install       # backend and frontend dependencies, and the pre-commit hooks
+make dev           # Postgres, Redis and the embedder in Docker, migrations, Django + Celery + Vite
+make superuser     # create your user (in another terminal)
+```
 
-## Pull requests and issue references
+Open http://localhost:5173. Vite proxies `/api` and `/admin` to Django on port 8000.
 
-Feature and fix pull requests normally target `develop` and use `Refs #123` in the
-description. Use `Refs` even when that PR completes the implementation: the issue is
-not released until the change reaches `main`.
+- The services in Docker use ports **5442** (Postgres), **6389** (Redis) and **8100**
+  (embedder), to avoid clashing with other projects. The first `make dev` builds the
+  embedder, which downloads its model (about 250 MB).
+- The defaults match `docker-compose.yml`, so no configuration is needed. To change
+  something, copy `backend/.env.example` to `backend/.env`.
+- `make help` lists every target. `make down` stops every container of the project.
 
-Release and hotfix pull requests target `main`:
+```
+backend/    Django 6 + DRF, Celery (config/, apps/<app>/)
+frontend/   Vite + React + TypeScript + Tailwind (React Flow for the canvas)
+docker/     image entrypoint, embedder and Caddy images
+scripts/    backup, restore and release
+docs/       documentation (index in docs/README.md)
+```
 
-- Put every issue included in the release on a single `Ref #123 #456` line. The release
-  script uses this line to build the GitHub release notes.
-- Add `Closes #123` for each issue whose complete required scope is included. GitHub
-  closes it when the PR reaches `main`.
-- Do not add `Closes` for partial work. Leave the issue open, keep or set
-  `status: in-progress`, and comment with what shipped and what remains.
+### Trying the PWA on a phone
 
-Before merging a release, review every issue on the `Ref` line. Confirm that completed
-issues appear in `Closes` and partially completed issues still describe their remaining
-work. After the release, the open-issue list should contain only unfinished work.
+The service worker (install, share target, offline) only runs in the production build, and
+phones only allow it over HTTPS. Stop `make dev` first (two Celery workers would share the
+queue), then:
 
-## Preparing a production release
+```bash
+make preview                 # build the frontend, serve it from Django on :8000, with the worker
+ngrok http 8000              # or: cloudflared tunnel --url http://localhost:8000
+```
 
-Use this sequence when promoting the current integration branch to production:
+Open the tunnel's `https://` URL in Chrome (Android) or Safari (iOS), not in an in-app
+browser. `*.ngrok-free.app` and `*.trycloudflare.com` are allowed in the develop settings.
+Rebuild (`make frontend-build`) after frontend changes; the service worker picks the new
+build up on the next load.
 
-1. Fetch `org` and compare `develop` with `main`. Confirm that the local `develop`
-   matches `org/develop`, `main` matches `org/main`, and identify every change that
-   has reached `develop` since the latest release. Check the open PRs targeting
-   `develop` and the latest CI results before setting the release scope.
-2. Review the issues associated with those changes. Include each shipped issue on one
-   `Ref #123 #456` line in the release PR. Add `Closes #123` only when the issue's
-   complete required scope is in this release; otherwise leave it open and retain its
-   in-progress status. Include changes without an issue in the PR description.
-3. Choose the next version from the changes since the last release. Create
-   `release/x.y.z` from the latest `develop`, merge the latest `main` into it, and
-   resolve any conflicts while preserving the release's version as the final version
-   in `backend/pyproject.toml`, `frontend/package.json`, and
-   `frontend/package-lock.json`. Commit the version update as
-   `chore: release x.y.z`.
-4. Open a release PR from `release/x.y.z` to `main`. Describe the scope, list issues
-   using the required `Ref` and `Closes` lines, and verify the diff and required CI
-   checks. Do not merge or deploy without the user's request.
-5. When the PR is merged, `.github/workflows/release.yml` runs
-   `scripts/release.sh <pr-number>`, which creates tag `vx.y.z` and publishes the
-   GitHub Release with notes from the PR. Check that the workflow and release
-   succeeded.
-6. Production is deployed separately in Portainer: open **Stacks**, select the
-   BrainBro stack, and choose **Pull and redeploy** with **Re-pull image and
-   redeploy** enabled. The stack tracks `main`. The `migrate` service backs up the
-   database before applying pending migrations; it completes before `api` and
-   `worker` start. Do not run migrations or restart services separately.
-7. Confirm the deployment is healthy in Portainer and that the production app
-   responds. Then review the issues on the release PR: fully completed issues should
-   have closed through `Closes`; leave partial issues open and document any remaining
-   validation (for example, checks that require live production clients).
+## Tests and checks
 
-If a release workflow fails after merge, inspect its run and use
-`scripts/release.sh <pr-number>` to retry safely. The script is safe to rerun when
-the tag or GitHub Release already exists. A GitHub Release does not itself deploy the
-application; Portainer remains a separate manual step.
+```bash
+make test          # pytest + vitest (starts the Docker services if needed)
+make lint          # ruff check, ruff format --check, oxlint, tsc
+make format        # format the backend with ruff and apply its fixes
+make migrations    # after changing a model
+```
 
-## Development
+While iterating, run the narrower ones: `cd backend && poetry run pytest apps/<app>` or
+`cd frontend && npm test -- src/<path>.test.tsx`.
 
-- Use [Conventional Commits](https://www.conventionalcommits.org/):
-  `feat(backend): ...`, `fix(frontend): ...`, `chore(infra): ...`.
-- Git flow: `main` (releases), `develop` (integration), `feature/*`, `release/*`,
-  `hotfix/*`.
-- Run `make test` and `make lint` before requesting review. Run the relevant narrower
-  checks while iterating.
+- Backend tests live in `backend/apps/<app>/tests/` (pytest), frontend tests next to the
+  component they test (`*.test.tsx`, vitest).
+- The pre-commit hooks installed by `make install` run ruff, oxlint, gitleaks and basic
+  file checks on the staged files.
+
+Every pull request runs these workflows:
+
+- **CI:** the same lint and tests, a check that no migration is missing, the frontend build,
+  the Docker images and the production compose files.
+- **gitleaks:** secrets in the history.
+- **pip-audit:** known vulnerabilities in the Python dependencies. One that does not affect
+  the project goes in `.github/pip-audit/ignore.txt`, with the reason.
+- **Semgrep:** security rules. A finding that does not apply is ignored on its line, naming
+  the rule and the reason, as in `# nosemgrep: avoid-mark-safe -- sanitized by nh3`
+  (see `.github/semgrep/scan.sh`). To run it locally:
+  `git submodule update --init .github/semgrep/rules`, then `.github/semgrep/scan.sh`.
+- **CodeQL:** code scanning.
+
+## Code conventions
+
+- Every model for user content inherits from `apps.core.models.OwnedModel`, and every view
+  filters by `request.user`.
+- Slow or network work (previews, thumbnails) runs in Celery, never in the request.
+- Settings are read with `config.env.get_env_variable`.
+- Text users see in the product is in English; translations are described in
+  [docs/translations.md](docs/translations.md).
+
+## Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/), small and atomic, with the
+scope `backend`, `frontend`, `infra` or `docs`, and the issue number at the end:
+
+```
+feat(backend): import Obsidian attachments (#123)
+fix(frontend): keep the board zoom after reload (#123)
+```
+
+## Branches and pull requests
+
+Git flow: `develop` is the integration branch and `main` only receives releases.
+
+1. Branch from the latest `develop`: `feature/<issue>-<slug>` (for example
+   `feature/123-obsidian-attachments`).
+2. Open the pull request against `develop` and fill in the template.
+3. Reference the issue as `Refs #123`, not `Closes` or `Fixes`. Issues are closed by hand
+   once the change is released.
+
+Before asking for review, `make test` and `make lint` pass and you have tried the change in
+the app.

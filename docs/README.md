@@ -63,8 +63,9 @@ API and how it is built, for whoever works on the code.
 
 ## Working on the code
 
-- [CONTRIBUTING.md](../CONTRIBUTING.md): issue workflow, pull requests, checks and Git flow.
-- [README.md](../README.md#development): development setup.
+- [CONTRIBUTING.md](../CONTRIBUTING.md): development setup, tests and checks, commits and pull
+  requests, the CLA.
+- [Maintaining](maintaining.md): the issue workflow and how a release is made.
 - The format of an export: [`backend/apps/exports/README.md`](../backend/apps/exports/README.md),
   copied into every export.
 - [SECURITY.md](../SECURITY.md): reporting a vulnerability.
