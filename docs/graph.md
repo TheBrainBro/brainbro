@@ -17,10 +17,8 @@ Built by `apps/graph/graph.py`, served at `GET /api/graph/` as
   - `collection`: an item is in a collection.
   - `parent`: a collection sits inside another.
   - `board`: a line drawn between two items on a board, with its label.
-  - `link`: a note links another note by its title, as Obsidian does:
-    `[[Title]]`, `[[Title|text]]`, `[[Title#heading]]` or `[[Folder/Title.md]]`
-    (case doesn't matter). Embeds (`![[…]]`) aren't links. A note without a
-    title answers to the one the app shows for it (its first line); a saved title wins when both match.
+  - `link`: a note links another note by its title, `[[Title]]` (see
+    [wikilinks.md](wikilinks.md) for the forms and which note a link finds).
 
 ## The view
 

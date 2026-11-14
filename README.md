@@ -28,6 +28,8 @@ A self-hosted second brain: capture links, notes, images and files with zero fri
   ([import.md](docs/import.md), [export.md](docs/export.md)).
 - Several people on one server, each with their own space, by invitation.
 
+Every page of the documentation is listed in [docs/](docs/README.md).
+
 ## Self-hosting
 
 ### Requirements
@@ -95,7 +97,7 @@ backend/    Django (config/, apps/)
 frontend/   Vite + React
 docker/     image entrypoint
 scripts/    backup and restore
-docs/       documentation (deployment, etc.)
+docs/       documentation (index in docs/README.md)
 ```
 
 ### Setup

@@ -9,7 +9,7 @@ Roadmap: epic #1 on GitHub (`gh issue view 1`), sub-issues labeled `phase-0`…`
 - `backend/`: Django 6 + DRF. `config/` (per-environment settings in `config/settings/{base,develop,testing,production}.py`, selected by `ENVIRONMENT`), `apps/<app>/`.
 - `frontend/`: Vite + React + TS + Tailwind v4 + TanStack Query + React Router. API client in `src/lib/api.ts` (session + CSRF).
 - `docker/entrypoint.sh`: one image for `api`, `worker` and `migrate`.
-- `docs/deployment.md`: deployment; `docs/backups.md`: backups.
+- `docs/`: user and technical docs, listed in `docs/README.md`.
 
 ## Conventions
 
