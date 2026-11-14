@@ -80,9 +80,7 @@ The database is backed up before any migration, and migrated on its own.
 
 Roadmap and pending work: [epic #1](https://github.com/TheBrainBro/brainbro/issues/1).
 
-## Development
-
-### Stack
+## Stack
 
 | Part | Technology |
 |---|---|
@@ -92,58 +90,12 @@ Roadmap and pending work: [epic #1](https://github.com/TheBrainBro/brainbro/issu
 | Auth | Django sessions |
 | Deployment | Docker Compose, images on GHCR |
 
-```
-backend/    Django (config/, apps/)
-frontend/   Vite + React
-docker/     image entrypoint
-scripts/    backup and restore
-docs/       documentation (index in docs/README.md)
-```
-
-### Setup
-
-Requirements: Python 3.12, Poetry 2, Node 24, Docker and libmagic (`brew install libmagic`; preinstalled on most Linux distros).
-
-```bash
-make install       # dependencies + pre-commit hooks
-make dev           # Postgres + Redis in Docker, migrations, Django + Celery + Vite
-make superuser     # create your user (in another terminal)
-```
-
-Open http://localhost:5173. Vite proxies `/api` and `/admin` to Django (:8000).
-
-In development, Postgres and Redis use ports **5442** and **6389** to avoid clashing with other projects.
-
-#### Trying the PWA on a phone
-
-The service worker (install, share target, offline) only runs in the production build, and phones only allow it over HTTPS. Stop `make dev` first (two Celery workers would share the queue), then:
-
-```bash
-make preview                 # build the frontend, serve it from Django on :8000, with the worker
-ngrok http 8000              # or: cloudflared tunnel --url http://localhost:8000
-```
-
-Open the tunnel's `https://` URL in Chrome (Android) or Safari (iOS), not in an in-app browser. `*.ngrok-free.app` and `*.trycloudflare.com` are allowed in the develop settings. Rebuild (`make frontend-build`) after frontend changes; the service worker picks the new build up on the next load.
-
-```bash
-make test          # pytest + vitest
-make lint          # ruff + oxlint + tsc
-make help          # everything else
-```
-
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the issue workflow, pull request conventions,
-development checks and Git flow.
-
-External contributions need a signed [Contributor License Agreement](CLA.md). The CLA
-Assistant bot asks for it on your first pull request; pull requests are not merged
-without it.
-
-Merging a `release/x.y.z` or `hotfix/x.y.z` PR into `main` tags `vx.y.z` and publishes
-its GitHub release, with notes built from the issues in the PR's `Ref` line
-(`.github/workflows/release.yml`). To redo one by hand: `scripts/release.sh <pr-number>`.
-
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the development setup, tests and checks, and the
+commit and pull request conventions. External contributions need a signed
+[Contributor License Agreement](CLA.md): the CLA Assistant bot asks for it on your first
+pull request.
 
 ## License
 
