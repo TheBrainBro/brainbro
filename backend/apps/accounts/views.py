@@ -6,7 +6,7 @@ from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -466,7 +466,7 @@ class JoinSerializer(serializers.Serializer):
             except ValidationError as error:
                 raise serializers.ValidationError(error.messages) from None
         if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("This username is taken.")
+            raise serializers.ValidationError(USERNAME_TAKEN)
         return value
 
     def validate(self, data):
@@ -479,6 +479,20 @@ class JoinSerializer(serializers.Serializer):
 
 
 INVALID_INVITATION = "This invitation link is invalid, used or expired."
+USERNAME_TAKEN = "This username is taken."
+
+
+def claim_username(username):
+    """
+    Holds `username`, whatever its case, until the transaction ends, so two
+    people joining at once can't both get it as "Alex" and "alex": the
+    database only tells them apart by case. True if it was free.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))", [f"join:{username.lower()}"]
+        )
+    return not get_user_model().objects.filter(username__iexact=username).exists()
 
 
 @api_view(["GET", "POST"])
@@ -508,8 +522,11 @@ def join_view(request, token):
         )
         if invitation is None:
             return Response({"detail": INVALID_INVITATION}, status=404)
+        username = payload.validated_data["username"]
+        if not claim_username(username):
+            return Response({"username": [USERNAME_TAKEN]}, status=400)
         user = get_user_model().objects.create_user(
-            username=payload.validated_data["username"],
+            username=username,
             password=payload.validated_data["password"],
         )
         invitation.used_at = timezone.now()
