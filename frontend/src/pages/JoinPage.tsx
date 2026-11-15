@@ -20,6 +20,9 @@ export function JoinPage() {
   const logout = useLogout()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  // What is typed, over the address the invitation was emailed to.
+  const [typedEmail, setEmail] = useState<string | null>(null)
+  const email = typedEmail ?? check.data?.email ?? ''
 
   if (join.isSuccess) return <Navigate to="/" replace />
 
@@ -61,7 +64,7 @@ export function JoinPage() {
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault()
-              join.mutate({ username, password })
+              join.mutate({ username, password, ...(email.trim() ? { email: email.trim() } : {}) })
             }}
           >
             <div>
@@ -99,6 +102,25 @@ export function JoinPage() {
                 {t('auth.passwordHint')}
               </p>
             </div>
+
+            {session.email_enabled && (
+              <div className="space-y-1">
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium">{t('auth.emailOptional')}</span>
+                  <input
+                    className="input"
+                    type="email"
+                    autoComplete="email"
+                    aria-describedby="email-hint"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </label>
+                <p id="email-hint" className="text-xs text-zinc-500">
+                  {t('auth.emailHint')}
+                </p>
+              </div>
+            )}
 
             {join.isError && (
               <p role="alert" className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">

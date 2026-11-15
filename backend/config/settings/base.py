@@ -229,6 +229,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# How long a password reset link works, in seconds (apps.accounts.recovery).
+PASSWORD_RESET_TIMEOUT = 60 * 60
+
 # Internationalization
 
 LANGUAGE_CODE = "en-us"
@@ -299,6 +302,16 @@ REQUEST_MAX_SIZE = max(UPLOAD_MAX_SIZE, IMPORT_MAX_SIZE) + 1024 * 1024
 TELEGRAM_BOT_TOKEN = get_env_variable("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = get_env_variable("TELEGRAM_BOT_USERNAME", "").lstrip("@")
 TELEGRAM_WEBHOOK_URL = get_env_variable("TELEGRAM_WEBHOOK_URL", "")
+
+# Transactional email (apps.core.mail): password reset links, for now. Off
+# while EMAIL_PROVIDER is empty. Mailgun's region is `us` or `eu`, the one
+# its domain was added in. The sender defaults to noreply@<MAILGUN_DOMAIN>.
+MAILERS = {"default": {"BACKEND": "apps.core.mail.EmailBackend"}}
+EMAIL_PROVIDER = get_env_variable("EMAIL_PROVIDER", "").strip().lower()
+EMAIL_FROM = get_env_variable("EMAIL_FROM", "").strip()
+MAILGUN_API_KEY = get_env_variable("MAILGUN_API_KEY", "").strip()
+MAILGUN_DOMAIN = get_env_variable("MAILGUN_DOMAIN", "").strip()
+MAILGUN_REGION = get_env_variable("MAILGUN_REGION", "us").strip().lower()
 
 # Semantic search (apps.items.embedder): the embedder container. Without it,
 # search goes by words alone.

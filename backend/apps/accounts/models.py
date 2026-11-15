@@ -101,6 +101,8 @@ class Invitation(TimestampedModel):
     )
     # Who it's for, so the admin can tell links apart. Never shown to them.
     note = models.CharField(max_length=100, blank=True)
+    # Where it was emailed, if it was; the join page fills it in.
+    email = models.EmailField(blank=True)
     token_hash = models.CharField(max_length=64, unique=True)
     expires_at = models.DateTimeField()
     # Set when someone joins with it; it can't be used again.
@@ -132,12 +134,13 @@ class Invitation(TimestampedModel):
         return cls.objects.filter(used_at__isnull=True, expires_at__gt=timezone.now())
 
     @classmethod
-    def issue(cls, created_by, note, lifetime):
+    def issue(cls, created_by, note, lifetime, email=""):
         """A new invitation and its token, which is never stored."""
         token = secrets.token_urlsafe(32)
         invitation = cls.objects.create(
             created_by=created_by,
             note=note,
+            email=email,
             token_hash=ApiToken.hash(token),
             expires_at=timezone.now() + lifetime,
         )

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import oauth, views
+from . import oauth, recovery, views
 
 urlpatterns = [
     path("session/", views.session, name="auth-session"),
@@ -12,6 +12,7 @@ urlpatterns = [
     path("theme/", views.theme_view, name="auth-theme"),
     path("language/", views.language_view, name="auth-language"),
     path("profile/", views.profile_view, name="auth-profile"),
+    path("email/", views.email_view, name="auth-email"),
     path("profile/avatar/", views.avatar_view, name="auth-profile-avatar"),
     path("storage/", views.storage_view, name="auth-storage"),
     path("tokens/", views.tokens_view, name="auth-tokens"),
@@ -19,6 +20,12 @@ urlpatterns = [
     path("invitations/", views.invitations_view, name="auth-invitations"),
     path("invitations/<uuid:pk>/", views.invitation_view, name="auth-invitation"),
     path("join/<str:token>/", views.join_view, name="auth-join"),
+    path("password-reset/", recovery.password_reset_view, name="auth-password-reset"),
+    path(
+        "password-reset/<str:uid>/<str:token>/",
+        recovery.password_reset_confirm_view,
+        name="auth-password-reset-confirm",
+    ),
     path("oauth/register/", oauth.RegisterView.as_view(), name="oauth-register"),
     path("oauth/authorize/", oauth.AuthorizeView.as_view(), name="oauth-authorize"),
     path("oauth/token/", oauth.TokenView.as_view(), name="oauth-token"),

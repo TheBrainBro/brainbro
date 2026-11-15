@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+
+import { useSession } from '../auth/session'
 
 import { t, useT } from '../i18n/i18n'
 import { timeAgo } from '../lib/time'
@@ -25,28 +27,57 @@ export function InvitationsPanel() {
 function NewInvitationForm() {
   useT()
   const create = useCreateInvitation()
+  const { data: session } = useSession()
   const [note, setNote] = useState('')
+  const [email, setEmail] = useState('')
+  const emailHintId = useId()
 
   return (
     <section className="space-y-2">
       <form
-        className="flex gap-2"
+        className="space-y-2"
         onSubmit={(event) => {
           event.preventDefault()
-          create.mutate(note.trim(), { onSuccess: () => setNote('') })
+          create.mutate(
+            { note: note.trim(), email: email.trim() },
+            {
+              onSuccess: () => {
+                setNote('')
+                setEmail('')
+              },
+            },
+          )
         }}
       >
-        <input
-          className="input"
-          aria-label={t('invitations.whoFor')}
-          placeholder={t('invitations.whoForOptional')}
-          maxLength={100}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-        <button type="submit" className="button-primary shrink-0" disabled={create.isPending}>
-          {t('invitations.create')}
-        </button>
+        <div className="flex gap-2">
+          <input
+            className="input"
+            aria-label={t('invitations.whoFor')}
+            placeholder={t('invitations.whoForOptional')}
+            maxLength={100}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+          <button type="submit" className="button-primary shrink-0" disabled={create.isPending}>
+            {t('invitations.create')}
+          </button>
+        </div>
+        {session?.email_enabled && (
+          <div className="space-y-1">
+            <input
+              className="input"
+              type="email"
+              aria-label={t('invitations.email')}
+              aria-describedby={emailHintId}
+              placeholder={t('invitations.email')}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <p id={emailHintId} className="text-xs text-zinc-500">
+              {t('invitations.emailHint')}
+            </p>
+          </div>
+        )}
       </form>
       {create.isError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -55,9 +86,20 @@ function NewInvitationForm() {
       )}
       {create.data && (
         <div className="space-y-3 rounded-xl border border-accent-300 bg-accent-50/50 p-3 dark:border-accent-800 dark:bg-accent-950/30">
-          <p role="status" className="text-sm font-medium">
-            {t('invitations.sendNow')}
-          </p>
+          {create.data.email_error ? (
+            <p role="alert" className="text-sm font-medium text-red-600 dark:text-red-400">
+              {t('invitations.emailNotSent', { error: create.data.email_error })}
+            </p>
+          ) : (
+            <p role="status" className="text-sm font-medium">
+              {create.data.email_sent
+                ? t('invitations.emailSentTo', {
+                    email: create.data.email,
+                    provider: create.data.email_provider ?? '',
+                  })
+                : t('invitations.sendNow')}
+            </p>
+          )}
           <CopyField label={t('invitations.link')} value={create.data.url} />
         </div>
       )}
@@ -163,10 +205,13 @@ function InvitationList({
 function describe(invitation: Invitation) {
   switch (invitation.status) {
     case 'pending':
-      return t('invitations.pendingStatus', {
-        created: timeAgo(invitation.created_at),
-        expires: timeAgo(invitation.expires_at),
-      })
+      return [
+        t('invitations.pendingStatus', {
+          created: timeAgo(invitation.created_at),
+          expires: timeAgo(invitation.expires_at),
+        }),
+        ...(invitation.email ? [t('invitations.sentTo', { email: invitation.email })] : []),
+      ].join(' · ')
     case 'accepted': {
       const when = timeAgo(invitation.used_at ?? invitation.expires_at)
       return invitation.used_by

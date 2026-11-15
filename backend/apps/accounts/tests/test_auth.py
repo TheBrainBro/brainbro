@@ -24,7 +24,11 @@ def get_csrf(client):
 @pytest.mark.django_db
 def test_session_anonymous_sets_csrf_cookie(csrf_client):
     response = csrf_client.get("/api/auth/session/")
-    assert response.json() == {"authenticated": False, "user": None}
+    assert response.json() == {
+        "authenticated": False,
+        "user": None,
+        "email_enabled": False,
+    }
     assert "csrftoken" in response.cookies
 
 
