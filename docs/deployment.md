@@ -2,8 +2,8 @@
 
 BrainBro runs as a Docker Compose stack on a server of yours. This page covers installing it,
 the three ways to reach it (a Cloudflare Tunnel, Caddy, or only your local network), every
-setting, upgrading, and Umbrel. Backups are in [backups.md](backups.md), and installing the app
-on a phone in [pwa.md](pwa.md).
+setting, what the admin can see, upgrading, and Umbrel. Backups are in
+[backups.md](backups.md), and installing the app on a phone in [pwa.md](pwa.md).
 
 ## What runs
 
@@ -224,6 +224,23 @@ The client's address depends on `APP_PROXY`:
   reachable only by the proxy, for example with `APP_BIND=127.0.0.1` when the proxy runs on
   the same machine, or with a firewall: Docker can show IPv6 connections as coming from its
   own private network.
+
+## What the server's admin can see
+
+Each person's notes, links, files, boards, collections, history and blogs are theirs: the app
+shows them to no one else, the admin included.
+
+- `/admin/` holds only what running the server needs: users, invitations, the apps connected
+  over OAuth, and personal API tokens (their name, owner, app and last use, never the key).
+  There is no page for anyone's content.
+- The logs carry ids, not content: a failed link preview logs the item's id, not its URL, and
+  the `api` access log keeps each request's path but drops its query string, where searches
+  and OAuth sign-in codes travel.
+
+That doesn't cover whoever reaches the database or the disk: the `postgres_data`, `storage`,
+`backups` and `exports` volumes hold everything as it is, unencrypted, and so does a
+`manage.py shell` in a container. Anyone who runs the server for other people can read those,
+so only invite people who trust whoever runs it.
 
 ## Upgrading
 
