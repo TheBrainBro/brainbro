@@ -27,6 +27,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 
+from apps.accounts.quota import QuotaExceeded, storage_quota, storage_used
 from apps.boards.canvas import from_canvas
 from apps.boards.layout import LayoutError, item_ids, validate_layout
 from apps.boards.models import Board
@@ -180,6 +181,9 @@ class _Importer:
         self.after_commit = []
         # One rank for all it makes: on top, and tied, so collections sort by name.
         self.rank = rank_now()
+        # Every file it stores has to fit in the owner's quota.
+        self.quota = storage_quota(owner)
+        self.used = storage_used(owner) if self.quota is not None else 0
 
     def run(self):
         notes, canvases = self._read_texts()
@@ -314,6 +318,7 @@ class _Importer:
         upload = _inspect(data, path)
         if upload is None or upload.kind != Item.Kind.IMAGE:
             return None
+        self._take(len(data))
         image = NoteImage(
             owner=self.owner,
             note=note,
@@ -341,6 +346,7 @@ class _Importer:
         if upload is None:
             self.counts["skipped"] += 1
             return None
+        self._take(len(data))
         item = Item(
             owner=self.owner,
             kind=upload.kind,
@@ -356,6 +362,15 @@ class _Importer:
         self.counts["images" if upload.kind == Item.Kind.IMAGE else "files"] += 1
         self._place(item, path)
         return item
+
+    def _take(self, size):
+        """Counts `size` more bytes stored; the import fails if they don't fit."""
+        if self.quota is None:
+            return
+        if self.used + size > self.quota:
+            exceeded = QuotaExceeded(self.used, self.quota)
+            raise VaultError(f"{exceeded} Nothing was imported.")
+        self.used += size
 
     # Boards
 

@@ -13,6 +13,7 @@ urlpatterns = [
     path("language/", views.language_view, name="auth-language"),
     path("profile/", views.profile_view, name="auth-profile"),
     path("profile/avatar/", views.avatar_view, name="auth-profile-avatar"),
+    path("storage/", views.storage_view, name="auth-storage"),
     path("tokens/", views.tokens_view, name="auth-tokens"),
     path("tokens/<uuid:pk>/", views.token_view, name="auth-token"),
     path("invitations/", views.invitations_view, name="auth-invitations"),

@@ -9,5 +9,7 @@ export function formatBytes(bytes: number) {
     unit++
   }
   const rounded = unit === 0 || value >= 10 ? Math.round(value) : Math.round(value * 10) / 10
+  // 1023.8 MB rounds to 1024 MB: that reads as 1 GB.
+  if (rounded >= 1024 && unit < units.length - 1) return `1 ${units[unit + 1]}`
   return `${rounded} ${units[unit]}`
 }

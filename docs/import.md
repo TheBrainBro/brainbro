@@ -54,6 +54,10 @@ A vault zipped as its folder (`My vault/…`) or from inside it both work.
   and imports everything **in one transaction**: if anything goes wrong,
   nothing is created, and the files already stored are deleted. Thumbnails,
   link previews and note image copies are queued once it commits.
+- With a storage quota (`STORAGE_QUOTA`, see [deployment.md](deployment.md#storage-quota)),
+  the zip itself doesn't count, but every image and file it stores does: if one doesn't fit
+  in what is left, the import fails and nothing is imported. With nothing left at all, the
+  upload is refused straight away.
 - The zip is deleted once read, whatever the outcome. The import keeps
   `counts` (`notes`, `images`, `files`, `links`, `boards`, `collections`,
   `skipped`) or an `error` to show.

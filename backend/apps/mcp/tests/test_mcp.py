@@ -1413,6 +1413,17 @@ def test_import_an_image(call, user, web):
     assert image.unused_since is not None
 
 
+def test_an_image_that_doesnt_fit_is_not_imported(call, settings, web):
+    settings.STORAGE_QUOTA = 0
+    web[PNG] = png()
+
+    text = failure(call("import_image", url=PNG))
+
+    assert text.startswith("Not enough storage left")
+    assert text.endswith("Nothing was saved.")
+    assert not NoteImage.objects.exists()
+
+
 def test_a_note_that_links_an_imported_image_keeps_it(call, user, web):
     web[PNG] = png()
     src = structured(call("import_image", url=PNG))["src"]

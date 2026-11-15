@@ -160,3 +160,18 @@ def test_what_comes_from_telegram_says_so(user, fake_bot):
 
     item = Item.objects.get(owner=user)
     assert (item.created_by, item.created_via) == ("", "telegram")
+
+
+def test_a_file_that_doesnt_fit_gets_a_thumbs_down_and_a_reason(
+    settings, user, fake_bot
+):
+    settings.STORAGE_QUOTA = 0
+    linked(user)
+    fake_bot.files = {"a": png()}
+
+    handle_update(update(1, photo=[{"file_id": "a", "width": 4, "height": 4}]))
+
+    assert fake_bot.sent("setMessageReaction")[0]["reaction"][0]["emoji"] == "👎"
+    answer = fake_bot.sent("sendMessage")[0]
+    assert answer["text"].startswith("Not enough storage left")
+    assert not Item.objects.exists()

@@ -66,6 +66,13 @@ class Profile(TimestampedModel):
     handle = models.SlugField(max_length=40, unique=True, null=True, blank=True)
     # A square WebP, made from an upload like a collection's image.
     avatar = models.ImageField(upload_to=avatar_path, blank=True, db_default="")
+    # The most this user may store, in MB (see `quota`). Empty: the
+    # server's STORAGE_QUOTA.
+    storage_quota = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="In MB. Empty: the server's STORAGE_QUOTA.",
+    )
 
     def __str__(self):
         return f"Profile of {self.user}"

@@ -256,12 +256,23 @@ export const es: Messages = {
     again: 'Crear otra',
     create: 'Crear exportación',
   },
+  storage: {
+    intro:
+      'Lo que ocupan tus archivos en este servidor: subidas, imágenes en notas, vistas previas de enlaces y fotos. Las exportaciones no cuentan.',
+    meter: 'Almacenamiento usado',
+    used: '{used} de {quota} usados',
+    left: 'Quedan {left}',
+    usedNoLimit: '{used} usados. Este servidor no pone límite.',
+    full: 'Tu almacenamiento está lleno: no se aceptan archivos nuevos hasta que liberes espacio.',
+    failed: 'No se pudo cargar tu almacenamiento. Inténtalo más tarde.',
+  },
   settings: {
     title: 'Ajustes',
     groups: { data: 'Datos', integrations: 'Integraciones', app: 'App', server: 'Servidor' },
     pages: {
       import: 'Importar',
       export: 'Exportar',
+      storage: 'Almacenamiento',
       telegram: 'Telegram',
       assistants: 'Asistentes de IA',
       profile: 'Perfil',

@@ -2,6 +2,7 @@ import {
   Bot,
   FolderInput,
   Globe,
+  HardDrive,
   Languages,
   PackageOpen,
   Palette,
@@ -25,6 +26,7 @@ import { LanguagePanel } from './LanguagePanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
 import { ProfilePanel } from './ProfilePanel'
+import { StoragePanel } from '../storage/StoragePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
 type Page = { id: string; label: MessageKey; icon: LucideIcon; Panel: ComponentType }
@@ -45,6 +47,7 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
     pages: [
       { id: 'import', label: 'settings.pages.import', icon: FolderInput, Panel: ImportPanel },
       { id: 'export', label: 'settings.pages.export', icon: PackageOpen, Panel: ExportPanel },
+      { id: 'storage', label: 'settings.pages.storage', icon: HardDrive, Panel: StoragePanel },
     ],
   },
   {

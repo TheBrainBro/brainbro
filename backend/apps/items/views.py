@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from apps.accounts.quota import QuotaExceeded, check_room, file_size
 from apps.collab.documents import body_written
 from apps.events.changes import items_changed
 from apps.public.pages import default_image, default_title, excerpt, page_preview
@@ -96,6 +97,10 @@ class CaptureSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"file": f"The file is too large (max {limit} MB)."}
                 ) from None
+            try:
+                check_room(self.context["request"].user, data["file"].size)
+            except QuotaExceeded as exc:
+                raise serializers.ValidationError({"file": str(exc)}) from None
         return data
 
 
@@ -653,6 +658,10 @@ class NoteImageViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
         upload = data["upload"]
+        try:
+            check_room(request.user, data["file"].size)
+        except QuotaExceeded as exc:
+            raise serializers.ValidationError({"file": str(exc)}) from None
         # Unused until a note saves the link to it.
         image = NoteImage(
             owner=request.user,
@@ -831,6 +840,10 @@ class CollectionViewSet(viewsets.ModelViewSet):
                 raise serializers.ValidationError(
                     {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
                 )
+            try:
+                check_room(request.user, len(data), freed=file_size(collection.image))
+            except QuotaExceeded as exc:
+                raise serializers.ValidationError({"file": str(exc)}) from None
             collection.image.save("image.webp", ContentFile(data), save=True)
         else:
             collection.image = ""

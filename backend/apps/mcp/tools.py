@@ -18,6 +18,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.models import Permission
+from apps.accounts.quota import QuotaExceeded, check_room
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
@@ -1137,6 +1138,10 @@ def import_image(user, data):
             f"{url} isn't an image BrainBro can show (JPEG, PNG, GIF, WebP, AVIF "
             f"or HEIC): it is {upload.mime}. Nothing was saved."
         )
+    try:
+        check_room(user, file.size)
+    except QuotaExceeded as exc:
+        raise ToolError(f"{exc} Nothing was saved.") from None
     # As one pasted into a note: unused until a note links it.
     image = NoteImage(
         owner=user,

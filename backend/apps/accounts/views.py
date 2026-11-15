@@ -29,6 +29,7 @@ from apps.public.handles import MAX_HANDLE, handle_taken, is_valid_handle
 from .limits import INVITATION, LOGIN, TOO_MANY, WINDOW
 from .models import ApiToken, Invitation, Profile
 from .oauth import PermissionsSerializer
+from .quota import QuotaExceeded, check_room, file_size, storage_data
 
 # How long an invitation link can be used to join.
 INVITATION_LIFETIME = timedelta(days=7)
@@ -322,6 +323,10 @@ def avatar_view(request):
             raise serializers.ValidationError(
                 {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
             )
+        try:
+            check_room(request.user, len(data), freed=file_size(profile.avatar))
+        except QuotaExceeded as exc:
+            raise serializers.ValidationError({"file": str(exc)}) from None
         profile.avatar.save("avatar.webp", ContentFile(data), save=False)
     else:
         profile.avatar = ""
@@ -329,6 +334,12 @@ def avatar_view(request):
     if old:
         profile.avatar.storage.delete(old)
     return Response(profile_data(profile))
+
+
+@api_view(["GET"])
+def storage_view(request):
+    """How much the user stores on disk, and their quota (null: no limit)."""
+    return Response(storage_data(request.user))
 
 
 class ApiTokenSerializer(serializers.ModelSerializer):
