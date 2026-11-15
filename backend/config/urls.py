@@ -3,11 +3,14 @@ from django.urls import include, path, re_path
 
 from apps.accounts import discovery
 from apps.accounts import views as account_views
+from apps.core import email_views
 from apps.core import views as core_views
 
 api_patterns = [
     path("health/", core_views.health, name="health"),
     path("auth/", include("apps.accounts.urls")),
+    path("server/email/", email_views.email_settings_view, name="server-email"),
+    path("server/email/test/", email_views.email_test_view, name="server-email-test"),
     path("", include("apps.items.urls")),
     path("", include("apps.boards.urls")),
     path("", include("apps.exports.urls")),

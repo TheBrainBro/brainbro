@@ -4,6 +4,7 @@ import {
   Globe,
   HardDrive,
   Languages,
+  Mail,
   PackageOpen,
   Palette,
   Send,
@@ -17,6 +18,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 
 import { useSession } from '../auth/session'
 import { BlogsPanel } from '../blogs/BlogsPanel'
+import { EmailPanel } from '../email/EmailPanel'
 import { SampleContentPanel } from './SampleContentPanel'
 import { ExportPanel } from '../exports/ExportPanel'
 import { useT, type MessageKey } from '../i18n/i18n'
@@ -59,11 +61,12 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
   },
 ]
 
-// Admins only: inviting people to the server.
+// Admins only: inviting people to the server, and how it sends email.
 const adminGroup = {
   label: 'settings.groups.server' as MessageKey,
   pages: [
     { id: 'invitations', label: 'settings.pages.invitations', icon: UserPlus, Panel: InvitationsPanel },
+    { id: 'email', label: 'settings.pages.email', icon: Mail, Panel: EmailPanel },
   ] as Page[],
 }
 

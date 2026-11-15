@@ -30,6 +30,7 @@ dependencies = [
     "linkify-it-py>=2.2.0,<3.0.0",
     "nh3>=0.3.7,<0.4.0",
     "django-anymail[mailgun] (>=15.2,<16.0)",
+    "cryptography (>=46.0.5,<47.0.0)",
 ]
 
 [tool.poetry]
