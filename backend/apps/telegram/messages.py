@@ -16,6 +16,7 @@ import mimetypes
 from django.core.files.base import ContentFile
 from django.db import transaction
 
+from apps.accounts.quota import check_room
 from apps.items.capture import infer_item_fields
 from apps.items.models import Item
 from apps.items.uploads import UploadTooLarge, inspect_upload
@@ -69,6 +70,7 @@ def _upload(owner, message, data, filename, caption):
         upload = inspect_upload(file)
     except UploadTooLarge:
         raise bot.FileTooLarge from None
+    check_room(owner, file.size)
     with transaction.atomic():
         item = create_upload_item(owner, file, upload)
         fields = []

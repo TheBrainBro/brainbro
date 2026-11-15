@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Profile
+from apps.accounts.quota import QuotaExceeded, check_room, file_size
 from apps.accounts.views import AvatarSerializer
 from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item, NoteImage, NoteLink
@@ -625,6 +626,10 @@ class SiteViewSet(
                 raise serializers.ValidationError(
                     {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
                 )
+            try:
+                check_room(request.user, len(data), freed=file_size(image))
+            except QuotaExceeded as exc:
+                raise serializers.ValidationError({"file": str(exc)}) from None
             # The name comes from the field's `upload_to`.
             image.save(field, ContentFile(data), save=False)
         else:

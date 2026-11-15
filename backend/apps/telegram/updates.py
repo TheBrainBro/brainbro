@@ -8,6 +8,8 @@ import logging
 
 from django.utils import timezone
 
+from apps.accounts.quota import QuotaExceeded
+
 from . import bot
 from .messages import Unsupported, save_message
 from .models import TelegramLink
@@ -46,6 +48,8 @@ def handle_update(update):
         item = save_message(link.owner, message)
     except Unsupported:
         _failed(chat_id, message_id, "BrainBro can't keep this kind of message.")
+    except QuotaExceeded as exc:
+        _failed(chat_id, message_id, str(exc))
     except bot.FileTooLarge:
         _failed(
             chat_id,

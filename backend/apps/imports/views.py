@@ -2,8 +2,10 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.response import Response
+
+from apps.accounts.quota import QuotaExceeded, check_room
 
 from .models import Import
 from .serializers import ImportSerializer, ImportUploadSerializer
@@ -28,6 +30,12 @@ class ImportViewSet(
         payload = ImportUploadSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         upload = payload.validated_data["file"]
+        # The zip itself doesn't count; what it holds is checked as it is
+        # imported. With no room left at all, it isn't worth starting.
+        try:
+            check_room(request.user, 1)
+        except QuotaExceeded as exc:
+            raise serializers.ValidationError({"file": str(exc)}) from None
         with transaction.atomic():
             imports = self.get_queryset().select_for_update()
             # One that has been pending past the task's time limit is stuck.

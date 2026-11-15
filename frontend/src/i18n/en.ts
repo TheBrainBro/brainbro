@@ -256,12 +256,23 @@ export const en = {
     again: 'Make a new one',
     create: 'Create export',
   },
+  storage: {
+    intro:
+      'What your files take on this server: uploads, images in notes, link previews and photos. Exports don’t count.',
+    meter: 'Storage used',
+    used: '{used} of {quota} used',
+    left: '{left} left',
+    usedNoLimit: '{used} used. This server sets no limit.',
+    full: 'Your storage is full: new files are refused until you free some space.',
+    failed: 'Couldn’t load your storage. Try again later.',
+  },
   settings: {
     title: 'Settings',
     groups: { data: 'Data', integrations: 'Integrations', app: 'App', server: 'Server' },
     pages: {
       import: 'Import',
       export: 'Export',
+      storage: 'Storage',
       telegram: 'Telegram',
       assistants: 'AI assistants',
       profile: 'Profile',
