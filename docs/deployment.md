@@ -183,6 +183,10 @@ admin user does not exist yet.
 | `SOURCE_CODE_URL` | This repository | Linked from the About dialog. See [Source code link](#source-code-link). |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them. See [telegram.md](telegram.md). |
 | `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`, otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
+| `EMAIL_PROVIDER` | Empty, email off | Who sends the server's email (password reset links): `mailgun`. See [Email](#email). |
+| `EMAIL_FROM` | `BrainBro <noreply@<MAILGUN_DOMAIN>>` | Who the email comes from, e.g. `BrainBro <hello@example.com>`. |
+| `MAILGUN_API_KEY` / `MAILGUN_DOMAIN` | Empty | A Mailgun sending API key and the domain it sends from. |
+| `MAILGUN_REGION` | `us` | `us` or `eu`: where the Mailgun domain was added. |
 | `SITE_CNAME_TARGET` | Empty, the host BrainBro is opened on | The host blogs on their own domains point their `CNAME` at. See [blogs.md](blogs.md). |
 | `SITE_IPV4` | Empty | The server's public IPv4, shown as an `A` record for root domains. Leave it empty behind a tunnel. |
 | `EMBED_HOSTNAME` | Empty, posts from X show as cards | The hostname posts from X play from, e.g. `embed.example.com`. See [Embed host](#embed-host). |
@@ -219,6 +223,28 @@ is touched. Each user sees what they use and what is left in Settings, Storage.
 The admin can give one user another quota in `/admin/`, on their profile (`Storage quota`,
 in MB). Empty there means the server's `STORAGE_QUOTA`.
 
+### Email
+
+BrainBro sends email for one thing so far: a link to choose a new password when someone
+forgets theirs. Without email, the sign-in page doesn't offer it, and the admin changes
+forgotten passwords in `/admin/`.
+
+To turn it on with [Mailgun](https://www.mailgun.com/):
+
+1. Add a sending domain in Mailgun (a subdomain such as `mail.example.com` keeps your main
+   domain's mail apart) and add the DNS records it asks for.
+2. Create a sending API key for that domain.
+3. Set `EMAIL_PROVIDER=mailgun`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, and `MAILGUN_REGION=eu`
+   if the domain is in Mailgun's EU region. Redeploy.
+
+If a setting is missing, email stays off and the sign-in page offers no reset:
+`python3 manage.py check`, in the `api` container, says what is missing. The `worker` sends
+the email, so a failure to send shows in its log.
+
+Each person adds the email the link goes to in Settings, Profile, or when they join with an
+invitation. It is optional, and two accounts can't share one. A link works once, for an hour,
+and asking for one says the same whether or not an account uses that email.
+
 ### Source code link
 
 The About dialog links to the code the server runs, taken from `SOURCE_CODE_URL`. BrainBro is
@@ -235,6 +261,8 @@ Over the limit, the answer is a 429 with `Retry-After`, for at most a minute.
 |---|---|---|
 | Sign-in, in the app and in `/admin/` | 5 | Failed attempts. Once reached, even the right password has to wait. |
 | Invitation links | 20 | Every request |
+| Asking for a password reset link | 5 | Every request |
+| Password reset links | 20 | Every request |
 | OAuth register | 20 | Every request |
 | OAuth token | 20 | Failed requests |
 | API and MCP tokens | 30 | Tokens that were never issued. A valid token always gets through, and an expired one doesn't count. |
