@@ -20,7 +20,9 @@ export function JoinPage() {
   const logout = useLogout()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [email, setEmail] = useState('')
+  // What is typed, over the address the invitation was emailed to.
+  const [typedEmail, setEmail] = useState<string | null>(null)
+  const email = typedEmail ?? check.data?.email ?? ''
 
   if (join.isSuccess) return <Navigate to="/" replace />
 

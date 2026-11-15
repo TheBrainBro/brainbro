@@ -7,6 +7,8 @@ export type Invitation = {
   id: string
   /** Who it's for, so the admin can tell links apart. */
   note: string
+  /** Where the link was emailed; empty if it wasn't. */
+  email: string
   created_at: string
   expires_at: string
   status: 'pending' | 'accepted' | 'expired'
@@ -16,7 +18,13 @@ export type Invitation = {
 }
 
 /** An invitation just made: the only time its link comes back. */
-export type NewInvitation = Invitation & { url: string }
+export type NewInvitation = Invitation & {
+  url: string
+  /** Set when the link was emailed. */
+  email_sent?: boolean
+  /** Why the email couldn't be sent; the invitation exists anyway. */
+  email_error?: string
+}
 
 const invitationsKey = ['invitations'] as const
 
@@ -28,8 +36,11 @@ export function useInvitations() {
 export function useCreateInvitation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (note: string) =>
-      api<NewInvitation>('/auth/invitations/', { method: 'POST', body: JSON.stringify({ note }) }),
+    mutationFn: ({ note, email = '' }: { note: string; email?: string }) =>
+      api<NewInvitation>('/auth/invitations/', {
+        method: 'POST',
+        body: JSON.stringify(email ? { note, email } : { note }),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: invitationsKey }),
   })
 }
@@ -47,7 +58,7 @@ export function useRevokeInvitation() {
 export function useInvitationCheck(token: string) {
   return useQuery({
     queryKey: ['join', token],
-    queryFn: () => api<{ valid: true }>(`/auth/join/${token}/`),
+    queryFn: () => api<{ valid: true; email?: string }>(`/auth/join/${token}/`),
     retry: false,
   })
 }

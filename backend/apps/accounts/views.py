@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.conf import settings
@@ -32,6 +33,8 @@ from .limits import INVITATION, LOGIN, TOO_MANY, WINDOW
 from .models import ApiToken, Invitation, Profile
 from .oauth import PermissionsSerializer
 from .quota import QuotaExceeded, check_room, file_size, storage_data
+
+logger = logging.getLogger(__name__)
 
 # How long an invitation link can be used to join.
 INVITATION_LIFETIME = timedelta(days=7)
@@ -457,6 +460,7 @@ class InvitationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "note",
+            "email",
             "created_at",
             "expires_at",
             "status",
@@ -465,9 +469,56 @@ class InvitationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["created_at", "expires_at", "used_at"]
 
+    def validate_email(self, value):
+        value = BaseUserManager.normalize_email(value)
+        if not value:
+            return value
+        if not mail.enabled():
+            raise serializers.ValidationError(EMAIL_OFF)
+        if email_taken(value):
+            raise serializers.ValidationError(
+                "Someone already has an account with this email."
+            )
+        return value
+
+
+EMAIL_OFF = "Email isn't set up on this server."
+
+INVITATION_EMAIL = """Hi,
+
+{inviter} invited you to have your own {app} on {host}: a place to keep
+your notes, links and files, where nobody else can see them.
+
+To make your account, open this link and pick a username and password:
+
+{url}
+
+It works once and expires in {days} days.
+"""
+
 
 def join_url(request, token):
     return request.build_absolute_uri(f"/join/{token}")
+
+
+def send_invitation(request, invitation, url):
+    """
+    Emails the link, right away, so the admin knows whether it went out.
+    The link isn't stored, so it can't wait in the queue for the worker.
+    """
+    profile = Profile.objects.filter(user=request.user).first()
+    inviter = (profile and profile.display_name) or request.user.username
+    mail.send(
+        f"{inviter} invited you to {settings.APP_NAME}",
+        INVITATION_EMAIL.format(
+            inviter=inviter,
+            app=settings.APP_NAME,
+            host=request.get_host(),
+            url=url,
+            days=INVITATION_LIFETIME.days,
+        ),
+        [invitation.email],
+    )
 
 
 # Admins only, from the app: a token can't invite anyone.
@@ -477,8 +528,10 @@ def join_url(request, token):
 def invitations_view(request):
     """
     `GET` lists every invitation with its `status`: pending, accepted (by
-    `used_by`, at `used_at`) or expired. `POST {"note"}` makes one; the
-    response carries its link in `url`, the only time it is shown.
+    `used_by`, at `used_at`) or expired. `POST {"note", "email"?}` makes
+    one; the response carries its link in `url`, the only time it is shown.
+    With an email, the link is also sent there: `email_sent`, or
+    `email_error` if the provider refused it (the invitation stays).
     """
     if request.method == "GET":
         invitations = Invitation.objects.select_related("used_by")
@@ -486,12 +539,22 @@ def invitations_view(request):
     payload = InvitationSerializer(data=request.data)
     payload.is_valid(raise_exception=True)
     invitation, token = Invitation.issue(
-        request.user, payload.validated_data.get("note", ""), INVITATION_LIFETIME
+        request.user,
+        payload.validated_data.get("note", ""),
+        INVITATION_LIFETIME,
+        email=payload.validated_data.get("email", ""),
     )
-    return Response(
-        {**InvitationSerializer(invitation).data, "url": join_url(request, token)},
-        status=status.HTTP_201_CREATED,
-    )
+    url = join_url(request, token)
+    data = {**InvitationSerializer(invitation).data, "url": url}
+    if invitation.email:
+        try:
+            send_invitation(request, invitation, url)
+        except Exception as error:  # Any provider error: the admin sees it.
+            logger.warning("An invitation email couldn't be sent: %s", error)
+            data["email_error"] = f"The email couldn't be sent: {error}"
+        else:
+            data["email_sent"] = True
+    return Response(data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["DELETE"])
@@ -565,9 +628,10 @@ def join_view(request, token):
     """
     INVITATION.enforce(request)
     if request.method == "GET":
-        if Invitation.find(token) is None:
+        invitation = Invitation.find(token)
+        if invitation is None:
             return Response({"detail": INVALID_INVITATION}, status=404)
-        return Response({"valid": True})
+        return Response({"valid": True, "email": invitation.email})
 
     # Like login: no signing someone in from another site.
     SessionAuthentication().enforce_csrf(request)
