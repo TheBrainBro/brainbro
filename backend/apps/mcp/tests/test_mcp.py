@@ -1414,7 +1414,7 @@ def test_import_an_image(call, user, web):
 
 
 def test_an_image_that_doesnt_fit_is_not_imported(call, settings, web):
-    settings.STORAGE_QUOTA = 10
+    settings.STORAGE_QUOTA = 0
     web[PNG] = png()
 
     text = failure(call("import_image", url=PNG))

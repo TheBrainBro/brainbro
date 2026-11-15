@@ -266,22 +266,28 @@ def test_all_or_nothing(user, monkeypatch, tmp_path):
 
 
 def test_a_vault_whose_files_dont_fit_imports_nothing(settings, user):
-    settings.STORAGE_QUOTA = len(png()) + 10
+    settings.STORAGE_QUOTA = 1
 
     with pytest.raises(VaultError) as exc:
         import_vault(
             user,
-            vault({"Note.md": "![[a.png]]", "a.png": png(), "b.png": png()}),
+            vault(
+                {
+                    "Note.md": "![[a.png]]",
+                    "a.png": png(),
+                    "big.bin": b"x" * 1024 * 1024,
+                }
+            ),
         )
 
     assert str(exc.value).startswith("Not enough storage left")
     assert str(exc.value).endswith("Nothing was imported.")
     assert not Item.objects.exists() and not NoteImage.objects.exists()
-    assert not list((settings.MEDIA_ROOT).rglob("*.png"))
+    assert not any(path.is_file() for path in settings.MEDIA_ROOT.rglob("*"))
 
 
 def test_a_vault_that_fits_imports_with_a_quota(settings, user):
-    settings.STORAGE_QUOTA = 2 * len(png())
+    settings.STORAGE_QUOTA = 1
 
     counts = import_vault(user, vault({"a.png": png(), "b.png": png()}))
 

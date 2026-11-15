@@ -76,10 +76,17 @@ def test_a_file_already_gone_takes_no_room(user):
 def test_the_quota_is_the_servers_unless_the_profile_sets_one(settings, user):
     settings.STORAGE_QUOTA = None
     assert storage_quota(user) is None
-    settings.STORAGE_QUOTA = 10 * MB
+    settings.STORAGE_QUOTA = 10
     assert storage_quota(user) == 10 * MB
-    Profile.objects.create(user=user, storage_quota=MB)
+    Profile.objects.create(user=user, storage_quota=1)
     assert storage_quota(user) == MB
+
+
+def test_a_zero_quota_takes_nothing(settings, user):
+    settings.STORAGE_QUOTA = 0
+
+    with pytest.raises(QuotaExceeded):
+        check_room(user, 1)
 
 
 def test_no_quota_means_no_limit(settings, user):
@@ -90,14 +97,14 @@ def test_no_quota_means_no_limit(settings, user):
 
 
 def test_what_doesnt_fit_is_refused(settings, user):
-    settings.STORAGE_QUOTA = 1500
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 2
+    stored_item(user, MB)
 
-    check_room(user, 500)
+    check_room(user, MB)
     with pytest.raises(QuotaExceeded):
-        check_room(user, 501)
+        check_room(user, MB + 1)
     # Replacing a file frees its room.
-    check_room(user, 1500, freed=1000)
+    check_room(user, 2 * MB, freed=MB)
 
 
 @pytest.mark.parametrize(
@@ -109,7 +116,7 @@ def test_sizes_read_in_mb_or_gb(size, text):
 
 
 def test_the_message_says_what_is_left(settings, user):
-    settings.STORAGE_QUOTA = 10 * MB
+    settings.STORAGE_QUOTA = 10
     stored_item(user, 7 * MB)
 
     with pytest.raises(QuotaExceeded) as exc:
@@ -121,8 +128,8 @@ def test_the_message_says_what_is_left(settings, user):
 
 
 def test_capture_refuses_a_file_that_doesnt_fit(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
 
     response = api.post("/api/items/capture/", {"file": png()}, format="multipart")
 
@@ -132,7 +139,7 @@ def test_capture_refuses_a_file_that_doesnt_fit(api, settings, user):
 
 
 def test_capture_takes_a_file_that_fits(api, settings):
-    settings.STORAGE_QUOTA = MB
+    settings.STORAGE_QUOTA = 1
 
     response = api.post("/api/items/capture/", {"file": png()}, format="multipart")
 
@@ -140,8 +147,8 @@ def test_capture_takes_a_file_that_fits(api, settings):
 
 
 def test_text_is_captured_with_the_storage_full(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
 
     response = api.post("/api/items/capture/", {"text": "Buy milk"}, format="json")
 
@@ -149,8 +156,8 @@ def test_text_is_captured_with_the_storage_full(api, settings, user):
 
 
 def test_a_pasted_note_image_that_doesnt_fit_is_refused(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
 
     response = api.post("/api/note-images/", {"file": png()}, format="multipart")
 
@@ -160,8 +167,8 @@ def test_a_pasted_note_image_that_doesnt_fit_is_refused(api, settings, user):
 
 
 def test_a_collection_image_that_doesnt_fit_is_refused(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
     work = Collection.objects.create(owner=user, name="Work")
 
     response = api.post(
@@ -182,7 +189,8 @@ def test_a_new_avatar_can_replace_one_at_the_limit(api, settings, user):
         ).status_code
         == 200
     )
-    settings.STORAGE_QUOTA = storage_used(user)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB - storage_used(user))
 
     # Same size as the one it replaces: it fits.
     response = api.post("/api/auth/profile/avatar/", {"file": png(size=(400, 300))})
@@ -191,8 +199,8 @@ def test_a_new_avatar_can_replace_one_at_the_limit(api, settings, user):
 
 
 def test_an_avatar_that_doesnt_fit_is_refused(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
 
     response = api.post("/api/auth/profile/avatar/", {"file": png(size=(400, 300))})
 
@@ -201,8 +209,8 @@ def test_an_avatar_that_doesnt_fit_is_refused(api, settings, user):
 
 
 def test_a_blog_image_that_doesnt_fit_is_refused(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
     blog = Site.objects.create(owner=user, hostname="alex.example")
 
     response = api.post(f"/api/sites/{blog.id}/avatar/", {"file": png(size=(400, 300))})
@@ -213,8 +221,8 @@ def test_a_blog_image_that_doesnt_fit_is_refused(api, settings, user):
 
 
 def test_an_import_is_refused_with_no_room_left(api, settings, user):
-    settings.STORAGE_QUOTA = 1000
-    stored_item(user, 1000)
+    settings.STORAGE_QUOTA = 1
+    stored_item(user, MB)
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
         archive.writestr("Note.md", "text")
@@ -231,7 +239,7 @@ def test_an_import_is_refused_with_no_room_left(api, settings, user):
 
 
 def test_storage_says_what_is_used_and_the_quota(api, settings, user):
-    settings.STORAGE_QUOTA = 10 * MB
+    settings.STORAGE_QUOTA = 10
     stored_item(user, 1000)
 
     assert api.get("/api/auth/storage/").json() == {"used": 1000, "quota": 10 * MB}

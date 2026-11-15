@@ -165,7 +165,7 @@ def test_what_comes_from_telegram_says_so(user, fake_bot):
 def test_a_file_that_doesnt_fit_gets_a_thumbs_down_and_a_reason(
     settings, user, fake_bot
 ):
-    settings.STORAGE_QUOTA = 10
+    settings.STORAGE_QUOTA = 0
     linked(user)
     fake_bot.files = {"a": png()}
 
