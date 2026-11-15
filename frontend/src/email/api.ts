@@ -63,6 +63,6 @@ export function useUseEnvironmentEmail() {
 /** Sends a test email to the admin asking. */
 export function useSendTestEmail() {
   return useMutation({
-    mutationFn: () => api<{ sent_to: string }>('/server/email/test/', { method: 'POST' }),
+    mutationFn: () => api<{ sent_to: string; provider: string }>('/server/email/test/', { method: 'POST' }),
   })
 }

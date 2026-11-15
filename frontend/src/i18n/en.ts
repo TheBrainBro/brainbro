@@ -239,7 +239,7 @@ export const en = {
     expired: 'expired {when}',
     email: 'Email (optional)',
     emailHint: 'We send the link there. You still get it here to copy.',
-    emailSentTo: 'Sent to {email}. You can also share the link yourself:',
+    emailSentTo: 'Handed to {provider} for {email}. You can also share the link yourself:',
     emailNotSent: "{error} Send this link yourself now: it won't be shown again.",
     sentTo: 'sent to {email}',
   },
@@ -266,7 +266,7 @@ export const en = {
     sendTest: 'Send a test email',
     testGoesTo: 'It goes to your email, {email}.',
     testNeedsEmail: 'Add your email in Profile to send yourself a test.',
-    testSent: 'Sent to {email}. Check your inbox, and the spam folder.',
+    testSent: "Handed to {provider} for {email}. If it doesn't arrive, check the spam folder and {provider}'s logs.",
   },
   counts: {
     notes: { one: '{count} note', other: '{count} notes' },

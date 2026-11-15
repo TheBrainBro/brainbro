@@ -20,8 +20,10 @@ export type Invitation = {
 /** An invitation just made: the only time its link comes back. */
 export type NewInvitation = Invitation & {
   url: string
-  /** Set when the link was emailed. */
+  /** Set when the provider accepted the email; it may still bounce later. */
   email_sent?: boolean
+  /** Who took it, like "Mailgun". */
+  email_provider?: string
   /** Why the email couldn't be sent; the invitation exists anyway. */
   email_error?: string
 }

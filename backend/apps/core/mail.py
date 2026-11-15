@@ -52,6 +52,8 @@ class Config:
 @dataclass(frozen=True)
 class Provider:
     name: str
+    # Shown to admins: "Handed to Mailgun".
+    label: str
     # The Django email backend that talks to it.
     backend: str
     # Given to that backend: credentials and where to reach it.
@@ -105,6 +107,7 @@ def mailgun(current):
         return None
     return Provider(
         name="mailgun",
+        label="Mailgun",
         backend="anymail.backends.mailgun.EmailBackend",
         options={
             "api_key": current.mailgun_api_key,

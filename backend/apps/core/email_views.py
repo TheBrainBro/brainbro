@@ -133,4 +133,4 @@ def email_test_view(request):
             {"detail": f"The email couldn't be sent: {error}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    return Response({"sent_to": request.user.email})
+    return Response({"sent_to": request.user.email, "provider": mail.provider().label})

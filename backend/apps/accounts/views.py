@@ -553,7 +553,9 @@ def invitations_view(request):
             logger.warning("An invitation email couldn't be sent: %s", error)
             data["email_error"] = f"The email couldn't be sent: {error}"
         else:
+            # Accepted by the provider: it may still bounce later.
             data["email_sent"] = True
+            data["email_provider"] = mail.provider().label
     return Response(data, status=status.HTTP_201_CREATED)
 
 

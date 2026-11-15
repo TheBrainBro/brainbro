@@ -217,7 +217,7 @@ function TestEmail({ enabled }: { enabled: boolean }) {
       </p>
       {test.isSuccess && (
         <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
-          {t('email.testSent', { email: test.data.sent_to })}
+          {t('email.testSent', { email: test.data.sent_to, provider: test.data.provider })}
         </p>
       )}
       {test.isError && (

@@ -93,7 +93,10 @@ function NewInvitationForm() {
           ) : (
             <p role="status" className="text-sm font-medium">
               {create.data.email_sent
-                ? t('invitations.emailSentTo', { email: create.data.email })
+                ? t('invitations.emailSentTo', {
+                    email: create.data.email,
+                    provider: create.data.email_provider ?? '',
+                  })
                 : t('invitations.sendNow')}
             </p>
           )}

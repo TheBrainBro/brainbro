@@ -239,7 +239,7 @@ export const es: Messages = {
     expired: 'caducada {when}',
     email: 'Email (opcional)',
     emailHint: 'Te enviamos el enlace ahí. Igual lo tienes aquí para copiarlo.',
-    emailSentTo: 'Enviado a {email}. También puedes compartir el enlace tú:',
+    emailSentTo: 'Entregado a {provider} para {email}. También puedes compartir el enlace tú:',
     emailNotSent: '{error} Envía este enlace tú ahora: no se volverá a mostrar.',
     sentTo: 'enviada a {email}',
   },
@@ -266,7 +266,7 @@ export const es: Messages = {
     sendTest: 'Enviar un email de prueba',
     testGoesTo: 'Llega a tu email, {email}.',
     testNeedsEmail: 'Añade tu email en Perfil para enviarte una prueba.',
-    testSent: 'Enviado a {email}. Revisa tu bandeja de entrada y la de spam.',
+    testSent: 'Entregado a {provider} para {email}. Si no llega, revisa la carpeta de spam y los registros de {provider}.',
   },
   counts: {
     notes: { one: '{count} nota', other: '{count} notas' },
