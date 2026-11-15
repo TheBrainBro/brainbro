@@ -178,6 +178,7 @@ admin user does not exist yet.
 | `TIME_ZONE` | `UTC` | The server's time zone, for scheduled jobs such as the daily backup. |
 | `BACKUP_RETENTION` | `14` | How many daily database dumps the `backups` volume keeps. See [backups.md](backups.md). |
 | `UPLOAD_MAX_SIZE` | `52428800` (50 MB) | The largest file accepted by capture, in bytes. |
+| `STORAGE_QUOTA` | Empty, no quota | The most each user may store, in bytes. See [Storage quota](#storage-quota). |
 | `IMPORT_MAX_SIZE` | `104857600` (100 MB) | The largest Obsidian vault zip accepted by "Import from Obsidian", in bytes. See [import.md](import.md). |
 | `SOURCE_CODE_URL` | This repository | Linked from the About dialog. See [Source code link](#source-code-link). |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them. See [telegram.md](telegram.md). |
@@ -188,6 +189,18 @@ admin user does not exist yet.
 No request can be larger than the largest of `UPLOAD_MAX_SIZE` and `IMPORT_MAX_SIZE`, plus
 1 MB for the rest of the form: anything bigger is refused with a 413 before it is read, so
 nobody can fill the disk with one huge request.
+
+### Storage quota
+
+With `STORAGE_QUOTA` set, each user can store that much at most: uploads and their
+thumbnails, images in notes, link previews, profile, collection and blog images. Exports
+and vault zips waiting to be imported don't count, so anyone can always export their data.
+A file that doesn't fit in what is left is refused with a message saying so, wherever it
+comes from (the app, Telegram, an AI assistant, an Obsidian import); nothing already stored
+is touched. Each user sees what they use and what is left in Settings, Storage.
+
+The admin can give one user another quota in `/admin/`, on their profile (`Storage quota`,
+in bytes). Empty there means the server's `STORAGE_QUOTA`.
 
 ### Source code link
 
