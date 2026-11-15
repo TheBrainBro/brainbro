@@ -375,12 +375,21 @@ LOGGING = {
     "formatters": {
         "verbose": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"},
     },
+    "filters": {
+        "drop_query_string": {"()": "apps.core.logs.DropQueryString"},
+    },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+        "access": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "filters": ["drop_query_string"],
+        },
     },
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO"},
         "django.db.backends": {"handlers": ["console"], "level": "WARNING"},
         "apps": {"handlers": ["console"], "level": "INFO"},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
     },
 }

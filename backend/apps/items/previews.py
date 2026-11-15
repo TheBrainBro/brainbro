@@ -213,7 +213,7 @@ def build_preview(url):
         except (FetchError, TransientFetchError, ValueError) as exc:
             if page_error:
                 raise page_error from exc
-            logger.info("oEmbed failed for %s: %s", url, exc)
+            logger.info("oEmbed failed: %s", type(exc).__name__)
 
     host = urlsplit(final_url).hostname or ""
     metadata = {
@@ -282,6 +282,6 @@ def download_preview_image(image_url):
     try:
         fetched = fetch(image_url, max_bytes=MAX_IMAGE_BYTES, accept="image/*")
     except FetchError as exc:
-        logger.info("Preview image fetch failed for %s: %s", image_url, exc)
+        logger.info("Preview image fetch failed: %s", type(exc).__name__)
         return None
     return to_preview_image(fetched.content)
