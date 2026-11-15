@@ -9,6 +9,16 @@ A self-hosted second brain: capture links, notes, images and files with zero fri
 
 > **Drop it now, sort it later.** Everything lands in the inbox; organizing is a separate step.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-inbox-dark.png" />
+  <img src="docs/assets/screenshot-inbox-light.png" alt="The inbox: notes captured and waiting to be sorted" />
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-collection-dark.png" />
+  <img src="docs/assets/screenshot-collection-light.png" alt="A collection for a trip, with a packing list and plans in Markdown" />
+</picture>
+
 ## What it does
 
 - **Capture anything:** paste or drop links, notes, images, files and voice recordings, from
@@ -77,8 +87,6 @@ docker compose --env-file stack.env -f docker-compose.production.yml up -d
 ```
 
 The database is backed up before any migration, and migrated on its own.
-
-Roadmap and pending work: [epic #1](https://github.com/TheBrainBro/brainbro/issues/1).
 
 ## Stack
 
