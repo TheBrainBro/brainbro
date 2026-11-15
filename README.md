@@ -1,23 +1,10 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme-header-dark.png" />
-  <img src="docs/assets/readme-header-light.png" alt="BrainBro" />
-</picture>
+<img src="docs/assets/bento.jpg" alt="BrainBro" />
 
 # BrainBro
 
 A self-hosted second brain: capture links, notes, images and files with zero friction, then organize them into boards (infinite canvas) and collections.
 
 > **Drop it now, sort it later.** Everything lands in the inbox; organizing is a separate step.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-inbox-dark.png" />
-  <img src="docs/assets/screenshot-inbox-light.png" alt="The inbox: notes captured and waiting to be sorted" />
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-collection-dark.png" />
-  <img src="docs/assets/screenshot-collection-light.png" alt="A collection for a trip, with a packing list and plans in Markdown" />
-</picture>
 
 ## What it does
 
