@@ -183,7 +183,7 @@ admin user does not exist yet.
 | `SOURCE_CODE_URL` | This repository | Linked from the About dialog. See [Source code link](#source-code-link). |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them. See [telegram.md](telegram.md). |
 | `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`, otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
-| `EMAIL_PROVIDER` | Empty, email off | Who sends the server's email (password reset links): `mailgun`. See [Email](#email). |
+| `EMAIL_PROVIDER` | Empty, email off | Who sends the server's email (password resets, invitations): `mailgun`. Settings saved in Settings, Server, Email are used instead. See [Email](#email). |
 | `EMAIL_FROM` | `BrainBro <noreply@<MAILGUN_DOMAIN>>` | Who the email comes from, e.g. `BrainBro <hello@example.com>`. |
 | `MAILGUN_API_KEY` / `MAILGUN_DOMAIN` | Empty | A Mailgun sending API key and the domain it sends from. |
 | `MAILGUN_REGION` | `us` | `us` or `eu`: where the Mailgun domain was added. |
@@ -225,25 +225,39 @@ in MB). Empty there means the server's `STORAGE_QUOTA`.
 
 ### Email
 
-BrainBro sends email for one thing so far: a link to choose a new password when someone
-forgets theirs. Without email, the sign-in page doesn't offer it, and the admin changes
-forgotten passwords in `/admin/`.
+BrainBro sends email for two things: a link to choose a new password when someone forgets
+theirs, and invitation links, when the admin types the person's email. Without email, the
+sign-in page doesn't offer a reset, the admin changes forgotten passwords in `/admin/`, and
+invitation links are only copied and shared by hand.
 
 To turn it on with [Mailgun](https://www.mailgun.com/):
 
 1. Add a sending domain in Mailgun (a subdomain such as `mail.example.com` keeps your main
    domain's mail apart) and add the DNS records it asks for.
 2. Create a sending API key for that domain.
-3. Set `EMAIL_PROVIDER=mailgun`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, and `MAILGUN_REGION=eu`
-   if the domain is in Mailgun's EU region. Redeploy.
+3. In the app, open Settings, Server, Email: pick Mailgun, enter the key, the domain and its
+   region, and save. **Send a test email** sends one to your own email (set it in Settings,
+   Profile) and shows Mailgun's answer if it fails.
 
-If a setting is missing, email stays off and the sign-in page offers no reset:
-`python3 manage.py check`, in the `api` container, says what is missing. The `worker` sends
-the email, so a failure to send shows in its log.
+Or set it in the environment instead: `EMAIL_PROVIDER=mailgun`, `MAILGUN_API_KEY`,
+`MAILGUN_DOMAIN`, and `MAILGUN_REGION=eu` if the domain is in Mailgun's EU region, then
+redeploy. Settings saved in the app are used instead of the environment's until **Use the
+environment variables instead** drops them. Saving with the key left empty keeps the key
+in use, the environment's included.
 
-Each person adds the email the link goes to in Settings, Profile, or when they join with an
-invitation. It is optional, and two accounts can't share one. A link works once, for an hour,
-and asking for one says the same whether or not an account uses that email.
+A key saved in the app is stored encrypted with a key derived from `SECRET_KEY`, so a database
+dump or backup doesn't carry it readable. Changing `SECRET_KEY` makes it unreadable: email goes
+off until the key is entered again.
+
+If a setting is missing, email stays off: Settings, Server, Email says so, and
+`python3 manage.py check`, in the `api` container, says what is missing. Reset emails are sent
+by the `worker`, so a failure to send one shows in its log. Invitation emails are sent right
+away, and a failure shows next to the new link, which can still be shared by hand.
+
+Each person adds the email reset links go to in Settings, Profile, or when they join with an
+invitation (filled in with the address the invitation was sent to). It is optional, and two
+accounts can't share one. A reset link works once, for an hour, and asking for one says the
+same whether or not an account uses that email.
 
 ### Source code link
 
