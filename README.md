@@ -88,8 +88,6 @@ docker compose --env-file stack.env -f docker-compose.production.yml up -d
 
 The database is backed up before any migration, and migrated on its own.
 
-Roadmap and pending work: the [open epics](https://github.com/TheBrainBro/brainbro/issues?q=is%3Aissue%20state%3Aopen%20label%3Aepic).
-
 ## Stack
 
 | Part | Technology |
