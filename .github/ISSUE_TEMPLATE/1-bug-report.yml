@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in BrainBro does not work as it should.
+labels: [bug]
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please search the [existing issues](https://github.com/TheBrainBro/brainbro/issues?q=is%3Aissue) first.
+
+        Security vulnerabilities do not go here: follow [SECURITY.md](https://github.com/TheBrainBro/brainbro/blob/develop/SECURITY.md). Everyone taking part follows the [Code of Conduct](https://github.com/TheBrainBro/brainbro/blob/develop/CODE_OF_CONDUCT.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and where in the app.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a board
+        2. Drop a link on it
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown under **About** in the account menu.
+      placeholder: 0.10.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How BrainBro is installed
+      options:
+        - Umbrel
+        - Docker Compose with Cloudflare Tunnel
+        - Docker Compose with Caddy
+        - Docker Compose on the local network only
+        - Development setup (make dev)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Browser and device
+      description: Include whether the app was installed on the phone, or opened from Telegram or an MCP client.
+      placeholder: Firefox 140 on Ubuntu, Safari on iPhone (installed app)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Errors from the browser console or the `api` and `worker` containers. Remove anything private first.
+      render: shell
