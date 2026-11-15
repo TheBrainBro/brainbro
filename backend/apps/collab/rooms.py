@@ -74,11 +74,14 @@ class Session:
         self.queue = asyncio.Queue()
         # The awareness clients it announced: they leave with it.
         self.clients = set()
+        # Told to close: nothing more it sends is applied.
+        self.closed = False
 
     def send(self, message):
         self.queue.put_nowait({"type": "websocket.send", "bytes": message})
 
     def close(self, code=1000):
+        self.closed = True
         self.queue.put_nowait({"type": "websocket.close", "code": code})
 
     async def write(self):
