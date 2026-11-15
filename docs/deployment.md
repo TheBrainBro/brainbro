@@ -183,6 +183,10 @@ the stack refuses to start without `SECRET_KEY`, `APP_HOSTNAMES` and `POSTGRES_P
 | `SITE_CNAME_TARGET` | Empty, the host BrainBro is opened on | The host blogs on their own domains point their `CNAME` at. See [blogs.md](blogs.md). |
 | `SITE_IPV4` | Empty | The server's public IPv4, shown as an `A` record for root domains. Leave it empty behind a tunnel. |
 
+No request can be larger than the largest of `UPLOAD_MAX_SIZE` and `IMPORT_MAX_SIZE`, plus
+1 MB for the rest of the form: anything bigger is refused with a 413 before it is read, so
+nobody can fill the disk with one huge request.
+
 ### Source code link
 
 The About dialog links to the code the server runs, taken from `SOURCE_CODE_URL`. BrainBro is
