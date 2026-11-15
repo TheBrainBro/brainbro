@@ -114,6 +114,8 @@ export const es: Messages = {
     connectAgain: 'Vuelve a la app e intenta conectarla de nuevo.',
     connectApp: '¿Conectar {app}?',
     goesBackTo: 'Volverá a <b>{host}</b>',
+    unknownApp:
+      'BrainBro no conoce esta app. Cualquier app puede llamarse {app}: lo único real es la dirección a la que vuelve. Permítelo solo si empezaste a conectarla tú y confías en <b>{host}</b>.',
     appCan: 'Elige qué puede hacer. No puede eliminar nada.',
     onlyAllow:
       'Permítelo solo si empezaste esto desde {app}. Puedes desconectarla cuando quieras en Ajustes → Asistentes de IA.',

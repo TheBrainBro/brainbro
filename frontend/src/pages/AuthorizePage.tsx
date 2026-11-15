@@ -1,4 +1,4 @@
-import { ArrowLeftRight, CircleAlert, LoaderCircle } from 'lucide-react'
+import { ArrowLeftRight, CircleAlert, LoaderCircle, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation } from 'react-router'
 
@@ -61,6 +61,22 @@ export function AuthorizePage() {
                 })}
               </p>
             </div>
+            {!ask.data.logo && (
+              // Apps register themselves: the name is whatever they say.
+              <p
+                role="note"
+                className="flex items-start gap-1.5 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+              >
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {rich('auth.unknownApp', {
+                    app: ask.data.client_name,
+                    host: ask.data.redirect_host,
+                    b: (chunk) => <strong className="font-medium">{chunk}</strong>,
+                  })}
+                </span>
+              </p>
+            )}
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
               {t('auth.appCan')}
             </p>

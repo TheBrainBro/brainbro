@@ -114,6 +114,8 @@ export const en = {
     connectAgain: 'Go back to the app and try connecting again.',
     connectApp: 'Connect {app}?',
     goesBackTo: 'It will go back to <b>{host}</b>',
+    unknownApp:
+      "BrainBro doesn't know this app. Any app can call itself {app}: only the address it goes back to is real. Allow it only if you started connecting it yourself and you trust <b>{host}</b>.",
     appCan: "Choose what it can do. It can't delete anything.",
     onlyAllow:
       'Only allow it if you started this from {app}. You can disconnect it any time in Settings → AI assistants.',
