@@ -16,9 +16,14 @@ const signedIn = { authenticated: true, user: { id: 2, username: 'ana' }, welcom
 
 function renderAt(
   path: string,
-  { authenticated = false, valid = true, joined = jsonResponse(signedIn, 201) } = {},
+  {
+    authenticated = false,
+    valid = true,
+    joined = jsonResponse(signedIn, 201),
+    emailEnabled = false,
+  } = {},
 ) {
-  let session = authenticated ? signedIn : { authenticated: false, user: null }
+  let session: object = authenticated ? signedIn : { authenticated: false, user: null, email_enabled: emailEnabled }
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/auth/session/') return jsonResponse(session)
     if (url === '/api/auth/logout/') {
@@ -68,6 +73,29 @@ describe('JoinPage', () => {
         body: JSON.stringify({ username: 'ana', password: 'a-long-pass' }),
       }),
     )
+  })
+
+  it('can save an email for password resets when the server sends email', async () => {
+    const fetchMock = renderAt('/join/abc', { emailEnabled: true })
+
+    await screen.findByRole('heading', { name: 'Join BrainBro' })
+    fireEvent.change(screen.getByLabelText('Email (optional)'), { target: { value: 'ana@example.com' } })
+    fill('ana', 'a-long-pass')
+
+    expect(await screen.findByRole('heading', { name: 'Inbox' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/join/abc/',
+      expect.objectContaining({
+        body: JSON.stringify({ username: 'ana', password: 'a-long-pass', email: 'ana@example.com' }),
+      }),
+    )
+  })
+
+  it('asks for no email when the server sends none', async () => {
+    renderAt('/join/abc')
+
+    await screen.findByRole('heading', { name: 'Join BrainBro' })
+    expect(screen.queryByLabelText('Email (optional)')).not.toBeInTheDocument()
   })
 
   it('says why the account could not be made', async () => {

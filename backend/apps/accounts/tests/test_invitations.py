@@ -215,3 +215,31 @@ def test_joining_needs_a_strong_password(invitation):
 def test_joining_requires_csrf(invitation):
     response = join(Client(enforce_csrf_checks=True), invitation[1])
     assert response.status_code == 403
+
+
+def test_joining_can_set_an_email(invitation):
+    _, token = invitation
+    response = Client().post(
+        f"/api/auth/join/{token}/",
+        {"username": "ana", "password": PASSWORD, "email": "Ana@EXAMPLE.com"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert get_user_model().objects.get(username="ana").email == "Ana@example.com"
+
+
+def test_joining_refuses_an_email_already_in_use(admin_user, invitation):
+    admin_user.email = "ana@example.com"
+    admin_user.save()
+    _, token = invitation
+
+    response = Client().post(
+        f"/api/auth/join/{token}/",
+        {"username": "ana", "password": PASSWORD, "email": "ANA@example.com"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "email" in response.json()
+    assert not get_user_model().objects.filter(username="ana").exists()

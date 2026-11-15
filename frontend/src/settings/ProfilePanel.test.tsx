@@ -32,6 +32,13 @@ function renderPanel(
       }
       return jsonResponse({ ...profile, ...changes })
     }
+    if (url === '/api/auth/email/') {
+      const { email } = JSON.parse(String(init?.body))
+      if (email === 'taken@example.com') {
+        return jsonResponse({ email: ['Another account already uses this email.'] }, 400)
+      }
+      return jsonResponse({ email })
+    }
     if (url === '/api/auth/profile/avatar/' && init?.method === 'DELETE') {
       return jsonResponse({ ...profile, avatar_url: null })
     }
@@ -110,5 +117,37 @@ describe('ProfilePanel', () => {
       '/api/auth/profile/avatar/',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('saves the email for password resets', async () => {
+    const fetchMock = renderPanel()
+
+    const input = await screen.findByLabelText('Email')
+    fireEvent.change(input, { target: { value: 'alex@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save email' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/email/',
+        expect.objectContaining({ method: 'PUT', body: JSON.stringify({ email: 'alex@example.com' }) }),
+      ),
+    )
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Save email' })).toBeDisabled())
+    expect(input).toHaveValue('alex@example.com')
+  })
+
+  it('says why the email was refused', async () => {
+    renderPanel()
+
+    fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'taken@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save email' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Another account already uses this email.')
+  })
+
+  it('says when the server cannot send email yet', async () => {
+    renderPanel()
+
+    expect(await screen.findByText(/can't send email yet/)).toBeInTheDocument()
   })
 })
