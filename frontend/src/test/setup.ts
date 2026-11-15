@@ -6,6 +6,12 @@ import { afterEach } from 'vitest'
 
 import { FakeLiveServer } from './liveServer'
 
+// The embed host the server names in index.html (as in config/settings/testing).
+const embedUrl = document.createElement('meta')
+embedUrl.name = 'embed-url'
+embedUrl.content = 'http://embed.testserver'
+document.head.append(embedUrl)
+
 // Vitest runs without globals, so Testing Library can't register this itself.
 afterEach(cleanup)
 

@@ -297,6 +297,13 @@ describe('livePreview link cards', () => {
     expect(labels).toEqual(['Link', 'Card'])
   })
 
+  it('offers Embed for posts on X, played from the embed host', () => {
+    open('https://x.com/jack/status/20\n')
+    switchTo('Embed')
+    expect(view.state.doc.toString()).toBe('[https://x.com/jack/status/20](https://x.com/jack/status/20 "embed")\n')
+    expect(view.dom.querySelector('iframe')?.getAttribute('src')).toBe('http://embed.testserver/x/20')
+  })
+
   it('leaves links inside code alone', () => {
     open('```\nhttps://blog.example/a\n```\n')
     expect(view.dom.querySelector('.cm-link-switch')).toBeNull()

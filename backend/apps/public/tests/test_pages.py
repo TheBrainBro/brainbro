@@ -14,6 +14,8 @@ def build(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
     (tmp_path / "index.html").write_text(INDEX)
     settings.FRONTEND_DIST_DIR = tmp_path
+    # The page's own tags only: not the embed host's (see test_embeds).
+    settings.EMBED_URL = ""
 
 
 def note(user, title="", body="text"):

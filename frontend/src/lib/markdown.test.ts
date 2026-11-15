@@ -89,6 +89,26 @@ describe('card and embed links', () => {
     )
   })
 
+  it('plays posts from X from the embed host, in a sandbox', () => {
+    const body = '[post](https://x.com/jack/status/20 "embed")'
+    expect(renderNote(body)).not.toContain('<iframe')
+    const html = renderNote(body, { embeds: true })
+    expect(html).toContain('src="http://embed.testserver/x/20"')
+    expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"')
+  })
+
+  it('shows posts from X as cards without an embed host', () => {
+    const meta = document.querySelector('meta[name="embed-url"]')!
+    meta.remove()
+    try {
+      const html = renderNote('[post](https://x.com/jack/status/20 "embed")', { embeds: true })
+      expect(html).not.toContain('<iframe')
+      expect(html).toContain('link-card')
+    } finally {
+      document.head.append(meta)
+    }
+  })
+
   it('shows embeds of unknown sites as cards', () => {
     const html = renderNote('[x](https://evil.example/x "embed")', { embeds: true })
     expect(html).not.toContain('<iframe')

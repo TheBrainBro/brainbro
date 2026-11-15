@@ -48,7 +48,36 @@ def test_the_app_runs_only_its_own_scripts(client, db):
         "https://www.youtube-nocookie.com",
         "https://player.vimeo.com",
         "https://www.loom.com",
+        "http://embed.testserver",
     ]
+
+
+def test_without_an_embed_host_the_app_frames_only_the_players(client, db, settings):
+    settings.EMBED_URL = ""
+
+    policy = directives(client.get("/inbox"))
+
+    assert "http://embed.testserver" not in policy["frame-src"]
+
+
+def test_a_blog_frames_the_embed_host(client, blog):
+    policy = directives(client.get("/", HTTP_HOST=BLOG))
+
+    assert "http://embed.testserver" in policy["frame-src"]
+
+
+def test_the_embed_host_allows_only_x_s_embed(client, db):
+    policy = directives(client.get("/x/20", HTTP_HOST="embed.testserver"))
+
+    assert policy["default-src"] == ["'none'"]
+    assert policy["script-src"] == [
+        "'self'",
+        "https://platform.x.com",
+        "https://platform.twitter.com",
+    ]
+    assert policy["frame-src"] == ["https://platform.twitter.com"]
+    assert policy["frame-ancestors"] == ["*"]
+    assert "connect-src" not in policy
 
 
 def test_the_policy_is_enforced_not_only_reported(client, db):
