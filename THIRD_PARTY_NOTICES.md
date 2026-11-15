@@ -10,8 +10,11 @@ not listed here; each one ships its own license.
 | [Lucide](https://lucide.dev) icon shapes | | `backend/apps/public/templates/public/site_icon.html` | ISC, and MIT for the icons Lucide took from Feather |
 | [LobeHub Icons](https://github.com/lobehub/lobe-icons): the Claude, ChatGPT, Grok and Grok Bot logos | | `frontend/src/tokens/AppLogo.tsx` | MIT |
 | [Simple Icons](https://simpleicons.org): the Cursor, GitHub, Obsidian, Telegram, Docker and Umbrel logos | | `frontend/src/tokens/AppLogo.tsx`, `frontend/src/layout/AboutDialog.tsx`, `frontend/src/imports/ImportPanel.tsx` | CC0-1.0 |
+| [Contributor Covenant](https://www.contributor-covenant.org/version/3/0/), the code of conduct | 3.0 | `CODE_OF_CONDUCT.md` | CC BY-SA 4.0 |
 
-All of them are unmodified copies. The logos are trademarks of their owners and appear only
+All of them are unmodified copies, except the Code of Conduct, where the reporting contact
+was filled in and the editing note at the start of "Addressing and Repairing Harm" was
+removed. The logos are trademarks of their owners and appear only
 to identify their products (see "Other trademarks" in `TRADEMARKS.md`).
 
 ## Draco
@@ -302,3 +305,10 @@ SOFTWARE.
 Released under CC0 1.0 Universal, a public domain dedication with no conditions:
 https://creativecommons.org/publicdomain/zero/1.0/. None of the logos above has a
 license of its own in Simple Icons' data.
+
+## Contributor Covenant
+
+Contributor Covenant is stewarded by the Organization for Ethical Source and licensed under
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0):
+https://creativecommons.org/licenses/by-sa/4.0/. `CODE_OF_CONDUCT.md` is adapted from
+version 3.0 and stays under the same license; its "Attribution" section gives the source.

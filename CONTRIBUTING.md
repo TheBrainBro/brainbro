@@ -1,7 +1,7 @@
 # Contributing to BrainBro
 
 Thanks for helping. Issues, pull requests, commits, code and documentation are written in
-English.
+English. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 

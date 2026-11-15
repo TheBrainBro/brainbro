@@ -69,3 +69,5 @@ API and how it is built, for whoever works on the code.
 - The format of an export: [`backend/apps/exports/README.md`](../backend/apps/exports/README.md),
   copied into every export.
 - [SECURITY.md](../SECURITY.md): reporting a vulnerability.
+- [Code of Conduct](../CODE_OF_CONDUCT.md): how we treat each other, and how to report a
+  problem.

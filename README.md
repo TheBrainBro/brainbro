@@ -95,7 +95,7 @@ Roadmap and pending work: [epic #1](https://github.com/TheBrainBro/brainbro/issu
 [CONTRIBUTING.md](CONTRIBUTING.md) covers the development setup, tests and checks, and the
 commit and pull request conventions. External contributions need a signed
 [Contributor License Agreement](CLA.md): the CLA Assistant bot asks for it on your first
-pull request.
+pull request. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
