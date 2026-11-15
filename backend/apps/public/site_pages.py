@@ -172,6 +172,13 @@ def note_page(request, site, slug):
         language,
     )
     url = site_url(site, f"/{note.public_slug}")
+    html = render_note(
+        without_title(note.body, title),
+        images=public_images(note, handle),
+        links=public_links(note, handle),
+        notes=linked_notes(request, note),
+        messages=text,
+    )
     context.update(
         # nosemgrep: avoid-mark-safe -- every value in the tags is escaped
         head=mark_safe(note_head_tags(request, note, url)),
@@ -191,15 +198,9 @@ def note_page(request, site, slug):
             else ""
         ),
         # nosemgrep: avoid-mark-safe -- render_note sanitizes with nh3
-        html=mark_safe(
-            render_note(
-                without_title(note.body, title),
-                images=public_images(note, handle),
-                links=public_links(note, handle),
-                notes=linked_notes(request, note),
-                messages=text,
-            )
-        ),
+        html=mark_safe(html),
+        # Posts from X are sized to their height by a script of their own.
+        embeds_posts="link-embed-post" in html,
         more=more,
         more_title=text["public"]["moreFrom"].replace(
             "{name}", site_author(site) or f"@{handle}"

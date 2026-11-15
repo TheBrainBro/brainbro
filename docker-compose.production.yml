@@ -43,6 +43,7 @@ x-app: &app
     ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     SITE_CNAME_TARGET: ${SITE_CNAME_TARGET:-}
     SITE_IPV4: ${SITE_IPV4:-}
+    EMBED_HOSTNAME: ${EMBED_HOSTNAME:-}
   volumes:
     - storage:/data/storage
     - backups:/data/backups

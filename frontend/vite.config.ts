@@ -24,6 +24,15 @@ export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    // Django names the embed host in the index.html it serves
+    // (apps.core.views); Vite's own needs it too: the develop default.
+    {
+      name: 'embed-url',
+      apply: 'serve',
+      transformIndexHtml: () => [
+        { tag: 'meta', attrs: { name: 'embed-url', content: 'http://embed.localhost:8000' }, injectTo: 'head' },
+      ],
+    },
     // Manifest and service worker (src/sw.ts). Django serves both from the
     // root (apps.core.views.pwa_file), so the scope is the whole app.
     VitePWA({

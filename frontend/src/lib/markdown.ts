@@ -213,7 +213,7 @@ export function renderNote(
     ...(embeds
       ? {
           ADD_TAGS: ['iframe'],
-          ADD_ATTR: ['target', 'allow', 'allowfullscreen', 'loading', 'referrerpolicy'],
+          ADD_ATTR: ['target', 'allow', 'allowfullscreen', 'loading', 'referrerpolicy', 'sandbox'],
         }
       : {}),
   })

@@ -15,6 +15,9 @@ STORAGES["staticfiles"] = {  # noqa: F405
 # Tests that need vectors fake the embedder.
 EMBEDDER_URL = ""
 
+EMBED_HOSTNAME = "embed.testserver"
+EMBED_URL = "http://embed.testserver"
+
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
 CELERY_TASK_ALWAYS_EAGER = True

@@ -9,6 +9,7 @@ from django.http import (
     HttpResponseRedirect,
     JsonResponse,
 )
+from django.utils.html import format_html
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
@@ -84,6 +85,17 @@ def page_head(request, path):
     return None, None
 
 
+def with_embed_url(html):
+    """
+    index.html telling the frontend where posts from X play
+    (lib/linkPreviews), when there is an embed host.
+    """
+    if not settings.EMBED_URL:
+        return html
+    tag = format_html('<meta name="embed-url" content="{}">', settings.EMBED_URL)
+    return html.replace("</head>", f"{tag}</head>", 1)
+
+
 @require_GET
 def spa(request, path=""):
     """
@@ -108,6 +120,7 @@ def spa(request, path=""):
     # A public page says what it is to sites that read its link.
     if tags:
         html = with_head_tags(html, tags)
+    html = with_embed_url(html)
     # nosemgrep: direct-use-of-httpresponse -- built index.html, escaped head tags
     return HttpResponse(html, content_type="text/html")
 
