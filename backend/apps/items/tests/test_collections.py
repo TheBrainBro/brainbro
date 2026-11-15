@@ -48,11 +48,11 @@ def test_rename_refuses_a_name_in_use(api, user, work):
 
 def test_a_name_can_repeat_in_another_place(api, user, work):
     blog = Collection.objects.create(owner=user, name="Blog")
-    Collection.objects.create(owner=user, name="Simmers", parent=work)
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
 
     response = api.post(
         "/api/collections/",
-        {"name": "simmers", "parent": str(blog.id)},
+        {"name": "ideas", "parent": str(blog.id)},
         format="json",
     )
 
@@ -60,11 +60,11 @@ def test_a_name_can_repeat_in_another_place(api, user, work):
 
 
 def test_a_name_can_t_repeat_side_by_side(api, user, work):
-    Collection.objects.create(owner=user, name="Simmers", parent=work)
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
 
     response = api.post(
         "/api/collections/",
-        {"name": "simmers", "parent": str(work.id)},
+        {"name": "ideas", "parent": str(work.id)},
         format="json",
     )
 
@@ -73,8 +73,8 @@ def test_a_name_can_t_repeat_side_by_side(api, user, work):
 
 
 def test_changing_the_parent_checks_the_name_there(api, user, work):
-    Collection.objects.create(owner=user, name="Simmers", parent=work)
-    other = Collection.objects.create(owner=user, name="Simmers")
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
+    other = Collection.objects.create(owner=user, name="Ideas")
 
     response = api.patch(
         f"/api/collections/{other.id}/", {"parent": str(work.id)}, format="json"
@@ -272,8 +272,8 @@ def test_a_child_named_like_its_deleted_parent_keeps_the_name(api, user, work):
 
 def test_deleting_an_account_with_repeated_names(user, work):
     blog = Collection.objects.create(owner=user, name="Blog")
-    Collection.objects.create(owner=user, name="Simmers", parent=work)
-    Collection.objects.create(owner=user, name="Simmers", parent=blog)
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
+    Collection.objects.create(owner=user, name="Ideas", parent=blog)
 
     user.delete()
 

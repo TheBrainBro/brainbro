@@ -23,8 +23,8 @@ function collection(id: string, name: string, parent: string | null = null) {
 const results = [
   collection('blog', 'Blog'),
   collection('projects', 'Projects'),
-  collection('one', 'Simmers', 'blog'),
-  collection('two', 'Simmers', 'projects'),
+  collection('one', 'Ideas', 'blog'),
+  collection('two', 'Ideas', 'projects'),
 ]
 
 function setup() {
@@ -61,7 +61,7 @@ describe('CollectionPicker', () => {
     const { fetchMock } = setup()
     const input = await loaded()
 
-    fireEvent.change(input, { target: { value: 'simmers' } })
+    fireEvent.change(input, { target: { value: 'ideas' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(boxes().map((box) => box.checked)).toEqual([false, false])
