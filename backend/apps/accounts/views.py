@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -22,6 +23,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from apps.boards.models import Board
+from apps.core import mail
 from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item
 from apps.public.handles import MAX_HANDLE, handle_taken, is_valid_handle
@@ -98,6 +100,7 @@ def signed_in(user):
         "limits": {"upload_max_size": settings.UPLOAD_MAX_SIZE},
         # The About dialog links it (AGPL section 13).
         "source_code_url": settings.SOURCE_CODE_URL,
+        "email_enabled": mail.enabled(),
     }
 
 
@@ -110,7 +113,10 @@ def session(request):
     calls this first and then sends the token in X-CSRFToken.
     """
     if not request.user.is_authenticated:
-        return Response({"authenticated": False, "user": None})
+        # The sign-in page offers a reset link only when it can be emailed.
+        return Response(
+            {"authenticated": False, "user": None, "email_enabled": mail.enabled()}
+        )
     return Response(signed_in(request.user))
 
 
@@ -297,6 +303,41 @@ def profile_view(request):
     return Response(profile_data(profile))
 
 
+EMAIL_TAKEN = "Another account already uses this email."
+
+
+def email_taken(email, user_id=None):
+    """Whether another account has this email, whatever its case."""
+    others = get_user_model().objects.filter(email__iexact=email)
+    if user_id is not None:
+        others = others.exclude(pk=user_id)
+    return others.exists()
+
+
+class EmailSerializer(serializers.Serializer):
+    # Blank removes it.
+    email = serializers.EmailField(allow_blank=True)
+
+    def validate_email(self, value):
+        value = BaseUserManager.normalize_email(value)
+        if value and email_taken(value, self.context["request"].user.id):
+            raise serializers.ValidationError(EMAIL_TAKEN)
+        return value
+
+
+@api_view(["PUT"])
+def email_view(request):
+    """
+    `PUT {"email"}`: where a password reset link goes. Optional; blank
+    removes it.
+    """
+    payload = EmailSerializer(data=request.data, context={"request": request})
+    payload.is_valid(raise_exception=True)
+    request.user.email = payload.validated_data["email"]
+    request.user.save(update_fields=["email"])
+    return Response({"email": request.user.email})
+
+
 class AvatarSerializer(serializers.Serializer):
     # Checked by make_square_image, size first.
     file = serializers.FileField(allow_empty_file=False)
@@ -468,6 +509,14 @@ def invitation_view(request, pk):
 class JoinSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     password = serializers.CharField(trim_whitespace=False)
+    # Optional: only for resetting a forgotten password.
+    email = serializers.EmailField(allow_blank=True, required=False, default="")
+
+    def validate_email(self, value):
+        value = BaseUserManager.normalize_email(value)
+        if value and email_taken(value):
+            raise serializers.ValidationError(EMAIL_TAKEN)
+        return value
 
     def validate_username(self, value):
         User = get_user_model()
@@ -511,7 +560,7 @@ def claim_username(username):
 def join_view(request, token):
     """
     An invitation link. `GET` says whether it can still be used.
-    `POST {"username", "password"}` makes the account, uses up the link and
+    `POST {"username", "password", "email"?}` makes the account, uses up the link and
     signs the new user in.
     """
     INVITATION.enforce(request)
@@ -538,6 +587,7 @@ def join_view(request, token):
             return Response({"username": [USERNAME_TAKEN]}, status=400)
         user = get_user_model().objects.create_user(
             username=username,
+            email=payload.validated_data["email"],
             password=payload.validated_data["password"],
         )
         invitation.used_at = timezone.now()

@@ -56,7 +56,7 @@ export function useInvitationCheck(token: string) {
 export function useJoin(token: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (account: { username: string; password: string }) =>
+    mutationFn: (account: { username: string; password: string; email?: string }) =>
       api<Session>(`/auth/join/${token}/`, { method: 'POST', body: JSON.stringify(account) }),
     onSuccess: (session) => queryClient.setQueryData(sessionKey, session),
   })

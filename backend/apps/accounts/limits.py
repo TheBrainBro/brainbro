@@ -1,6 +1,7 @@
 """
 Limits on what can be guessed or flooded from outside: passwords, invitation
-links, OAuth registration and credentials, and tokens nobody issued.
+and password reset links, reset emails, OAuth registration and credentials,
+and tokens nobody issued.
 
 Attempts are counted per client address and per minute in the shared cache,
 so every `api` process sees the same count. While Redis doesn't answer, each
@@ -142,6 +143,9 @@ class Limit:
 
 LOGIN = Limit("login", 5)
 INVITATION = Limit("invitation", 20)
+# Each request can send an email: few. The link from it is guessed like a token.
+PASSWORD_RESET = Limit("password-reset", 5)
+PASSWORD_RESET_LINK = Limit("password-reset-link", 20)
 OAUTH_REGISTER = Limit("oauth-register", 20)
 OAUTH_TOKEN = Limit("oauth-token", 20)
 UNKNOWN_TOKEN = Limit("unknown-token", 30)

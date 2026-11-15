@@ -120,6 +120,24 @@ export const es: Messages = {
     onlyAllow:
       'Permítelo solo si empezaste esto desde {app}. Puedes desconectarla cuando quieras en Ajustes → Asistentes de IA.',
     allow: 'Permitir',
+    forgotPassword: '¿Olvidaste tu contraseña?',
+    resetTitle: 'Restablece tu contraseña',
+    resetIntro: 'Escribe el email de tu cuenta y te enviaremos un enlace para elegir una contraseña nueva.',
+    email: 'Email',
+    sendLink: 'Enviar enlace',
+    sendingLink: 'Enviando…',
+    linkSent:
+      'Si una cuenta usa <b>{email}</b>, va en camino un enlace para elegir una contraseña nueva. Funciona durante una hora.',
+    backToSignIn: 'Volver a iniciar sesión',
+    newPasswordTitle: 'Elige una contraseña nueva',
+    newPasswordFor: 'Para la cuenta <b>{username}</b>.',
+    newPassword: 'Contraseña nueva',
+    savePassword: 'Guardar e iniciar sesión',
+    savingPassword: 'Guardando…',
+    resetLinkUnusable: 'No se puede usar este enlace',
+    askForNewResetLink: 'Pide uno nuevo desde la página de inicio de sesión.',
+    emailOptional: 'Email (opcional)',
+    emailHint: 'Solo para restablecer tu contraseña si la olvidas.',
   },
   capture: {
     title: 'Capturar',
@@ -297,6 +315,11 @@ export const es: Messages = {
     handlePlaceholder: 'tu-nombre',
     handleHint:
       'Tus notas públicas viven aquí. Cambiarla rompe los enlaces a la dirección anterior. Minúsculas, números y guiones.',
+    email: 'Email',
+    saveEmail: 'Guardar email',
+    emailPlaceholder: 'tu@ejemplo.com',
+    emailHint: 'Adónde va el enlace para restablecer tu contraseña si la olvidas. Déjalo vacío para quitarlo.',
+    emailOff: 'Este servidor aún no puede enviar emails: mientras tanto, su admin restablece las contraseñas olvidadas.',
   },
   blogs: {
     intro:

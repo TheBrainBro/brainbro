@@ -3,7 +3,7 @@ import { useId, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
 
-import { useSaveDisplayName, useSaveHandle, useSession, useSetAvatar } from '../auth/session'
+import { useSaveDisplayName, useSaveEmail, useSaveHandle, useSession, useSetAvatar } from '../auth/session'
 import { useT } from '../i18n/i18n'
 import { squareImage } from '../lib/image'
 import { Avatar } from './Avatar'
@@ -25,6 +25,12 @@ export function ProfilePanel() {
   const [error, setError] = useState<string>()
   const fileInput = useRef<HTMLInputElement>(null)
   const nameId = useId()
+  const saveEmail = useSaveEmail()
+  const savedEmail = session?.user?.email ?? ''
+  // What is typed, over the saved one, like the handle.
+  const [typedEmail, setEmail] = useState<string | null>(null)
+  const email = typedEmail ?? savedEmail
+  const emailId = useId()
 
   async function pickPhoto(file: File | undefined) {
     if (!file) return
@@ -156,6 +162,44 @@ export function ProfilePanel() {
           </button>
         </div>
         <p className="text-xs text-zinc-500">{t('profile.handleHint')}</p>
+      </form>
+
+      <form
+        className="space-y-1"
+        onSubmit={(event) => {
+          event.preventDefault()
+          setError(undefined)
+          saveEmail.mutate(email.trim(), {
+            onSuccess: () => setEmail(null),
+            onError: (failure) => setError(failure.message),
+          })
+        }}
+      >
+        <label htmlFor={emailId} className="block text-sm font-medium">
+          {t('profile.email')}
+        </label>
+        <div className="flex gap-2">
+          <input
+            id={emailId}
+            className="input"
+            type="email"
+            autoComplete="email"
+            value={email}
+            placeholder={t('profile.emailPlaceholder')}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <button
+            type="submit"
+            aria-label={t('profile.saveEmail')}
+            className="button-primary shrink-0"
+            disabled={email.trim() === savedEmail || saveEmail.isPending}
+          >
+            {t('common.save')}
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500">
+          {session?.email_enabled ? t('profile.emailHint') : t('profile.emailOff')}
+        </p>
       </form>
 
       {error && (

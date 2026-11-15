@@ -8,6 +8,7 @@ import { AuthorizePage } from './pages/AuthorizePage'
 import { BoardsPage } from './pages/BoardsPage'
 import { CapturePage } from './pages/CapturePage'
 import { CollectionPage, CollectionsPage } from './pages/CollectionsPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { InboxPage } from './pages/InboxPage'
 import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
@@ -17,6 +18,7 @@ import {
   PublicIndexPage,
   PublicNotePage,
 } from './pages/PublicPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { SharePage } from './pages/SharePage'
 
 // The editor (CodeMirror) loads when a note is first opened, not with the inbox.
@@ -48,6 +50,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/join/:token" element={<JoinPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
       {/* Published notes: open to anyone, signed in or not. */}
       <Route path="/p" element={<PublicIndexPage />} />
       <Route path="/p/:slug" element={<LegacyPublicNotePage />} />
