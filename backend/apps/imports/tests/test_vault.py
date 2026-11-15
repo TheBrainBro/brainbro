@@ -229,6 +229,24 @@ def test_bad_canvases_and_large_notes_are_skipped(user, monkeypatch):
     assert list(Item.objects.values_list("title", flat=True)) == ["Ok"]
 
 
+def test_a_vault_too_large_unzipped_is_refused(user, settings):
+    settings.IMPORT_MAX_SIZE = 10
+    # 100 bytes of zeros zip to far less, but are stored as 100.
+    archive = vault({"Notes/A.md": "a", "Big.bin": b"\0" * 100, "Small.md": "x"})
+
+    with pytest.raises(VaultError, match="once unzipped"):
+        import_vault(user, archive)
+    assert not Item.objects.exists()
+
+
+def test_hidden_files_don_t_count_unzipped(user, settings):
+    settings.IMPORT_MAX_SIZE = 10
+    archive = vault({".obsidian/cache": b"\0" * 1000, "A.md": "a"})
+
+    import_vault(user, archive)
+    assert Item.objects.count() == 1
+
+
 def test_not_a_zip(user):
     with pytest.raises(VaultError):
         import_vault(user, io.BytesIO(b"hello"))
