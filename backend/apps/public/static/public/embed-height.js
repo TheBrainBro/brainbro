@@ -7,6 +7,7 @@
     const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
     if (height === last) return;
     last = height;
+    // nosemgrep: wildcard-postmessage-configuration -- only a height, and the parent may be the app or any blog
     window.parent.postMessage({ type: "brainbro:embed-height", height }, "*");
   };
   new ResizeObserver(report).observe(document.documentElement);
