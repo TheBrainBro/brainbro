@@ -27,6 +27,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SITE_SCHEME = "http"
 SITE_PORT = get_env_variable("SITE_PORT", "8000")
 
+# Browsers send *.localhost to this machine: another origin, same server.
+EMBED_HOSTNAME = get_env_variable("EMBED_HOSTNAME", "embed.localhost")
+EMBED_URL = f"http://{EMBED_HOSTNAME}:{SITE_PORT}"
+
 # The embedder from docker-compose.yml (`make services`).
 EMBEDDER_URL = get_env_variable("EMBEDDER_URL", "http://localhost:8100")
 

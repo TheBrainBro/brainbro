@@ -80,6 +80,8 @@ ROOT_URLCONF = "config.urls"
 # into the HTML. A view that sets its own policy keeps it (uploaded files).
 
 # The players a note can embed (lib/linkPreviews, apps.public.note_html).
+# The embed host's page (`EMBED_URL`) is added to `frame-src` per request,
+# when it is set (apps.core.csp).
 CSP_EMBEDS = [
     "https://www.youtube-nocookie.com",
     "https://player.vimeo.com",
@@ -130,6 +132,18 @@ CSP_ADMIN = {
     "font-src": [CSP.SELF, "data:"],
     "form-action": [CSP.SELF],
 }
+# The embed host's page of one post (apps.public.embeds): X's script, the
+# frames and scripts it loads, and the inline styles it sets. Any page may
+# frame it: it only shows a public post.
+CSP_EMBED = {
+    **CSP_BASE,
+    "default-src": [CSP.NONE],
+    "script-src": [CSP.SELF, "https://platform.x.com", "https://platform.twitter.com"],
+    "style-src": [CSP.UNSAFE_INLINE],
+    "frame-src": ["https://platform.twitter.com"],
+    "frame-ancestors": ["*"],
+    "form-action": [CSP.NONE],
+}
 SECURE_CSP = CSP_APP
 
 # Hosts: the app answers to `APP_HOSTS` (set per environment), and blogs to
@@ -137,6 +151,12 @@ SECURE_CSP = CSP_APP
 # those, so it accepts any host and `SiteMiddleware` turns away the rest.
 ALLOWED_HOSTS = ["*"]
 APP_HOSTS = []
+
+# Embeds that run a site's own script (posts from X, apps.public.embeds)
+# play from a hostname of their own, so that script never shares an origin
+# with the app or a blog. Empty: those links show as cards.
+EMBED_HOSTNAME = ""
+EMBED_URL = ""
 
 # Blogs on their own domains (apps.public.sites): what their DNS records
 # point at. The CNAME target defaults to the host the app is opened on; the

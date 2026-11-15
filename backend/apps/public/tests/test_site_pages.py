@@ -51,6 +51,23 @@ def get(client, path, **headers):
     return client.get(path, HTTP_HOST=BLOG, **headers)
 
 
+def test_a_note_with_a_post_from_x_sizes_it(client, user, blog, writing):
+    publish(
+        note(user, "Hello", '[Post](https://x.com/jack/status/20 "embed")', writing)
+    )
+
+    html = get(client, "/hello").content.decode()
+
+    assert 'src="http://embed.testserver/x/20"' in html
+    assert 'src="/static/public/embeds.js"' in html
+
+
+def test_a_note_without_one_loads_no_embed_script(client, user, blog, writing):
+    publish(note(user, "Hello", "A **bold** claim.", writing))
+
+    assert "embeds.js" not in get(client, "/hello").content.decode()
+
+
 def test_a_post_is_in_the_html(client, user, blog, writing):
     publish(note(user, "Hello", "A **bold** claim.", writing))
 

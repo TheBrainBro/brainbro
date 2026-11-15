@@ -37,6 +37,9 @@ CSRF_TRUSTED_ORIGINS = [f"{APP_SCHEME}://{host}" for host in APP_HOSTNAMES]
 
 SITE_SCHEME = APP_SCHEME
 
+EMBED_HOSTNAME = get_env_variable("EMBED_HOSTNAME", "").strip().lower()
+EMBED_URL = f"{APP_SCHEME}://{EMBED_HOSTNAME}" if EMBED_HOSTNAME else ""
+
 # The bot's updates come through the tunnel, like everything else. Telegram
 # only delivers to HTTPS addresses, so without it there is no default.
 if APP_HTTPS:

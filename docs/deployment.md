@@ -185,10 +185,27 @@ admin user does not exist yet.
 | `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`, otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
 | `SITE_CNAME_TARGET` | Empty, the host BrainBro is opened on | The host blogs on their own domains point their `CNAME` at. See [blogs.md](blogs.md). |
 | `SITE_IPV4` | Empty | The server's public IPv4, shown as an `A` record for root domains. Leave it empty behind a tunnel. |
+| `EMBED_HOSTNAME` | Empty, posts from X show as cards | The hostname posts from X play from, e.g. `embed.example.com`. See [Embed host](#embed-host). |
 
 No request can be larger than the largest of `UPLOAD_MAX_SIZE` and `IMPORT_MAX_SIZE`, plus
 1 MB for the rest of the form: anything bigger is refused with a 413 before it is read, so
 nobody can fill the disk with one huge request.
+
+### Embed host
+
+A note can embed a post from X. X's embed runs X's own script, so BrainBro never runs it in
+the app's pages or a blog's: it plays in a small page served from a hostname of its own,
+`EMBED_HOSTNAME`. That page has no cookies and no access to the app, and it only answers with
+embedded posts. Without `EMBED_HOSTNAME`, links to X show as a link or a card.
+
+Use a hostname that is only for this, e.g. `embed.example.com`, never one of `APP_HOSTNAMES`
+or a blog's domain. Then make it reach BrainBro like the app's address:
+
+- **Cloudflare Tunnel**: another published application on the tunnel, with the same
+  **Service URL** as the app.
+- **Caddy**: an `A` (or `AAAA`) record pointing at the server. Caddy gets its certificate the
+  first time it is visited, as for blogs.
+- **Local network only**: a local name for the server, opened over HTTP like the app.
 
 ### Storage quota
 

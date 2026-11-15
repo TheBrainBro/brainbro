@@ -502,6 +502,13 @@ h3 {
       @apply size-full border-0;
     }
   }
+  /* A post from X: as tall as its page says (lib/linkPreviews), not 16:9. */
+  .link-embed.link-embed-post {
+    @apply aspect-auto bg-transparent;
+    & iframe {
+      @apply block h-50 w-full;
+    }
+  }
 }
 
 /* The note editor: layout lives in its EditorView.theme (CodeMirror's own
