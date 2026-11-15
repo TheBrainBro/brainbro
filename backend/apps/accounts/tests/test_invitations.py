@@ -183,6 +183,21 @@ def test_joining_needs_a_free_username(invitation, admin_user):
     assert Invitation.find(invitation[1]) is not None
 
 
+def test_a_username_taken_in_another_case_meanwhile_is_refused(invitation, monkeypatch):
+    # Someone else joins as "Ana" between the first check and the account.
+    monkeypatch.setattr(
+        "apps.accounts.views.JoinSerializer.validate_username", lambda self, v: v
+    )
+    get_user_model().objects.create_user(username="Ana", password="pw")
+
+    response = join(Client(), invitation[1], username="ana")
+
+    assert response.status_code == 400
+    assert response.json() == {"username": ["This username is taken."]}
+    assert not get_user_model().objects.filter(username="ana").exists()
+    assert Invitation.find(invitation[1]) is not None
+
+
 def test_joining_needs_a_valid_username(invitation):
     response = join(Client(), invitation[1], username="not valid!")
     assert response.status_code == 400
