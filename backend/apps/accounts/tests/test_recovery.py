@@ -72,7 +72,7 @@ def test_without_email_set_up_there_is_no_reset(client, user, settings, mailoutb
     assert mailoutbox == []
 
 
-def test_the_session_says_whether_email_is_on(client, settings):
+def test_the_session_says_whether_email_is_on(client, settings, db):
     assert client.get("/api/auth/session/").json()["email_enabled"] is True
     settings.EMAIL_PROVIDER = ""
     assert client.get("/api/auth/session/").json()["email_enabled"] is False

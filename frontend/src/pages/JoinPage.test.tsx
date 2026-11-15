@@ -21,6 +21,7 @@ function renderAt(
     valid = true,
     joined = jsonResponse(signedIn, 201),
     emailEnabled = false,
+    invitedEmail = '',
   } = {},
 ) {
   let session: object = authenticated ? signedIn : { authenticated: false, user: null, email_enabled: emailEnabled }
@@ -33,7 +34,7 @@ function renderAt(
     if (url.startsWith('/api/auth/join/')) {
       if (init?.method === 'POST') return joined.clone()
       return valid
-        ? jsonResponse({ valid: true })
+        ? jsonResponse({ valid: true, email: invitedEmail })
         : jsonResponse({ detail: 'This invitation link is invalid, used or expired.' }, 404)
     }
     return jsonResponse({ results: [] })
@@ -89,6 +90,12 @@ describe('JoinPage', () => {
         body: JSON.stringify({ username: 'ana', password: 'a-long-pass', email: 'ana@example.com' }),
       }),
     )
+  })
+
+  it('fills in the email the invitation was sent to', async () => {
+    renderAt('/join/abc', { emailEnabled: true, invitedEmail: 'ana@example.com' })
+
+    expect(await screen.findByLabelText('Email (optional)')).toHaveValue('ana@example.com')
   })
 
   it('asks for no email when the server sends none', async () => {

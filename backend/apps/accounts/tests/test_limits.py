@@ -195,7 +195,7 @@ def test_a_limited_invitation_says_nothing_about_usernames(client, user):
 def test_a_valid_invitation_still_works(client, user):
     _, token = Invitation.issue(user, "Ana", timedelta(days=7))
 
-    assert client.get(f"/api/auth/join/{token}/").json() == {"valid": True}
+    assert client.get(f"/api/auth/join/{token}/").json() == {"valid": True, "email": ""}
 
 
 # OAuth

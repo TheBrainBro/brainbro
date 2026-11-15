@@ -4,6 +4,8 @@ from django.core.mail import send_mail
 
 from apps.core import mail
 
+pytestmark = pytest.mark.django_db
+
 # Tests send through the in-memory mailer; these put the real one back.
 MAILERS = {"default": {"BACKEND": "apps.core.mail.EmailBackend"}}
 
