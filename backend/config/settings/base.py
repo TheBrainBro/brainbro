@@ -263,6 +263,10 @@ EXPORT_RETENTION_HOURS = int(get_env_variable("EXPORT_RETENTION_HOURS", "24"))
 # free plan refuses requests over 100 MB anyway.
 IMPORT_MAX_SIZE = int(get_env_variable("IMPORT_MAX_SIZE", str(100 * 1024 * 1024)))
 
+# The largest request body of any kind (apps.core.body_limit): the largest
+# file it can carry, plus room for the rest of a multipart form.
+REQUEST_MAX_SIZE = max(UPLOAD_MAX_SIZE, IMPORT_MAX_SIZE) + 1024 * 1024
+
 # Telegram bot (apps.telegram): messages sent or forwarded to it land in the
 # inbox of the account that connected the chat. Off without a token. The
 # worker points the bot at TELEGRAM_WEBHOOK_URL when it starts.
