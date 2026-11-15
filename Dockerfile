@@ -3,7 +3,7 @@
 
 # The frontend and the dependency list don't depend on the target platform,
 # so they run on the builder's own one: no emulation for the arm64 image.
-FROM --platform=$BUILDPLATFORM node:24.11-slim AS frontend
+FROM --platform=$BUILDPLATFORM node:26.13-slim AS frontend
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
