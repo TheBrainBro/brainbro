@@ -45,7 +45,9 @@ A vault zipped as its folder (`My vault/…`) or from inside it both work.
 ## How it runs
 
 - `POST /api/imports/` with the zip as `file` (multipart). It must be a zip of
-  at most `IMPORT_MAX_SIZE` (100 MB by default, Cloudflare's cap). Answers 202
+  at most `IMPORT_MAX_SIZE` (100 MB by default, Cloudflare's cap), whose files
+  (hidden ones aside) add up to at most 10 times that once unzipped, so a small
+  zip can't fill the disk. Answers 202
   with the import, or 409 while another one is running (one pending for over
   the time limit counts as stuck).
 - The Celery task `apps.imports.tasks.run_import` reads the zip from storage
