@@ -141,14 +141,14 @@ describe('InvitationsPanel', () => {
   })
 
   it('emails the link and still shows it', async () => {
-    const fetchMock = renderPanel([], { emailEnabled: true, emailResult: { email_sent: true } })
+    const fetchMock = renderPanel([], { emailEnabled: true, emailResult: { email_sent: true, email_provider: 'Mailgun' } })
 
     fireEvent.change(await screen.findByRole('textbox', { name: 'Email (optional)' }), {
       target: { value: 'bea@example.com' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create link' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Sent to bea@example.com')
+    expect(await screen.findByRole('status')).toHaveTextContent('Handed to Mailgun for bea@example.com')
     expect(screen.getByRole('textbox', { name: 'Invitation link' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/invitations/',

@@ -156,7 +156,7 @@ def test_a_test_email_goes_to_the_admin(admin, mailoutbox):
     response = admin.post(f"{URL}test/")
 
     assert response.status_code == 200
-    assert response.json() == {"sent_to": "admin@example.com"}
+    assert response.json() == {"sent_to": "admin@example.com", "provider": "Mailgun"}
     [message] = mailoutbox
     assert message.to == ["admin@example.com"]
     assert message.from_email == "BrainBro <noreply@mail.example.com>"

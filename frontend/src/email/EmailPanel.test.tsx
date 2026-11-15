@@ -48,7 +48,7 @@ function renderPanel(
       })
     }
     if (url === '/api/server/email/test/') {
-      return testResult?.clone() ?? jsonResponse({ sent_to: email })
+      return testResult?.clone() ?? jsonResponse({ sent_to: email, provider: 'Mailgun' })
     }
     if (url === '/api/server/email/') {
       if (init?.method === 'PUT') {
@@ -139,7 +139,7 @@ describe('EmailPanel', () => {
     expect(await screen.findByText('It goes to your email, admin@example.com.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Send a test email' }))
 
-    expect(await screen.findByText(/Sent to admin@example.com/)).toBeInTheDocument()
+    expect(await screen.findByText(/Handed to Mailgun for admin@example.com/)).toBeInTheDocument()
   })
 
   it('says why the test failed', async () => {

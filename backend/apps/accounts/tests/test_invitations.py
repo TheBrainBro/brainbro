@@ -269,6 +269,7 @@ def test_an_invitation_can_be_emailed(admin, email_on, mailoutbox):
     data = response.json()
     assert data["email"] == "Ana@example.com"
     assert data["email_sent"] is True
+    assert data["email_provider"] == "Mailgun"
     [message] = mailoutbox
     assert message.to == ["Ana@example.com"]
     assert message.subject == "admin invited you to BrainBro"
