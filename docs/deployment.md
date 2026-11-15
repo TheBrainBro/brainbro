@@ -158,7 +158,9 @@ setting `APP_HTTPS=false`.
 ## Settings
 
 Everything in [`stack.env.example`](../stack.env.example). Only the first four are required;
-the stack refuses to start without `SECRET_KEY`, `APP_HOSTNAMES` and `POSTGRES_PASSWORD`.
+the stack refuses to start without `SECRET_KEY`, `APP_HOSTNAMES` and `POSTGRES_PASSWORD`. It
+also refuses the `CHANGE_ME` placeholder in `SECRET_KEY`, and in `ADMIN_PASSWORD` while the
+admin user does not exist yet.
 
 | Variable | Default | What it does |
 |---|---|---|

@@ -1,9 +1,17 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 from .base import get_env_variable
 
 DEBUG = False
 
 SECRET_KEY = get_env_variable("SECRET_KEY")
+# The placeholder in stack.env.example: with it, anyone could sign session
+# cookies for any user of this server.
+if SECRET_KEY == "CHANGE_ME":
+    raise ImproperlyConfigured(
+        "SECRET_KEY is still CHANGE_ME. Set it in stack.env (openssl rand -base64 48)."
+    )
 
 # Public hostname(s) served through the Cloudflare Tunnel, comma-separated.
 APP_HOSTNAMES = [

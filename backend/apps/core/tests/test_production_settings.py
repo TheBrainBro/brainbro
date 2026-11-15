@@ -2,6 +2,7 @@ import importlib
 import sys
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 
 PRODUCTION = "config.settings.production"
 
@@ -22,6 +23,11 @@ def production(monkeypatch):
 
     yield load
     sys.modules.pop(PRODUCTION, None)
+
+
+def test_the_example_secret_key_is_refused(production):
+    with pytest.raises(ImproperlyConfigured, match="SECRET_KEY"):
+        production(SECRET_KEY="CHANGE_ME")
 
 
 def test_https_is_the_default(production):
