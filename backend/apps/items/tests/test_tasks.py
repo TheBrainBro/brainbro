@@ -143,3 +143,15 @@ def test_deleting_an_item_removes_its_image(monkeypatch, link, media):
 
     link.delete()
     assert not path.exists()
+
+
+def test_a_failed_preview_logs_the_item_not_its_url(monkeypatch, link, caplog):
+    def refused(url):
+        raise BlockedURL(f"HTTP 404 from {url}")
+
+    monkeypatch.setattr(tasks, "build_preview", refused)
+    with caplog.at_level("INFO", logger="apps.items.tasks"):
+        fetch_link_preview.apply(args=[str(link.id)])
+
+    assert str(link.id) in caplog.text
+    assert "example.com" not in caplog.text
