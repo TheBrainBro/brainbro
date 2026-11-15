@@ -18,7 +18,9 @@ CRDT ([Yjs](https://yjs.dev)):
 - **Server** (`backend/apps/collab`): `GET /api/live/notes/<id>` upgrades to a
   WebSocket, served by uvicorn next to Django (`config/asgi.py` sends
   WebSockets to `apps.collab.asgi`). It needs the session cookie, sent from
-  this site, for one of the user's own notes. Each `api` process keeps one
+  this site, for one of the user's own notes. That is checked again every
+  minute while it stays open: signing out, a changed password or a disabled
+  account close it, and the editor stops editing. Each `api` process keeps one
   document per open note in memory (`rooms.py`, with `pycrdt`), and the
   processes keep each other up to date through Redis pub/sub, one channel per
   note (`relay.py`).
