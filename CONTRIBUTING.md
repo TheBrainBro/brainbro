@@ -18,7 +18,7 @@ your GitHub account. Pull requests are not merged until it is signed.
 
 ## Development setup
 
-Requirements: Python 3.12, Poetry 2, Node 24, Docker with Compose v2, and libmagic
+Requirements: Python 3.12, Poetry 2, Node 26, Docker with Compose v2, and libmagic
 (`brew install libmagic` on macOS; preinstalled on most Linux distributions).
 
 Fork the repository and clone your fork (it opens on `develop`):
