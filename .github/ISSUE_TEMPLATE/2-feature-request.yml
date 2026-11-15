@@ -1,0 +1,28 @@
+name: Feature request
+description: An idea for something BrainBro could do.
+labels: [enhancement]
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Please search the [existing issues](https://github.com/TheBrainBro/brainbro/issues?q=is%3Aissue) first. If you want to build it yourself, agree on the approach here before opening a pull request, as [CONTRIBUTING.md](https://github.com/TheBrainBro/brainbro/blob/develop/CONTRIBUTING.md) explains.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How it could work. Sketches and screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you use now, or other ways you considered.
