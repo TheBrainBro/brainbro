@@ -9,6 +9,7 @@ from django.utils import timezone
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rest_framework.test import APIClient, APIRequestFactory
 
+from apps.accounts import limits
 from apps.accounts.limits import LOGIN, TOO_MANY, client_ip
 from apps.accounts.models import ApiToken, Invitation, OAuthClient
 
@@ -60,6 +61,24 @@ def test_behind_cloudflare_its_header_is_read_and_no_other(settings):
 def test_behind_caddy_the_last_forwarded_address_is_read(settings):
     settings.APP_PROXY = "caddy"
     request = request_from(**{"X-Forwarded-For": "1.2.3.4, 198.51.100.1"})
+    assert client_ip(request) == "198.51.100.1"
+
+
+@pytest.mark.parametrize("proxy", ["cloudflare", "caddy"])
+def test_a_connection_from_the_internet_can_t_pick_its_address(settings, proxy):
+    # It reached the port straight, not through the proxy.
+    settings.APP_PROXY = proxy
+    request = request_from(
+        "9.9.9.9",
+        **{"CF-Connecting-IP": "198.51.100.1", "X-Forwarded-For": "198.51.100.1"},
+    )
+    assert client_ip(request) == "9.9.9.9"
+
+
+@pytest.mark.parametrize("proxy_addr", ["127.0.0.1", "172.18.0.5", "10.77.0.2", "::1"])
+def test_the_proxy_on_this_machine_or_network_is_believed(settings, proxy_addr):
+    settings.APP_PROXY = "cloudflare"
+    request = request_from(proxy_addr, **{"CF-Connecting-IP": "198.51.100.1"})
     assert client_ip(request) == "198.51.100.1"
 
 
@@ -307,11 +326,25 @@ def redis_down(monkeypatch):
     monkeypatch.setattr(cache, "decr", fail)
 
 
-def test_without_redis_nobody_is_refused(client, user, redis_down):
-    for _ in range(8):
+@pytest.fixture
+def local_counts():
+    limits.local_counts.clear()
+    yield
+    limits.local_counts.clear()
+
+
+def test_without_redis_each_process_still_counts(
+    client, user, redis_down, local_counts
+):
+    for _ in range(5):
         assert sign_in(client, "wrong").status_code == 400
 
-    assert sign_in(client, "pw").status_code == 200
+    assert sign_in(client, "wrong").status_code == 429
+
+
+def test_without_redis_good_sign_ins_still_work(user, redis_down, local_counts):
+    for _ in range(8):
+        assert sign_in(Client(), "pw").status_code == 200
 
 
 def test_a_new_window_starts_from_zero():
@@ -323,3 +356,13 @@ def test_a_new_window_starts_from_zero():
     cache.delete(f"limit:login:{client_ip(request)}")
 
     assert LOGIN.exceeded(request) is False
+
+
+def test_without_redis_a_refund_gives_the_attempt_back(redis_down, local_counts):
+    request = request_from()
+    for _ in range(5):
+        assert LOGIN.exceeded(request) is False
+    LOGIN.refund(request)
+
+    assert LOGIN.exceeded(request) is False
+    assert LOGIN.exceeded(request) is True
