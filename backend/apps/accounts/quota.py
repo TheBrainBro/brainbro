@@ -11,7 +11,7 @@ the app makes on its own afterwards (thumbnails, previews, copies of remote
 images) is never refused, but counts.
 
 The quota is the profile's own `storage_quota`, or STORAGE_QUOTA for
-everyone else; empty means no quota.
+everyone else, both in MB; empty means no quota.
 """
 
 from django.conf import settings
@@ -59,7 +59,8 @@ def storage_quota(user):
         .values_list("storage_quota", flat=True)
         .first()
     )
-    return own if own is not None else settings.STORAGE_QUOTA
+    quota = own if own is not None else settings.STORAGE_QUOTA
+    return None if quota is None else quota * MB
 
 
 def storage_used(user):

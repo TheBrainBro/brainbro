@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             name="storage_quota",
             field=models.PositiveBigIntegerField(
                 blank=True,
-                help_text="In bytes. Empty: the server's STORAGE_QUOTA.",
+                help_text="In MB. Empty: the server's STORAGE_QUOTA.",
                 null=True,
             ),
         ),

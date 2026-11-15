@@ -243,9 +243,11 @@ MEDIA_URL = "/media/"
 # FILE_UPLOAD_MAX_MEMORY_SIZE (Django's default, 2.5 MB) is spooled to disk.
 UPLOAD_MAX_SIZE = int(get_env_variable("UPLOAD_MAX_SIZE", str(50 * 1024 * 1024)))
 
-# The most each user may store, in bytes (apps.accounts.quota); a profile can
-# set its own. Empty: no quota.
-STORAGE_QUOTA = int(get_env_variable("STORAGE_QUOTA", "") or 0) or None
+# The most each user may store, in MB (apps.accounts.quota); a profile can set
+# its own. Empty: no quota.
+STORAGE_QUOTA = (
+    int(quota) if (quota := get_env_variable("STORAGE_QUOTA", "").strip()) else None
+)
 
 # Where the code this server runs can be downloaded, linked from the About
 # dialog (AGPL section 13). A modified version points it at its own source.
