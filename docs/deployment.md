@@ -203,7 +203,8 @@ Over the limit, the answer is a 429 with `Retry-After`, for at most a minute.
 | OAuth token | 20 | Failed requests |
 | API and MCP tokens | 30 | Tokens that were never issued. A valid token always gets through, and an expired one doesn't count. |
 
-If Redis doesn't answer, nothing is limited and the `api` log says so.
+If Redis doesn't answer, each `api` process counts on its own, in memory, and the `api` log
+says so: the limits stay on, only looser (one count per process, 3 by default).
 
 The client's address depends on `APP_PROXY`:
 
@@ -211,9 +212,12 @@ The client's address depends on `APP_PROXY`:
   `none` uses the address of the connection.
 - With `none` behind a proxy, every visitor looks like the proxy and they all share one limit,
   so a few wrong passwords from anyone block sign-in for everybody for a minute.
-- With a proxy set, anyone who reaches the published port directly can write any address in
-  that header and escape the limits. Keep the port reachable only by the proxy, for example
-  with `APP_BIND=127.0.0.1` when the proxy runs on the same machine, or with a firewall.
+- With a proxy set, the header is only read on connections from this machine or a private
+  network, where the proxy runs. Someone who reaches the published port straight from the
+  internet is counted by their own address, whatever the header says. Still, keep the port
+  reachable only by the proxy, for example with `APP_BIND=127.0.0.1` when the proxy runs on
+  the same machine, or with a firewall: Docker can show IPv6 connections as coming from its
+  own private network.
 
 ## Upgrading
 
