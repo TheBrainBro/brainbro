@@ -72,6 +72,21 @@ describe('AuthorizePage', () => {
     expect(screen.queryByRole('img', { name: 'Claude' })).not.toBeInTheDocument()
   })
 
+  it('warns that an unknown app may not be what it calls itself', async () => {
+    renderAt(`/oauth/authorize?${QUERY}`, { name: 'Claude', logo: '' })
+
+    const warning = await screen.findByRole('note')
+    expect(warning).toHaveTextContent("BrainBro doesn't know this app. Any app can call itself Claude")
+    expect(warning).toHaveTextContent('you trust chatgpt.com')
+  })
+
+  it('gives no warning for an app known by where it goes back to', async () => {
+    renderAt(`/oauth/authorize?${QUERY}`)
+
+    await screen.findByRole('heading', { name: 'Connect ChatGPT?' })
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
   it('leaves publishing off until the user turns it on', async () => {
     renderAt(`/oauth/authorize?${QUERY}`)
 
