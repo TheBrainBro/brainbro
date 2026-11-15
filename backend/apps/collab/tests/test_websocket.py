@@ -3,6 +3,7 @@ import asyncio
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from django.conf import settings
+from django.contrib.sessions.backends.db import SessionStore
 from django.test import Client
 from pycrdt import (
     Doc,
@@ -190,6 +191,66 @@ def test_refuses_someone_elses_note(broker, note, other_user):
 
     async def scenario():
         assert await refused(Connection(note.id, cookie))
+
+    run(scenario)
+
+
+async def closed_with(connection):
+    """The code the server closes `connection` with, skipping what comes before."""
+    while True:
+        event = await connection.next_event()
+        if event["type"] == "websocket.close":
+            return event["code"]
+
+
+@pytest.fixture
+def recheck_often(monkeypatch):
+    monkeypatch.setattr(asgi, "RECHECK_SECONDS", 0.05)
+
+
+@pytest.mark.parametrize("ending", ["sign_out", "disable"])
+def test_an_open_connection_ends_with_its_sign_in(
+    broker, note, user, recheck_often, ending
+):
+    cookie = cookie_of(user)
+
+    async def scenario():
+        laptop = Connection(note.id, cookie)
+        await laptop.open()
+        await laptop.sync()
+
+        if ending == "sign_out":
+            await sync_to_async(SessionStore(cookie).delete)()
+        else:
+            user.is_active = False
+            await sync_to_async(user.save)()
+
+        assert await closed_with(laptop) == asgi.CLOSE_FORBIDDEN
+        # Nothing it sends after that is applied.
+        await laptop.edit("Hello, too late")
+        await laptop.close()
+
+    run(scenario)
+    note.refresh_from_db()
+    assert note.body == "Hello"
+
+
+def test_a_connection_still_signed_in_stays_open(broker, note, user, recheck_often):
+    cookie = cookie_of(user)
+
+    async def scenario():
+        laptop, phone = Connection(note.id, cookie), Connection(note.id, cookie)
+        await laptop.open()
+        await laptop.sync()
+        await phone.open()
+        await phone.sync()
+        # Several checks go by.
+        await asyncio.sleep(0.3)
+
+        await laptop.edit("Hello again")
+        await phone.until(lambda: phone.text() == "Hello again")
+        await laptop.close()
+        await phone.close()
 
     run(scenario)
 
