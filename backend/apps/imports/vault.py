@@ -56,6 +56,10 @@ from apps.items.uploads import has_thumbnail, inspect_upload
 
 # Far beyond a real vault; past this the zip is refused.
 MAX_FILES = 20_000
+# How much larger than the largest zip (IMPORT_MAX_SIZE) its files may be once
+# unzipped. A small zip can declare huge files that compress to nothing, and
+# each one would be stored; reading never goes past the size a file declares.
+MAX_UNZIPPED_RATIO = 10
 MAX_NOTE_SIZE = 1024 * 1024
 MAX_CANVAS_SIZE = 5 * 1024 * 1024
 
@@ -114,6 +118,11 @@ class _Vault:
         ]
         if len(entries) > MAX_FILES:
             raise VaultError(f"The vault has more than {MAX_FILES} files.")
+        unzipped = MAX_UNZIPPED_RATIO * settings.IMPORT_MAX_SIZE
+        if sum(info.file_size for info in entries) > unzipped:
+            raise VaultError(
+                f"The vault is over {unzipped // (1024 * 1024)} MB once unzipped."
+            )
         # A vault zipped as its folder: paths start from inside it.
         tops = {info.filename.split("/", 1)[0] for info in entries}
         prefix = ""
