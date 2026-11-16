@@ -55,6 +55,20 @@ def test_folders_become_collections_and_the_top_goes_to_the_inbox(user):
     assert (clients.name, clients.parent.name) == ("Clients", "Work 2")
 
 
+def test_folders_named_alike_in_different_places_keep_their_names(user):
+    import_vault(
+        user,
+        vault({"Work/Notes/a.md": "a", "Life/Notes/b.md": "b", "Life/notes/c.md": "c"}),
+    )
+
+    work = Item.objects.get(title="a").collections.get()
+    life = Item.objects.get(title="b").collections.get()
+    assert (work.name, work.parent.name) == ("Notes", "Work")
+    assert (life.name, life.parent.name) == ("Notes", "Life")
+    # Side by side they can't match, even in another case.
+    assert Item.objects.get(title="c").collections.get().name == "notes 2"
+
+
 def test_a_vault_zipped_as_its_folder_and_hidden_files(user):
     import_vault(
         user,
@@ -215,6 +229,24 @@ def test_bad_canvases_and_large_notes_are_skipped(user, monkeypatch):
     assert list(Item.objects.values_list("title", flat=True)) == ["Ok"]
 
 
+def test_a_vault_too_large_unzipped_is_refused(user, settings):
+    settings.IMPORT_MAX_SIZE = 10
+    # 100 bytes of zeros zip to far less, but are stored as 100.
+    archive = vault({"Notes/A.md": "a", "Big.bin": b"\0" * 100, "Small.md": "x"})
+
+    with pytest.raises(VaultError, match="once unzipped"):
+        import_vault(user, archive)
+    assert not Item.objects.exists()
+
+
+def test_hidden_files_don_t_count_unzipped(user, settings):
+    settings.IMPORT_MAX_SIZE = 10
+    archive = vault({".obsidian/cache": b"\0" * 1000, "A.md": "a"})
+
+    import_vault(user, archive)
+    assert Item.objects.count() == 1
+
+
 def test_not_a_zip(user):
     with pytest.raises(VaultError):
         import_vault(user, io.BytesIO(b"hello"))
@@ -231,3 +263,32 @@ def test_all_or_nothing(user, monkeypatch, tmp_path):
 
     assert not Item.objects.exists()
     assert not any(path.is_file() for path in (tmp_path / "media").rglob("*"))
+
+
+def test_a_vault_whose_files_dont_fit_imports_nothing(settings, user):
+    settings.STORAGE_QUOTA = 1
+
+    with pytest.raises(VaultError) as exc:
+        import_vault(
+            user,
+            vault(
+                {
+                    "Note.md": "![[a.png]]",
+                    "a.png": png(),
+                    "big.bin": b"x" * 1024 * 1024,
+                }
+            ),
+        )
+
+    assert str(exc.value).startswith("Not enough storage left")
+    assert str(exc.value).endswith("Nothing was imported.")
+    assert not Item.objects.exists() and not NoteImage.objects.exists()
+    assert not any(path.is_file() for path in settings.MEDIA_ROOT.rglob("*"))
+
+
+def test_a_vault_that_fits_imports_with_a_quota(settings, user):
+    settings.STORAGE_QUOTA = 1
+
+    counts = import_vault(user, vault({"a.png": png(), "b.png": png()}))
+
+    assert counts["images"] == 2

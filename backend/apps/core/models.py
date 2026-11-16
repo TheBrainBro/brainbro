@@ -30,3 +30,37 @@ class OwnedModel(TimestampedModel):
 
     class Meta:
         abstract = True
+
+
+class EmailSettings(TimestampedModel):
+    """
+    How this server sends email, set by an admin in Settings, Server, Email.
+    One row at most: while it exists it is used instead of the environment
+    (apps.core.mail). The API key is stored encrypted (apps.core.secrets).
+    """
+
+    class Provider(models.TextChoices):
+        NONE = "", "None"
+        MAILGUN = "mailgun", "Mailgun"
+
+    class Region(models.TextChoices):
+        US = "us", "US"
+        EU = "eu", "EU"
+
+    # Keeps it to one row.
+    singleton = models.BooleanField(default=True, unique=True, editable=False)
+    provider = models.CharField(
+        max_length=20, choices=Provider.choices, blank=True, default=""
+    )
+    from_email = models.CharField(max_length=254, blank=True)
+    mailgun_domain = models.CharField(max_length=253, blank=True)
+    mailgun_region = models.CharField(
+        max_length=2, choices=Region.choices, default=Region.US
+    )
+    mailgun_api_key = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name_plural = "email settings"
+
+    def __str__(self):
+        return "Email settings"

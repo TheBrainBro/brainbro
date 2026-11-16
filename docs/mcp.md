@@ -7,11 +7,11 @@ They connect to `https://<your host>/api/mcp`, either by signing in to BrainBro
 
 Account menu → *Settings* → *AI assistants* has the URL, the steps for each
 app, and the list of connected apps and tokens. For a short description for
-AI agents, see [`llms.txt`](https://github.com/TheBrainBro/brainbro/blob/main/site/llms.txt).
+AI agents, see [`llms.txt`](https://brainbro.app/llms.txt).
 
 Claude, ChatGPT and Grok connect from their own servers, not from your
-computer, so BrainBro must be reachable from the internet over HTTPS (the
-Cloudflare Tunnel is). If Cloudflare Access ever sits in front of BrainBro,
+computer, so BrainBro must be reachable from the internet over HTTPS (a
+Cloudflare Tunnel or Caddy, see [deployment.md](deployment.md#how-it-is-reached)). If Cloudflare Access ever sits in front of BrainBro,
 bypass it for `/api/mcp`, `/api/auth/oauth/` and `/.well-known/`: the apps
 sign in through BrainBro itself.
 

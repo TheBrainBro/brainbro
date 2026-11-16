@@ -19,3 +19,26 @@ export function useMediaQuery(query: string) {
     () => window.matchMedia(query).matches,
   )
 }
+
+/** A random id. Not crypto.randomUUID: it needs HTTPS, and the app may be on a LAN address. */
+export function randomId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** Copies text. Over plain HTTP there is no `navigator.clipboard`, so it goes through a hidden field. */
+export async function copyText(text: string) {
+  if (navigator.clipboard) return navigator.clipboard.writeText(text)
+  const focused = document.activeElement
+  const field = document.createElement('textarea')
+  field.value = text
+  field.style.position = 'fixed'
+  field.style.opacity = '0'
+  document.body.append(field)
+  field.focus()
+  field.select()
+  const copied = document.execCommand('copy')
+  field.remove()
+  if (focused instanceof HTMLElement) focused.focus()
+  if (!copied) throw new Error('Could not copy.')
+}

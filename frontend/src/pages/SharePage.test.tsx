@@ -20,7 +20,7 @@ function renderAt(path: string) {
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       if (url === '/api/auth/session/') {
-        return jsonResponse({ authenticated: true, user: { id: 1, username: 'carlos' } })
+        return jsonResponse({ authenticated: true, user: { id: 1, username: 'alex' } })
       }
       if (url === '/api/items/note-titles/') return jsonResponse([])
       if (url === '/api/items/capture/') {

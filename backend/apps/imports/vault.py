@@ -27,11 +27,19 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 
+from apps.accounts.quota import QuotaExceeded, storage_quota, storage_used
 from apps.boards.canvas import from_canvas
 from apps.boards.layout import LayoutError, item_ids, validate_layout
 from apps.boards.models import Board
 from apps.items.capture import normalize_url
-from apps.items.models import Collection, CollectionItem, Item, NoteImage, rank_now
+from apps.items.models import (
+    Collection,
+    CollectionItem,
+    Item,
+    NoteImage,
+    free_name,
+    rank_now,
+)
 from apps.items.note_images import (
     IMAGE_DESTINATION,
     MAX_IMAGES,
@@ -49,6 +57,10 @@ from apps.items.uploads import has_thumbnail, inspect_upload
 
 # Far beyond a real vault; past this the zip is refused.
 MAX_FILES = 20_000
+# How much larger than the largest zip (IMPORT_MAX_SIZE) its files may be once
+# unzipped. A small zip can declare huge files that compress to nothing, and
+# each one would be stored; reading never goes past the size a file declares.
+MAX_UNZIPPED_RATIO = 10
 MAX_NOTE_SIZE = 1024 * 1024
 MAX_CANVAS_SIZE = 5 * 1024 * 1024
 
@@ -107,6 +119,11 @@ class _Vault:
         ]
         if len(entries) > MAX_FILES:
             raise VaultError(f"The vault has more than {MAX_FILES} files.")
+        unzipped = MAX_UNZIPPED_RATIO * settings.IMPORT_MAX_SIZE
+        if sum(info.file_size for info in entries) > unzipped:
+            raise VaultError(
+                f"The vault is over {unzipped // (1024 * 1024)} MB once unzipped."
+            )
         # A vault zipped as its folder: paths start from inside it.
         tops = {info.filename.split("/", 1)[0] for info in entries}
         prefix = ""
@@ -150,15 +167,23 @@ class _Importer:
         self.vault = vault
         self.stored = stored
         self.collections = {}
-        self.taken_names = set(
-            Collection.objects.filter(owner=owner).values_list("name", flat=True)
-        )
+        # Lowercase names in use, by parent. Those it makes start out empty.
+        self.taken_names = defaultdict(set)
+        self.taken_names[None] = {
+            name.lower()
+            for name in Collection.objects.filter(owner=owner, parent=None).values_list(
+                "name", flat=True
+            )
+        }
         self.counts = defaultdict(int)
         # Vault paths of the images stored as some note's own.
         self.attached = set()
         self.after_commit = []
         # One rank for all it makes: on top, and tied, so collections sort by name.
         self.rank = rank_now()
+        # Every file it stores has to fit in the owner's quota.
+        self.quota = storage_quota(owner)
+        self.used = storage_used(owner) if self.quota is not None else 0
 
     def run(self):
         notes, canvases = self._read_texts()
@@ -209,12 +234,9 @@ class _Importer:
         if folder in self.collections:
             return self.collections[folder]
         parent = self._collection(posixpath.dirname(folder))
-        base = posixpath.basename(folder)[:120]
-        name, n = base, 1
-        while name in self.taken_names:
-            n += 1
-            name = f"{base[:115]} {n}"
-        self.taken_names.add(name)
+        taken = self.taken_names[parent.id if parent else None]
+        name = free_name(posixpath.basename(folder)[:120], taken)
+        taken.add(name.lower())
         collection = Collection.objects.create(
             owner=self.owner, name=name, parent=parent, rank=self.rank
         )
@@ -296,6 +318,7 @@ class _Importer:
         upload = _inspect(data, path)
         if upload is None or upload.kind != Item.Kind.IMAGE:
             return None
+        self._take(len(data))
         image = NoteImage(
             owner=self.owner,
             note=note,
@@ -323,6 +346,7 @@ class _Importer:
         if upload is None:
             self.counts["skipped"] += 1
             return None
+        self._take(len(data))
         item = Item(
             owner=self.owner,
             kind=upload.kind,
@@ -338,6 +362,15 @@ class _Importer:
         self.counts["images" if upload.kind == Item.Kind.IMAGE else "files"] += 1
         self._place(item, path)
         return item
+
+    def _take(self, size):
+        """Counts `size` more bytes stored; the import fails if they don't fit."""
+        if self.quota is None:
+            return
+        if self.used + size > self.quota:
+            exceeded = QuotaExceeded(self.used, self.quota)
+            raise VaultError(f"{exceeded} Nothing was imported.")
+        self.used += size
 
     # Boards
 

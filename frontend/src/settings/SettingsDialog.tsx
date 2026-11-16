@@ -2,7 +2,9 @@ import {
   Bot,
   FolderInput,
   Globe,
+  HardDrive,
   Languages,
+  Mail,
   PackageOpen,
   Palette,
   Send,
@@ -16,6 +18,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 
 import { useSession } from '../auth/session'
 import { BlogsPanel } from '../blogs/BlogsPanel'
+import { EmailPanel } from '../email/EmailPanel'
 import { SampleContentPanel } from './SampleContentPanel'
 import { ExportPanel } from '../exports/ExportPanel'
 import { useT, type MessageKey } from '../i18n/i18n'
@@ -25,6 +28,7 @@ import { LanguagePanel } from './LanguagePanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
 import { ProfilePanel } from './ProfilePanel'
+import { StoragePanel } from '../storage/StoragePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
 type Page = { id: string; label: MessageKey; icon: LucideIcon; Panel: ComponentType }
@@ -45,6 +49,7 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
     pages: [
       { id: 'import', label: 'settings.pages.import', icon: FolderInput, Panel: ImportPanel },
       { id: 'export', label: 'settings.pages.export', icon: PackageOpen, Panel: ExportPanel },
+      { id: 'storage', label: 'settings.pages.storage', icon: HardDrive, Panel: StoragePanel },
     ],
   },
   {
@@ -56,11 +61,12 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
   },
 ]
 
-// Admins only: inviting people to the server.
+// Admins only: inviting people to the server, and how it sends email.
 const adminGroup = {
   label: 'settings.groups.server' as MessageKey,
   pages: [
     { id: 'invitations', label: 'settings.pages.invitations', icon: UserPlus, Panel: InvitationsPanel },
+    { id: 'email', label: 'settings.pages.email', icon: Mail, Panel: EmailPanel },
   ] as Page[],
 }
 

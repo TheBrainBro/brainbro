@@ -1,8 +1,9 @@
 """
 Blogs on their owners' own domains. BrainBro routes by the host a request
 arrives with (`SiteMiddleware`): the server's own hostnames (`APP_HOSTS`)
-get the app, and a verified site's hostname gets that blog, whatever brought
-the request there (a reverse proxy issuing certificates on demand, a tunnel).
+get the app, the embed host (`EMBED_HOSTNAME`) its pages of embedded posts,
+and a verified site's hostname gets that blog, whatever brought the request
+there (a reverse proxy issuing certificates on demand, a tunnel).
 """
 
 import re
@@ -22,12 +23,14 @@ from .handles import public_handle
 from .models import Site
 
 # Labels of letters, digits and inner hyphens, and at least two of them.
+# nosemgrep: regex_dos -- the lookahead caps the input at 253 characters
 HOSTNAME = re.compile(
     r"(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
     r"(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})"
 )
 DNS_TIMEOUT = 5  # seconds
 SITE_URLCONF = "config.site_urls"
+EMBED_URLCONF = "config.embed_urls"
 
 
 def normalize_hostname(value):
@@ -47,6 +50,10 @@ def is_app_host(host):
     return validate_host(host, settings.APP_HOSTS)
 
 
+def is_embed_host(host):
+    return bool(settings.EMBED_HOSTNAME) and host == settings.EMBED_HOSTNAME
+
+
 def verified_sites():
     return Site.objects.filter(status=Site.Status.VERIFIED)
 
@@ -57,7 +64,8 @@ class SiteMiddleware:
     get 400, as `ALLOWED_HOSTS` would give them (it is `*`: this checks).
     A blog has URLs of its own (`config.site_urls`), so nothing of the app
     is reachable from its domain, and cookies are dropped: no session ever
-    reaches the app from there.
+    reaches the app from there. The embed host is the same: its own URLs
+    (`config.embed_urls`) and no cookies.
     """
 
     def __init__(self, get_response):
@@ -66,7 +74,12 @@ class SiteMiddleware:
     def __call__(self, request):
         host, _ = split_domain_port(request._get_raw_host())
         request.site = None
-        if not is_app_host(host):
+        request.embed = False
+        if is_embed_host(host):
+            request.META.pop("HTTP_COOKIE", None)
+            request.urlconf = EMBED_URLCONF
+            request.embed = True
+        elif not is_app_host(host):
             site = verified_sites().filter(hostname=host).first() if host else None
             if site is None:
                 return HttpResponseBadRequest("Unknown host.")
@@ -79,6 +92,11 @@ class SiteMiddleware:
 def current_site(request):
     """The blog this request is for, or None for the app."""
     return getattr(request, "site", None)
+
+
+def is_embed_request(request):
+    """Whether this request is for the embed host."""
+    return getattr(request, "embed", False)
 
 
 def collection_tree(collection_id, owner_id):

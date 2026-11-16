@@ -52,7 +52,7 @@ def fetch_link_preview(self, item_id):
         except TransientFetchError as exc:
             # Worth another try; on the last attempt keep the preview anyway.
             _retry_if_possible(self, exc)
-            logger.info("Preview image unavailable for %s: %s", item.url, exc)
+            logger.info("Preview image unavailable for item %s", item.id)
 
     _store_preview(item, preview, image)
 
@@ -87,7 +87,7 @@ def _store_preview(item, preview, image):
 
 
 def _mark_failed(item, exc):
-    logger.info("Link preview failed for %s: %s", item.url, exc)
+    logger.info("Link preview failed for item %s", item.id)
     Item.objects.filter(id=item.id).update(
         preview_status=Item.PreviewStatus.FAILED,
         metadata={**item.metadata, "preview_error": str(exc)[:500]},
@@ -149,7 +149,7 @@ def fetch_note_images(self, note_id):
     if unavailable:
         _retry_if_possible(self, unavailable)
         for image in pending.all():
-            logger.info("Note image unavailable: %s: %s", image.src, unavailable)
+            logger.info("Note image %s unavailable", image.id)
             _note_image_failed(image)
 
 
@@ -211,8 +211,8 @@ def fetch_note_links(self, note_id):
         except TransientFetchError as exc:
             unavailable = exc
             continue
-        except FetchError as exc:
-            logger.info("Note link preview failed for %s: %s", link.url, exc)
+        except FetchError:
+            logger.info("Note link %s preview failed", link.id)
             NoteLink.objects.filter(id=link.id).update(status=Item.PreviewStatus.FAILED)
             note_changed(link)
             continue
@@ -220,13 +220,13 @@ def fetch_note_links(self, note_id):
         if preview.image_url:
             try:
                 image = download_preview_image(preview.image_url)
-            except TransientFetchError as exc:
-                logger.info("Preview image unavailable for %s: %s", link.url, exc)
+            except TransientFetchError:
+                logger.info("Preview image unavailable for note link %s", link.id)
         _store_note_link(link, preview, image)
     if unavailable:
         _retry_if_possible(self, unavailable)
         for link in pending.all():
-            logger.info("Note link unavailable: %s: %s", link.url, unavailable)
+            logger.info("Note link %s unavailable", link.id)
             NoteLink.objects.filter(id=link.id).update(status=Item.PreviewStatus.FAILED)
             note_changed(link)
 

@@ -1,6 +1,6 @@
 import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
-import { Navigate, useLocation } from 'react-router'
+import { Link, Navigate, useLocation } from 'react-router'
 
 import { useLogin, useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
@@ -71,6 +71,15 @@ export function LoginPage() {
           {login.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
           {login.isPending ? t('auth.signingIn') : t('auth.signIn')}
         </button>
+
+        {session?.email_enabled && (
+          <Link
+            to="/forgot-password"
+            className="block text-center text-sm text-accent-600 hover:underline dark:text-accent-400"
+          >
+            {t('auth.forgotPassword')}
+          </Link>
+        )}
       </form>
     </div>
   )

@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import authentication, exceptions
 
 from .discovery import SCOPE, resource_metadata_url
+from .limits import UNKNOWN_TOKEN
 from .models import ApiToken
 
 # `last_used_at` is only written again after this long, not on every request.
@@ -37,6 +38,11 @@ class ApiTokenAuthentication(authentication.BaseAuthentication):
             .filter(key_hash=ApiToken.hash(key))
             .first()
         )
+        # Only keys nobody issued count. Expired ones are routine for connected
+        # apps, and a real token always gets through, so junk from one address
+        # can't lock out the assistants that share it.
+        if token is None:
+            UNKNOWN_TOKEN.enforce(request)
         now = timezone.now()
         if (
             token is None

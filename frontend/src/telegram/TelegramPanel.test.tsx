@@ -55,10 +55,10 @@ describe('TelegramPanel', () => {
   })
 
   it('shows the connected chat and disconnects it', async () => {
-    const fetchMock = renderPanel(statusOf({ linked: true, telegram_name: '@carlos' }))
+    const fetchMock = renderPanel(statusOf({ linked: true, telegram_name: '@alex' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Connected as @carlos to @brainbro_bot.',
+      'Connected as @alex to @brainbro_bot.',
     )
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
 

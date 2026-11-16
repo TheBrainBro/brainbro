@@ -415,6 +415,18 @@ def test_a_collection_name_is_used_once(call, user):
     assert Collection.objects.count() == 1
 
 
+def test_a_collection_name_can_repeat_in_another_place(call, user):
+    existing = Collection.objects.create(owner=user, name="Reading")
+    blog = Collection.objects.create(owner=user, name="Blog")
+
+    created = structured(
+        call("create_collection", name="Reading", parent_id=str(blog.id))
+    )
+
+    assert created["id"] != str(existing.id)
+    assert created["parent"] == str(blog.id)
+
+
 def test_a_collection_can_t_go_in_someone_else_s(call, other_user):
     theirs = Collection.objects.create(owner=other_user, name="Theirs")
 
@@ -1399,6 +1411,17 @@ def test_import_an_image(call, user, web):
     # Unused until a note links it.
     assert image.note is None
     assert image.unused_since is not None
+
+
+def test_an_image_that_doesnt_fit_is_not_imported(call, settings, web):
+    settings.STORAGE_QUOTA = 0
+    web[PNG] = png()
+
+    text = failure(call("import_image", url=PNG))
+
+    assert text.startswith("Not enough storage left")
+    assert text.endswith("Nothing was saved.")
+    assert not NoteImage.objects.exists()
 
 
 def test_a_note_that_links_an_imported_image_keeps_it(call, user, web):

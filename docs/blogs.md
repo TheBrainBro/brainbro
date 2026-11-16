@@ -94,7 +94,7 @@ the server:
 ### With a public IP: Caddy
 
 The production stack has an optional `caddy` service (`docker/caddy`): start it with the
-`caddy` profile (`COMPOSE_PROFILES=caddy`). It serves the app at `APP_HOSTNAMES` and every other
+`caddy` profile (see [deployment.md](deployment.md#caddy)). It serves the app at `APP_HOSTNAMES` and every other
 domain with a certificate it gets the first time the domain is visited, from Let's Encrypt. Before
 getting one, it asks BrainBro (`GET /api/public/sites/check/?domain=<domain>`, `200` or `404`)
 whether the domain is a verified blog's, so nobody can make it request certificates for domains
@@ -111,8 +111,9 @@ server's public IPv4 for root domains.
 A `CNAME` to a hostname served by a tunnel is not enough: the tunnel answers only the hostnames
 in its own list (404 otherwise), and Cloudflare refuses a `CNAME` between different accounts. So
 each blog's domain is added to the tunnel, pointing at BrainBro like the app's. With Cloudflare
-Tunnel: **Zero Trust › Networks › Tunnels › your tunnel › Public hostname › Add**, the blog's
-domain, and the same service as BrainBro's hostname. Cloudflare creates the DNS record and the
+Tunnel: **Networking › Tunnels ›** your tunnel **› Routes › Add route › Published application**,
+the blog's domain, and the same **Service URL** as BrainBro's hostname (see
+[deployment.md](deployment.md#cloudflare-tunnel)). Cloudflare creates the DNS record and the
 certificate. Then add the `TXT` record and verify.
 
 This works for domains in the tunnel owner's own Cloudflare account, which suits a server with

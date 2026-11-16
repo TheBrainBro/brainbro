@@ -35,7 +35,7 @@ def blog(user, writing):
         owner=user,
         hostname=BLOG,
         collection=writing,
-        title="Carlos writes",
+        title="Alex writes",
         status=Site.Status.VERIFIED,
     )
 
@@ -49,6 +49,23 @@ def note(user, title, body="Some text.", collection=None):
 
 def get(client, path, **headers):
     return client.get(path, HTTP_HOST=BLOG, **headers)
+
+
+def test_a_note_with_a_post_from_x_sizes_it(client, user, blog, writing):
+    publish(
+        note(user, "Hello", '[Post](https://x.com/jack/status/20 "embed")', writing)
+    )
+
+    html = get(client, "/hello").content.decode()
+
+    assert 'src="http://embed.testserver/x/20"' in html
+    assert 'src="/static/public/embeds.js"' in html
+
+
+def test_a_note_without_one_loads_no_embed_script(client, user, blog, writing):
+    publish(note(user, "Hello", "A **bold** claim.", writing))
+
+    assert "embeds.js" not in get(client, "/hello").content.decode()
 
 
 def test_a_post_is_in_the_html(client, user, blog, writing):
@@ -144,7 +161,7 @@ def test_a_post_links_its_published_notes_only(client, user, blog, writing):
 
 
 def test_a_post_describes_itself_to_search_engines(client, user, blog, writing):
-    Profile.objects.update_or_create(user=user, defaults={"display_name": "Carlos"})
+    Profile.objects.update_or_create(user=user, defaults={"display_name": "Alex"})
     item = publish(note(user, "Hello", "A claim </script> here.", writing))
     item.edited_at = timezone.now()
     item.save(update_fields=["edited_at"])
@@ -156,7 +173,7 @@ def test_a_post_describes_itself_to_search_engines(client, user, blog, writing):
     assert data["@type"] == "BlogPosting"
     assert data["headline"] == "Hello"
     assert data["url"] == f"https://{BLOG}/hello"
-    assert data["author"] == {"@type": "Person", "name": "Carlos"}
+    assert data["author"] == {"@type": "Person", "name": "Alex"}
     assert data["dateModified"]
     assert "</script> here" not in block
     assert 'property="article:published_time"' in html

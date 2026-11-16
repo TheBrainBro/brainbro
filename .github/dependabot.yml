@@ -1,0 +1,120 @@
+# Version updates. Pull requests target the default branch, develop.
+# target-branch is left out on purpose: when set, security updates stop
+# following this file (groups, commit messages).
+#
+# Monthly, with minor and patch updates grouped into one pull request per
+# ecosystem; majors come one by one. Security fixes do not wait for this
+# schedule: security updates open their own pull requests when an advisory
+# is published.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    # Skip releases younger than a week: most compromised npm versions are
+    # pulled within days.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build(frontend)
+    groups:
+      frontend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /backend
+    open-pull-requests-limit: 3
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build(backend)
+    groups:
+      backend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /docker/embedder
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build(infra)
+
+  - package-ecosystem: pip
+    directory: /.github/pip-audit
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /docker/*
+      - /.github/gitleaks
+      - /.github/semgrep
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: build(infra)
+    groups:
+      images:
+        update-types: [minor, patch]
+    ignore:
+      # A new Python is a deliberate upgrade (pyproject, CI, both images), not
+      # a routine bump. Docker tags count 3.12 to 3.13 as a minor update.
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: build(infra)
+    groups:
+      compose:
+        update-types: [minor, patch]
+
+  # The semgrep-rules commit the Semgrep scan runs (.github/semgrep/rules).
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: build
+    groups:
+      hooks:
+        update-types: [minor, patch]

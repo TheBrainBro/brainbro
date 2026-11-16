@@ -21,7 +21,7 @@ function renderPanel(
     if (url === '/api/auth/session/') {
       return jsonResponse({
         authenticated: true,
-        user: { id: 1, username: 'carlos', email: '', is_staff: false },
+        user: { id: 1, username: 'alex', email: '', is_staff: false },
         profile,
       })
     }
@@ -31,6 +31,13 @@ function renderPanel(
         return jsonResponse({ handle: ['Someone else already has this name.'] }, 400)
       }
       return jsonResponse({ ...profile, ...changes })
+    }
+    if (url === '/api/auth/email/') {
+      const { email } = JSON.parse(String(init?.body))
+      if (email === 'taken@example.com') {
+        return jsonResponse({ email: ['Another account already uses this email.'] }, 400)
+      }
+      return jsonResponse({ email })
     }
     if (url === '/api/auth/profile/avatar/' && init?.method === 'DELETE') {
       return jsonResponse({ ...profile, avatar_url: null })
@@ -55,7 +62,7 @@ describe('ProfilePanel', () => {
 
     const field = await screen.findByLabelText('Display name')
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
-    fireEvent.change(field, { target: { value: ' Carlos Lugones ' } })
+    fireEvent.change(field, { target: { value: ' Alex Rivera ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await vi.waitFor(() =>
@@ -63,7 +70,7 @@ describe('ProfilePanel', () => {
         '/api/auth/profile/',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ display_name: 'Carlos Lugones' }),
+          body: JSON.stringify({ display_name: 'Alex Rivera' }),
         }),
       ),
     )
@@ -77,13 +84,13 @@ describe('ProfilePanel', () => {
     await vi.waitFor(() => expect(field).toHaveValue('author'))
     const save = screen.getByRole('button', { name: 'Save public address' })
     expect(save).toBeDisabled()
-    fireEvent.change(field, { target: { value: 'Carlos' } })
+    fireEvent.change(field, { target: { value: 'Alex' } })
     fireEvent.click(save)
 
     await vi.waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/auth/profile/',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ handle: 'carlos' }) }),
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ handle: 'alex' }) }),
       ),
     )
   })
@@ -98,7 +105,7 @@ describe('ProfilePanel', () => {
   })
 
   it('shows the photo and removes it', async () => {
-    const fetchMock = renderPanel({ display_name: 'Carlos', avatar_url: '/api/auth/profile/avatar/?v=a' })
+    const fetchMock = renderPanel({ display_name: 'Alex', avatar_url: '/api/auth/profile/avatar/?v=a' })
 
     expect(await screen.findByRole('button', { name: 'Change photo' })).toBeInTheDocument()
     expect(document.querySelector('img')).toHaveAttribute('src', '/api/auth/profile/avatar/?v=a')
@@ -110,5 +117,37 @@ describe('ProfilePanel', () => {
       '/api/auth/profile/avatar/',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('saves the email for password resets', async () => {
+    const fetchMock = renderPanel()
+
+    const input = await screen.findByLabelText('Email')
+    fireEvent.change(input, { target: { value: 'alex@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save email' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/email/',
+        expect.objectContaining({ method: 'PUT', body: JSON.stringify({ email: 'alex@example.com' }) }),
+      ),
+    )
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Save email' })).toBeDisabled())
+    expect(input).toHaveValue('alex@example.com')
+  })
+
+  it('says why the email was refused', async () => {
+    renderPanel()
+
+    fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'taken@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save email' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Another account already uses this email.')
+  })
+
+  it('says when the server cannot send email yet', async () => {
+    renderPanel()
+
+    expect(await screen.findByText(/can't send email yet/)).toBeInTheDocument()
   })
 })

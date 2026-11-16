@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
-from apps.accounts.models import ApiToken, Invitation
+from apps.accounts.models import ApiToken, Invitation, Profile
 
 PASSWORD = "a-long-new-pass"
 
@@ -138,7 +138,7 @@ def test_joining_makes_the_account_and_signs_in(invitation):
     pending, token = invitation
     client = Client()
 
-    assert client.get(f"/api/auth/join/{token}/").json() == {"valid": True}
+    assert client.get(f"/api/auth/join/{token}/").json() == {"valid": True, "email": ""}
     response = join(client, token)
 
     assert response.status_code == 201
@@ -183,6 +183,21 @@ def test_joining_needs_a_free_username(invitation, admin_user):
     assert Invitation.find(invitation[1]) is not None
 
 
+def test_a_username_taken_in_another_case_meanwhile_is_refused(invitation, monkeypatch):
+    # Someone else joins as "Ana" between the first check and the account.
+    monkeypatch.setattr(
+        "apps.accounts.views.JoinSerializer.validate_username", lambda self, v: v
+    )
+    get_user_model().objects.create_user(username="Ana", password="pw")
+
+    response = join(Client(), invitation[1], username="ana")
+
+    assert response.status_code == 400
+    assert response.json() == {"username": ["This username is taken."]}
+    assert not get_user_model().objects.filter(username="ana").exists()
+    assert Invitation.find(invitation[1]) is not None
+
+
 def test_joining_needs_a_valid_username(invitation):
     response = join(Client(), invitation[1], username="not valid!")
     assert response.status_code == 400
@@ -200,3 +215,117 @@ def test_joining_needs_a_strong_password(invitation):
 def test_joining_requires_csrf(invitation):
     response = join(Client(enforce_csrf_checks=True), invitation[1])
     assert response.status_code == 403
+
+
+def test_joining_can_set_an_email(invitation):
+    _, token = invitation
+    response = Client().post(
+        f"/api/auth/join/{token}/",
+        {"username": "ana", "password": PASSWORD, "email": "Ana@EXAMPLE.com"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert get_user_model().objects.get(username="ana").email == "Ana@example.com"
+
+
+def test_joining_refuses_an_email_already_in_use(admin_user, invitation):
+    admin_user.email = "ana@example.com"
+    admin_user.save()
+    _, token = invitation
+
+    response = Client().post(
+        f"/api/auth/join/{token}/",
+        {"username": "ana", "password": PASSWORD, "email": "ANA@example.com"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "email" in response.json()
+    assert not get_user_model().objects.filter(username="ana").exists()
+
+
+@pytest.fixture
+def email_on(settings):
+    settings.EMAIL_PROVIDER = "mailgun"
+    settings.MAILGUN_API_KEY = "key-123"
+    settings.MAILGUN_DOMAIN = "mail.example.com"
+    settings.MAILGUN_REGION = "us"
+    settings.EMAIL_FROM = ""
+
+
+def invite(admin, **data):
+    return admin.post(
+        "/api/auth/invitations/",
+        {"note": "Ana", **data},
+        content_type="application/json",
+    )
+
+
+def test_an_invitation_can_be_emailed(admin, email_on, mailoutbox):
+    response = invite(admin, email="Ana@EXAMPLE.com")
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["email"] == "Ana@example.com"
+    assert data["email_sent"] is True
+    assert data["email_provider"] == "Mailgun"
+    [message] = mailoutbox
+    assert message.to == ["Ana@example.com"]
+    assert message.subject == "admin invited you to BrainBro"
+    assert data["url"] in message.body
+    assert "7 days" in message.body
+
+
+def test_the_email_signs_with_the_admins_display_name(
+    admin, admin_user, email_on, mailoutbox
+):
+    Profile.objects.create(user=admin_user, display_name="Carla")
+
+    invite(admin, email="ana@example.com")
+
+    assert mailoutbox[0].subject == "Carla invited you to BrainBro"
+
+
+def test_the_join_page_gets_the_invited_email(admin, email_on):
+    url = invite(admin, email="ana@example.com").json()["url"]
+    token = url.rsplit("/join/", 1)[1]
+
+    assert Client().get(f"/api/auth/join/{token}/").json() == {
+        "valid": True,
+        "email": "ana@example.com",
+    }
+
+
+def test_without_email_an_invitation_cant_be_emailed(admin, mailoutbox):
+    response = invite(admin, email="ana@example.com")
+
+    assert response.status_code == 400
+    assert response.json() == {"email": ["Email isn't set up on this server."]}
+    assert not Invitation.objects.exists()
+
+
+def test_an_email_with_an_account_isnt_invited(admin, admin_user, email_on):
+    admin_user.email = "ana@example.com"
+    admin_user.save()
+
+    response = invite(admin, email="ANA@example.com")
+
+    assert response.status_code == 400
+    assert "email" in response.json()
+
+
+def test_a_failed_email_keeps_the_invitation_and_its_link(admin, email_on, monkeypatch):
+    def refuse(*args, **kwargs):
+        raise RuntimeError("Domain not verified")
+
+    monkeypatch.setattr("apps.core.mail.send_mail", refuse)
+
+    response = invite(admin, email="ana@example.com")
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["url"]
+    assert data["email_error"] == "The email couldn't be sent: Domain not verified"
+    assert "email_sent" not in data
+    assert Invitation.objects.count() == 1

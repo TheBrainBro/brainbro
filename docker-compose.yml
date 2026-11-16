@@ -8,7 +8,7 @@ name: "brain-dev"
 
 services:
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17
+    image: pgvector/pgvector:0.8.7-pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-brain}
@@ -25,7 +25,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.0-alpine
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6389}:6379"

@@ -8,8 +8,9 @@ and brings it into BrainBro. The other direction needs nothing special: the
 
 - **Folders** become collections, nested as they were. A collection is only
   made for a folder that ends up holding something (a folder with nothing but
-  images that notes embed doesn't get one). A name that's already taken gets
-  ` 2`, ` 3`… (collection names are unique per account).
+  images that notes embed doesn't get one). A top-level folder whose name is
+  already taken at the top of your collections gets ` 2`, ` 3`… (collections
+  side by side can't share a name).
 - **Where things land:** what sits in a folder is organized into its
   collection; what sits at the top of the vault lands in the inbox.
 - **Markdown files** become notes, titled with the file name.
@@ -44,13 +45,19 @@ A vault zipped as its folder (`My vault/…`) or from inside it both work.
 ## How it runs
 
 - `POST /api/imports/` with the zip as `file` (multipart). It must be a zip of
-  at most `IMPORT_MAX_SIZE` (100 MB by default, Cloudflare's cap). Answers 202
+  at most `IMPORT_MAX_SIZE` (100 MB by default, Cloudflare's cap), whose files
+  (hidden ones aside) add up to at most 10 times that once unzipped, so a small
+  zip can't fill the disk. Answers 202
   with the import, or 409 while another one is running (one pending for over
   the time limit counts as stuck).
 - The Celery task `apps.imports.tasks.run_import` reads the zip from storage
   and imports everything **in one transaction**: if anything goes wrong,
   nothing is created, and the files already stored are deleted. Thumbnails,
   link previews and note image copies are queued once it commits.
+- With a storage quota (`STORAGE_QUOTA`, see [deployment.md](deployment.md#storage-quota)),
+  the zip itself doesn't count, but every image and file it stores does: if one doesn't fit
+  in what is left, the import fails and nothing is imported. With nothing left at all, the
+  upload is refused straight away.
 - The zip is deleted once read, whatever the outcome. The import keeps
   `counts` (`notes`, `images`, `files`, `links`, `boards`, `collections`,
   `skipped`) or an `error` to show.

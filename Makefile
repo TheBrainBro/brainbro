@@ -3,7 +3,7 @@ unexport VIRTUAL_ENV
 
 POETRY = cd backend && poetry
 MANAGE = $(POETRY) run python manage.py
-PROD = docker compose --env-file stack.env -f docker-compose.production.yml
+PROD = docker compose --env-file stack.env -f docker-compose.production.yml -f docker-compose.build.yml
 
 .PHONY: help
 help: ## Show this help
@@ -18,11 +18,6 @@ install: ## Install backend and frontend dependencies and git hooks
 	$(POETRY) install
 	cd frontend && npm install
 	$(POETRY) run pre-commit install
-
-.PHONY: exportdeps
-exportdeps: ## Export Poetry dependencies to backend/requirements*.txt
-	$(POETRY) export -f requirements.txt --output requirements.txt --without-hashes
-	$(POETRY) export -f requirements.txt --output requirements-dev.txt --without-hashes --only=dev
 
 .PHONY: services
 services: ## Start Postgres, Redis and the embedder for development

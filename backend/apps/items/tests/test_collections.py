@@ -46,6 +46,57 @@ def test_rename_refuses_a_name_in_use(api, user, work):
     assert response.status_code == 400
 
 
+def test_a_name_can_repeat_in_another_place(api, user, work):
+    blog = Collection.objects.create(owner=user, name="Blog")
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
+
+    response = api.post(
+        "/api/collections/",
+        {"name": "ideas", "parent": str(blog.id)},
+        format="json",
+    )
+
+    assert response.status_code == 201
+
+
+def test_a_name_can_t_repeat_side_by_side(api, user, work):
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
+
+    response = api.post(
+        "/api/collections/",
+        {"name": "ideas", "parent": str(work.id)},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "name" in response.json()
+
+
+def test_changing_the_parent_checks_the_name_there(api, user, work):
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
+    other = Collection.objects.create(owner=user, name="Ideas")
+
+    response = api.patch(
+        f"/api/collections/{other.id}/", {"parent": str(work.id)}, format="json"
+    )
+
+    assert response.status_code == 400
+    assert "name" in response.json()
+    other.refresh_from_db()
+    assert other.parent is None
+
+
+def test_saving_other_fields_ignores_older_names(api, user, work):
+    # Case-only twins could be imported before the check covered them.
+    twin = Collection.objects.create(owner=user, name="work")
+
+    response = api.patch(
+        f"/api/collections/{twin.id}/", {"color": "#3b82f6"}, format="json"
+    )
+
+    assert response.status_code == 200
+
+
 @pytest.mark.parametrize(
     "choice,expected", [(None, "inbox"), ("inbox", "inbox"), ("archive", "archived")]
 )
@@ -193,3 +244,37 @@ def test_deleting_a_collection_moves_its_children_up_a_level(api, user, work):
     assert api.delete(f"/api/collections/{work.id}/").status_code == 204
     acme.refresh_from_db()
     assert acme.parent is None
+
+
+def test_a_child_moving_up_is_numbered_if_its_name_is_there(api, user, work):
+    clients = Collection.objects.create(owner=user, name="Clients", parent=work)
+    Collection.objects.create(owner=user, name="Acme", parent=work)
+    acme = Collection.objects.create(owner=user, name="acme", parent=clients)
+    globex = Collection.objects.create(owner=user, name="Globex", parent=clients)
+
+    assert api.delete(f"/api/collections/{clients.id}/").status_code == 204
+
+    acme.refresh_from_db()
+    globex.refresh_from_db()
+    assert (acme.name, acme.parent) == ("acme 2", work)
+    assert (globex.name, globex.parent) == ("Globex", work)
+
+
+def test_a_child_named_like_its_deleted_parent_keeps_the_name(api, user, work):
+    updates = Collection.objects.create(owner=user, name="Updates", parent=work)
+    inner = Collection.objects.create(owner=user, name="Updates", parent=updates)
+
+    assert api.delete(f"/api/collections/{updates.id}/").status_code == 204
+
+    inner.refresh_from_db()
+    assert (inner.name, inner.parent) == ("Updates", work)
+
+
+def test_deleting_an_account_with_repeated_names(user, work):
+    blog = Collection.objects.create(owner=user, name="Blog")
+    Collection.objects.create(owner=user, name="Ideas", parent=work)
+    Collection.objects.create(owner=user, name="Ideas", parent=blog)
+
+    user.delete()
+
+    assert not Collection.objects.exists()

@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Profile
+from apps.accounts.quota import QuotaExceeded, check_room, file_size
 from apps.accounts.views import AvatarSerializer
 from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item, NoteImage, NoteLink
@@ -39,6 +40,7 @@ from .pages import (
 from .sites import (
     current_site,
     is_app_host,
+    is_embed_host,
     listed_notes,
     normalize_hostname,
     public_urls,
@@ -404,9 +406,10 @@ class PublicSiteSocialImageView(APIView):
 
 class SiteCheckView(APIView):
     """
-    `?domain=<hostname>`: 200 if it is a verified blog's, 404 otherwise. A
-    reverse proxy that issues certificates on demand (Caddy's `ask`) asks
-    this before getting one, so it never gets one for a domain nobody added.
+    `?domain=<hostname>`: 200 if it is a verified blog's or the embed host,
+    404 otherwise. A reverse proxy that issues certificates on demand
+    (Caddy's `ask`) asks this before getting one, so it never gets one for a
+    domain nobody added.
     """
 
     authentication_classes = []
@@ -414,6 +417,8 @@ class SiteCheckView(APIView):
 
     def get(self, request):
         hostname = normalize_hostname(request.query_params.get("domain", ""))
+        if is_embed_host(hostname):
+            return HttpResponse(status=200)
         if not hostname or not verified_sites().filter(hostname=hostname).exists():
             raise Http404
         return HttpResponse(status=200)
@@ -625,6 +630,10 @@ class SiteViewSet(
                 raise serializers.ValidationError(
                     {"file": "Use a JPEG, PNG, GIF or WebP image under 2 MB."}
                 )
+            try:
+                check_room(request.user, len(data), freed=file_size(image))
+            except QuotaExceeded as exc:
+                raise serializers.ValidationError({"file": str(exc)}) from None
             # The name comes from the field's `upload_to`.
             image.save(field, ContentFile(data), save=False)
         else:

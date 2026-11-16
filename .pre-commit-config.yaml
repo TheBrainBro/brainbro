@@ -7,8 +7,14 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
 
+  # Secrets in the staged changes. Same release as the CI scan.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
+    rev: v0.17.4
     hooks:
       - id: ruff-check
         args: [--fix, --config, backend/pyproject.toml]
@@ -23,7 +29,8 @@ repos:
     hooks:
       - id: oxlint
         name: oxlint
-        entry: npm --prefix frontend exec -- oxlint
+        # The Semgrep rules submodule holds deliberately broken test code.
+        entry: npm --prefix frontend exec -- oxlint --ignore-pattern=.github/semgrep/rules/**
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx)$
         pass_filenames: false

@@ -11,8 +11,8 @@ none). The choice is saved on the account, like the theme, so it holds on
 every device; each device also remembers it, so the first paint is already
 in the right language before the session arrives.
 
-Published notes (`/p/...`) are read by people without an account: their
-page follows the visitor's browser.
+Public notes and blogs are read by people without an account: their pages
+follow the visitor's browser.
 
 ## In the code
 

@@ -15,6 +15,8 @@ export type Session = {
   authenticated: boolean
   user: User | null
   limits?: { upload_max_size: number }
+  /** Where the code this server runs can be downloaded (AGPL section 13). */
+  source_code_url?: string
   /** Whether this user already closed the welcome tour, on any device. */
   welcome_seen?: boolean
   /** Where the guided tour stands, the same on every device. */
@@ -26,6 +28,8 @@ export type Session = {
   /** The language chosen, the same on every device; `system` follows the browser. */
   language?: LanguageChoice
   profile?: Profile
+  /** Whether the server can send email, so a forgotten password can be reset. */
+  email_enabled?: boolean
 }
 
 /** The parts of the guided tour: its first loop, then the tracks from its hub. */
@@ -160,6 +164,50 @@ export function useSetAvatar() {
     const form = new FormData()
     form.append('file', image, 'avatar.webp')
     return api<Profile>('/auth/profile/avatar/', { method: 'POST', body: form })
+  })
+}
+
+/** Where a password reset link goes; empty removes it. */
+export function useSaveEmail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (email: string) =>
+      api<{ email: string }>('/auth/email/', { method: 'PUT', body: JSON.stringify({ email }) }),
+    onSuccess: ({ email }) =>
+      queryClient.setQueryData<Session>(sessionKey, (session) =>
+        session?.user ? { ...session, user: { ...session.user, email } } : session,
+      ),
+  })
+}
+
+/** Emails a link to choose a new password, if an account uses `email`. */
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api<void>('/auth/password-reset/', { method: 'POST', body: JSON.stringify({ email }) }),
+  })
+}
+
+/** Whether a reset link still works, and whose account it is: an error if not. */
+export function usePasswordResetCheck(uid: string, token: string) {
+  return useQuery({
+    queryKey: ['password-reset', uid, token],
+    queryFn: () => api<{ username: string }>(`/auth/password-reset/${uid}/${token}/`),
+    retry: false,
+    staleTime: Infinity,
+  })
+}
+
+/** Sets the new password with the link; the user ends up signed in. */
+export function useResetPassword(uid: string, token: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (password: string) =>
+      api<Session>(`/auth/password-reset/${uid}/${token}/`, {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+      }),
+    onSuccess: (session) => queryClient.setQueryData(sessionKey, session),
   })
 }
 

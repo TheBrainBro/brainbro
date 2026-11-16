@@ -5,7 +5,8 @@ y-websocket's binary protocol.
 
 Django doesn't serve WebSockets: `config.asgi` sends them here. Like the API,
 it needs the session cookie, sent from this site (Origin), and a note the
-user can open: today, one of their own.
+user can open: today, one of their own. It is checked again while the
+connection stays open (`RECHECK_SECONDS`).
 """
 
 import asyncio
@@ -32,6 +33,9 @@ PATH = re.compile(r"^/api/live/notes/(?P<id>[0-9a-f-]{36})$")
 CLOSE_FORBIDDEN = 4403
 # A message the protocol can't read.
 CLOSE_INVALID = 1007
+# How often an open connection checks that it may still open the note: signed
+# out, a changed password or a disabled account end it within this long.
+RECHECK_SECONDS = 60
 
 rooms = Rooms()
 
@@ -62,6 +66,7 @@ def same_origin(scope):
 def user_of(scope):
     request = HttpRequest()
     cookies = parse_cookie(header(scope, b"cookie"))
+    # nosemgrep: non-literal-import -- the session engine from settings, not user input
     engine = import_module(settings.SESSION_ENGINE)
     request.session = engine.SessionStore(cookies.get(settings.SESSION_COOKIE_NAME))
     return get_user(request)
@@ -72,6 +77,15 @@ def can_open(scope, note_id):
     if not user.is_authenticated:
         return False
     return Item.objects.filter(id=note_id, owner=user, kind=Item.Kind.NOTE).exists()
+
+
+async def keep_checking(scope, note_id, session):
+    """Closes `session` once its sign-in no longer opens the note."""
+    while True:
+        await asyncio.sleep(RECHECK_SECONDS)
+        if not await in_thread(can_open)(scope, note_id):
+            session.close(CLOSE_FORBIDDEN)
+            return
 
 
 async def websocket(scope, receive, send):
@@ -92,12 +106,13 @@ async def websocket(scope, receive, send):
 
     session = Session(send)
     writer = asyncio.create_task(session.write())
+    checker = asyncio.create_task(keep_checking(scope, match["id"], session))
     room = None
     try:
         room = await rooms.join(match["id"], session)
         while True:
             event = await receive()
-            if event["type"] == "websocket.disconnect":
+            if event["type"] == "websocket.disconnect" or session.closed:
                 break
             if event.get("bytes"):
                 await room.receive(session, event["bytes"])
@@ -107,6 +122,7 @@ async def websocket(scope, receive, send):
         logger.warning("Closed a note's connection on a bad message.", exc_info=True)
         session.close(CLOSE_INVALID)
     finally:
+        checker.cancel()
         if room is not None:
             await rooms.leave(room, session)
         session.close()

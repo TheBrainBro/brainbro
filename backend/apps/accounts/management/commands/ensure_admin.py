@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from config.env import get_env_variable
 
@@ -22,6 +22,14 @@ class Command(BaseCommand):
         if User.objects.filter(username=username).exists():
             self.stdout.write(f"Admin user '{username}' already exists.")
             return
+
+        # The placeholder in stack.env.example: an admin with a password
+        # anyone can read. Fails the deploy before the account exists.
+        if password == "CHANGE_ME":
+            raise CommandError(
+                "ADMIN_PASSWORD is still CHANGE_ME. Set it in stack.env before "
+                "the first deploy."
+            )
 
         User.objects.create_superuser(
             username=username,

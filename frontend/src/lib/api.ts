@@ -1,6 +1,7 @@
 // Thin fetch wrapper for the Django API: same-origin session cookies + CSRF.
 
 import { t } from '../i18n/i18n'
+import { randomId } from './dom'
 
 export class ApiError extends Error {
   status: number
@@ -36,9 +37,8 @@ const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 /**
  * This tab, on every request: the server's change stream (live/changes)
  * marks what it changed with it, so this tab skips what it already shows.
- * Not crypto.randomUUID: it needs HTTPS, and the app may be on a LAN address.
  */
-export const TAB_ID = Array.from({ length: 4 }, () => Math.random().toString(36).slice(2)).join('')
+export const TAB_ID = randomId()
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase()

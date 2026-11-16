@@ -1,10 +1,11 @@
 from django.core.asgi import get_asgi_application
 
+from apps.core.body_limit import limit_body
 from config.env import set_settings_module
 
 set_settings_module()
 
-django_application = get_asgi_application()
+django_application = limit_body(get_asgi_application())
 
 # After setup: it loads models.
 from apps.collab.asgi import websocket  # noqa: E402

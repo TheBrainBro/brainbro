@@ -1,0 +1,6 @@
+name: BrainBro CodeQL config
+
+# Third-party bundles we ship as-is, and generated migrations.
+paths-ignore:
+  - frontend/public/draco
+  - backend/apps/*/migrations

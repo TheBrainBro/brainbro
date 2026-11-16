@@ -159,6 +159,11 @@
    "html": "<span class=\"link-embed\"><iframe src=\"https://player.vimeo.com/video/12345\" title=\"V\" loading=\"lazy\" allow=\"autoplay; encrypted-media; picture-in-picture; fullscreen\" allowfullscreen=\"\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span><span class=\"link-embed\"><iframe src=\"https://www.loom.com/embed/0123456789abcdef0123456789abcdef\" title=\"L\" loading=\"lazy\" allow=\"autoplay; encrypted-media; picture-in-picture; fullscreen\" allowfullscreen=\"\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span>"
   },
   {
+   "name": "embed a post from X",
+   "body": "[Post](https://x.com/jack/status/20 \"embed\")\n\n[Old](https://twitter.com/i/web/status/1234567890 \"embed\")",
+   "html": "<span class=\"link-embed link-embed-post\"><iframe src=\"http://embed.testserver/x/20\" title=\"Post\" loading=\"lazy\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span><span class=\"link-embed link-embed-post\"><iframe src=\"http://embed.testserver/x/1234567890\" title=\"Old\" loading=\"lazy\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox\" referrerpolicy=\"strict-origin-when-cross-origin\"></iframe></span>"
+  },
+  {
    "name": "embed without a player",
    "body": "[A page](https://example.com/a \"embed\")",
    "html": "<a class=\"link-card\" data-status=\"ready\" href=\"https://example.com/a\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"link-card-text\"><span class=\"link-card-title\">A \"page\"</span><span class=\"link-card-description\">About &lt;a&gt;</span><span class=\"link-card-site\">Example</span></span><img class=\"link-card-image\" src=\"/api/public/l/1?v=b.webp\" alt=\"\" loading=\"lazy\"></a>"

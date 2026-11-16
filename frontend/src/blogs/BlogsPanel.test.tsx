@@ -254,7 +254,7 @@ describe('BlogsPanel', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'Add link' }))
     fireEvent.change(within(card).getByLabelText('Link 1 name'), { target: { value: 'Website' } })
     fireEvent.change(within(card).getByLabelText('Link 1 address'), {
-      target: { value: 'https://carlos.dev' },
+      target: { value: 'https://alex.example.org' },
     })
     fireEvent.click(within(card).getByRole('button', { name: 'Add link' }))
     fireEvent.click(within(card).getByRole('button', { name: 'Save' }))
@@ -269,7 +269,7 @@ describe('BlogsPanel', () => {
             description: '',
             author: '',
             author_url: '',
-            links: [{ name: 'Website', url: 'https://carlos.dev' }],
+            links: [{ name: 'Website', url: 'https://alex.example.org' }],
           }),
         }),
       ),
@@ -303,7 +303,7 @@ describe('BlogsPanel', () => {
   })
 
   it('saves the author’s website', async () => {
-    const url = 'https://carlos.example.com/'
+    const url = 'https://alex.example.com/'
     const fetchMock = renderPanel([blog], {
       'PATCH /api/sites/s1/': () => jsonResponse({ ...blog, author_url: url }),
     })

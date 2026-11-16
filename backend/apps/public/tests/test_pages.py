@@ -14,6 +14,8 @@ def build(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
     (tmp_path / "index.html").write_text(INDEX)
     settings.FRONTEND_DIST_DIR = tmp_path
+    # The page's own tags only: not the embed host's (see test_embeds).
+    settings.EMBED_URL = ""
 
 
 def note(user, title="", body="text"):
@@ -55,13 +57,13 @@ def test_a_public_page_tells_what_it_is(client, user):
 
 
 def test_a_page_names_its_author(client, user):
-    Profile.objects.create(user=user, display_name="Carlos <L>")
+    Profile.objects.create(user=user, display_name="Alex <R>")
     publish(note(user, title="Plan"))
 
     # The handle is made from the display name.
-    html = client.get("/@carlos-l/plan").content.decode()
+    html = client.get("/@alex-r/plan").content.decode()
 
-    assert '<meta name="author" content="Carlos &lt;L&gt;" />' in html
+    assert '<meta name="author" content="Alex &lt;R&gt;" />' in html
 
 
 def test_pages_not_published_say_nothing(client, user):
@@ -92,13 +94,13 @@ def test_an_old_address_two_notes_share_leads_nowhere(client, user, other_user):
 
 
 def test_an_author_s_page_tells_who_it_is(client, user):
-    Profile.objects.create(user=user, display_name="Carlos <L>")
+    Profile.objects.create(user=user, display_name="Alex <R>")
     publish(note(user, title="Plan"))
 
-    html = client.get("/@carlos-l").content.decode()
+    html = client.get("/@alex-r").content.decode()
 
-    assert "<title>Carlos &lt;L&gt;</title>" in html
-    assert '<link rel="canonical" href="http://testserver/@carlos-l" />' in html
+    assert "<title>Alex &lt;R&gt;</title>" in html
+    assert '<link rel="canonical" href="http://testserver/@alex-r" />' in html
 
 
 def test_no_such_author_says_nothing(client, db):

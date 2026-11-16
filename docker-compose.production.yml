@@ -1,26 +1,27 @@
 ##########################################################################
-# PRODUCTION stack (Umbrel / Portainer git stack).                       #
+# PRODUCTION stack, from the images published to GHCR.                   #
 #                                                                        #
-#   docker compose --env-file stack.env -f docker-compose.production.yml up -d --build
+#   docker compose --env-file stack.env -f docker-compose.production.yml up -d
 #                                                                        #
-# Only `api` publishes a port; point the Cloudflare Tunnel at it.        #
-# Postgres and Redis stay on the internal network. See docs/deployment.md.
+# Overrides, added with more -f options:                                 #
+#   docker-compose.build.yml   builds the images from this checkout      #
+#   docker-compose.umbrel.yml  the Umbrel firewall workaround            #
+#                                                                        #
+# Only `api` publishes a port. Postgres and Redis stay on the internal   #
+# network. See docs/deployment.md.                                       #
 ##########################################################################
 
 name: "brain"
 
-# The stack's network. `firewall` opens forwarding for exactly this subnet.
-x-subnet: &subnet 10.77.0.0/24
-
 x-app: &app
-  build:
-    context: .
-    dockerfile: Dockerfile
+  image: ghcr.io/thebrainbro/brainbro:${BRAINBRO_VERSION:-latest}
   restart: unless-stopped
   environment:
     ENVIRONMENT: production
     SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required (openssl rand -base64 48)}
     APP_HOSTNAMES: ${APP_HOSTNAMES:?APP_HOSTNAMES is required, e.g. brainbro.example.com}
+    APP_HTTPS: ${APP_HTTPS:-true}
+    APP_PROXY: ${APP_PROXY:-none}
     TIME_ZONE: ${TIME_ZONE:-UTC}
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
@@ -31,15 +32,23 @@ x-app: &app
     EMBEDDER_URL: http://embedder:8000
     BACKUP_RETENTION: ${BACKUP_RETENTION:-14}
     UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-52428800}
+    STORAGE_QUOTA: ${STORAGE_QUOTA:-}
     IMPORT_MAX_SIZE: ${IMPORT_MAX_SIZE:-104857600}
+    SOURCE_CODE_URL: ${SOURCE_CODE_URL:-https://github.com/TheBrainBro/brainbro}
     TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
     TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+    EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+    EMAIL_FROM: ${EMAIL_FROM:-}
+    MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+    MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+    MAILGUN_REGION: ${MAILGUN_REGION:-us}
     ADMIN_USERNAME: ${ADMIN_USERNAME:-}
     ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     SITE_CNAME_TARGET: ${SITE_CNAME_TARGET:-}
     SITE_IPV4: ${SITE_IPV4:-}
+    EMBED_HOSTNAME: ${EMBED_HOSTNAME:-}
   volumes:
     - storage:/data/storage
     - backups:/data/backups
@@ -47,7 +56,7 @@ x-app: &app
 
 services:
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17
+    image: pgvector/pgvector:0.8.7-pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-brain}
@@ -63,7 +72,7 @@ services:
       start_period: 20s
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.0-alpine
     restart: unless-stopped
     volumes:
       - redis_data:/data
@@ -77,27 +86,8 @@ services:
   # image (nothing leaves the server). ~600 MB of memory. Without it, search
   # still works by words.
   embedder:
-    build:
-      context: docker/embedder
+    image: ghcr.io/thebrainbro/brainbro-embedder:${BRAINBRO_VERSION:-latest}
     restart: unless-stopped
-
-  # Umbrel only needs it: lets the stack's subnet through the host firewall,
-  # otherwise containers can't reach each other. See docker/firewall/entrypoint.sh.
-  firewall:
-    build:
-      context: docker/firewall
-    restart: unless-stopped
-    network_mode: host
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    environment:
-      STACK_SUBNET: *subnet
-    healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
 
   # One-shot: backup if needed, migrate, ensure admin. api/worker wait for it.
   migrate:
@@ -105,8 +95,6 @@ services:
     restart: "no"
     command: ["migrate"]
     depends_on:
-      firewall:
-        condition: service_healthy
       postgres:
         condition: service_healthy
 
@@ -114,7 +102,8 @@ services:
     <<: *app
     command: ["api"]
     ports:
-      - "${APP_PORT:-8420}:8000"
+      # Without APP_BIND, on every interface (IPv4 and IPv6).
+      - "${APP_BIND:+${APP_BIND}:}${APP_PORT:-8420}:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -141,8 +130,7 @@ services:
   # demand. Behind a tunnel it isn't needed. Start it with
   # `--profile caddy` (or COMPOSE_PROFILES=caddy). See docs/blogs.md.
   caddy:
-    build:
-      context: docker/caddy
+    image: ghcr.io/thebrainbro/brainbro-caddy:${BRAINBRO_VERSION:-latest}
     profiles: ["caddy"]
     restart: unless-stopped
     environment:
@@ -155,13 +143,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-
-# Fixed subnet so `firewall` knows which traffic to let through.
-networks:
-  default:
-    ipam:
-      config:
-        - subnet: *subnet
 
 volumes:
   postgres_data:

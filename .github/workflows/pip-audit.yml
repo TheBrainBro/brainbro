@@ -1,0 +1,46 @@
+name: pip-audit
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  # Weekly, for advisories published against dependencies that did not
+  # change. Runs on the default branch.
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions: {}
+
+jobs:
+  # Checks the Python packages the images install against the PyPI advisory
+  # database. Fails on any known vulnerability not listed, with its reason,
+  # in .github/pip-audit/ignore.txt.
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The Python of both images: the embedder's requirements resolve as
+      # they do in its build.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install --requirement .github/pip-audit/requirements.txt
+      # Same export as the Dockerfile's requirements stage, with hashes: the
+      # exact packages poetry.lock pins for the image, without dev
+      # dependencies, audited without resolving or installing anything.
+      - run: pipx install poetry==2.3.2 && pipx inject poetry poetry-plugin-export==1.10.0
+      - name: Backend (poetry.lock)
+        working-directory: backend
+        run: |
+          poetry export --format requirements.txt --output "$RUNNER_TEMP/backend.txt"
+          ../.github/pip-audit/audit.sh --requirement "$RUNNER_TEMP/backend.txt" --require-hashes --disable-pip
+      # Only fastembed is pinned there, so pip-audit resolves the rest the way
+      # a fresh build would.
+      - name: Embedder (docker/embedder/requirements.txt)
+        if: ${{ !cancelled() }}
+        run: .github/pip-audit/audit.sh --requirement docker/embedder/requirements.txt

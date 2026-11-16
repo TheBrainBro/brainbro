@@ -78,6 +78,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def check():
+    # nosemgrep: dynamic-urllib-use-detected -- a fixed local health check URL
     with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/health", timeout=2):
         pass
 

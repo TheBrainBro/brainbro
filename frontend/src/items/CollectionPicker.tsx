@@ -29,7 +29,7 @@ export function CollectionPicker({
   const all = collections.data ?? []
   const needle = query.trim().toLowerCase()
   const visible = needle ? all.filter((c) => c.name.toLowerCase().includes(needle)) : all
-  const exact = all.find((c) => c.name.toLowerCase() === needle)
+  const named = all.filter((c) => c.name.toLowerCase() === needle)
 
   function toggle(id: string) {
     setChecked((current) => {
@@ -50,8 +50,11 @@ export function CollectionPicker({
       if (checked.size) confirm()
       return
     }
-    if (exact) {
-      toggle(exact.id)
+    // Several with this name, in different places: the list shows where each
+    // one is, and picking is left to a click.
+    if (named.length > 1) return
+    if (named.length === 1) {
+      toggle(named[0].id)
       setQuery('')
       return
     }
@@ -126,7 +129,7 @@ export function CollectionPicker({
               {t('collectionPicker.none')}
             </li>
           )}
-          {needle && !exact && (
+          {needle && named.length === 0 && (
             <li className="flex items-center gap-2 px-2 py-1.5 text-sm text-zinc-500">
               <FolderPlus className="size-4" aria-hidden="true" />
               {t('collectionPicker.enterToCreate', { name: query.trim() })}

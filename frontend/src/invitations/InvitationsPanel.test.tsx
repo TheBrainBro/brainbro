@@ -15,6 +15,7 @@ function jsonResponse(body: unknown, status = 200) {
 const pending: Invitation = {
   id: 'i1',
   note: 'Ana',
+  email: '',
   created_at: '2026-01-01T00:00:00Z',
   expires_at: '2026-01-08T00:00:00Z',
   status: 'pending',
@@ -33,12 +34,22 @@ const accepted: Invitation = {
 
 const expired: Invitation = { ...pending, id: 'i4', note: 'Cris', status: 'expired' }
 
-function renderPanel(invitations: Invitation[]) {
-  const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+function renderPanel(
+  invitations: Invitation[],
+  { emailEnabled = false, emailResult = {} as Record<string, unknown> } = {},
+) {
+  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === '/api/auth/session/') {
+      return jsonResponse({
+        authenticated: true,
+        user: { id: 1, username: 'admin', email: '', is_staff: true },
+        email_enabled: emailEnabled,
+      })
+    }
     if (init?.method === 'POST') {
-      const { note } = JSON.parse(String(init.body))
+      const { note, email = '' } = JSON.parse(String(init.body))
       return jsonResponse(
-        { ...pending, id: 'i2', note, url: 'https://brainbro.example.com/join/secret' },
+        { ...pending, id: 'i2', note, email, url: 'https://brainbro.example.com/join/secret', ...emailResult },
         201,
       )
     }
@@ -120,5 +131,49 @@ describe('InvitationsPanel', () => {
         expect.objectContaining({ method: 'DELETE' }),
       ),
     )
+  })
+
+  it('asks for no email while the server sends none', async () => {
+    renderPanel([])
+
+    await screen.findByRole('button', { name: 'Create link' })
+    expect(screen.queryByRole('textbox', { name: 'Email (optional)' })).not.toBeInTheDocument()
+  })
+
+  it('emails the link and still shows it', async () => {
+    const fetchMock = renderPanel([], { emailEnabled: true, emailResult: { email_sent: true, email_provider: 'Mailgun' } })
+
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Email (optional)' }), {
+      target: { value: 'bea@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create link' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Handed to Mailgun for bea@example.com')
+    expect(screen.getByRole('textbox', { name: 'Invitation link' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/invitations/',
+      expect.objectContaining({ body: JSON.stringify({ note: '', email: 'bea@example.com' }) }),
+    )
+  })
+
+  it('says when the email could not be sent, with the link to share by hand', async () => {
+    renderPanel([], {
+      emailEnabled: true,
+      emailResult: { email_error: "The email couldn't be sent: Forbidden" },
+    })
+
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Email (optional)' }), {
+      target: { value: 'bea@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create link' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Forbidden')
+    expect(screen.getByRole('textbox', { name: 'Invitation link' })).toBeInTheDocument()
+  })
+
+  it('shows where a pending link was emailed', async () => {
+    renderPanel([{ ...pending, email: 'ana@example.com' }])
+
+    expect(await screen.findByText(/sent to ana@example.com/)).toBeInTheDocument()
   })
 })

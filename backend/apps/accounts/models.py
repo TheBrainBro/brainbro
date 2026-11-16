@@ -66,6 +66,13 @@ class Profile(TimestampedModel):
     handle = models.SlugField(max_length=40, unique=True, null=True, blank=True)
     # A square WebP, made from an upload like a collection's image.
     avatar = models.ImageField(upload_to=avatar_path, blank=True, db_default="")
+    # The most this user may store, in MB (see `quota`). Empty: the
+    # server's STORAGE_QUOTA.
+    storage_quota = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="In MB. Empty: the server's STORAGE_QUOTA.",
+    )
 
     def __str__(self):
         return f"Profile of {self.user}"
@@ -94,6 +101,8 @@ class Invitation(TimestampedModel):
     )
     # Who it's for, so the admin can tell links apart. Never shown to them.
     note = models.CharField(max_length=100, blank=True)
+    # Where it was emailed, if it was; the join page fills it in.
+    email = models.EmailField(blank=True)
     token_hash = models.CharField(max_length=64, unique=True)
     expires_at = models.DateTimeField()
     # Set when someone joins with it; it can't be used again.
@@ -125,12 +134,13 @@ class Invitation(TimestampedModel):
         return cls.objects.filter(used_at__isnull=True, expires_at__gt=timezone.now())
 
     @classmethod
-    def issue(cls, created_by, note, lifetime):
+    def issue(cls, created_by, note, lifetime, email=""):
         """A new invitation and its token, which is never stored."""
         token = secrets.token_urlsafe(32)
         invitation = cls.objects.create(
             created_by=created_by,
             note=note,
+            email=email,
             token_hash=ApiToken.hash(token),
             expires_at=timezone.now() + lifetime,
         )
@@ -168,6 +178,10 @@ class OAuthClient(TimestampedModel):
     redirect_uris = models.JSONField(default=list)
     # Empty for public clients, which prove themselves with PKCE only.
     secret_hash = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        verbose_name = "OAuth client"
+        verbose_name_plural = "OAuth clients"
 
     def __str__(self):
         return self.name
@@ -218,6 +232,8 @@ class ApiToken(OwnedModel):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "API token"
+        verbose_name_plural = "API tokens"
 
     def __str__(self):
         return f"{self.name} ({self.prefix}…)"

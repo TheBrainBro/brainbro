@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from celery.schedules import crontab
+from django.templatetags.static import static
+from django.utils.csp import CSP
 from dotenv import load_dotenv
 
 from config.env import get_env_variable
@@ -57,6 +59,9 @@ MIDDLEWARE = [
     "apps.public.sites.SiteMiddleware",
     # A blog's old addresses, before its own pages.
     "apps.public.redirects.RedirectMiddleware",
+    # Before WhiteNoise, so the build's index.html, which the service worker
+    # opens offline, gets the app's policy too.
+    "apps.core.csp.ContentSecurityPolicyMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -71,11 +76,88 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+# Content Security Policy: what each page may load, one policy per kind of
+# page (apps.core.csp). Every script is a file of our own: none is written
+# into the HTML. A view that sets its own policy keeps it (uploaded files).
+
+# The players a note can embed (lib/linkPreviews, apps.public.note_html).
+# The embed host's page (`EMBED_URL`) is added to `frame-src` per request,
+# when it is set (apps.core.csp).
+CSP_EMBEDS = [
+    "https://www.youtube-nocookie.com",
+    "https://player.vimeo.com",
+    "https://www.loom.com",
+]
+CSP_BASE = {
+    "default-src": [CSP.SELF],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.NONE],
+    "frame-ancestors": [CSP.NONE],
+}
+# The app. WebAssembly and a worker made from a blob: the 3D mascot's Draco
+# decoder. Inline styles: the editor adds <style> tags, and tables align
+# their cells with `style`. Blobs: files shown before they are uploaded,
+# the 3D model's textures, audio waveforms and the PDF viewer.
+CSP_APP = {
+    **CSP_BASE,
+    "script-src": [CSP.SELF, CSP.WASM_UNSAFE_EVAL],
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "blob:", "data:"],
+    "media-src": [CSP.SELF, "blob:"],
+    "font-src": [CSP.SELF, "data:"],
+    "connect-src": [CSP.SELF, "blob:"],
+    "worker-src": [CSP.SELF, "blob:"],
+    "frame-src": ["blob:", *CSP_EMBEDS],
+    "form-action": [CSP.SELF],
+}
+# A blog on its owner's domain: its pages, styles and images, and the
+# players in its posts. Inline styles only as attributes (table cells).
+CSP_SITE = {
+    **CSP_BASE,
+    "default-src": [CSP.NONE],
+    "script-src": [CSP.SELF],
+    "style-src": [CSP.SELF],
+    "style-src-attr": [CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF],
+    "font-src": [CSP.SELF, "data:"],
+    "frame-src": CSP_EMBEDS,
+    "form-action": [CSP.NONE],
+}
+# Django's admin (Unfold): its Alpine.js runs expressions written in the
+# templates, which needs eval, and the templates use inline styles.
+CSP_ADMIN = {
+    **CSP_BASE,
+    "script-src": [CSP.SELF, CSP.UNSAFE_EVAL],
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "data:"],
+    "font-src": [CSP.SELF, "data:"],
+    "form-action": [CSP.SELF],
+}
+# The embed host's page of one post (apps.public.embeds): X's script, the
+# frames and scripts it loads, and the inline styles it sets. Any page may
+# frame it: it only shows a public post.
+CSP_EMBED = {
+    **CSP_BASE,
+    "default-src": [CSP.NONE],
+    "script-src": [CSP.SELF, "https://platform.x.com", "https://platform.twitter.com"],
+    "style-src": [CSP.UNSAFE_INLINE],
+    "frame-src": ["https://platform.twitter.com"],
+    "frame-ancestors": ["*"],
+    "form-action": [CSP.NONE],
+}
+SECURE_CSP = CSP_APP
+
 # Hosts: the app answers to `APP_HOSTS` (set per environment), and blogs to
 # their verified domains, which live in the database. Django can't list
 # those, so it accepts any host and `SiteMiddleware` turns away the rest.
 ALLOWED_HOSTS = ["*"]
 APP_HOSTS = []
+
+# Embeds that run a site's own script (posts from X, apps.public.embeds)
+# play from a hostname of their own, so that script never shares an origin
+# with the app or a blog. Empty: those links show as cards.
+EMBED_HOSTNAME = ""
+EMBED_URL = ""
 
 # Blogs on their own domains (apps.public.sites): what their DNS records
 # point at. The CNAME target defaults to the host the app is opened on; the
@@ -148,6 +230,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# How long a password reset link works, in seconds (apps.accounts.recovery).
+PASSWORD_RESET_TIMEOUT = 60 * 60
+
 # Internationalization
 
 LANGUAGE_CODE = "en-us"
@@ -182,6 +267,18 @@ MEDIA_URL = "/media/"
 # FILE_UPLOAD_MAX_MEMORY_SIZE (Django's default, 2.5 MB) is spooled to disk.
 UPLOAD_MAX_SIZE = int(get_env_variable("UPLOAD_MAX_SIZE", str(50 * 1024 * 1024)))
 
+# The most each user may store, in MB (apps.accounts.quota); a profile can set
+# its own. Empty: no quota.
+STORAGE_QUOTA = (
+    int(quota) if (quota := get_env_variable("STORAGE_QUOTA", "").strip()) else None
+)
+
+# Where the code this server runs can be downloaded, linked from the About
+# dialog (AGPL section 13). A modified version points it at its own source.
+SOURCE_CODE_URL = get_env_variable(
+    "SOURCE_CODE_URL", "https://github.com/TheBrainBro/brainbro"
+)
+
 # Database backups (apps.core.tasks.backup_database). Must live outside
 # MEDIA_ROOT so dumps can never be served.
 BACKUP_DIR = Path(get_env_variable("BACKUP_DIR", str(BASE_DIR / "backups")))
@@ -196,12 +293,26 @@ EXPORT_RETENTION_HOURS = int(get_env_variable("EXPORT_RETENTION_HOURS", "24"))
 # free plan refuses requests over 100 MB anyway.
 IMPORT_MAX_SIZE = int(get_env_variable("IMPORT_MAX_SIZE", str(100 * 1024 * 1024)))
 
+# The largest request body of any kind (apps.core.body_limit): the largest
+# file it can carry, plus room for the rest of a multipart form.
+REQUEST_MAX_SIZE = max(UPLOAD_MAX_SIZE, IMPORT_MAX_SIZE) + 1024 * 1024
+
 # Telegram bot (apps.telegram): messages sent or forwarded to it land in the
 # inbox of the account that connected the chat. Off without a token. The
 # worker points the bot at TELEGRAM_WEBHOOK_URL when it starts.
 TELEGRAM_BOT_TOKEN = get_env_variable("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = get_env_variable("TELEGRAM_BOT_USERNAME", "").lstrip("@")
 TELEGRAM_WEBHOOK_URL = get_env_variable("TELEGRAM_WEBHOOK_URL", "")
+
+# Transactional email (apps.core.mail): password reset links, for now. Off
+# while EMAIL_PROVIDER is empty. Mailgun's region is `us` or `eu`, the one
+# its domain was added in. The sender defaults to noreply@<MAILGUN_DOMAIN>.
+MAILERS = {"default": {"BACKEND": "apps.core.mail.EmailBackend"}}
+EMAIL_PROVIDER = get_env_variable("EMAIL_PROVIDER", "").strip().lower()
+EMAIL_FROM = get_env_variable("EMAIL_FROM", "").strip()
+MAILGUN_API_KEY = get_env_variable("MAILGUN_API_KEY", "").strip()
+MAILGUN_DOMAIN = get_env_variable("MAILGUN_DOMAIN", "").strip()
+MAILGUN_REGION = get_env_variable("MAILGUN_REGION", "us").strip().lower()
 
 # Semantic search (apps.items.embedder): the embedder container. Without it,
 # search goes by words alone.
@@ -223,6 +334,7 @@ CSRF_COOKIE_SAMESITE = "Lax"
 
 # Django REST Framework
 
+# nosemgrep: missing-throttle-config -- limits are per endpoint, in apps.accounts.limits
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -239,6 +351,23 @@ REST_FRAMEWORK = {
 # Redis: the Celery broker, and how open tabs hear about changes (apps.events).
 
 REDIS_URL = get_env_variable("REDIS_URL", "redis://localhost:6389/0")
+
+# Shared by every `api` process: rate limits (apps.accounts.limits). The short
+# timeouts keep a sign-in from waiting on a Redis that doesn't answer.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "brainbro",
+        "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1},
+    }
+}
+
+# What sits in front of the app, which decides where the client's address is
+# read from: "cloudflare", "caddy", or "none" (the connection's own address).
+# Anything else counts as "none", because trusting a header nobody overwrites
+# would let clients write any address they like.
+APP_PROXY = get_env_variable("APP_PROXY", "none").strip().lower()
 
 # Celery
 
@@ -278,6 +407,15 @@ CELERY_BEAT_SCHEDULE = {
 UNFOLD = {
     "SITE_TITLE": f"{APP_NAME} admin",
     "SITE_HEADER": APP_NAME,
+    # The web app's build ships these under /static/ (see FRONTEND_DIST_DIR).
+    "SITE_ICON": lambda request: static("favicon.svg"),
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "type": "image/svg+xml",
+            "href": lambda request: static("favicon.svg"),
+        },
+    ],
 }
 
 LOGGING = {
@@ -286,12 +424,21 @@ LOGGING = {
     "formatters": {
         "verbose": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"},
     },
+    "filters": {
+        "drop_query_string": {"()": "apps.core.logs.DropQueryString"},
+    },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+        "access": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "filters": ["drop_query_string"],
+        },
     },
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO"},
         "django.db.backends": {"handlers": ["console"], "level": "WARNING"},
         "apps": {"handlers": ["console"], "level": "INFO"},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
     },
 }

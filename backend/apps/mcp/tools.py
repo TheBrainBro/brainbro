@@ -18,6 +18,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.models import Permission
+from apps.accounts.quota import QuotaExceeded, check_room
 from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
@@ -384,12 +385,14 @@ def create_collection(user, data):
     parent = None
     if data.get("parent_id"):
         parent = owned_collection(user, data["parent_id"])
-    # Names are unique per user, whatever the case.
-    clash = Collection.objects.filter(owner=user, name__iexact=data["name"]).first()
+    # Names are unique side by side, whatever the case.
+    clash = Collection.objects.filter(
+        owner=user, parent=parent, name__iexact=data["name"]
+    ).first()
     if clash:
         raise ToolError(
-            f"A collection named {clash.name!r} exists (id {clash.id}): use it, "
-            "or pick another name."
+            f"A collection named {clash.name!r} exists there (id {clash.id}): "
+            "use it, or pick another name."
         )
     collection = Collection.objects.create(
         owner=user, name=data["name"], kind=data["kind"], parent=parent
@@ -1135,6 +1138,10 @@ def import_image(user, data):
             f"{url} isn't an image BrainBro can show (JPEG, PNG, GIF, WebP, AVIF "
             f"or HEIC): it is {upload.mime}. Nothing was saved."
         )
+    try:
+        check_room(user, file.size)
+    except QuotaExceeded as exc:
+        raise ToolError(f"{exc} Nothing was saved.") from None
     # As one pasted into a note: unused until a note links it.
     image = NoteImage(
         owner=user,
@@ -1317,7 +1324,8 @@ TOOLS = {
                 "responsibility, like health) or resource (a topic of "
                 "interest, the default). With parent_id it goes inside "
                 "another collection. Only when the user asks for it or "
-                "agrees: check list_collections first, names are unique.\n\n"
+                "agrees: check list_collections first, and reuse one that "
+                "already covers it. Names are unique within a parent.\n\n"
                 'Example: {"name": "Japan trip", "kind": "project"}'
             ),
             arguments=CreateCollectionArguments,

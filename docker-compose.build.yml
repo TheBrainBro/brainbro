@@ -1,0 +1,28 @@
+# Builds the images from this checkout instead of pulling them from GHCR.
+# Goes after docker-compose.production.yml:
+#
+#   docker compose --env-file stack.env -f docker-compose.production.yml \
+#     -f docker-compose.build.yml up -d --build
+#
+# pull_policy: build always builds the image instead of pulling it.
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+  pull_policy: build
+
+services:
+  migrate: *app-build
+  api: *app-build
+  worker: *app-build
+
+  embedder:
+    build:
+      context: docker/embedder
+    pull_policy: build
+
+  caddy:
+    build:
+      context: docker/caddy
+    pull_policy: build

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Read-only token: the jobs only check out code and run checks.
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -23,16 +27,14 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - run: pipx install poetry==2.3.2 && pipx inject poetry poetry-plugin-export
+      - run: pipx install poetry==2.3.2
       - run: poetry install --no-interaction
-      - name: requirements*.txt match poetry.lock
-        run: |
-          poetry export -f requirements.txt --without-hashes | diff - requirements.txt
-          poetry export -f requirements.txt --without-hashes --only=dev | diff - requirements-dev.txt
       - run: poetry run ruff check .
       - run: poetry run ruff format --check .
       - run: poetry run python manage.py makemigrations --check --dry-run
@@ -44,10 +46,12 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 24
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -59,6 +63,18 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - run: docker build -t brainbro:ci .
       - run: docker build -t brainbro-embedder:ci docker/embedder
+      - name: Check the production compose files
+        run: |
+          prod="docker compose -f docker-compose.production.yml"
+          $prod config -q
+          $prod -f docker-compose.build.yml config -q
+          $prod -f docker-compose.build.yml -f docker-compose.umbrel.yml config -q
+        env:
+          SECRET_KEY: ci
+          APP_HOSTNAMES: ci
+          POSTGRES_PASSWORD: ci

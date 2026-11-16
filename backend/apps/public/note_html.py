@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import nh3
+from django.conf import settings
 from markdown_it import MarkdownIt
 from markdown_it.common.utils import escapeHtml
 from markdown_it.rules_inline.state_inline import Delimiter
@@ -71,6 +72,16 @@ EMBED_ORIGINS = (
     "https://player.vimeo.com/",
     "https://www.loom.com/embed/",
 )
+# A post on X: its page on the embed host (apps.public.embeds) runs X's script.
+X_POST = re.compile(
+    r"https?://(?:www\.|mobile\.)?(?:x|twitter)\.com/(?:i/web|i|\w{1,15})/status/(\d{1,20})",
+    re.ASCII,
+)
+# What a post's frame may do: run X's script in the embed host's origin, and
+# open the post's links in a new tab.
+POST_SANDBOX = (
+    "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+)
 
 ALLOWED_TAGS = {
     "a",
@@ -124,6 +135,7 @@ ALLOWED_ATTRIBUTES = {
         "allow",
         "allowfullscreen",
         "referrerpolicy",
+        "sandbox",
     },
     "img": {"src", "alt", "title", "loading"},
     "input": {"type", "checked", "disabled", "aria-label", "data-task-line"},
@@ -438,12 +450,26 @@ def link_previews(state):
         tokens[i - 1].hidden = tokens[i + 1].hidden = True
 
 
+def post_src(url):
+    """The embed host's page of the post on X at `url`, or None."""
+    if not settings.EMBED_URL or not (match := X_POST.match(url)):
+        return None
+    return f"{settings.EMBED_URL}/x/{match[1]}"
+
+
 def embed_src(url):
     """Where `url` can play inside the note, or None."""
     for pattern, src in PROVIDERS:
         if match := pattern.match(url):
             return src.format(match[1])
     return None
+
+
+def embed_origins():
+    """Where a player in a note may come from."""
+    if not settings.EMBED_URL:
+        return EMBED_ORIGINS
+    return (*EMBED_ORIGINS, f"{settings.EMBED_URL}/x/")
 
 
 def hostname(url):
@@ -487,10 +513,18 @@ def link_card(url, label, preview, messages):
 
 def link_embed(url, label, preview, messages):
     """The site's own player, for links that have one; a card for the rest."""
+    title = (preview or {}).get("title") or label or url
+    if post := post_src(url):
+        # Sized to the post by its page (public/embeds.js).
+        return (
+            '<span class="link-embed link-embed-post">'
+            f'<iframe src="{escapeHtml(post)}" '
+            f'title="{escapeHtml(title)}" loading="lazy" sandbox="{POST_SANDBOX}" '
+            'referrerpolicy="strict-origin-when-cross-origin"></iframe></span>'
+        )
     src = embed_src(url)
     if not src:
         return link_card(url, label, preview, messages)
-    title = (preview or {}).get("title") or label or url
     return (
         f'<span class="link-embed"><iframe src="{escapeHtml(src)}" '
         f'title="{escapeHtml(title)}" loading="lazy" '
@@ -594,7 +628,7 @@ markdown = build_markdown()
 
 def keep_attribute(tag, attribute, value):
     # Players only from known sites, whatever the HTML says.
-    if tag == "iframe" and attribute == "src" and not value.startswith(EMBED_ORIGINS):
+    if tag == "iframe" and attribute == "src" and not value.startswith(embed_origins()):
         return None
     return value
 

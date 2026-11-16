@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from rest_framework.test import APIClient
@@ -7,7 +8,7 @@ from rest_framework.test import APIClient
 
 @pytest.fixture
 def user(db):
-    return get_user_model().objects.create_user(username="carlos", password="pw")
+    return get_user_model().objects.create_user(username="alex", password="pw")
 
 
 @pytest.fixture
@@ -42,6 +43,12 @@ def relayed(monkeypatch):
         lambda note_id, kind, payload: messages.append((str(note_id), kind, payload)),
     )
     return messages
+
+
+@pytest.fixture(autouse=True)
+def no_attempts_yet():
+    """Rate limits start from zero: tests all come from the same address."""
+    cache.clear()
 
 
 @pytest.fixture

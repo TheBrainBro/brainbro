@@ -31,10 +31,10 @@ def test_start_with_a_code_links_the_chat(user, fake_bot):
         owner=user, code="abc", code_expires_at=timezone.now() + timedelta(minutes=5)
     )
 
-    handle_update(update(1, text="/start abc", **{"from": {"username": "carlos"}}))
+    handle_update(update(1, text="/start abc", **{"from": {"username": "alex"}}))
 
     link = TelegramLink.objects.get()
-    assert (link.chat_id, link.telegram_name, link.code) == (42, "@carlos", None)
+    assert (link.chat_id, link.telegram_name, link.code) == (42, "@alex", None)
     assert link.linked_at is not None
     assert "Connected to BrainBro" in fake_bot.sent("sendMessage")[0]["text"]
 
@@ -160,3 +160,18 @@ def test_what_comes_from_telegram_says_so(user, fake_bot):
 
     item = Item.objects.get(owner=user)
     assert (item.created_by, item.created_via) == ("", "telegram")
+
+
+def test_a_file_that_doesnt_fit_gets_a_thumbs_down_and_a_reason(
+    settings, user, fake_bot
+):
+    settings.STORAGE_QUOTA = 0
+    linked(user)
+    fake_bot.files = {"a": png()}
+
+    handle_update(update(1, photo=[{"file_id": "a", "width": 4, "height": 4}]))
+
+    assert fake_bot.sent("setMessageReaction")[0]["reaction"][0]["emoji"] == "👎"
+    answer = fake_bot.sent("sendMessage")[0]
+    assert answer["text"].startswith("Not enough storage left")
+    assert not Item.objects.exists()

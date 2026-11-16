@@ -132,6 +132,7 @@ def index_page(request, site, category=None):
         ),
     ]
     context.update(
+        # nosemgrep: avoid-mark-safe -- every value in the tags is escaped
         head=mark_safe(site_head_tags(request, site, category)),
         detail=author if site.show_author and author and author != title else "",
         description=site.description,
@@ -171,7 +172,15 @@ def note_page(request, site, slug):
         language,
     )
     url = site_url(site, f"/{note.public_slug}")
+    html = render_note(
+        without_title(note.body, title),
+        images=public_images(note, handle),
+        links=public_links(note, handle),
+        notes=linked_notes(request, note),
+        messages=text,
+    )
     context.update(
+        # nosemgrep: avoid-mark-safe -- every value in the tags is escaped
         head=mark_safe(note_head_tags(request, note, url)),
         title=title,
         published_at=note.published_at,
@@ -188,15 +197,10 @@ def note_page(request, site, slug):
             if edited
             else ""
         ),
-        html=mark_safe(
-            render_note(
-                without_title(note.body, title),
-                images=public_images(note, handle),
-                links=public_links(note, handle),
-                notes=linked_notes(request, note),
-                messages=text,
-            )
-        ),
+        # nosemgrep: avoid-mark-safe -- render_note sanitizes with nh3
+        html=mark_safe(html),
+        # Posts from X are sized to their height by a script of their own.
+        embeds_posts="link-embed-post" in html,
         more=more,
         more_title=text["public"]["moreFrom"].replace(
             "{name}", site_author(site) or f"@{handle}"
@@ -227,6 +231,7 @@ def not_found(request, exception=None):
     """Any address a blog doesn't have: a page for people, a 404 for crawlers."""
     site = current_site(request)
     context = page_context(request, site)
+    # nosemgrep: avoid-mark-safe -- fixed markup around escaped text
     context["head"] = mark_safe(
         f"<title>{escape(context['text']['public']['missing'])}</title>\n"
         '    <meta name="robots" content="noindex" />'
