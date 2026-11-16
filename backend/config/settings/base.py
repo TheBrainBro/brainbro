@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from celery.schedules import crontab
+from django.templatetags.static import static
 from django.utils.csp import CSP
 from dotenv import load_dotenv
 
@@ -406,6 +407,15 @@ CELERY_BEAT_SCHEDULE = {
 UNFOLD = {
     "SITE_TITLE": f"{APP_NAME} admin",
     "SITE_HEADER": APP_NAME,
+    # The web app's build ships these under /static/ (see FRONTEND_DIST_DIR).
+    "SITE_ICON": lambda request: static("favicon.svg"),
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "type": "image/svg+xml",
+            "href": lambda request: static("favicon.svg"),
+        },
+    ],
 }
 
 LOGGING = {

@@ -179,6 +179,10 @@ class OAuthClient(TimestampedModel):
     # Empty for public clients, which prove themselves with PKCE only.
     secret_hash = models.CharField(max_length=64, blank=True)
 
+    class Meta:
+        verbose_name = "OAuth client"
+        verbose_name_plural = "OAuth clients"
+
     def __str__(self):
         return self.name
 
@@ -228,6 +232,8 @@ class ApiToken(OwnedModel):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "API token"
+        verbose_name_plural = "API tokens"
 
     def __str__(self):
         return f"{self.name} ({self.prefix}…)"
