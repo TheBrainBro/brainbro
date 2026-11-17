@@ -2,6 +2,7 @@ import { LoaderCircle } from 'lucide-react'
 import { useRef, type ComponentType } from 'react'
 
 import { t, useT } from '../i18n/i18n'
+import { Logo as BrainBroMark } from '../layout/Logo'
 import { useLatestImport, useStartImport, type ImportSource } from './api'
 import { summary } from './summary'
 
@@ -42,7 +43,7 @@ export function ImportPanel() {
 
 /** BrainBro's own mark. */
 function BrainBroLogo() {
-  return <img src="/favicon.svg" alt="" className="size-5" />
+  return <BrainBroMark className="size-5" />
 }
 
 /** Obsidian's mark, from Simple Icons (CC0, see THIRD_PARTY_NOTICES.md), in its brand purple. */
