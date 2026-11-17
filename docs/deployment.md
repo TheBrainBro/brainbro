@@ -182,12 +182,12 @@ admin user does not exist yet.
 | `IMPORT_MAX_SIZE` | `104857600` (100 MB) | The largest Obsidian vault zip accepted by "Import from Obsidian", in bytes. See [import.md](import.md). |
 | `SOURCE_CODE_URL` | This repository | Linked from the About dialog. See [Source code link](#source-code-link). |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them. See [telegram.md](telegram.md). |
-| `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`, otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
+| `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`; otherwise the [public address](#public-address) when it is `https://`; otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
 | `EMAIL_PROVIDER` | Empty, email off | Who sends the server's email (password resets, invitations): `mailgun`. Settings saved in Settings, Server, Email are used instead. See [Email](#email). |
 | `EMAIL_FROM` | `BrainBro <noreply@<MAILGUN_DOMAIN>>` | Who the email comes from, e.g. `BrainBro <hello@example.com>`. |
 | `MAILGUN_API_KEY` / `MAILGUN_DOMAIN` | Empty | A Mailgun sending API key and the domain it sends from. |
 | `MAILGUN_REGION` | `us` | `us` or `eu`: where the Mailgun domain was added. |
-| `SITE_CNAME_TARGET` | Empty, the host BrainBro is opened on | The host blogs on their own domains point their `CNAME` at. See [blogs.md](blogs.md). |
+| `SITE_CNAME_TARGET` | Empty: the [public address](#public-address)'s host, or the host BrainBro is opened on | The host blogs on their own domains point their `CNAME` at. See [blogs.md](blogs.md). |
 | `SITE_IPV4` | Empty | The server's public IPv4, shown as an `A` record for root domains. Leave it empty behind a tunnel. |
 | `EMBED_HOSTNAME` | Empty, posts from X show as cards | The hostname posts from X play from, e.g. `embed.example.com`. See [Embed host](#embed-host). |
 
@@ -258,6 +258,31 @@ Each person adds the email reset links go to in Settings, Profile, or when they 
 invitation (filled in with the address the invitation was sent to). It is optional, and two
 accounts can't share one. A reset link works once, for an hour, and asking for one says the
 same whether or not an account uses that email.
+
+### Public address
+
+The address people outside open BrainBro on, e.g. `https://brain.example.com`, set by the
+admin in Settings, Server, Public address. Every address BrainBro sends or shows starts with
+it: invitation links and their email, password reset emails, public note and profile pages
+(their links and previews), what the AI assistant tools return, the MCP address in Settings,
+AI assistants, and the address in Settings, Profile and the About dialog. Without one, they
+start with the address BrainBro is opened on, which only works on that network when it is
+local (`umbrel.local:8420`, `192.168.1.20`): Settings, Invitations warns about it.
+
+- BrainBro answers on its host too, as if it were in `APP_HOSTNAMES`. Every other host it
+  answered on still works.
+- When it is `https://`, requests for its host trust the proxy's `X-Forwarded-Proto`, as
+  `APP_HTTPS=true` does for every host. That is what lets a tunnel sign in and send forms to a
+  server set up for plain HTTP, such as the Umbrel app.
+- With a Telegram bot and no `TELEGRAM_WEBHOOK_URL`, an `https://` address is where Telegram
+  sends the bot's messages; saving a new one points the bot there.
+- Links already sent keep the address they were made with, and still open while BrainBro
+  answers on it.
+- It can't be a blog's domain or the embed host. Typing only the host (`brain.example.com`)
+  saves it as `https://`.
+
+OAuth discovery for MCP clients keeps the address each client connected on: the address the
+client was given is the one it has to see in the answer.
 
 ### Source code link
 
@@ -347,6 +372,12 @@ stack**, give it a name, and pick **Git Repository**:
   from .env file**.
 
 Then **Deploy the stack**. The tunnel's **Service URL** is `http://<umbrel-ip>:8420`.
+
+On the Umbrel app (from the App Store), environment variables can't be set and it runs with
+`APP_HTTPS=false`. To reach it through a Cloudflare Tunnel, point the tunnel's published
+application at `http://<umbrel-ip>:8420`, then set its address in Settings, Server,
+[Public address](#public-address): BrainBro then answers on it, sign-in and forms work over
+the tunnel, and links, MCP and the Telegram webhook use it.
 
 ### Updating
 
