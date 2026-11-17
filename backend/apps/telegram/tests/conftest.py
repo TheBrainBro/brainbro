@@ -15,14 +15,28 @@ def telegram(settings, tmp_path):
 
 
 class FakeBot:
-    """Records Bot API calls; `files` are what downloads return, by file_id."""
+    """
+    Records Bot API calls; `files` are what downloads return, by file_id, and
+    `bots` the usernames of the tokens Telegram accepts.
+    """
 
     def __init__(self):
         self.calls = []
         self.files = {}
+        self.bots = {"123:abc": "brainbro_bot"}
+        # Calls made with a token of their own: (token, method).
+        self.as_bot = []
 
     def call(self, method, **params):
         self.calls.append((method, params))
+        return True
+
+    def call_as(self, token, method, **params):
+        self.as_bot.append((token, method))
+        if token not in self.bots:
+            raise bot.BotError(f"{method}: Unauthorized")
+        if method == "getMe":
+            return {"id": 1, "is_bot": True, "username": self.bots[token]}
         return True
 
     def download(self, file_id, size=None):
@@ -38,6 +52,7 @@ class FakeBot:
 def fake_bot(monkeypatch):
     fake = FakeBot()
     monkeypatch.setattr(bot, "call", fake.call)
+    monkeypatch.setattr(bot, "call_as", fake.call_as)
     monkeypatch.setattr(bot, "download", fake.download)
     return fake
 
