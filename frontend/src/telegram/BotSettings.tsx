@@ -45,43 +45,41 @@ function Status({ settings }: { settings: TelegramSettings }) {
 
   return (
     <div className="space-y-2">
-      <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
-        <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        {settings.source === 'database'
-          ? t('telegramServer.statusSaved', { bot: settings.bot_username })
-          : t('telegramServer.statusEnvironment', { bot: settings.bot_username })}
-      </p>
-      {settings.webhook_url ? (
-          <p className="text-xs break-all text-zinc-500">
-            {t('telegramServer.webhook', { url: settings.webhook_url })}
-          </p>
-        ) : (
-          <p role="alert" className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-400">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {t('telegramServer.noWebhook')}
-          </p>
-        )}
-      {settings.source === 'database' && (
-        <div className="space-y-1">
+      <div className="flex items-center justify-between gap-3">
+        <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
+          <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          {settings.source === 'database'
+            ? t('telegramServer.statusSaved', { bot: settings.bot_username })
+            : t('telegramServer.statusEnvironment', { bot: settings.bot_username })}
+        </p>
+        {settings.source === 'database' && (
           <button
             type="button"
-            className="button-secondary"
+            className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
             disabled={remove.isPending}
             onClick={() => remove.mutate()}
           >
             {t('telegramServer.remove')}
           </button>
-          <p className="text-xs text-zinc-500">
-            {settings.environment_configured
-              ? t('telegramServer.environmentOn')
-              : t('telegramServer.environmentOff')}
-          </p>
-          {remove.isError && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {remove.error.message}
-            </p>
-          )}
-        </div>
+        )}
+      </div>
+      {settings.webhook_url ? (
+        <p className="text-xs break-all text-zinc-500">
+          {t('telegramServer.webhook', { url: settings.webhook_url })}
+        </p>
+      ) : (
+        <p role="alert" className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {t('telegramServer.noWebhook')}
+        </p>
+      )}
+      {settings.source === 'database' && settings.environment_configured && (
+        <p className="text-xs text-zinc-500">{t('telegramServer.environmentOn')}</p>
+      )}
+      {remove.isError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {remove.error.message}
+        </p>
       )}
     </div>
   )

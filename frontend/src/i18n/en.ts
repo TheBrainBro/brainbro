@@ -248,10 +248,14 @@ export const en = {
       'Links start with {host}, which only opens on your network. To invite someone outside it, set the public address in Settings, Server, General.',
   },
   address: {
-    intro:
-      'Where people open BrainBro from outside your network. Every link BrainBro sends or shows starts with it: invitations, password resets, public notes and the address for AI assistants. If you use a Cloudflare Tunnel, enter its address here.',
+    intro: 'Where people open BrainBro from outside your network. If you use a Cloudflare Tunnel, enter its address.',
     label: 'Public address',
-    hint: 'Links sent from now on start with it. Those already sent keep their address. Empty, links start with the address BrainBro is opened on.',
+    usedBy: 'Every link BrainBro sends or shows starts with it',
+    usedByInvitations: 'Invitations',
+    usedByPasswordResets: 'Password resets',
+    usedByPublicNotes: 'Public notes',
+    usedByAssistants: 'AI assistants',
+    hint: 'Links already sent keep their old address.',
     hintEmpty: 'Empty, links start with the address BrainBro is opened on: right now, {origin}.',
     saved: 'Saved. Links sent from now on start with it.',
   },
@@ -263,9 +267,8 @@ export const en = {
     webhook: 'Telegram delivers its messages to {url}',
     noWebhook:
       'Telegram can’t deliver messages yet: it needs an HTTPS public address. Set it in Server, General.',
-    remove: 'Remove this bot',
+    remove: 'Remove',
     environmentOn: 'The environment variables set up another bot: it is used instead.',
-    environmentOff: 'The environment variables set up no bot: Telegram turns off.',
     token: 'Bot token',
     tokenSaved: 'Saved. Paste a new one to replace it.',
     tokenHint: 'From @BotFather. Checked with Telegram, stored encrypted and never shown again.',

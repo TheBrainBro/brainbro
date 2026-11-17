@@ -248,10 +248,14 @@ export const es: Messages = {
       'Los enlaces empiezan por {host}, que solo abre en tu red. Para invitar a alguien de fuera, pon la dirección pública en Ajustes, Servidor, General.',
   },
   address: {
-    intro:
-      'Donde la gente abre BrainBro desde fuera de tu red. Todos los enlaces que BrainBro envía o muestra empiezan por ella: invitaciones, recuperación de contraseña, notas públicas y la dirección para los asistentes de IA. Si usas un Cloudflare Tunnel, pon aquí su dirección.',
+    intro: 'Donde la gente abre BrainBro desde fuera de tu red. Si usas un Cloudflare Tunnel, pon su dirección.',
     label: 'Dirección pública',
-    hint: 'Los enlaces que se envíen a partir de ahora empiezan por ella. Los ya enviados mantienen su dirección. Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro.',
+    usedBy: 'Todos los enlaces que BrainBro envía o muestra empiezan por ella',
+    usedByInvitations: 'Invitaciones',
+    usedByPasswordResets: 'Recuperación de contraseña',
+    usedByPublicNotes: 'Notas públicas',
+    usedByAssistants: 'Asistentes de IA',
+    hint: 'Los enlaces ya enviados mantienen su dirección anterior.',
     hintEmpty: 'Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro: ahora mismo, {origin}.',
     saved: 'Guardada. Los enlaces que se envíen a partir de ahora empiezan por ella.',
   },
@@ -263,9 +267,8 @@ export const es: Messages = {
     webhook: 'Telegram entrega sus mensajes en {url}',
     noWebhook:
       'Telegram aún no puede entregar mensajes: necesita una dirección pública HTTPS. Configúrala en Servidor, General.',
-    remove: 'Quitar este bot',
+    remove: 'Quitar',
     environmentOn: 'Las variables de entorno configuran otro bot: se usará ese.',
-    environmentOff: 'Las variables de entorno no configuran ningún bot: Telegram se desactiva.',
     token: 'Token del bot',
     tokenSaved: 'Guardado. Pega uno nuevo para reemplazarlo.',
     tokenHint: 'De @BotFather. Se comprueba con Telegram, se guarda cifrado y no se vuelve a mostrar.',
