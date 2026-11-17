@@ -18,9 +18,10 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth import get_user
 from django.http import HttpRequest, parse_cookie
-from django.http.request import split_domain_port, validate_host
+from django.http.request import split_domain_port
 
 from apps.items.models import Item
+from apps.public.sites import is_app_host
 
 from .rooms import Rooms, Session, in_thread
 
@@ -49,9 +50,8 @@ def header(scope, name):
 
 def allowed_host(scope):
     """The Host is the app's (never a blog's), as `SiteMiddleware` checks for HTTP."""
-    hosts = settings.APP_HOSTS
     domain, _ = split_domain_port(header(scope, b"host"))
-    return bool(domain) and validate_host(domain, hosts)
+    return bool(domain) and is_app_host(domain)
 
 
 def same_origin(scope):

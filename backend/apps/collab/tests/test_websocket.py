@@ -386,3 +386,19 @@ def test_an_assistant_edit_merges_into_an_open_note(broker, note, user, relayed)
     run(scenario)
     note.refresh_from_db()
     assert note.body == "Hello\nFrom Claude"
+
+
+@pytest.mark.parametrize(
+    ("host", "allowed"),
+    [
+        ("localhost", True),
+        ("192.168.1.50:8420", True),
+        ("[::1]:8000", True),
+        ("blog.example.com", False),
+        ("", False),
+    ],
+)
+def test_the_socket_opens_on_the_app_s_hosts_and_ip_addresses(host, allowed):
+    scope = {"type": "websocket", "headers": [(b"host", host.encode())]}
+
+    assert asgi.allowed_host(scope) is allowed

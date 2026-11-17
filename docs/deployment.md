@@ -164,7 +164,7 @@ admin user does not exist yet.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `APP_HOSTNAMES` | Required | The hostnames BrainBro answers to, comma-separated. The first one is the app's own address (the Telegram webhook, for one). Any other host gets a 400, unless it is a verified blog's domain. |
+| `APP_HOSTNAMES` | Required | The hostnames BrainBro answers to, comma-separated. The first one is the app's own address (the Telegram webhook, for one). Any IP address the server is opened on (`192.168.1.50`, a Tailscale `100.x.y.z`) gets the app too. Any other host gets a 400, unless it is a verified blog's domain. |
 | `SECRET_KEY` | Required | Signs sessions. Changing it signs everyone out. |
 | `POSTGRES_PASSWORD` | Required | The database password, for `postgres` and the app. |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Empty | The admin user, created on a deploy if it does not exist yet. Changing them later does nothing: change the password in `/admin/` instead. |
