@@ -13,9 +13,13 @@ def import_path(vault_import, filename):
 
 class Import(OwnedModel):
     """
-    An Obsidian vault uploaded as a zip and imported in the background
-    (`tasks`). The zip is deleted once it has been read.
+    A zip uploaded to be imported in the background (`tasks`): an Obsidian
+    vault or a BrainBro export. The zip is deleted once it has been read.
     """
+
+    class Source(models.TextChoices):
+        OBSIDIAN = "obsidian", "Obsidian"
+        BRAINBRO = "brainbro", "BrainBro"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -23,10 +27,13 @@ class Import(OwnedModel):
         FAILED = "failed", "Failed"
 
     status = models.CharField(max_length=8, choices=Status, default=Status.PENDING)
+    # What the zip holds, told by its files when uploaded.
+    source = models.CharField(max_length=8, choices=Source, default=Source.OBSIDIAN)
     filename = models.CharField(max_length=255, blank=True)
     file = models.FileField(upload_to=import_path, max_length=255, blank=True)
-    # What was created: notes, images, files, links, boards, collections, and
-    # how many files were skipped.
+    # What was created: notes, images, files, links, albums, boards,
+    # collections; how many files were skipped and, for a BrainBro export,
+    # how many things were already there.
     counts = models.JSONField(default=dict, blank=True)
     # Why it failed, when the vault itself was the problem.
     error = models.CharField(max_length=255, blank=True)
