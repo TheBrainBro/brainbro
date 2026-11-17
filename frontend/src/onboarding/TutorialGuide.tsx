@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useCreateSampleContent, useSession } from '../auth/session'
 import { useT, type MessageKey } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
+import { useAppOrigin } from '../lib/address'
 import {
   useTutorial,
   type TutorialAction,
@@ -108,6 +109,7 @@ export function TutorialGuide({
   const createSample = useCreateSampleContent()
   const [target, setTarget] = useState<Target | null>(null)
   const { step, collection } = tutorial
+  const mcpUrl = `${useAppOrigin()}/api/mcp`
 
   useEffect(() => {
     if (!step) return
@@ -117,7 +119,7 @@ export function TutorialGuide({
 
   // The examples start once the Inbox is on screen, so they're seen arriving.
   const addExamples = useEffectEvent(() => {
-    if (createSample.isIdle) createSample.mutate(`${window.location.origin}/api/mcp`)
+    if (createSample.isIdle) createSample.mutate(mcpUrl)
   })
   useEffect(() => {
     if (step !== 'examples' || location.pathname !== '/') return
@@ -230,7 +232,7 @@ export function TutorialGuide({
               <button
                 type="button"
                 className="font-medium underline"
-                onClick={() => createSample.mutate(`${window.location.origin}/api/mcp`)}
+                onClick={() => createSample.mutate(mcpUrl)}
               >
                 {t('tutorial.retry')}
               </button>

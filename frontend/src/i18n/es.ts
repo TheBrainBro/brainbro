@@ -152,6 +152,8 @@ export const es: Messages = {
     mcpUrl: 'URL del servidor MCP',
     localOnly:
       'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: usa la dirección pública de BrainBro.',
+    networkOnly:
+      'Esta dirección solo funciona en tu red. Claude, ChatGPT y Grok se conectan desde internet: un admin puede poner la dirección pública de BrainBro en Ajustes, Servidor, Dirección pública.',
     promptTitle: 'Prompt listo para copiar',
     copyPrompt: 'Copiar prompt',
     promptCopied: 'Prompt copiado',
@@ -242,6 +244,16 @@ export const es: Messages = {
     emailSentTo: 'Entregado a {provider} para {email}. También puedes compartir el enlace tú:',
     emailNotSent: '{error} Envía este enlace tú ahora: no se volverá a mostrar.',
     sentTo: 'enviada a {email}',
+    localOnly:
+      'Los enlaces empiezan por {host}, que solo abre en tu red. Para invitar a alguien de fuera, pon la dirección pública en Ajustes, Servidor, Dirección pública.',
+  },
+  address: {
+    intro:
+      'La dirección en la que la gente de fuera abre BrainBro. Las invitaciones, los emails para restablecer la contraseña, las notas públicas y la dirección para los asistentes de IA empiezan por ella. BrainBro también responde en ella, así que un Cloudflare Tunnel que apunte ahí funciona sin más ajustes.',
+    label: 'Dirección pública',
+    hint: 'Los enlaces que se envíen a partir de ahora empiezan por ella. Los ya enviados mantienen su dirección. Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro.',
+    hintEmpty: 'Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro: ahora mismo, {origin}.',
+    saved: 'Guardada. Los enlaces que se envíen a partir de ahora empiezan por ella.',
   },
   email: {
     intro:
@@ -329,6 +341,7 @@ export const es: Messages = {
       sampleContent: 'Contenido de ejemplo',
       invitations: 'Invitaciones',
       email: 'Email',
+      address: 'Dirección pública',
       blogs: 'Blogs',
     },
   },

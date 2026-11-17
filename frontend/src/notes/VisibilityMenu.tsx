@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { useT } from '../i18n/i18n'
 import { usePublication, type Item, type Visibility } from '../items/api'
+import { useAppUrl } from '../lib/address'
 import { CopyField } from '../ui/CopyField'
 import { Dropdown } from '../ui/Dropdown'
 
@@ -14,6 +15,7 @@ import { Dropdown } from '../ui/Dropdown'
  */
 export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: () => void }) {
   const t = useT()
+  const appUrl = useAppUrl()
   const publication = usePublication()
   const [error, setError] = useState<string>()
   const visibility: Visibility = !note.published_at
@@ -47,7 +49,7 @@ export function VisibilityMenu({ note, onSettings }: { note: Item; onSettings: (
   const current = states[visibility]
   const CurrentIcon = current.icon
   // A path on the server, or its blog's full URL.
-  const url = new URL(note.public_url ?? '/', window.location.origin).href
+  const url = appUrl(note.public_url ?? '/')
 
   function choose(next: Visibility) {
     if (next === visibility || publication.isPending) return

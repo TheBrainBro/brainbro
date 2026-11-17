@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useCreateSampleContent } from '../auth/session'
 import { useT } from '../i18n/i18n'
 import { Logo } from '../layout/Logo'
+import { useAppOrigin } from '../lib/address'
 import { playWelcomeChime } from './chime'
 import { Particles } from './Particles'
 
@@ -38,6 +39,7 @@ export function WelcomeDialog({
   onExamples: () => void
 }) {
   const t = useT()
+  const origin = useAppOrigin()
   const createSample = useCreateSampleContent()
   const [still] = useState(prefersReducedMotion)
   const [phase, setPhase] = useState<Phase>(still ? 'choose' : 'intro')
@@ -70,7 +72,7 @@ export function WelcomeDialog({
 
   const examples = () => {
     if (createSample.isPending) return
-    createSample.mutate(`${window.location.origin}/api/mcp`, { onSuccess: () => leave(onExamples) })
+    createSample.mutate(`${origin}/api/mcp`, { onSuccess: () => leave(onExamples) })
   }
 
   return (

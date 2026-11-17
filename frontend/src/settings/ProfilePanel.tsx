@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { useSaveDisplayName, useSaveEmail, useSaveHandle, useSession, useSetAvatar } from '../auth/session'
 import { useT } from '../i18n/i18n'
+import { appHost } from '../lib/address'
 import { squareImage } from '../lib/image'
 import { Avatar } from './Avatar'
 
@@ -141,7 +142,7 @@ export function ProfilePanel() {
           {t('profile.handle')}
         </label>
         <div className="flex items-center gap-2">
-          <span className="text-sm whitespace-nowrap text-zinc-500">{window.location.host}/@</span>
+          <span className="text-sm whitespace-nowrap text-zinc-500">{appHost(session)}/@</span>
           <input
             id={handleId}
             className="input"
