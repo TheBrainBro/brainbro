@@ -30,6 +30,8 @@ export type Session = {
   profile?: Profile
   /** Whether the server can send email, so a forgotten password can be reset. */
   email_enabled?: boolean
+  /** Where people outside reach the server, set by an admin; empty: the browser's address. */
+  public_url?: string
 }
 
 /** The parts of the guided tour: its first loop, then the tracks from its hub. */

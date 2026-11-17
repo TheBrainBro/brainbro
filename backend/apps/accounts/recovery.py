@@ -15,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.core import mail
+from apps.core import mail, public_address
 
 from .limits import PASSWORD_RESET, PASSWORD_RESET_LINK
 from .reset_links import user_for
@@ -47,7 +47,7 @@ def password_reset_view(request):
     users = get_user_model().objects.filter(
         email__iexact=payload.validated_data["email"], is_active=True
     )
-    base_url = request.build_absolute_uri("/").rstrip("/")
+    base_url = public_address.base_url(request)
     for user in users:
         if user.has_usable_password():
             send_password_reset.delay(user.pk, base_url)

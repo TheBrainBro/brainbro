@@ -64,3 +64,22 @@ class EmailSettings(TimestampedModel):
 
     def __str__(self):
         return "Email settings"
+
+
+class ServerSettings(TimestampedModel):
+    """
+    The server's own settings, set by an admin in Settings, Server. One row
+    at most (apps.core.public_address).
+    """
+
+    # Keeps it to one row.
+    singleton = models.BooleanField(default=True, unique=True, editable=False)
+    # Where people outside reach this server, e.g. `https://brain.example.com`:
+    # scheme and host (and port), no path. Empty: the request's own address.
+    public_url = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        verbose_name_plural = "server settings"
+
+    def __str__(self):
+        return "Server settings"

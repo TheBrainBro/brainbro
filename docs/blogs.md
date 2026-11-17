@@ -11,7 +11,7 @@ notes filed in it, newest first, and each one is at `https://blog.example.com/<s
 
    | Type | Name | Value | What for |
    | --- | --- | --- | --- |
-   | `CNAME` | `blog.example.com` | the server (`SITE_CNAME_TARGET`, or the host BrainBro is opened on) | Visits reach BrainBro |
+   | `CNAME` | `blog.example.com` | the server (`SITE_CNAME_TARGET`, or else the [public address](deployment.md#public-address)'s host, or else the host BrainBro is opened on) | Visits reach BrainBro |
    | `A` | `example.com` | the server's IPv4 (`SITE_IPV4`) | Only for a root domain, which many DNS providers can't give a `CNAME`; only shown when `SITE_IPV4` is set |
    | `TXT` | `_brainbro.blog.example.com` | `brainbro-site-verification=<token>` | Proves the domain is yours |
 

@@ -23,6 +23,8 @@ from apps.public.pages import (
 )
 from apps.public.sites import public_url
 
+from . import public_address
+
 # A published note on the server, and where notes were before handles.
 NOTE_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/(?P<slug>[a-z0-9-]+)/?")
 AUTHOR_PAGE = re.compile(r"@(?P<handle>[a-z0-9-]+)/?")
@@ -55,7 +57,7 @@ def note_page_head(request, handle, slug):
     url = public_url(note)
     if not url.startswith("/"):
         return None, url
-    return note_head_tags(request, note, request.build_absolute_uri(url)), None
+    return note_head_tags(request, note, public_address.absolute(request, url)), None
 
 
 def legacy_redirect(slug):

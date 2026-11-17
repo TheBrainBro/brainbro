@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 
 import { useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
+import { appHost } from '../lib/address'
 import { Logo, Wordmark } from './Logo'
 
 const REPO = 'https://github.com/TheBrainBro/brainbro'
@@ -55,7 +56,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex justify-between gap-4 px-3 py-2">
               <dt className="text-zinc-500">{t('about.server')}</dt>
-              <dd className="truncate font-medium">{window.location.host}</dd>
+              <dd className="truncate font-medium">{appHost(session)}</dd>
             </div>
           </dl>
 

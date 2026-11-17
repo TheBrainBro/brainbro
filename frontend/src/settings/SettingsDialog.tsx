@@ -8,6 +8,7 @@ import {
   PackageOpen,
   Palette,
   Send,
+  Server,
   Settings,
   UserPlus,
   UserRound,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 
+import { AddressPanel } from '../address/AddressPanel'
 import { useSession } from '../auth/session'
 import { BlogsPanel } from '../blogs/BlogsPanel'
 import { EmailPanel } from '../email/EmailPanel'
@@ -61,10 +63,11 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
   },
 ]
 
-// Admins only: inviting people to the server, and how it sends email.
+// Admins only: the server's own settings, inviting people to it, and how it sends email.
 const adminGroup = {
   label: 'settings.groups.server' as MessageKey,
   pages: [
+    { id: 'general', label: 'settings.pages.general', icon: Server, Panel: AddressPanel },
     { id: 'invitations', label: 'settings.pages.invitations', icon: UserPlus, Panel: InvitationsPanel },
     { id: 'email', label: 'settings.pages.email', icon: Mail, Panel: EmailPanel },
   ] as Page[],

@@ -152,6 +152,8 @@ export const es: Messages = {
     mcpUrl: 'URL del servidor MCP',
     localOnly:
       'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: usa la dirección pública de BrainBro.',
+    networkOnly:
+      'Esta dirección solo funciona en tu red. Claude, ChatGPT y Grok se conectan desde internet: un admin puede poner la dirección pública de BrainBro en Ajustes, Servidor, General.',
     promptTitle: 'Prompt listo para copiar',
     copyPrompt: 'Copiar prompt',
     promptCopied: 'Prompt copiado',
@@ -242,6 +244,16 @@ export const es: Messages = {
     emailSentTo: 'Entregado a {provider} para {email}. También puedes compartir el enlace tú:',
     emailNotSent: '{error} Envía este enlace tú ahora: no se volverá a mostrar.',
     sentTo: 'enviada a {email}',
+    localOnly:
+      'Los enlaces empiezan por {host}, que solo abre en tu red. Para invitar a alguien de fuera, pon la dirección pública en Ajustes, Servidor, General.',
+  },
+  address: {
+    intro:
+      'Donde la gente abre BrainBro desde fuera de tu red. Todos los enlaces que BrainBro envía o muestra empiezan por ella: invitaciones, recuperación de contraseña, notas públicas y la dirección para los asistentes de IA. Si usas un Cloudflare Tunnel, pon aquí su dirección.',
+    label: 'Dirección pública',
+    hint: 'Los enlaces que se envíen a partir de ahora empiezan por ella. Los ya enviados mantienen su dirección. Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro.',
+    hintEmpty: 'Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro: ahora mismo, {origin}.',
+    saved: 'Guardada. Los enlaces que se envíen a partir de ahora empiezan por ella.',
   },
   email: {
     intro:
@@ -329,6 +341,7 @@ export const es: Messages = {
       sampleContent: 'Contenido de ejemplo',
       invitations: 'Invitaciones',
       email: 'Email',
+      general: 'General',
       blogs: 'Blogs',
     },
   },

@@ -1,8 +1,10 @@
+import { TriangleAlert } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { useSession } from '../auth/session'
 
 import { t, useT } from '../i18n/i18n'
+import { localReach } from '../lib/address'
 import { timeAgo } from '../lib/time'
 import { CopyField } from '../ui/CopyField'
 import { type Invitation, useCreateInvitation, useInvitations, useRevokeInvitation } from './api'
@@ -31,9 +33,18 @@ function NewInvitationForm() {
   const [note, setNote] = useState('')
   const [email, setEmail] = useState('')
   const emailHintId = useId()
+  // Without a public address, links start with this one: if it is local,
+  // whoever gets one outside this network can't open it.
+  const localOnly = !!session && !session.public_url && localReach(window.location.hostname) !== null
 
   return (
     <section className="space-y-2">
+      {localOnly && (
+        <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {t('invitations.localOnly', { host: window.location.host })}
+        </p>
+      )}
       <form
         className="space-y-2"
         onSubmit={(event) => {

@@ -24,7 +24,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from apps.boards.models import Board
-from apps.core import mail
+from apps.core import mail, public_address
 from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item
 from apps.public.handles import MAX_HANDLE, handle_taken, is_valid_handle
@@ -104,6 +104,9 @@ def signed_in(user):
         # The About dialog links it (AGPL section 13).
         "source_code_url": settings.SOURCE_CODE_URL,
         "email_enabled": mail.enabled(),
+        # Where people outside reach the server: the addresses the app shows
+        # start with it. "" without one: the browser's address.
+        "public_url": public_address.saved(),
     }
 
 
@@ -498,7 +501,7 @@ It works once and expires in {days} days.
 
 
 def join_url(request, token):
-    return request.build_absolute_uri(f"/join/{token}")
+    return public_address.absolute(request, f"/join/{token}")
 
 
 def send_invitation(request, invitation, url):
@@ -513,7 +516,7 @@ def send_invitation(request, invitation, url):
         INVITATION_EMAIL.format(
             inviter=inviter,
             app=settings.APP_NAME,
-            host=request.get_host(),
+            host=public_address.display_host(request),
             url=url,
             days=INVITATION_LIFETIME.days,
         ),

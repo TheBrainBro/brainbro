@@ -21,6 +21,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import Profile
 from apps.accounts.quota import QuotaExceeded, check_room, file_size
 from apps.accounts.views import AvatarSerializer
+from apps.core import public_address
 from apps.items.collection_images import make_square_image
 from apps.items.models import Collection, Item, NoteImage, NoteLink
 from apps.items.serializers import note_link_preview
@@ -547,7 +548,11 @@ class SiteSerializer(serializers.ModelSerializer):
         """
         request = self.context["request"]
         hostname = site.domain_to_verify
-        target = settings.SITE_CNAME_TARGET or request.get_host().split(":")[0]
+        target = (
+            settings.SITE_CNAME_TARGET
+            or public_address.host()
+            or request.get_host().split(":")[0]
+        )
         records = [{"type": "CNAME", "name": hostname, "value": target}]
         # Root domains can't have a CNAME at many DNS providers.
         if settings.SITE_IPV4:
