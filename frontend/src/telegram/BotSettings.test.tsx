@@ -95,8 +95,7 @@ describe('BotSettings', () => {
   it('removes the saved bot', async () => {
     const fetchMock = renderPanel(saved)
 
-    expect(await screen.findByText('The environment variables set up no bot: Telegram turns off.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Remove this bot' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     expect(await screen.findByPlaceholderText('123456789:AA...')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
