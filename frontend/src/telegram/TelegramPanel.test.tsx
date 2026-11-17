@@ -23,8 +23,11 @@ function statusOf(fields: Partial<TelegramStatus>): TelegramStatus {
   }
 }
 
-function renderPanel(status: TelegramStatus) {
+function renderPanel(status: TelegramStatus, { isStaff = false } = {}) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === '/api/auth/session/') {
+      return jsonResponse({ authenticated: true, user: { id: 1, username: 'alex', is_staff: isStaff } })
+    }
     if (url === '/api/telegram/connect/') {
       return jsonResponse({ url: 'https://t.me/brainbro_bot?start=abc' })
     }
@@ -73,7 +76,17 @@ describe('TelegramPanel', () => {
   it('says when the server has no bot', async () => {
     renderPanel(statusOf({ configured: false }))
 
-    expect(await screen.findByText(/isn't set up on this server/)).toBeInTheDocument()
+    expect(
+      await screen.findByText("The bot isn't set up on this server. Ask your admin to configure it."),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Connect Telegram' })).not.toBeInTheDocument()
+  })
+
+  it('tells an admin where to set the bot up', async () => {
+    renderPanel(statusOf({ configured: false }), { isStaff: true })
+
+    expect(
+      await screen.findByText("The bot isn't set up on this server. Set it up in Server, Telegram."),
+    ).toBeInTheDocument()
   })
 })
