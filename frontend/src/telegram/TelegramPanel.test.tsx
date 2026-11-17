@@ -82,11 +82,17 @@ describe('TelegramPanel', () => {
     expect(screen.queryByRole('button', { name: 'Connect Telegram' })).not.toBeInTheDocument()
   })
 
-  it('tells an admin where to set the bot up', async () => {
+  it('lets an admin set the bot up right there', async () => {
     renderPanel(statusOf({ configured: false }), { isStaff: true })
 
-    expect(
-      await screen.findByText("The bot isn't set up on this server. Set it up in Server, Telegram."),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Server bot' })).toBeInTheDocument()
+    expect(screen.queryByText(/Ask your admin/)).not.toBeInTheDocument()
+  })
+
+  it('shows people without admin rights no bot settings', async () => {
+    renderPanel(statusOf({}))
+
+    expect(await screen.findByRole('button', { name: 'Connect Telegram' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Server bot' })).not.toBeInTheDocument()
   })
 })

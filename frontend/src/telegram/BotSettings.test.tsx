@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { TelegramSettings } from './api'
-import { TelegramServerPanel } from './TelegramServerPanel'
+import { BotSettings } from './BotSettings'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -50,7 +50,7 @@ function renderPanel(settings: TelegramSettings, { saveResult = null as Response
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <TelegramServerPanel />
+      <BotSettings />
     </QueryClientProvider>,
   )
   return fetchMock
@@ -58,7 +58,7 @@ function renderPanel(settings: TelegramSettings, { saveResult = null as Response
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('TelegramServerPanel', () => {
+describe('BotSettings', () => {
   it('saves the token from BotFather', async () => {
     const fetchMock = renderPanel(off)
 
