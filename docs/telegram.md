@@ -7,21 +7,37 @@ reaction on each message it saved, or 👎 and a reply saying why it couldn't.
 ## Setting it up
 
 1. In Telegram, talk to [@BotFather](https://t.me/BotFather), send `/newbot`
-   and follow the steps. It gives you the bot's token and username.
-2. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (without the `@`) in
-   `stack.env` (on Umbrel, in the stack's environment in Portainer), and start
-   the stack again (see [deployment.md](deployment.md#settings)).
-3. In BrainBro, account menu → *Telegram* → *Connect Telegram*, then *Open
-   @your_bot in Telegram* and press *Start*. The dialog shows the chat as
-   connected.
+   and follow the steps. It gives you the bot's token.
+2. In BrainBro, as an admin, open **Settings, Server, Telegram**, paste the
+   token and save. BrainBro checks it with Telegram (`getMe`), which also
+   gives the bot's username, so there is nothing else to type.
+3. Each person then opens **Settings, Telegram**, *Connect Telegram*, then
+   *Open @your_bot in Telegram* and presses *Start*. The dialog shows the chat
+   as connected.
 
-When the worker starts it points the bot at
-`https://<first APP_HOSTNAMES>/api/telegram/webhook/` (`setWebhook`), so
-updates come in the same way as every other request. `TELEGRAM_WEBHOOK_URL`
-overrides that address; with `APP_HTTPS=false` there is no default, and
-Telegram only delivers to HTTPS. If Cloudflare Access ever sits
-in front of BrainBro, bypass it for `/api/telegram/webhook/`: Telegram can't log
-in.
+Instead of step 2, the server can set `TELEGRAM_BOT_TOKEN` and
+`TELEGRAM_BOT_USERNAME` (without the `@`) in `stack.env` (see
+[deployment.md](deployment.md#settings)). A bot saved in Settings wins over
+them while it exists; **Remove this bot** disconnects it (`deleteWebhook`) and
+goes back to the environment's bot, if there is one. The token is stored
+encrypted with a key derived from `SECRET_KEY`: if that changes, save the
+token again.
+
+### Where Telegram delivers
+
+Updates come by webhook, at `<public address>/api/telegram/webhook/`, the
+[public address](deployment.md#public-address) set in Settings, Server,
+General, so they come in the same way as every other request. Telegram only
+delivers to HTTPS: without an `https://` public address there is no webhook,
+and Settings, Server, Telegram says so. `TELEGRAM_WEBHOOK_URL` overrides the
+address; with `APP_HTTPS=true` it defaults to
+`https://<first APP_HOSTNAMES>/api/telegram/webhook/`.
+
+BrainBro points the bot there (`setWebhook`) when the worker starts, when the
+bot is saved in Settings and when the public address changes. Saving a
+different bot first disconnects the one it replaces. If Cloudflare Access ever
+sits in front of BrainBro, bypass it for `/api/telegram/webhook/`: Telegram
+can't log in.
 
 ## What becomes what
 
@@ -49,7 +65,13 @@ See `apps/telegram/messages.py`.
   the bot `/start <code>`, which links that chat to the account
   (`TelegramLink`). A chat belongs to one account; a new connection replaces
   the previous chat. `GET /api/telegram/` says whether the bot is set up and
-  which chat is linked; `DELETE` disconnects.
+  which chat is linked; `DELETE` disconnects. Chats are linked by Telegram's
+  chat id, which is the person's own: after switching to another bot, linked
+  chats keep landing in the same inbox once their people press *Start* there.
+- **Setting it up** (admins): `GET /api/server/telegram/` says which bot is in
+  use, where it came from (`database` or `environment`) and the webhook
+  address. `PUT {"bot_token"}` checks the token with `getMe` and saves it;
+  `DELETE` removes it. The token is never sent back.
 - **Who can use it**: only the linked private chat. Anyone else writing to the
   bot is ignored, except `/start`, which answers how to connect.
 - **Webhook**: `POST /api/telegram/webhook/`, without a session, only with the
@@ -60,6 +82,7 @@ See `apps/telegram/messages.py`.
   last `update_id` it handled and skips anything older. The webhook is set
   with `max_connections=1`, so updates arrive in order.
 - **Development**: there is no public URL, so run
-  `python manage.py telegram_poll` with the token in `backend/.env`. It removes
-  the webhook and long-polls instead (`getUpdates`); the production worker sets
-  the webhook again the next time it starts.
+  `python manage.py telegram_poll`, with the bot saved in Settings or its
+  token in `backend/.env`. It removes the webhook and long-polls instead
+  (`getUpdates`); the webhook is set again the next time the worker starts or
+  the bot is saved.
