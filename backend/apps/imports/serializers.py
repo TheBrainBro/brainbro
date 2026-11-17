@@ -12,6 +12,7 @@ class ImportSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "status",
+            "source",
             "filename",
             "counts",
             "error",
@@ -31,6 +32,8 @@ class ImportUploadSerializer(serializers.Serializer):
                 f"The zip is too large (max {limit // (1024 * 1024)} MB)."
             )
         if not zipfile.is_zipfile(file):
-            raise serializers.ValidationError("Upload the vault as a .zip file.")
+            raise serializers.ValidationError(
+                "Upload the vault or the export as a .zip file."
+            )
         file.seek(0)
         return file

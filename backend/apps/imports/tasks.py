@@ -5,13 +5,14 @@ from django.utils import timezone
 
 from apps.items.origin import Source, acting
 
+from .brainbro import import_zip
 from .models import Import
-from .vault import VaultError, import_vault
+from .vault import VaultError
 
 logger = logging.getLogger(__name__)
 
 
-# A large vault means thousands of files to store.
+# A large vault or export means thousands of files to store.
 IMPORT_TIME_LIMIT = 2 * 60 * 60
 
 
@@ -24,7 +25,7 @@ def run_import(import_id):
     counts = {}
     try:
         with vault_import.file.open("rb") as source, acting(Source.IMPORT):
-            counts = import_vault(vault_import.owner, source)
+            vault_import.source, counts = import_zip(vault_import.owner, source)
     except VaultError as exc:
         error = str(exc)
     except Exception:
@@ -37,5 +38,13 @@ def run_import(import_id):
     vault_import.counts = counts
     vault_import.finished_at = timezone.now()
     vault_import.save(
-        update_fields=["status", "error", "counts", "file", "finished_at", "updated_at"]
+        update_fields=[
+            "status",
+            "source",
+            "error",
+            "counts",
+            "file",
+            "finished_at",
+            "updated_at",
+        ]
     )

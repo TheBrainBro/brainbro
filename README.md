@@ -21,7 +21,8 @@ A self-hosted second brain: capture links, notes, images and files with zero fri
   ([mcp.md](docs/mcp.md)).
 - **Publish** a note as a public page, or a collection as a blog on your own domain
   ([public-notes.md](docs/public-notes.md), [blogs.md](docs/blogs.md)).
-- **Your data stays yours:** import an Obsidian vault, export everything as Markdown and files
+- **Your data stays yours:** export everything as Markdown and files, import it into
+  another BrainBro, or bring in an Obsidian vault
   ([import.md](docs/import.md), [export.md](docs/export.md)).
 - Several people on one server, each with their own space, by invitation.
 
