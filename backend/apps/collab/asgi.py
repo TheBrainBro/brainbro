@@ -95,7 +95,8 @@ async def websocket(scope, receive, send):
     match = PATH.match(scope["path"])
     if (
         match is None
-        or not allowed_host(scope)
+        # The public address is read from the database, so in a thread too.
+        or not await in_thread(allowed_host)(scope)
         or not same_origin(scope)
         or not await in_thread(can_open)(scope, match["id"])
     ):
