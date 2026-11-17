@@ -3,7 +3,7 @@ A thin client for the Telegram Bot API (https://core.telegram.org/bots/api):
 only the methods BrainBro uses.
 
 Which bot it speaks as is read in one place, `config()`: the one an admin set
-up in Settings, Server, Telegram, or, while there is none, the environment's
+up in Settings, Telegram, or, while there is none, the environment's
 (`TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME`).
 """
 

@@ -10,11 +10,11 @@ import {
 } from './api'
 
 /**
- * Admins only: Settings, Server, Telegram. The bot people connect to in
- * Settings, Telegram. Saved here, it is used instead of the server's
- * environment variables.
+ * Admins only, under Settings, Telegram: the bot everyone on the server
+ * connects to. Saved here, it is used instead of the server's environment
+ * variables.
  */
-export function TelegramServerPanel() {
+export function BotSettings() {
   const t = useT()
   const { data: settings, isPending, error } = useTelegramSettings()
 

@@ -211,7 +211,7 @@ export const es: Messages = {
     intro:
       'Envía o reenvía lo que quieras al bot y llega a tu bandeja: texto, enlaces, fotos y archivos. Las fotos enviadas juntas forman un álbum. El bot reacciona con 👍 cuando se guarda.',
     notConfigured: 'El bot no está configurado en este servidor. Pídele a tu administrador que lo configure.',
-    notConfiguredAdmin: 'El bot no está configurado en este servidor. Configúralo en Servidor, Telegram.',
+    botSettings: 'Bot del servidor',
     connected: 'Conectado a @{bot}.',
     connectedAs: 'Conectado como {name} a @{bot}.',
     disconnect: 'Desconectar',
@@ -257,7 +257,7 @@ export const es: Messages = {
   },
   telegramServer: {
     intro:
-      'El bot que la gente conecta en Ajustes, Telegram. Créalo con @BotFather en Telegram y pega aquí su token. Guardado aquí, se usa en lugar de las variables de entorno del servidor.',
+      'Solo lo ven los administradores. El bot al que se conecta todo el mundo en este servidor: créalo con @BotFather en Telegram y pega aquí su token. Guardado aquí, se usa en lugar de las variables de entorno del servidor.',
     statusSaved: 'Usando @{bot}, guardado aquí',
     statusEnvironment: 'Usando @{bot}, de las variables de entorno del servidor',
     webhook: 'Telegram entrega sus mensajes en {url}',

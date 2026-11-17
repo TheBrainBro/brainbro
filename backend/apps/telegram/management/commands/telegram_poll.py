@@ -14,7 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not bot.configured():
             raise CommandError(
-                "Set up the bot in Settings, Server, Telegram, or set "
+                "Set up the bot in Settings, Telegram, or set "
                 "TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME."
             )
         bot.call("deleteWebhook")

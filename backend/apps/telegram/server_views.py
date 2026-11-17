@@ -1,5 +1,6 @@
 """
-Settings, Server, Telegram: the bot this server speaks as, for admins only.
+Settings, Telegram, Server bot: the bot this server speaks as, for admins
+only.
 
 Saving checks the token with Telegram (`getMe`), which also gives the bot's
 username, and stores it encrypted in the database, where it is used instead of

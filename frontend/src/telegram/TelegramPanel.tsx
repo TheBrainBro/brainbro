@@ -2,15 +2,20 @@ import { LoaderCircle, Send } from 'lucide-react'
 
 import { useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
+import { BotSettings } from './BotSettings'
 import { useConnectTelegram, useDisconnectTelegram, useTelegramStatus } from './api'
 
-/** Connects a Telegram chat: what's sent or forwarded to the bot lands in the inbox. */
+/**
+ * Connects a Telegram chat: what's sent or forwarded to the bot lands in the
+ * inbox. Admins also set up the server's bot here.
+ */
 export function TelegramPanel() {
   const t = useT()
   const connect = useConnectTelegram()
   const disconnect = useDisconnectTelegram()
   const { data: status, isPending: loading } = useTelegramStatus(connect.isSuccess)
   const { data: session } = useSession()
+  const isAdmin = Boolean(session?.user?.is_staff)
 
   return (
     <div>
@@ -19,9 +24,10 @@ export function TelegramPanel() {
       </p>
 
       {loading || !status ? null : !status.configured ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          {session?.user?.is_staff ? t('telegram.notConfiguredAdmin') : t('telegram.notConfigured')}
-        </p>
+        // Admins set it up right below.
+        isAdmin ? null : (
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('telegram.notConfigured')}</p>
+        )
       ) : status.linked ? (
         <div className="space-y-3">
           <p role="status" className="text-sm">
@@ -78,6 +84,18 @@ export function TelegramPanel() {
             {t('telegram.connect')}
           </button>
         </div>
+      )}
+
+      {isAdmin && (
+        <section
+          aria-labelledby="telegram-bot-title"
+          className="mt-8 space-y-4 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        >
+          <h4 id="telegram-bot-title" className="text-sm font-semibold">
+            {t('telegram.botSettings')}
+          </h4>
+          <BotSettings />
+        </section>
       )}
     </div>
   )

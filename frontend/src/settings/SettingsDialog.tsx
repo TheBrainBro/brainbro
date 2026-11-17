@@ -28,7 +28,6 @@ import { ImportPanel } from '../imports/ImportPanel'
 import { InvitationsPanel } from '../invitations/InvitationsPanel'
 import { LanguagePanel } from './LanguagePanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
-import { TelegramServerPanel } from '../telegram/TelegramServerPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
 import { ProfilePanel } from './ProfilePanel'
 import { StoragePanel } from '../storage/StoragePanel'
@@ -64,15 +63,13 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
   },
 ]
 
-// Admins only: the server's own settings, inviting people to it, how it sends email
-// and the Telegram bot.
+// Admins only: the server's own settings, inviting people to it, and how it sends email.
 const adminGroup = {
   label: 'settings.groups.server' as MessageKey,
   pages: [
     { id: 'general', label: 'settings.pages.general', icon: Server, Panel: AddressPanel },
     { id: 'invitations', label: 'settings.pages.invitations', icon: UserPlus, Panel: InvitationsPanel },
     { id: 'email', label: 'settings.pages.email', icon: Mail, Panel: EmailPanel },
-    { id: 'server-telegram', label: 'settings.pages.telegram', icon: Send, Panel: TelegramServerPanel },
   ] as Page[],
 }
 

@@ -211,7 +211,7 @@ export const en = {
     intro:
       "Send or forward anything to the bot and it lands in your inbox: text, links, photos and files. Photos sent together become an album. The bot reacts with 👍 when it's saved.",
     notConfigured: "The bot isn't set up on this server. Ask your admin to configure it.",
-    notConfiguredAdmin: "The bot isn't set up on this server. Set it up in Server, Telegram.",
+    botSettings: 'Server bot',
     connected: 'Connected to @{bot}.',
     connectedAs: 'Connected as {name} to @{bot}.',
     disconnect: 'Disconnect',
@@ -257,7 +257,7 @@ export const en = {
   },
   telegramServer: {
     intro:
-      'The bot people connect in Settings, Telegram. Create one with @BotFather in Telegram and paste its token here. Saved here, it is used instead of the server’s environment variables.',
+      'Only admins see this. The bot everyone on this server connects to: create one with @BotFather in Telegram and paste its token here. Saved here, it is used instead of the server’s environment variables.',
     statusSaved: 'Using @{bot}, saved here',
     statusEnvironment: 'Using @{bot}, from the server’s environment variables',
     webhook: 'Telegram delivers its messages to {url}',

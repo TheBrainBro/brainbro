@@ -299,7 +299,7 @@ REQUEST_MAX_SIZE = max(UPLOAD_MAX_SIZE, IMPORT_MAX_SIZE) + 1024 * 1024
 
 # Telegram bot (apps.telegram): messages sent or forwarded to it land in the
 # inbox of the account that connected the chat. Off without a token. An admin
-# can set the bot up in Settings, Server, Telegram instead, which wins over
+# can set the bot up in Settings, Telegram instead, which wins over
 # these. Updates come by webhook, at TELEGRAM_WEBHOOK_URL or else at the
 # public address when it is HTTPS.
 TELEGRAM_BOT_TOKEN = get_env_variable("TELEGRAM_BOT_TOKEN", "")
