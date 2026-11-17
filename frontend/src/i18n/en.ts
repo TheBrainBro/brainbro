@@ -210,8 +210,8 @@ export const en = {
   telegram: {
     intro:
       "Send or forward anything to the bot and it lands in your inbox: text, links, photos and files. Photos sent together become an album. The bot reacts with 👍 when it's saved.",
-    notConfigured:
-      "The bot isn't set up on this server yet: it needs <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_BOT_USERNAME</code>.",
+    notConfigured: "The bot isn't set up on this server. Ask your admin to configure it.",
+    botSettings: 'Server bot',
     connected: 'Connected to @{bot}.',
     connectedAs: 'Connected as {name} to @{bot}.',
     disconnect: 'Disconnect',
@@ -254,6 +254,21 @@ export const en = {
     hint: 'Links sent from now on start with it. Those already sent keep their address. Empty, links start with the address BrainBro is opened on.',
     hintEmpty: 'Empty, links start with the address BrainBro is opened on: right now, {origin}.',
     saved: 'Saved. Links sent from now on start with it.',
+  },
+  telegramServer: {
+    intro:
+      'Create a bot with @BotFather in Telegram and paste its token here. Everyone on this server connects to it.',
+    statusSaved: 'Using @{bot}, saved here',
+    statusEnvironment: 'Using @{bot}, from the server’s environment variables',
+    webhook: 'Telegram delivers its messages to {url}',
+    noWebhook:
+      'Telegram can’t deliver messages yet: it needs an HTTPS public address. Set it in Server, General.',
+    remove: 'Remove this bot',
+    environmentOn: 'The environment variables set up another bot: it is used instead.',
+    environmentOff: 'The environment variables set up no bot: Telegram turns off.',
+    token: 'Bot token',
+    tokenSaved: 'Saved. Paste a new one to replace it.',
+    tokenHint: 'From @BotFather. Checked with Telegram, stored encrypted and never shown again.',
   },
   email: {
     intro:

@@ -8,12 +8,15 @@ class Command(BaseCommand):
     help = (
         "Receive the bot's messages by long polling instead of the webhook, for "
         "development, where there is no public URL. Removes the webhook: the "
-        "worker sets it again when it starts with TELEGRAM_WEBHOOK_URL."
+        "worker sets it again when it starts, or when the bot is saved in Settings."
     )
 
     def handle(self, *args, **options):
         if not bot.configured():
-            raise CommandError("Set TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME.")
+            raise CommandError(
+                "Set up the bot in Settings, Telegram, or set "
+                "TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME."
+            )
         bot.call("deleteWebhook")
         self.stdout.write("Polling Telegram. Ctrl+C to stop.")
         offset = 0

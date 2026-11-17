@@ -2,7 +2,6 @@ import hmac
 import secrets
 from datetime import timedelta
 
-from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -30,7 +29,7 @@ class TelegramView(APIView):
         return Response(
             {
                 "configured": bot.configured(),
-                "bot_username": settings.TELEGRAM_BOT_USERNAME,
+                "bot_username": bot.username(),
                 "linked": link is not None,
                 "telegram_name": link.telegram_name if link else "",
                 "linked_at": link.linked_at if link else None,
@@ -56,7 +55,7 @@ class TelegramConnectView(APIView):
             owner=request.user,
             defaults={"code": code, "code_expires_at": timezone.now() + CODE_LIFETIME},
         )
-        url = f"https://t.me/{settings.TELEGRAM_BOT_USERNAME}?start={code}"
+        url = f"https://t.me/{bot.username()}?start={code}"
         return Response({"url": url})
 
 

@@ -210,8 +210,8 @@ export const es: Messages = {
   telegram: {
     intro:
       'Envía o reenvía lo que quieras al bot y llega a tu bandeja: texto, enlaces, fotos y archivos. Las fotos enviadas juntas forman un álbum. El bot reacciona con 👍 cuando se guarda.',
-    notConfigured:
-      'El bot aún no está configurado en este servidor: necesita <code>TELEGRAM_BOT_TOKEN</code> y <code>TELEGRAM_BOT_USERNAME</code>.',
+    notConfigured: 'El bot no está configurado en este servidor. Pídele a tu administrador que lo configure.',
+    botSettings: 'Bot del servidor',
     connected: 'Conectado a @{bot}.',
     connectedAs: 'Conectado como {name} a @{bot}.',
     disconnect: 'Desconectar',
@@ -254,6 +254,21 @@ export const es: Messages = {
     hint: 'Los enlaces que se envíen a partir de ahora empiezan por ella. Los ya enviados mantienen su dirección. Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro.',
     hintEmpty: 'Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro: ahora mismo, {origin}.',
     saved: 'Guardada. Los enlaces que se envíen a partir de ahora empiezan por ella.',
+  },
+  telegramServer: {
+    intro:
+      'Crea un bot con @BotFather en Telegram y pega aquí su token. Todos en este servidor se conectan a él.',
+    statusSaved: 'Usando @{bot}, guardado aquí',
+    statusEnvironment: 'Usando @{bot}, de las variables de entorno del servidor',
+    webhook: 'Telegram entrega sus mensajes en {url}',
+    noWebhook:
+      'Telegram aún no puede entregar mensajes: necesita una dirección pública HTTPS. Configúrala en Servidor, General.',
+    remove: 'Quitar este bot',
+    environmentOn: 'Las variables de entorno configuran otro bot: se usará ese.',
+    environmentOff: 'Las variables de entorno no configuran ningún bot: Telegram se desactiva.',
+    token: 'Token del bot',
+    tokenSaved: 'Guardado. Pega uno nuevo para reemplazarlo.',
+    tokenHint: 'De @BotFather. Se comprueba con Telegram, se guarda cifrado y no se vuelve a mostrar.',
   },
   email: {
     intro:
