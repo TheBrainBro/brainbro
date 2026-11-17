@@ -8,8 +8,8 @@ reaction on each message it saved, or 👎 and a reply saying why it couldn't.
 
 1. In Telegram, talk to [@BotFather](https://t.me/BotFather), send `/newbot`
    and follow the steps. It gives you the bot's token.
-2. In BrainBro, as an admin, open **Settings, Server, Telegram**, paste the
-   token and save. BrainBro checks it with Telegram (`getMe`), which also
+2. In BrainBro, as an admin, open **Settings, Telegram** and, under **Server
+   bot** (only admins see it), paste the token and save. BrainBro checks it with Telegram (`getMe`), which also
    gives the bot's username, so there is nothing else to type.
 3. Each person then opens **Settings, Telegram**, *Connect Telegram*, then
    *Open @your_bot in Telegram* and presses *Start*. The dialog shows the chat
@@ -29,7 +29,7 @@ Updates come by webhook, at `<public address>/api/telegram/webhook/`, the
 [public address](deployment.md#public-address) set in Settings, Server,
 General, so they come in the same way as every other request. Telegram only
 delivers to HTTPS: without an `https://` public address there is no webhook,
-and Settings, Server, Telegram says so. `TELEGRAM_WEBHOOK_URL` overrides the
+and Server bot, in Settings, Telegram, says so. `TELEGRAM_WEBHOOK_URL` overrides the
 address; with `APP_HTTPS=true` it defaults to
 `https://<first APP_HOSTNAMES>/api/telegram/webhook/`.
 

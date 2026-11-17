@@ -182,7 +182,7 @@ admin user does not exist yet.
 | `STORAGE_QUOTA` | Empty, no quota | The most each user may store, in MB (`10240` is 10 GB). See [Storage quota](#storage-quota). |
 | `IMPORT_MAX_SIZE` | `104857600` (100 MB) | The largest Obsidian vault zip accepted by "Import from Obsidian", in bytes. See [import.md](import.md). |
 | `SOURCE_CODE_URL` | This repository | Linked from the About dialog. See [Source code link](#source-code-link). |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them, unless an admin sets one up in Settings, Server, Telegram, which wins over them. See [telegram.md](telegram.md). |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them, unless an admin sets one up in Settings, Telegram, which wins over them. See [telegram.md](telegram.md). |
 | `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`; otherwise the [public address](#public-address) when it is `https://`; otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
 | `EMAIL_PROVIDER` | Empty, email off | Who sends the server's email (password resets, invitations): `mailgun`. Settings saved in Settings, Server, Email are used instead. See [Email](#email). |
 | `EMAIL_FROM` | `BrainBro <noreply@<MAILGUN_DOMAIN>>` | Who the email comes from, e.g. `BrainBro <hello@example.com>`. |
@@ -277,7 +277,7 @@ local (`umbrel.local:8420`, `192.168.1.20`): Settings, Invitations warns about i
   server set up for plain HTTP, such as the Umbrel app.
 - With a Telegram bot and no `TELEGRAM_WEBHOOK_URL`, an `https://` address is where Telegram
   sends the bot's messages; saving a new one points the bot there. Without one, Settings,
-  Server, Telegram says the bot can't receive messages.
+  Telegram tells admins the bot can't receive messages.
 - Links already sent keep the address they were made with, and still open while BrainBro
   answers on it.
 - It can't be a blog's domain or the embed host. Typing only the host (`brain.example.com`)
@@ -380,7 +380,7 @@ On the Umbrel app (from the App Store), environment variables can't be set and i
 application at `http://<umbrel-ip>:8420`, then set its address in Settings, Server, General
 (see [Public address](#public-address)): BrainBro then answers on it, sign-in and forms work over
 the tunnel, and links, MCP and the Telegram webhook use it. The Telegram bot is set up in
-Settings, Server, Telegram (see [telegram.md](telegram.md)).
+Settings, Telegram (see [telegram.md](telegram.md)).
 
 ### Updating
 
