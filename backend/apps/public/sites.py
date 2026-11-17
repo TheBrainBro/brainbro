@@ -1,11 +1,13 @@
 """
 Blogs on their owners' own domains. BrainBro routes by the host a request
 arrives with (`SiteMiddleware`): the server's own hostnames (`APP_HOSTS`)
-get the app, the embed host (`EMBED_HOSTNAME`) its pages of embedded posts,
-and a verified site's hostname gets that blog, whatever brought the request
-there (a reverse proxy issuing certificates on demand, a tunnel).
+and any IP address get the app, the embed host (`EMBED_HOSTNAME`) its pages
+of embedded posts, and a verified site's hostname gets that blog, whatever
+brought the request there (a reverse proxy issuing certificates on demand, a
+tunnel).
 """
 
+import ipaddress
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -46,8 +48,22 @@ def normalize_hostname(value):
     return value if HOSTNAME.fullmatch(value) else ""
 
 
+def is_ip_address(host):
+    """`192.168.1.50`, `[::1]` (as a Host header brackets it) or `::1`."""
+    try:
+        ipaddress.ip_address(host.removeprefix("[").removesuffix("]"))
+    except ValueError:
+        return False
+    return True
+
+
 def is_app_host(host):
-    return validate_host(host, settings.APP_HOSTS)
+    """
+    One of the app's hostnames, or an IP address: a server opened by its IP
+    (on a local network, through a VPN) is the app. A blog's hostname is
+    always a domain (`normalize_hostname`), so an IP is never a blog's.
+    """
+    return is_ip_address(host) or validate_host(host, settings.APP_HOSTS)
 
 
 def is_embed_host(host):
