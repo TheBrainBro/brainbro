@@ -41,24 +41,17 @@ export function TelegramServerPanel() {
 function Status({ settings }: { settings: TelegramSettings }) {
   const t = useT()
   const remove = useRemoveTelegramSettings()
-  const status = !settings.configured
-    ? t('telegramServer.statusOff')
-    : settings.source === 'database'
-      ? t('telegramServer.statusSaved', { bot: settings.bot_username })
-      : t('telegramServer.statusEnvironment', { bot: settings.bot_username })
+  if (!settings.configured) return null
 
   return (
     <div className="space-y-2">
       <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
-        {settings.configured ? (
-          <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        ) : (
-          <CircleAlert className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
-        )}
-        {status}
+        <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+        {settings.source === 'database'
+          ? t('telegramServer.statusSaved', { bot: settings.bot_username })
+          : t('telegramServer.statusEnvironment', { bot: settings.bot_username })}
       </p>
-      {settings.configured &&
-        (settings.webhook_url ? (
+      {settings.webhook_url ? (
           <p className="text-xs break-all text-zinc-500">
             {t('telegramServer.webhook', { url: settings.webhook_url })}
           </p>
@@ -67,7 +60,7 @@ function Status({ settings }: { settings: TelegramSettings }) {
             <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             {t('telegramServer.noWebhook')}
           </p>
-        ))}
+        )}
       {settings.source === 'database' && (
         <div className="space-y-1">
           <button
