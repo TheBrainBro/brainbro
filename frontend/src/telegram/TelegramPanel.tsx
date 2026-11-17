@@ -1,6 +1,6 @@
 import { LoaderCircle, Send } from 'lucide-react'
 
-import { rich, useT } from '../i18n/i18n'
+import { useT } from '../i18n/i18n'
 import { useConnectTelegram, useDisconnectTelegram, useTelegramStatus } from './api'
 
 /** Connects a Telegram chat: what's sent or forwarded to the bot lands in the inbox. */
@@ -18,7 +18,7 @@ export function TelegramPanel() {
 
       {loading || !status ? null : !status.configured ? (
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          {rich('telegram.notConfigured', { code: (chunk) => <code>{chunk}</code> })}
+          {t('telegram.notConfigured')}
         </p>
       ) : status.linked ? (
         <div className="space-y-3">
