@@ -308,7 +308,7 @@ export const es: Messages = {
   imports: {
     intro: 'Trae tus notas desde otro BrainBro o desde otra app.',
     brainbroIntro:
-      'Sube el zip de Ajustes, Exportar de otro BrainBro. Todo vuelve como estaba: notas, enlaces, imágenes, archivos y álbumes con su estado y sus fechas, colecciones con su aspecto y tableros con todos sus dibujos. Una colección con el mismo nombre que una tuya va a la tuya. Importar la misma exportación otra vez solo añade lo que falta.',
+      'Sube el zip de Ajustes, Exportar de otro BrainBro. Todo vuelve como estaba, y si lo importas otra vez solo se añade lo que falta.',
     obsidianIntro:
       'Comprime la carpeta de tu bóveda en un zip y súbelo. Las carpetas se convierten en colecciones, las notas conservan las imágenes que incrustan, los demás archivos pasan a ser elementos y los canvas, tableros. Lo que está en la raíz de la bóveda llega a tu bandeja.',
     uploading: 'Subiendo… {percent}%',

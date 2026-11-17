@@ -308,7 +308,7 @@ export const en = {
   imports: {
     intro: 'Bring your notes in from another BrainBro or another app.',
     brainbroIntro:
-      'Upload the zip from Settings, Export of another BrainBro. Everything comes back as it was: notes, links, images, files and albums with their status and dates, collections with their look, and boards with every drawing. A collection with the same name as one you have goes into yours. Importing the same export again only adds what is missing.',
+      "Upload the zip from Settings, Export of another BrainBro. Everything comes back as it was, and importing it again only adds what's missing.",
     obsidianIntro:
       'Zip your vault folder and upload it. Folders become collections, notes keep the images they embed, other files become items and canvases become boards. What sits at the top of the vault lands in your inbox.',
     uploading: 'Uploading… {percent}%',
