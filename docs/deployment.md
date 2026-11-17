@@ -180,7 +180,7 @@ admin user does not exist yet.
 | `BACKUP_RETENTION` | `14` | How many daily database dumps the `backups` volume keeps. See [backups.md](backups.md). |
 | `UPLOAD_MAX_SIZE` | `52428800` (50 MB) | The largest file accepted by capture, in bytes. |
 | `STORAGE_QUOTA` | Empty, no quota | The most each user may store, in MB (`10240` is 10 GB). See [Storage quota](#storage-quota). |
-| `IMPORT_MAX_SIZE` | `104857600` (100 MB) | The largest Obsidian vault zip accepted by "Import from Obsidian", in bytes. See [import.md](import.md). |
+| `IMPORT_MAX_SIZE` | `104857600` (100 MB) | The largest zip accepted by Settings, Import (a BrainBro export or an Obsidian vault), in bytes. See [import.md](import.md). |
 | `SOURCE_CODE_URL` | This repository | Linked from the About dialog. See [Source code link](#source-code-link). |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_USERNAME` | Empty | The Telegram bot, off without them, unless an admin sets one up in Settings, Telegram, which wins over them. See [telegram.md](telegram.md). |
 | `TELEGRAM_WEBHOOK_URL` | `https://<first APP_HOSTNAMES>/api/telegram/webhook/` with `APP_HTTPS=true`; otherwise the [public address](#public-address) when it is `https://`; otherwise empty | Where Telegram sends the bot's messages. Only needed when that address isn't the right one; Telegram only delivers to HTTPS. |
