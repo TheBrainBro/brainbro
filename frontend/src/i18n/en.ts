@@ -152,6 +152,8 @@ export const en = {
     mcpUrl: 'MCP server URL',
     localOnly:
       "This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: use BrainBro's public address.",
+    networkOnly:
+      'This address only works on your network. Claude, ChatGPT and Grok connect from the internet: an admin can set BrainBro’s public address in Settings, Server, General.',
     promptTitle: 'Ready-to-paste prompt',
     copyPrompt: 'Copy prompt',
     promptCopied: 'Prompt copied',
@@ -208,8 +210,8 @@ export const en = {
   telegram: {
     intro:
       "Send or forward anything to the bot and it lands in your inbox: text, links, photos and files. Photos sent together become an album. The bot reacts with 👍 when it's saved.",
-    notConfigured:
-      "The bot isn't set up on this server yet: it needs <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_BOT_USERNAME</code>.",
+    notConfigured: "The bot isn't set up on this server. Ask your admin to configure it.",
+    botSettings: 'Server bot',
     connected: 'Connected to @{bot}.',
     connectedAs: 'Connected as {name} to @{bot}.',
     disconnect: 'Disconnect',
@@ -242,6 +244,31 @@ export const en = {
     emailSentTo: 'Handed to {provider} for {email}. You can also share the link yourself:',
     emailNotSent: "{error} Send this link yourself now: it won't be shown again.",
     sentTo: 'sent to {email}',
+    localOnly:
+      'Links start with {host}, which only opens on your network. To invite someone outside it, set the public address in Settings, Server, General.',
+  },
+  address: {
+    intro:
+      'Where people open BrainBro from outside your network. Every link BrainBro sends or shows starts with it: invitations, password resets, public notes and the address for AI assistants. If you use a Cloudflare Tunnel, enter its address here.',
+    label: 'Public address',
+    hint: 'Links sent from now on start with it. Those already sent keep their address. Empty, links start with the address BrainBro is opened on.',
+    hintEmpty: 'Empty, links start with the address BrainBro is opened on: right now, {origin}.',
+    saved: 'Saved. Links sent from now on start with it.',
+  },
+  telegramServer: {
+    intro:
+      'Create a bot with @BotFather in Telegram and paste its token here. Everyone on this server connects to it.',
+    statusSaved: 'Using @{bot}, saved here',
+    statusEnvironment: 'Using @{bot}, from the server’s environment variables',
+    webhook: 'Telegram delivers its messages to {url}',
+    noWebhook:
+      'Telegram can’t deliver messages yet: it needs an HTTPS public address. Set it in Server, General.',
+    remove: 'Remove this bot',
+    environmentOn: 'The environment variables set up another bot: it is used instead.',
+    environmentOff: 'The environment variables set up no bot: Telegram turns off.',
+    token: 'Bot token',
+    tokenSaved: 'Saved. Paste a new one to replace it.',
+    tokenHint: 'From @BotFather. Checked with Telegram, stored encrypted and never shown again.',
   },
   email: {
     intro:
@@ -273,22 +300,34 @@ export const en = {
     images: { one: '{count} image', other: '{count} images' },
     files: { one: '{count} file', other: '{count} files' },
     links: { one: '{count} link', other: '{count} links' },
+    albums: { one: '{count} album', other: '{count} albums' },
     boards: { one: '{count} board', other: '{count} boards' },
     collections: { one: '{count} collection', other: '{count} collections' },
     items: { one: '{count} item', other: '{count} items' },
   },
   imports: {
-    intro: 'Bring your notes in from another app.',
+    intro: 'Bring your notes in from another BrainBro or another app.',
+    brainbroIntro:
+      "Upload the zip from Settings, Export of another BrainBro. Everything comes back as it was, and importing it again only adds what's missing.",
     obsidianIntro:
       'Zip your vault folder and upload it. Folders become collections, notes keep the images they embed, other files become items and canvases become boards. What sits at the top of the vault lands in your inbox.',
     uploading: 'Uploading… {percent}%',
     importing: 'Importing {filename}… You can close this, it keeps going.',
     failed: 'The last import failed.',
     vaultZip: 'Vault zip',
+    exportZip: 'Export zip',
+    chooseExport: 'Choose export zip',
+    anotherExport: 'Import another export',
     another: 'Import another vault',
     choose: 'Choose vault zip',
     imported: 'Imported {what}.',
     nothing: 'Nothing to import was found.',
+    existing: {
+      one: '{count} was already here and was left as it is.',
+      other: '{count} were already here and were left as they are.',
+    },
+    notInExports:
+      "Version history, public pages, API tokens and Telegram aren't in exports, so they weren't imported.",
     skipped: {
       one: '{count} file was skipped (too large or unreadable).',
       other: '{count} files were skipped (too large or unreadable).',
@@ -329,6 +368,7 @@ export const en = {
       sampleContent: 'Sample content',
       invitations: 'Invitations',
       email: 'Email',
+      general: 'General',
       blogs: 'Blogs',
     },
   },

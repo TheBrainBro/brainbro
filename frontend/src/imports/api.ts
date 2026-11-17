@@ -5,19 +5,26 @@ import { api, upload } from '../lib/api'
 
 export type ImportStatus = 'pending' | 'ready' | 'failed'
 
+/** What the zip held: an Obsidian vault or a BrainBro export. */
+export type ImportSource = 'obsidian' | 'brainbro'
+
 export type ImportCounts = {
   notes: number
   images: number
   files: number
   links: number
+  albums: number
   boards: number
   collections: number
+  /** BrainBro exports: things that were already here, left as they are. */
+  existing: number
   skipped: number
 }
 
 export type VaultImport = {
   id: string
   status: ImportStatus
+  source: ImportSource
   filename: string
   counts: Partial<ImportCounts>
   error: string
@@ -47,7 +54,7 @@ export function useLatestImport() {
   })
 }
 
-/** Uploads a vault zip, with its progress (0 to 1) while it goes up. */
+/** Uploads a zip to import, with its progress (0 to 1) while it goes up. */
 export function useStartImport() {
   const queryClient = useQueryClient()
   const [progress, setProgress] = useState(0)

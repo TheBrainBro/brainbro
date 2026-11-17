@@ -488,6 +488,14 @@ def test_unknown_hosts_are_turned_away(client, blog):
     assert on_blog(client, "/", host="nobody.example.com").status_code == 400
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "host", ["192.168.1.50", "100.64.0.7:8420", "[::1]", "[fd00::1]:8420"]
+)
+def test_ip_address_hosts_get_the_app(client, host):
+    assert client.get("/api/health/", HTTP_HOST=host).status_code == 200
+
+
 def test_an_unverified_blog_serves_nothing(client, user):
     Site.objects.create(owner=user, hostname=BLOG)
 

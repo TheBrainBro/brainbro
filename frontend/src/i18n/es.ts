@@ -152,6 +152,8 @@ export const es: Messages = {
     mcpUrl: 'URL del servidor MCP',
     localOnly:
       'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: usa la dirección pública de BrainBro.',
+    networkOnly:
+      'Esta dirección solo funciona en tu red. Claude, ChatGPT y Grok se conectan desde internet: un admin puede poner la dirección pública de BrainBro en Ajustes, Servidor, General.',
     promptTitle: 'Prompt listo para copiar',
     copyPrompt: 'Copiar prompt',
     promptCopied: 'Prompt copiado',
@@ -208,8 +210,8 @@ export const es: Messages = {
   telegram: {
     intro:
       'Envía o reenvía lo que quieras al bot y llega a tu bandeja: texto, enlaces, fotos y archivos. Las fotos enviadas juntas forman un álbum. El bot reacciona con 👍 cuando se guarda.',
-    notConfigured:
-      'El bot aún no está configurado en este servidor: necesita <code>TELEGRAM_BOT_TOKEN</code> y <code>TELEGRAM_BOT_USERNAME</code>.',
+    notConfigured: 'El bot no está configurado en este servidor. Pídele a tu administrador que lo configure.',
+    botSettings: 'Bot del servidor',
     connected: 'Conectado a @{bot}.',
     connectedAs: 'Conectado como {name} a @{bot}.',
     disconnect: 'Desconectar',
@@ -242,6 +244,31 @@ export const es: Messages = {
     emailSentTo: 'Entregado a {provider} para {email}. También puedes compartir el enlace tú:',
     emailNotSent: '{error} Envía este enlace tú ahora: no se volverá a mostrar.',
     sentTo: 'enviada a {email}',
+    localOnly:
+      'Los enlaces empiezan por {host}, que solo abre en tu red. Para invitar a alguien de fuera, pon la dirección pública en Ajustes, Servidor, General.',
+  },
+  address: {
+    intro:
+      'Donde la gente abre BrainBro desde fuera de tu red. Todos los enlaces que BrainBro envía o muestra empiezan por ella: invitaciones, recuperación de contraseña, notas públicas y la dirección para los asistentes de IA. Si usas un Cloudflare Tunnel, pon aquí su dirección.',
+    label: 'Dirección pública',
+    hint: 'Los enlaces que se envíen a partir de ahora empiezan por ella. Los ya enviados mantienen su dirección. Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro.',
+    hintEmpty: 'Vacía, los enlaces empiezan por la dirección en la que se abre BrainBro: ahora mismo, {origin}.',
+    saved: 'Guardada. Los enlaces que se envíen a partir de ahora empiezan por ella.',
+  },
+  telegramServer: {
+    intro:
+      'Crea un bot con @BotFather en Telegram y pega aquí su token. Todos en este servidor se conectan a él.',
+    statusSaved: 'Usando @{bot}, guardado aquí',
+    statusEnvironment: 'Usando @{bot}, de las variables de entorno del servidor',
+    webhook: 'Telegram entrega sus mensajes en {url}',
+    noWebhook:
+      'Telegram aún no puede entregar mensajes: necesita una dirección pública HTTPS. Configúrala en Servidor, General.',
+    remove: 'Quitar este bot',
+    environmentOn: 'Las variables de entorno configuran otro bot: se usará ese.',
+    environmentOff: 'Las variables de entorno no configuran ningún bot: Telegram se desactiva.',
+    token: 'Token del bot',
+    tokenSaved: 'Guardado. Pega uno nuevo para reemplazarlo.',
+    tokenHint: 'De @BotFather. Se comprueba con Telegram, se guarda cifrado y no se vuelve a mostrar.',
   },
   email: {
     intro:
@@ -273,22 +300,34 @@ export const es: Messages = {
     images: { one: '{count} imagen', other: '{count} imágenes' },
     files: { one: '{count} archivo', other: '{count} archivos' },
     links: { one: '{count} enlace', other: '{count} enlaces' },
+    albums: { one: '{count} álbum', other: '{count} álbumes' },
     boards: { one: '{count} tablero', other: '{count} tableros' },
     collections: { one: '{count} colección', other: '{count} colecciones' },
     items: { one: '{count} elemento', other: '{count} elementos' },
   },
   imports: {
-    intro: 'Trae tus notas desde otra app.',
+    intro: 'Trae tus notas desde otro BrainBro o desde otra app.',
+    brainbroIntro:
+      'Sube el zip de Ajustes, Exportar de otro BrainBro. Todo vuelve como estaba, y si lo importas otra vez solo se añade lo que falta.',
     obsidianIntro:
       'Comprime la carpeta de tu bóveda en un zip y súbelo. Las carpetas se convierten en colecciones, las notas conservan las imágenes que incrustan, los demás archivos pasan a ser elementos y los canvas, tableros. Lo que está en la raíz de la bóveda llega a tu bandeja.',
     uploading: 'Subiendo… {percent}%',
     importing: 'Importando {filename}… Puedes cerrar esto, sigue en marcha.',
     failed: 'La última importación falló.',
     vaultZip: 'Zip de la bóveda',
+    exportZip: 'Zip de la exportación',
+    chooseExport: 'Elegir el zip de la exportación',
+    anotherExport: 'Importar otra exportación',
     another: 'Importar otra bóveda',
     choose: 'Elegir el zip de la bóveda',
     imported: 'Importado: {what}.',
     nothing: 'No se encontró nada que importar.',
+    existing: {
+      one: '{count} ya estaba aquí y se dejó como estaba.',
+      other: '{count} ya estaban aquí y se dejaron como estaban.',
+    },
+    notInExports:
+      'El historial de versiones, las páginas públicas, los tokens de la API y Telegram no van en las exportaciones, así que no se importaron.',
     skipped: {
       one: 'Se omitió {count} archivo (demasiado grande o ilegible).',
       other: 'Se omitieron {count} archivos (demasiado grandes o ilegibles).',
@@ -329,6 +368,7 @@ export const es: Messages = {
       sampleContent: 'Contenido de ejemplo',
       invitations: 'Invitaciones',
       email: 'Email',
+      general: 'General',
       blogs: 'Blogs',
     },
   },

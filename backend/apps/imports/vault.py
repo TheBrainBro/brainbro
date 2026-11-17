@@ -90,24 +90,31 @@ def import_vault(owner, source):
     Imports the vault in the zip `source` (a path or file object) for
     `owner`, all or nothing. Returns counts of what was created.
     """
+    with open_zip(source) as archive:
+        return import_files(VaultImporter, owner, Vault(archive))
+
+
+def open_zip(source):
     try:
-        archive = zipfile.ZipFile(source)
+        return zipfile.ZipFile(source)
     except (zipfile.BadZipFile, OSError):
         raise VaultError("This isn't a zip file.") from None
-    with archive:
-        vault = _Vault(archive)
-        stored = []
-        try:
-            with transaction.atomic():
-                return _Importer(owner, vault, stored).run()
-        except BaseException:
-            # The rows rolled back; the files they pointed at did not.
-            for file in stored:
-                file.delete(save=False)
-            raise
 
 
-class _Vault:
+def import_files(importer, owner, vault):
+    """Runs `importer` over `vault` in one transaction; its counts."""
+    stored = []
+    try:
+        with transaction.atomic():
+            return importer(owner, vault, stored).run()
+    except BaseException:
+        # The rows rolled back; the files they pointed at did not.
+        for file in stored:
+            file.delete(save=False)
+        raise
+
+
+class Vault:
     """The vault's files by path, with Obsidian's ways of finding one."""
 
     def __init__(self, archive):
@@ -161,11 +168,39 @@ def _hidden(path):
     return any(part.startswith(".") or part == "__MACOSX" for part in path.split("/"))
 
 
-class _Importer:
+class Importer:
+    """What every import shares: counts, jobs for after it commits, the quota."""
+
     def __init__(self, owner, vault, stored):
         self.owner = owner
         self.vault = vault
+        # Files it stores, deleted if the import fails.
         self.stored = stored
+        self.counts = defaultdict(int)
+        self.after_commit = []
+        # One rank for all it makes: on top, and tied, so collections sort by name.
+        self.rank = rank_now()
+        # Every file it stores has to fit in the owner's quota.
+        self.quota = storage_quota(owner)
+        self.used = storage_used(owner) if self.quota is not None else 0
+
+    def take(self, size):
+        """Counts `size` more bytes stored; the import fails if they don't fit."""
+        if self.quota is None:
+            return
+        if self.used + size > self.quota:
+            exceeded = QuotaExceeded(self.used, self.quota)
+            raise VaultError(f"{exceeded} Nothing was imported.")
+        self.used += size
+
+    def schedule(self):
+        for job in self.after_commit:
+            transaction.on_commit(job)
+
+
+class VaultImporter(Importer):
+    def __init__(self, owner, vault, stored):
+        super().__init__(owner, vault, stored)
         self.collections = {}
         # Lowercase names in use, by parent. Those it makes start out empty.
         self.taken_names = defaultdict(set)
@@ -175,15 +210,8 @@ class _Importer:
                 "name", flat=True
             )
         }
-        self.counts = defaultdict(int)
         # Vault paths of the images stored as some note's own.
         self.attached = set()
-        self.after_commit = []
-        # One rank for all it makes: on top, and tied, so collections sort by name.
-        self.rank = rank_now()
-        # Every file it stores has to fit in the owner's quota.
-        self.quota = storage_quota(owner)
-        self.used = storage_used(owner) if self.quota is not None else 0
 
     def run(self):
         notes, canvases = self._read_texts()
@@ -199,7 +227,7 @@ class _Importer:
             if (found := self.vault.resolve(node["file"]))
         }
         for path in self.vault.files:
-            if _extension(path) in (".md", ".canvas") or path in items:
+            if extension(path) in (".md", ".canvas") or path in items:
                 continue
             if path in self.attached and path not in on_canvas:
                 continue
@@ -208,8 +236,7 @@ class _Importer:
         for path, canvas in canvases.items():
             self._create_board(path, canvas, items)
 
-        for job in self.after_commit:
-            transaction.on_commit(job)
+        self.schedule()
         return {key: self.counts[key] for key in COUNTS}
 
     def _read_texts(self):
@@ -217,10 +244,10 @@ class _Importer:
         notes = []
         canvases = {}
         for path in self.vault.files:
-            if _extension(path) == ".md":
+            if extension(path) == ".md":
                 if note := self._read_note(path):
                     notes.append(note)
-            elif _extension(path) == ".canvas":
+            elif extension(path) == ".canvas":
                 if (canvas := self._read_canvas(path)) is not None:
                     canvases[path] = canvas
         return notes, canvases
@@ -282,7 +309,7 @@ class _Importer:
         path = self.vault.resolve(target, folder)
         if not path or self.vault.size(path) > MAX_PASTED_SIZE:
             return None
-        if _extension(path) not in IMAGE_EXTENSIONS:
+        if extension(path) not in IMAGE_EXTENSIONS:
             return None
         return path
 
@@ -315,10 +342,10 @@ class _Importer:
     def _attach(self, note, path):
         """Stores the image as one pasted into `note`; its `src`, or None."""
         data = self.vault.read(path)
-        upload = _inspect(data, path)
+        upload = inspect(data, path)
         if upload is None or upload.kind != Item.Kind.IMAGE:
             return None
-        self._take(len(data))
+        self.take(len(data))
         image = NoteImage(
             owner=self.owner,
             note=note,
@@ -342,11 +369,11 @@ class _Importer:
             self.counts["skipped"] += 1
             return None
         data = self.vault.read(path)
-        upload = _inspect(data, path)
+        upload = inspect(data, path)
         if upload is None:
             self.counts["skipped"] += 1
             return None
-        self._take(len(data))
+        self.take(len(data))
         item = Item(
             owner=self.owner,
             kind=upload.kind,
@@ -362,15 +389,6 @@ class _Importer:
         self.counts["images" if upload.kind == Item.Kind.IMAGE else "files"] += 1
         self._place(item, path)
         return item
-
-    def _take(self, size):
-        """Counts `size` more bytes stored; the import fails if they don't fit."""
-        if self.quota is None:
-            return
-        if self.used + size > self.quota:
-            exceeded = QuotaExceeded(self.used, self.quota)
-            raise VaultError(f"{exceeded} Nothing was imported.")
-        self.used += size
 
     # Boards
 
@@ -440,7 +458,7 @@ COUNTS = ("notes", "images", "files", "links", "boards", "collections", "skipped
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".heic", ".heif"}
 
 
-def _extension(path):
+def extension(path):
     return posixpath.splitext(path)[1].lower()
 
 
@@ -455,7 +473,7 @@ def _file_nodes(canvas):
     ]
 
 
-def _inspect(data, path):
+def inspect(data, path):
     file = ContentFile(data, name=posixpath.basename(path))
     try:
         return inspect_upload(file)

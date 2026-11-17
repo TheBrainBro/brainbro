@@ -1,11 +1,13 @@
 """
 Blogs on their owners' own domains. BrainBro routes by the host a request
-arrives with (`SiteMiddleware`): the server's own hostnames (`APP_HOSTS`)
-get the app, the embed host (`EMBED_HOSTNAME`) its pages of embedded posts,
-and a verified site's hostname gets that blog, whatever brought the request
-there (a reverse proxy issuing certificates on demand, a tunnel).
+arrives with (`SiteMiddleware`): the server's own hostnames (`APP_HOSTS`),
+its public address's (`apps.core.public_address`) and any IP address get the
+app, the embed host (`EMBED_HOSTNAME`) its pages of embedded posts, and a
+verified site's hostname gets that blog, whatever brought the request there
+(a reverse proxy issuing certificates on demand, a tunnel).
 """
 
+import ipaddress
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -17,6 +19,7 @@ from django.http import HttpResponseBadRequest
 from django.http.request import split_domain_port, validate_host
 from django.utils.text import slugify
 
+from apps.core import public_address
 from apps.items.models import Collection, CollectionItem, Item
 
 from .handles import public_handle
@@ -46,8 +49,51 @@ def normalize_hostname(value):
     return value if HOSTNAME.fullmatch(value) else ""
 
 
+def is_ip_address(host):
+    """`192.168.1.50`, `[::1]` (as a Host header brackets it) or `::1`."""
+    try:
+        ipaddress.ip_address(host.removeprefix("[").removesuffix("]"))
+    except ValueError:
+        return False
+    return True
+
+
 def is_app_host(host):
-    return validate_host(host, settings.APP_HOSTS)
+    """
+    One of the app's hostnames, its public address's, or an IP address: a
+    server opened by its IP (on a local network, through a VPN) is the app.
+    A blog's hostname is always a domain (`normalize_hostname`), so an IP is
+    never a blog's.
+    """
+    return (
+        is_ip_address(host)
+        or validate_host(host, settings.APP_HOSTS)
+        or (bool(host) and host == public_address.host())
+    )
+
+
+def forwarded_https(request):
+    """Whether the proxy says the request came in over HTTPS."""
+    value = request.META.get("HTTP_X_FORWARDED_PROTO", "")
+    return value.split(",", 1)[0].strip() == "https"
+
+
+def trust_forwarded_https(request, host):
+    """
+    Takes the proxy's word that the request came in over HTTPS when it is
+    for the public address and that address is HTTPS, as
+    `SECURE_PROXY_SSL_HEADER` does for every host where it is set. Without
+    this, a tunnel to a server set up for plain HTTP (the Umbrel app) fails
+    the CSRF check on every POST: the browser's origin is `https://`.
+    """
+    if settings.SECURE_PROXY_SSL_HEADER or not forwarded_https(request):
+        return
+    if not public_address.is_https_host(host):
+        return
+    if hasattr(request, "scope"):
+        request.scope["scheme"] = "https"
+    else:
+        request.environ["wsgi.url_scheme"] = "https"
 
 
 def is_embed_host(host):
@@ -86,6 +132,8 @@ class SiteMiddleware:
             request.META.pop("HTTP_COOKIE", None)
             request.urlconf = SITE_URLCONF
             request.site = site
+        else:
+            trust_forwarded_https(request, host)
         return self.get_response(request)
 
 

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.accounts.quota import QuotaExceeded, check_room
 
+from .brainbro import source_of
 from .models import Import
 from .serializers import ImportSerializer, ImportUploadSerializer
 from .tasks import IMPORT_TIME_LIMIT, run_import
@@ -16,9 +17,10 @@ class ImportViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     """
-    Obsidian vault imports of the current user. `POST` a zip as `file` to
-    start one; it's done when `status` is `ready` (with `counts`) or `failed`
-    (with `error`). One runs at a time.
+    Imports of the current user: an Obsidian vault or a BrainBro export,
+    told apart by its files (`source`). `POST` a zip as `file` to start one;
+    it's done when `status` is `ready` (with `counts`) or `failed` (with
+    `error`). One runs at a time.
     """
 
     serializer_class = ImportSerializer
@@ -49,7 +51,9 @@ class ImportViewSet(
                     status=status.HTTP_409_CONFLICT,
                 )
             vault_import = Import(
-                owner=request.user, filename=upload.name.rsplit("/", 1)[-1][:255]
+                owner=request.user,
+                filename=upload.name.rsplit("/", 1)[-1][:255],
+                source=source_of(upload),
             )
             vault_import.file.save("vault.zip", upload, save=False)
             vault_import.save()

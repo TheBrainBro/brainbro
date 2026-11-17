@@ -57,7 +57,7 @@ API and how it is built, for whoever works on the code.
 
 | Page | What it covers |
 |---|---|
-| [Import from Obsidian](import.md) | Bringing in an Obsidian vault |
+| [Import](import.md) | Bringing in a BrainBro export or an Obsidian vault |
 | [Export](export.md) | Everything you have, as Markdown and files |
 | [Translations](translations.md) | Choosing the language, and adding a new one |
 

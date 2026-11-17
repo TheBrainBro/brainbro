@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import OwnedModel
+from apps.core.models import OwnedModel, TimestampedModel
 
 
 class TelegramLink(OwnedModel):
@@ -26,3 +26,23 @@ class TelegramLink(OwnedModel):
 
     def __str__(self):
         return f"Telegram {self.telegram_name or self.chat_id or 'pending'}"
+
+
+class TelegramSettings(TimestampedModel):
+    """
+    The bot this server speaks as, set by an admin in Settings, Server,
+    Telegram. One row at most: while it exists it is used instead of the
+    environment (apps.telegram.bot). The token is stored encrypted
+    (apps.core.secrets); the username comes from Telegram (`getMe`).
+    """
+
+    # Keeps it to one row.
+    singleton = models.BooleanField(default=True, unique=True, editable=False)
+    bot_token = models.TextField()
+    bot_username = models.CharField(max_length=64)
+
+    class Meta:
+        verbose_name_plural = "Telegram settings"
+
+    def __str__(self):
+        return f"Telegram bot @{self.bot_username}"

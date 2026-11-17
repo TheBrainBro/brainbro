@@ -9,6 +9,7 @@ import {
   type PageSettings,
 } from '../items/api'
 import { useT } from '../i18n/i18n'
+import { useAppHost } from '../lib/address'
 import { ErrorState, Loading } from '../ui/states'
 
 const NO_IMAGE = 'none'
@@ -62,6 +63,9 @@ function SettingsForm({
   onClose: () => void
 }) {
   const t = useT()
+  const appHost = useAppHost()
+  // Where the page lives: on the server, or on its blog's domain.
+  const pageHost = page.address.startsWith('/') ? appHost : new URL(page.address).host
   const save = useSavePage(note.id)
   const [slug, setSlug] = useState(page.slug ?? '')
   const [title, setTitle] = useState(page.title)
@@ -98,7 +102,7 @@ function SettingsForm({
         <div className="flex items-center gap-1.5">
           <span className="text-sm whitespace-nowrap text-zinc-500">
             {page.address.startsWith('/')
-              ? `${window.location.host}${page.address}`
+              ? `${appHost}${page.address}`
               : page.address.replace(/^https?:\/\//, '')}
           </span>
           <input
@@ -175,7 +179,7 @@ function SettingsForm({
             <img src={previewImage} alt="" className="aspect-[1.91/1] w-full object-cover" />
           )}
           <div className="space-y-0.5 p-3">
-            <div className="text-xs text-zinc-500">{window.location.host}</div>
+            <div className="text-xs text-zinc-500">{pageHost}</div>
             <div className="truncate text-sm font-medium">{title.trim() || page.defaults.title}</div>
             <div className="line-clamp-2 text-xs text-zinc-500">
               {description.trim() || page.defaults.description}

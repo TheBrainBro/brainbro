@@ -2,14 +2,15 @@ import { LoaderCircle } from 'lucide-react'
 import { useRef, type ComponentType } from 'react'
 
 import { t, useT } from '../i18n/i18n'
-import { useLatestImport, useStartImport } from './api'
+import { useLatestImport, useStartImport, type ImportSource } from './api'
 import { summary } from './summary'
 
-type Source = { id: string; label: string; Logo: ComponentType; Import: ComponentType }
+type Source = { id: ImportSource; label: string; Logo: ComponentType }
 
-// The apps notes can come from, one card each.
+// Where notes can come from, one card each: another BrainBro, or another app.
 const sources: Source[] = [
-  { id: 'obsidian', label: 'Obsidian', Logo: ObsidianLogo, Import: ObsidianImport },
+  { id: 'brainbro', label: 'BrainBro', Logo: BrainBroLogo },
+  { id: 'obsidian', label: 'Obsidian', Logo: ObsidianLogo },
 ]
 
 /** Brings notes in from other apps: one card per app, each with its own upload. */
@@ -21,7 +22,7 @@ export function ImportPanel() {
         {t('imports.intro')}
       </p>
       <ul className="space-y-3">
-        {sources.map(({ id, label, Logo, Import }) => (
+        {sources.map(({ id, label, Logo }) => (
           <li
             key={id}
             aria-labelledby={`import-${id}`}
@@ -31,12 +32,17 @@ export function ImportPanel() {
               <Logo />
               {label}
             </h4>
-            <Import />
+            <ZipImport source={id} />
           </li>
         ))}
       </ul>
     </div>
   )
+}
+
+/** BrainBro's own mark. */
+function BrainBroLogo() {
+  return <img src="/favicon.svg" alt="" className="size-5" />
 }
 
 /** Obsidian's mark, from Simple Icons (CC0, see THIRD_PARTY_NOTICES.md), in its brand purple. */
@@ -48,18 +54,36 @@ function ObsidianLogo() {
   )
 }
 
-/** An Obsidian vault, uploaded as a zip and imported in the background. */
-function ObsidianImport() {
+const texts = {
+  obsidian: {
+    intro: 'imports.obsidianIntro',
+    zip: 'imports.vaultZip',
+    choose: 'imports.choose',
+    another: 'imports.another',
+  },
+  brainbro: {
+    intro: 'imports.brainbroIntro',
+    zip: 'imports.exportZip',
+    choose: 'imports.chooseExport',
+    another: 'imports.anotherExport',
+  },
+} as const
+
+/**
+ * A zip uploaded and imported in the background. Each card shows the last
+ * import of its kind; the server tells them apart by what the zip holds.
+ */
+function ZipImport({ source }: { source: ImportSource }) {
   useT()
   const input = useRef<HTMLInputElement>(null)
-  const { data: latest, isPending: loading } = useLatestImport()
+  const { data: last, isPending: loading } = useLatestImport()
   const start = useStartImport()
+  const latest = last?.source === source ? last : null
+  const text = texts[source]
 
   return (
     <div>
-      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-        {t('imports.obsidianIntro')}
-      </p>
+      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">{t(text.intro)}</p>
 
       {loading ? null : start.isPending ? (
         <p role="status" className="flex items-center gap-2 text-sm">
@@ -81,7 +105,7 @@ function ObsidianImport() {
         <div className="space-y-3">
           {latest?.status === 'ready' && (
             <p role="status" className="text-sm">
-              {summary(latest.counts)}
+              {summary(latest.counts, source)}
             </p>
           )}
           {latest?.status === 'failed' && (
@@ -99,7 +123,7 @@ function ObsidianImport() {
             type="file"
             accept=".zip,application/zip"
             className="hidden"
-            aria-label={t('imports.vaultZip')}
+            aria-label={t(text.zip)}
             onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
@@ -109,9 +133,11 @@ function ObsidianImport() {
           <button
             type="button"
             className="button-primary"
+            // One import at a time, of either kind.
+            disabled={last?.status === 'pending'}
             onClick={() => input.current?.click()}
           >
-            {latest?.status === 'ready' ? t('imports.another') : t('imports.choose')}
+            {latest?.status === 'ready' ? t(text.another) : t(text.choose)}
           </button>
         </div>
       )}

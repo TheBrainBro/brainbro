@@ -2,6 +2,7 @@ import { Check, Copy, TriangleAlert } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { rich, t, useT } from '../i18n/i18n'
+import { localReach, useAppOrigin } from '../lib/address'
 import { copyText } from '../lib/dom'
 import { timeAgo } from '../lib/time'
 import { CopyField } from '../ui/CopyField'
@@ -21,17 +22,19 @@ import { PermissionChoices } from './PermissionChoices'
  */
 export function TokensPanel() {
   useT()
+  const url = useMcpUrl()
+  const reach = localReach(new URL(url).hostname)
   return (
     <div className="space-y-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">
         {t('tokens.intro')}
       </p>
       <div className="space-y-2">
-        <CopyField label={t('tokens.mcpUrl')} value={mcpUrl()} />
-        {isLocal() && (
+        <CopyField label={t('tokens.mcpUrl')} value={url} />
+        {reach && (
           <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
             <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            {t('tokens.localOnly')}
+            {t(reach === 'computer' ? 'tokens.localOnly' : 'tokens.networkOnly')}
           </p>
         )}
       </div>
@@ -43,18 +46,14 @@ export function TokensPanel() {
   )
 }
 
-/** The MCP server's canonical URI, as OAuth metadata names it. */
-function mcpUrl() {
-  return `${window.location.origin}/api/mcp`
-}
-
-function isLocal() {
-  return ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
+/** The MCP server's address, on the public address when there is one. */
+function useMcpUrl() {
+  return `${useAppOrigin()}/api/mcp`
 }
 
 /** A ready-to-paste prompt tailored to this BrainBro installation. */
 function Prompt() {
-  const url = mcpUrl()
+  const url = useMcpUrl()
   const prompt = t('tokens.prompt', { url })
   const [copied, setCopied] = useState(false)
   return (
@@ -88,6 +87,7 @@ function Prompt() {
 }
 
 function Setups() {
+  const url = useMcpUrl()
   return (
     <div
       data-tutorial="assistant-setup"
@@ -124,7 +124,7 @@ function Setups() {
           <div className="mt-1.5">
             <CopyField
               label={t('tokens.claudeCodeCommand')}
-              value={`claude mcp add --transport http brainbro ${mcpUrl()}`}
+              value={`claude mcp add --transport http brainbro ${url}`}
             />
           </div>
         </li>
@@ -311,7 +311,8 @@ function NewTokenForm() {
 /** The token, shown this once, and how to connect Claude Code with it. */
 function NewToken({ token }: { token: NewApiToken }) {
   useT()
-  const command = `claude mcp add --transport http brainbro ${mcpUrl()} --header "Authorization: Bearer ${token.token}"`
+  const url = useMcpUrl()
+  const command = `claude mcp add --transport http brainbro ${url} --header "Authorization: Bearer ${token.token}"`
   return (
     <div className="space-y-3 rounded-xl border border-accent-300 bg-accent-50/50 p-3 dark:border-accent-800 dark:bg-accent-950/30">
       <p role="status" className="text-sm font-medium">

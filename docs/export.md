@@ -54,8 +54,9 @@ which serves the zips, and `worker`, which writes them. It lives outside
   points at those copies (inline images; reference-style ones keep their
   URL); `items.json` keeps the body as written, with an `images` list.
 - **Boards as JSON Canvas too:** each board also goes out as `<board>.canvas`,
-  so the export opens in Obsidian with its boards (see [import.md](import.md)
-  for the other direction).
+  so the export opens in Obsidian with its boards. Importing an export into
+  BrainBro reads `items.json`, `collections.json` and the boards' `.json`
+  instead (see [import.md](import.md)).
 - **Boards keep their layout as is** (migrated to the current
   `schema_version` and without items that no longer exist), plus an `items`
   map from item id to its path in the export, and a Markdown outline.
