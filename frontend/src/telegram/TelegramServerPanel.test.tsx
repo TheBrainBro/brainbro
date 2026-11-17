@@ -62,8 +62,8 @@ describe('TelegramServerPanel', () => {
   it('saves the token from BotFather', async () => {
     const fetchMock = renderPanel(off)
 
-    expect(await screen.findByText('No bot set up')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Bot token'), { target: { value: ' 123:abc ' } })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: ' 123:abc ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByText('Using @brainbro_bot, saved here')).toBeInTheDocument()
@@ -98,7 +98,8 @@ describe('TelegramServerPanel', () => {
     expect(await screen.findByText('The environment variables set up no bot: Telegram turns off.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Remove this bot' }))
 
-    expect(await screen.findByText('No bot set up')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('123456789:AA...')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/server/telegram/', expect.objectContaining({ method: 'DELETE' }))
   })
 })
