@@ -36,7 +36,7 @@ const expired: Invitation = { ...pending, id: 'i4', note: 'Cris', status: 'expir
 
 function renderPanel(
   invitations: Invitation[],
-  { emailEnabled = false, emailResult = {} as Record<string, unknown> } = {},
+  { emailEnabled = false, emailResult = {} as Record<string, unknown>, publicUrl = '' } = {},
 ) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/auth/session/') {
@@ -44,6 +44,7 @@ function renderPanel(
         authenticated: true,
         user: { id: 1, username: 'admin', email: '', is_staff: true },
         email_enabled: emailEnabled,
+        public_url: publicUrl,
       })
     }
     if (init?.method === 'POST') {
@@ -69,6 +70,23 @@ function renderPanel(
 afterEach(() => vi.unstubAllGlobals())
 
 describe('InvitationsPanel', () => {
+  it('warns that links only open on this network without a public address', async () => {
+    renderPanel([])
+
+    expect(await screen.findByText(/only opens on your network/)).toHaveTextContent(
+      `Links start with ${window.location.host}`,
+    )
+  })
+
+  it("doesn't warn with a public address", async () => {
+    const fetchMock = renderPanel([], { publicUrl: 'https://brain.example.com' })
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/session/', expect.anything()))
+    await screen.findByRole('button', { name: 'Create link' })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.queryByText(/only opens on your network/)).not.toBeInTheDocument()
+  })
+
   it('creates a link and shows it once', async () => {
     const fetchMock = renderPanel([])
 
