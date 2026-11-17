@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import server_views, views
 
 urlpatterns = [
     path("telegram/", views.TelegramView.as_view(), name="telegram"),
@@ -8,6 +8,11 @@ urlpatterns = [
         "telegram/connect/",
         views.TelegramConnectView.as_view(),
         name="telegram-connect",
+    ),
+    path(
+        "server/telegram/",
+        server_views.telegram_settings_view,
+        name="server-telegram",
     ),
     path(
         "telegram/webhook/",
