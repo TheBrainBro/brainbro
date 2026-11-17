@@ -1,5 +1,6 @@
 import { LoaderCircle, Send } from 'lucide-react'
 
+import { useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
 import { useConnectTelegram, useDisconnectTelegram, useTelegramStatus } from './api'
 
@@ -9,6 +10,7 @@ export function TelegramPanel() {
   const connect = useConnectTelegram()
   const disconnect = useDisconnectTelegram()
   const { data: status, isPending: loading } = useTelegramStatus(connect.isSuccess)
+  const { data: session } = useSession()
 
   return (
     <div>
@@ -18,7 +20,7 @@ export function TelegramPanel() {
 
       {loading || !status ? null : !status.configured ? (
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          {t('telegram.notConfigured')}
+          {session?.user?.is_staff ? t('telegram.notConfiguredAdmin') : t('telegram.notConfigured')}
         </p>
       ) : status.linked ? (
         <div className="space-y-3">

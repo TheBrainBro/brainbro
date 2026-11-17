@@ -211,6 +211,7 @@ export const es: Messages = {
     intro:
       'Envía o reenvía lo que quieras al bot y llega a tu bandeja: texto, enlaces, fotos y archivos. Las fotos enviadas juntas forman un álbum. El bot reacciona con 👍 cuando se guarda.',
     notConfigured: 'El bot no está configurado en este servidor. Pídele a tu administrador que lo configure.',
+    notConfiguredAdmin: 'El bot no está configurado en este servidor. Configúralo en Servidor, Telegram.',
     connected: 'Conectado a @{bot}.',
     connectedAs: 'Conectado como {name} a @{bot}.',
     disconnect: 'Desconectar',

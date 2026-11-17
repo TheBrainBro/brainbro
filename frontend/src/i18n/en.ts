@@ -211,6 +211,7 @@ export const en = {
     intro:
       "Send or forward anything to the bot and it lands in your inbox: text, links, photos and files. Photos sent together become an album. The bot reacts with 👍 when it's saved.",
     notConfigured: "The bot isn't set up on this server. Ask your admin to configure it.",
+    notConfiguredAdmin: "The bot isn't set up on this server. Set it up in Server, Telegram.",
     connected: 'Connected to @{bot}.',
     connectedAs: 'Connected as {name} to @{bot}.',
     disconnect: 'Disconnect',
