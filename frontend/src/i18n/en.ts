@@ -300,22 +300,34 @@ export const en = {
     images: { one: '{count} image', other: '{count} images' },
     files: { one: '{count} file', other: '{count} files' },
     links: { one: '{count} link', other: '{count} links' },
+    albums: { one: '{count} album', other: '{count} albums' },
     boards: { one: '{count} board', other: '{count} boards' },
     collections: { one: '{count} collection', other: '{count} collections' },
     items: { one: '{count} item', other: '{count} items' },
   },
   imports: {
-    intro: 'Bring your notes in from another app.',
+    intro: 'Bring your notes in from another BrainBro or another app.',
+    brainbroIntro:
+      'Upload the zip from Settings, Export of another BrainBro. Everything comes back as it was: notes, links, images, files and albums with their status and dates, collections with their look, and boards with every drawing. A collection with the same name as one you have goes into yours. Importing the same export again only adds what is missing.',
     obsidianIntro:
       'Zip your vault folder and upload it. Folders become collections, notes keep the images they embed, other files become items and canvases become boards. What sits at the top of the vault lands in your inbox.',
     uploading: 'Uploading… {percent}%',
     importing: 'Importing {filename}… You can close this, it keeps going.',
     failed: 'The last import failed.',
     vaultZip: 'Vault zip',
+    exportZip: 'Export zip',
+    chooseExport: 'Choose export zip',
+    anotherExport: 'Import another export',
     another: 'Import another vault',
     choose: 'Choose vault zip',
     imported: 'Imported {what}.',
     nothing: 'Nothing to import was found.',
+    existing: {
+      one: '{count} was already here and was left as it is.',
+      other: '{count} were already here and were left as they are.',
+    },
+    notInExports:
+      "Version history, public pages, API tokens and Telegram aren't in exports, so they weren't imported.",
     skipped: {
       one: '{count} file was skipped (too large or unreadable).',
       other: '{count} files were skipped (too large or unreadable).',

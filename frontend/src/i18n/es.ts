@@ -300,22 +300,34 @@ export const es: Messages = {
     images: { one: '{count} imagen', other: '{count} imágenes' },
     files: { one: '{count} archivo', other: '{count} archivos' },
     links: { one: '{count} enlace', other: '{count} enlaces' },
+    albums: { one: '{count} álbum', other: '{count} álbumes' },
     boards: { one: '{count} tablero', other: '{count} tableros' },
     collections: { one: '{count} colección', other: '{count} colecciones' },
     items: { one: '{count} elemento', other: '{count} elementos' },
   },
   imports: {
-    intro: 'Trae tus notas desde otra app.',
+    intro: 'Trae tus notas desde otro BrainBro o desde otra app.',
+    brainbroIntro:
+      'Sube el zip de Ajustes, Exportar de otro BrainBro. Todo vuelve como estaba: notas, enlaces, imágenes, archivos y álbumes con su estado y sus fechas, colecciones con su aspecto y tableros con todos sus dibujos. Una colección con el mismo nombre que una tuya va a la tuya. Importar la misma exportación otra vez solo añade lo que falta.',
     obsidianIntro:
       'Comprime la carpeta de tu bóveda en un zip y súbelo. Las carpetas se convierten en colecciones, las notas conservan las imágenes que incrustan, los demás archivos pasan a ser elementos y los canvas, tableros. Lo que está en la raíz de la bóveda llega a tu bandeja.',
     uploading: 'Subiendo… {percent}%',
     importing: 'Importando {filename}… Puedes cerrar esto, sigue en marcha.',
     failed: 'La última importación falló.',
     vaultZip: 'Zip de la bóveda',
+    exportZip: 'Zip de la exportación',
+    chooseExport: 'Elegir el zip de la exportación',
+    anotherExport: 'Importar otra exportación',
     another: 'Importar otra bóveda',
     choose: 'Elegir el zip de la bóveda',
     imported: 'Importado: {what}.',
     nothing: 'No se encontró nada que importar.',
+    existing: {
+      one: '{count} ya estaba aquí y se dejó como estaba.',
+      other: '{count} ya estaban aquí y se dejaron como estaban.',
+    },
+    notInExports:
+      'El historial de versiones, las páginas públicas, los tokens de la API y Telegram no van en las exportaciones, así que no se importaron.',
     skipped: {
       one: 'Se omitió {count} archivo (demasiado grande o ilegible).',
       other: 'Se omitieron {count} archivos (demasiado grandes o ilegibles).',
