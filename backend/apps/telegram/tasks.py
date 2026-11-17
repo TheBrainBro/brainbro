@@ -5,6 +5,7 @@ from celery.signals import worker_ready
 from django.conf import settings
 from django.db import transaction
 
+from apps.core import public_address
 from apps.items.albums import make_album, set_album_images
 from apps.items.models import Item
 from apps.items.origin import Source, acting
@@ -57,21 +58,38 @@ def group_media(owner_id, group_id):
             Item.objects.filter(id__in=[image.id for image in images]).update(body="")
 
 
+def webhook_url():
+    """
+    Where Telegram sends the bot's messages: `TELEGRAM_WEBHOOK_URL`, or else
+    the public address when it is HTTPS (Telegram only delivers to HTTPS).
+    "" when there is neither.
+    """
+    if settings.TELEGRAM_WEBHOOK_URL:
+        return settings.TELEGRAM_WEBHOOK_URL
+    public = public_address.saved()
+    if public.startswith("https://"):
+        return f"{public}/api/telegram/webhook/"
+    return ""
+
+
 @shared_task
 def register_webhook():
     """Points the bot at this app, with the secret every update must carry."""
+    url = webhook_url()
+    if not url:
+        return
     bot.call(
         "setWebhook",
-        url=settings.TELEGRAM_WEBHOOK_URL,
+        url=url,
         secret_token=bot.webhook_secret(),
         allowed_updates=["message"],
         # One at a time, so a chat's messages are saved in order.
         max_connections=1,
     )
-    logger.info("Telegram webhook set to %s", settings.TELEGRAM_WEBHOOK_URL)
+    logger.info("Telegram webhook set to %s", url)
 
 
 @worker_ready.connect
 def register_on_start(**kwargs):
-    if bot.configured() and settings.TELEGRAM_WEBHOOK_URL:
+    if bot.configured() and webhook_url():
         register_webhook.delay()

@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils.html import escape
 
 from apps.accounts.models import Profile
+from apps.core import public_address
 from apps.items.models import Item, NoteImage
 from apps.items.note_images import image_sources, markdown
 from apps.items.titles import note_title
@@ -102,8 +103,8 @@ def site_social_image_url(request, site):
         return None
     # The file name changes with the file, so it doubles as a cache buster.
     version = site.social_image.name.rsplit("/", 1)[-1]
-    return request.build_absolute_uri(
-        f"{reverse('public-site-social-image')}?v={version}"
+    return public_address.absolute(
+        request, f"{reverse('public-site-social-image')}?v={version}"
     )
 
 
@@ -259,8 +260,8 @@ def note_head_tags(request, note, url):
             structured["author"]["url"] = site.author_url
     if preview.image:
         handle = public_handle(note.owner_id)
-        image_url = request.build_absolute_uri(
-            public_image_url(note, preview.image, handle)
+        image_url = public_address.absolute(
+            request, public_image_url(note, preview.image, handle)
         )
         with_image(meta, image_url)
         structured["image"] = image_url
@@ -313,7 +314,7 @@ def author_head_tags(request, profile):
     """The `<title>` and meta tags for an author's page, `/@<handle>`."""
     name = profile.display_name or f"@{profile.handle}"
     description = f"Public notes by {name}."
-    url = request.build_absolute_uri(f"/@{profile.handle}")
+    url = public_address.absolute(request, f"/@{profile.handle}")
     meta = {
         "og:type": "profile",
         "og:title": name,

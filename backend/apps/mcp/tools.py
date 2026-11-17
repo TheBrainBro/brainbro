@@ -23,6 +23,7 @@ from apps.boards.layout import migrate_layout
 from apps.boards.models import Board
 from apps.boards.placing import PlacingError, add_items
 from apps.collab.documents import body_written
+from apps.core import public_address
 from apps.history.models import Revision
 from apps.items.capture import normalize_url
 from apps.items.models import Collection, CollectionItem, Item, NoteImage
@@ -80,8 +81,11 @@ def serving(request):
 
 
 def absolute(url):
-    """`/@ana/trip` on this server as `https://<host>/@ana/trip`; a blog's as is."""
-    return current_request.get().build_absolute_uri(url)
+    """
+    `/@ana/trip` on this server as `https://<public address>/@ana/trip`; a
+    blog's as is.
+    """
+    return public_address.absolute(current_request.get(), url)
 
 
 class ToolError(ValueError):
