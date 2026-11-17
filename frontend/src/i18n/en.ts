@@ -257,7 +257,7 @@ export const en = {
   },
   telegramServer: {
     intro:
-      'Only admins see this. The bot everyone on this server connects to: create one with @BotFather in Telegram and paste its token here. Saved here, it is used instead of the server’s environment variables.',
+      'Create a bot with @BotFather in Telegram and paste its token here. Everyone on this server connects to it.',
     statusSaved: 'Using @{bot}, saved here',
     statusEnvironment: 'Using @{bot}, from the server’s environment variables',
     webhook: 'Telegram delivers its messages to {url}',
