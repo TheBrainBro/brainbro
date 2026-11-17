@@ -17,6 +17,7 @@ function importOf(fields: Partial<VaultImport>): VaultImport {
   return {
     id: 'i1',
     status: 'pending',
+    source: 'obsidian',
     filename: 'Vault.zip',
     counts: {},
     error: '',
@@ -113,6 +114,33 @@ describe('ImportPanel', () => {
     renderPanel(importOf({ status: 'failed', error: "This isn't a zip file." }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent("This isn't a zip file.")
+  })
+
+  it('shows a BrainBro export in its own card, with what is never in one', async () => {
+    renderPanel(
+      importOf({
+        status: 'ready',
+        source: 'brainbro',
+        filename: 'brainbro-export.zip',
+        counts: { notes: 2, albums: 1, existing: 3 },
+      }),
+    )
+
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent(
+      'Imported 2 notes, 1 album. 3 were already here and were left as they are.',
+    )
+    expect(status).toHaveTextContent("Telegram aren't in exports")
+    expect(screen.getByRole('button', { name: 'Import another export' })).toBeInTheDocument()
+    // The Obsidian card has nothing of its own to show.
+    expect(screen.getByRole('button', { name: 'Choose vault zip' })).toBeEnabled()
+  })
+
+  it('waits for an import of either kind before another', async () => {
+    renderPanel(importOf({ source: 'brainbro' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Importing Vault.zip')
+    expect(screen.getByRole('button', { name: 'Choose vault zip' })).toBeDisabled()
   })
 
   it('shows why an upload was refused', async () => {

@@ -256,7 +256,7 @@ def test_all_or_nothing(user, monkeypatch, tmp_path):
     def broken(*args):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr("apps.imports.vault._Importer._create_board", broken)
+    monkeypatch.setattr("apps.imports.vault.VaultImporter._create_board", broken)
 
     with pytest.raises(RuntimeError):
         import_vault(user, vault({"A.md": "a", "pic.png": png(), "B.canvas": "{}"}))

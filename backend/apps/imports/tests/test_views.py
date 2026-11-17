@@ -1,4 +1,5 @@
 import io
+import json
 import zipfile
 
 import pytest
@@ -86,3 +87,43 @@ def test_only_your_imports(api, other_user):
 
     assert api.get("/api/imports/").json()["results"] == []
     assert api.get(f"/api/imports/{theirs.id}/").status_code == 404
+
+
+def test_a_brainbro_export_is_told_apart(api, user, django_capture_on_commit_callbacks):
+    files = {
+        "brainbro-export-2026-11-17/items.json": json.dumps(
+            {
+                "export_version": 1,
+                "items": [
+                    {
+                        "id": "6b1e0c2a-0000-4000-8000-000000000001",
+                        "kind": "note",
+                        "status": "archived",
+                        "title": "Kept",
+                        "body": "as it was",
+                    }
+                ],
+            }
+        ),
+        "brainbro-export-2026-11-17/collections.json": "[]",
+        "brainbro-export-2026-11-17/notes/Kept.md": "---\nid: x\n---\n",
+    }
+
+    response = start(api, zipped(files), django_capture_on_commit_callbacks)
+
+    assert response.json()["source"] == "brainbro"
+    result = api.get(f"/api/imports/{response.json()['id']}/").json()
+    assert (result["status"], result["source"]) == ("ready", "brainbro")
+    assert result["counts"]["notes"] == 1
+    item = Item.objects.get(owner=user)
+    assert (item.title, item.status, item.created_via) == (
+        "Kept",
+        "archived",
+        "import",
+    )
+
+
+def test_a_vault_says_so(api, django_capture_on_commit_callbacks):
+    response = start(api, zipped({"A.md": "a"}), django_capture_on_commit_callbacks)
+
+    assert response.json()["source"] == "obsidian"
