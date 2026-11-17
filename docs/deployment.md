@@ -262,7 +262,7 @@ same whether or not an account uses that email.
 ### Public address
 
 The address people outside open BrainBro on, e.g. `https://brain.example.com`, set by the
-admin in Settings, Server, Public address. Every address BrainBro sends or shows starts with
+admin in Settings, Server, General. Every address BrainBro sends or shows starts with
 it: invitation links and their email, password reset emails, public note and profile pages
 (their links and previews), what the AI assistant tools return, the MCP address in Settings,
 AI assistants, and the address in Settings, Profile and the About dialog. Without one, they
@@ -375,8 +375,8 @@ Then **Deploy the stack**. The tunnel's **Service URL** is `http://<umbrel-ip>:8
 
 On the Umbrel app (from the App Store), environment variables can't be set and it runs with
 `APP_HTTPS=false`. To reach it through a Cloudflare Tunnel, point the tunnel's published
-application at `http://<umbrel-ip>:8420`, then set its address in Settings, Server,
-[Public address](#public-address): BrainBro then answers on it, sign-in and forms work over
+application at `http://<umbrel-ip>:8420`, then set its address in Settings, Server, General
+(see [Public address](#public-address)): BrainBro then answers on it, sign-in and forms work over
 the tunnel, and links, MCP and the Telegram webhook use it.
 
 ### Updating

@@ -1,6 +1,5 @@
 import {
   Bot,
-  Link2,
   FolderInput,
   Globe,
   HardDrive,
@@ -9,6 +8,7 @@ import {
   PackageOpen,
   Palette,
   Send,
+  Server,
   Settings,
   UserPlus,
   UserRound,
@@ -63,12 +63,12 @@ const groups: { label: MessageKey; pages: Page[] }[] = [
   },
 ]
 
-// Admins only: inviting people to the server, its public address, and how it sends email.
+// Admins only: the server's own settings, inviting people to it, and how it sends email.
 const adminGroup = {
   label: 'settings.groups.server' as MessageKey,
   pages: [
+    { id: 'general', label: 'settings.pages.general', icon: Server, Panel: AddressPanel },
     { id: 'invitations', label: 'settings.pages.invitations', icon: UserPlus, Panel: InvitationsPanel },
-    { id: 'address', label: 'settings.pages.address', icon: Link2, Panel: AddressPanel },
     { id: 'email', label: 'settings.pages.email', icon: Mail, Panel: EmailPanel },
   ] as Page[],
 }

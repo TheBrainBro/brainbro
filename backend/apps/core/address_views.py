@@ -1,5 +1,5 @@
 """
-Settings, Server, Public address: where people outside reach this server,
+Settings, Server, General: where people outside reach this server,
 for admins only (apps.core.public_address). Saving it changes the links that
 go out from then on; those already sent keep the address they were made with,
 and still open while that address serves the app.
@@ -26,7 +26,9 @@ from apps.telegram.tasks import register_webhook, webhook_url
 
 from . import public_address
 
-INVALID = "Enter the address people open BrainBro on, like https://brain.example.com."
+INVALID = (
+    "Enter the address people open BrainBro on, like https://brainbro.example.com."
+)
 
 
 def normalize(value):

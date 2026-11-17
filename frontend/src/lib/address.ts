@@ -2,7 +2,7 @@ import { type Session, useSession } from '../auth/session'
 
 /**
  * Where people outside reach this server: the public address an admin set
- * in Settings, Server, Public address, or the browser's own without one.
+ * in Settings, Server, General, or the browser's own without one.
  * Every address the app shows or hands out starts with it. Connections the
  * browser makes to where it already is (live editing, the service worker)
  * keep `window.location`.

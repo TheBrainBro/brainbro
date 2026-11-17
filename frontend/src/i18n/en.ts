@@ -153,7 +153,7 @@ export const en = {
     localOnly:
       "This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: use BrainBro's public address.",
     networkOnly:
-      'This address only works on your network. Claude, ChatGPT and Grok connect from the internet: an admin can set BrainBro’s public address in Settings, Server, Public address.',
+      'This address only works on your network. Claude, ChatGPT and Grok connect from the internet: an admin can set BrainBro’s public address in Settings, Server, General.',
     promptTitle: 'Ready-to-paste prompt',
     copyPrompt: 'Copy prompt',
     promptCopied: 'Prompt copied',
@@ -245,11 +245,11 @@ export const en = {
     emailNotSent: "{error} Send this link yourself now: it won't be shown again.",
     sentTo: 'sent to {email}',
     localOnly:
-      'Links start with {host}, which only opens on your network. To invite someone outside it, set the public address in Settings, Server, Public address.',
+      'Links start with {host}, which only opens on your network. To invite someone outside it, set the public address in Settings, Server, General.',
   },
   address: {
     intro:
-      'The address people outside open BrainBro on. Invitations, password reset emails, public notes and the AI assistants’ address start with it. BrainBro also answers on it, so a Cloudflare Tunnel pointed at it works with no other setting.',
+      'Where people open BrainBro from outside your network. Every link BrainBro sends or shows starts with it: invitations, password resets, public notes and the address for AI assistants. If you use a Cloudflare Tunnel, enter its address here.',
     label: 'Public address',
     hint: 'Links sent from now on start with it. Those already sent keep their address. Empty, links start with the address BrainBro is opened on.',
     hintEmpty: 'Empty, links start with the address BrainBro is opened on: right now, {origin}.',
@@ -341,7 +341,7 @@ export const en = {
       sampleContent: 'Sample content',
       invitations: 'Invitations',
       email: 'Email',
-      address: 'Public address',
+      general: 'General',
       blogs: 'Blogs',
     },
   },

@@ -5,8 +5,9 @@ import { useT } from '../i18n/i18n'
 import { type PublicAddress, usePublicAddress, useSavePublicAddress } from './api'
 
 /**
- * Admins only: the address people outside open BrainBro on. Every link that
- * leaves the server starts with it, and BrainBro answers on it.
+ * Admins only: Settings, Server, General. For now, the address people
+ * outside open BrainBro on: every link that leaves the server starts with
+ * it, and BrainBro answers on it.
  */
 export function AddressPanel() {
   const t = useT()
@@ -24,7 +25,6 @@ export function AddressPanel() {
   }
   return (
     <div className="space-y-6 sm:max-w-md">
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('address.intro')}</p>
       {/* A new form when the saved address changes, filled with it. */}
       <AddressForm key={address.public_url} address={address} />
     </div>
@@ -37,6 +37,7 @@ function AddressForm({ address }: { address: PublicAddress }) {
   const [value, setValue] = useState(address.public_url)
   const id = useId()
   const hintId = useId()
+  const introId = useId()
 
   return (
     <form
@@ -50,14 +51,17 @@ function AddressForm({ address }: { address: PublicAddress }) {
         <label htmlFor={id} className="block text-sm font-medium">
           {t('address.label')}
         </label>
+        <p id={introId} className="text-sm text-zinc-600 dark:text-zinc-300">
+          {t('address.intro')}
+        </p>
         <input
           id={id}
           className="input"
           inputMode="url"
           spellCheck={false}
           autoCapitalize="none"
-          placeholder="https://brain.example.com"
-          aria-describedby={hintId}
+          placeholder="https://brainbro.example.com"
+          aria-describedby={`${introId} ${hintId}`}
           value={value}
           onChange={(event) => setValue(event.target.value)}
         />
