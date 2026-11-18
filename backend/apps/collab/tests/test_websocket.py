@@ -18,6 +18,7 @@ from pycrdt import (
 from apps.collab import asgi, relay, rooms
 from apps.collab.protocol import awareness_message, decode_awareness, state_json
 from apps.collab.text import rewrite, text_of
+from apps.core import public_address
 from apps.events.changes import collect
 from apps.items.models import Item
 from apps.mcp.tools import edit_note
@@ -93,8 +94,8 @@ def cookie_of(user):
 class Connection:
     """A browser tab's socket to a note, with its own copy of the document."""
 
-    def __init__(self, note_id, cookie="", origin="http://localhost"):
-        headers = [(b"host", b"localhost"), (b"origin", origin.encode())]
+    def __init__(self, note_id, cookie="", origin="http://localhost", host="localhost"):
+        headers = [(b"host", host.encode()), (b"origin", origin.encode())]
         if cookie:
             headers.append((b"cookie", f"sessionid={cookie}".encode()))
         self.scope = {
@@ -182,6 +183,25 @@ def test_refuses_another_site(broker, note, user):
     async def scenario():
         connection = Connection(note.id, cookie, origin="https://evil.example")
         assert await refused(connection)
+
+    run(scenario)
+
+
+def test_opens_on_the_public_address(broker, note, user):
+    public_address.save("https://brain.example.com")
+    cookie = cookie_of(user)
+
+    async def scenario():
+        connection = Connection(
+            note.id,
+            cookie,
+            origin="https://brain.example.com",
+            host="brain.example.com",
+        )
+        assert (await connection.open())["type"] == "websocket.accept"
+        await connection.sync()
+        assert connection.text() == "Hello"
+        await connection.close()
 
     run(scenario)
 

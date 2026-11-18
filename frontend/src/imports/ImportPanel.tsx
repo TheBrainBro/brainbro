@@ -1,7 +1,8 @@
-import { LoaderCircle } from 'lucide-react'
+import { CircleAlert, CircleCheck, LoaderCircle, Upload } from 'lucide-react'
 import { useRef, type ComponentType } from 'react'
 
 import { t, useT } from '../i18n/i18n'
+import { Logo as BrainBroMark } from '../layout/Logo'
 import { useLatestImport, useStartImport, type ImportSource } from './api'
 import { summary } from './summary'
 
@@ -42,7 +43,7 @@ export function ImportPanel() {
 
 /** BrainBro's own mark. */
 function BrainBroLogo() {
-  return <img src="/favicon.svg" alt="" className="size-5" />
+  return <BrainBroMark className="size-5" />
 }
 
 /** Obsidian's mark, from Simple Icons (CC0, see THIRD_PARTY_NOTICES.md), in its brand purple. */
@@ -104,17 +105,20 @@ function ZipImport({ source }: { source: ImportSource }) {
       ) : (
         <div className="space-y-3">
           {latest?.status === 'ready' && (
-            <p role="status" className="text-sm">
-              {summary(latest.counts, source)}
+            <p role="status" className="flex items-start gap-2 rounded-lg bg-zinc-50 p-3 text-sm dark:bg-zinc-800/50">
+              <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              <span>{summary(latest.counts, source)}</span>
             </p>
           )}
           {latest?.status === 'failed' && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            <p role="alert" className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               {latest.error || t('imports.failed')}
             </p>
           )}
           {start.isError && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            <p role="alert" className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               {start.error.message}
             </p>
           )}
@@ -132,11 +136,12 @@ function ZipImport({ source }: { source: ImportSource }) {
           />
           <button
             type="button"
-            className="button-primary"
+            className={latest?.status === 'ready' ? 'button-outline' : 'button-primary inline-flex items-center gap-2'}
             // One import at a time, of either kind.
             disabled={last?.status === 'pending'}
             onClick={() => input.current?.click()}
           >
+            <Upload className="size-4" aria-hidden="true" />
             {latest?.status === 'ready' ? t(text.another) : t(text.choose)}
           </button>
         </div>

@@ -91,6 +91,16 @@ describe('BlogsPanel', () => {
     )
   })
 
+  it('keeps the new blog form folded once there is a blog', async () => {
+    renderPanel([blog])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New blog' }))
+
+    expect(screen.getByRole('form', { name: 'New blog' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('form', { name: 'New blog' })).not.toBeInTheDocument()
+  })
+
   it('says why a domain is refused', async () => {
     renderPanel([], {
       'POST /api/sites/': () =>
@@ -141,6 +151,19 @@ describe('BlogsPanel', () => {
   })
 
   const verified: Blog = { ...blog, status: 'verified', verified_at: '2026-11-02T10:00:00Z' }
+
+  it('folds the settings of a verified blog until asked for', async () => {
+    renderPanel([verified])
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    const toggle = within(card).getByRole('button', { name: 'Blog settings' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(card).queryByLabelText('Blog name')).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+
+    expect(within(card).getByLabelText('Blog name')).toBeInTheDocument()
+  })
   const moving: Blog = {
     ...verified,
     pending_hostname: 'new.example.com',
@@ -240,6 +263,52 @@ describe('BlogsPanel', () => {
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({ hostname: 'blog.example.com' }),
+        }),
+      ),
+    )
+  })
+
+  it('reorders its links by dragging, or with the arrow keys', async () => {
+    const fetchMock = renderPanel(
+      [
+        {
+          ...blog,
+          links: [
+            { name: 'A', url: 'https://a.example' },
+            { name: 'B', url: 'https://b.example' },
+            { name: 'C', url: 'https://c.example' },
+          ],
+        },
+      ],
+      { 'PATCH /api/sites/s1/': () => jsonResponse(blog) },
+    )
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    const handle = within(card).getByRole('button', { name: /^Move link 1/ })
+    const rowOf = (input: HTMLElement) => input.parentElement as HTMLElement
+    // Drag A onto C's row: A goes last.
+    fireEvent.pointerDown(handle)
+    fireEvent.dragStart(rowOf(handle), { dataTransfer: { effectAllowed: '' } })
+    fireEvent.dragOver(rowOf(within(card).getByDisplayValue('C')))
+    fireEvent.dragEnd(rowOf(within(card).getByDisplayValue('A')))
+    expect(within(card).getByLabelText('Link 3 name')).toHaveValue('A')
+
+    // C, now second, moves up with the keyboard.
+    fireEvent.keyDown(within(card).getByRole('button', { name: /^Move link 2/ }), { key: 'ArrowUp' })
+    fireEvent.click(within(card).getByRole('button', { name: 'Save' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: expect.stringContaining(
+            JSON.stringify([
+              { name: 'C', url: 'https://c.example' },
+              { name: 'B', url: 'https://b.example' },
+              { name: 'A', url: 'https://a.example' },
+            ]),
+          ),
         }),
       ),
     )

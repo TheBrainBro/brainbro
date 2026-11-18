@@ -68,8 +68,7 @@ describe('TokensPanel', () => {
     renderPanel([])
 
     expect(screen.queryByDisplayValue(/I use BrainBro/)).not.toBeInTheDocument()
-    const title = screen.getByRole('heading', { name: 'Ready-to-paste prompt' })
-    expect(title.parentElement).toHaveClass('flex', 'items-center', 'justify-between')
+    expect(screen.getByRole('region', { name: 'Or let the assistant guide you' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy prompt' }))
     await screen.findByRole('status')
@@ -87,6 +86,7 @@ describe('TokensPanel', () => {
   it('creates a token and shows it once, with the Claude Code command', async () => {
     renderPanel([])
 
+    fireEvent.click(screen.getByRole('button', { name: 'New personal token' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Token name' }), {
       target: { value: 'Claude Code' },
     })
@@ -99,10 +99,20 @@ describe('TokensPanel', () => {
     expect(screen.getByRole('textbox', { name: 'Claude Code command with token' })).toHaveValue(
       `claude mcp add --transport http brainbro ${window.location.origin}/api/mcp --header "Authorization: Bearer brainbro_cd34secret"`,
     )
+
+    // Done folds the card and the token is gone from the page.
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.queryByRole('textbox', { name: 'Token' })).not.toBeInTheDocument()
+  })
+
+  it('says when no app or token has access yet', async () => {
+    renderPanel([])
+    expect(await screen.findByText('No app or token has access yet.')).toBeInTheDocument()
   })
 
   it('needs a name', () => {
     renderPanel([])
+    fireEvent.click(screen.getByRole('button', { name: 'New personal token' }))
     expect(screen.getByRole('button', { name: 'Create token' })).toBeDisabled()
   })
 
@@ -148,7 +158,7 @@ describe('TokensPanel', () => {
   it('shows connected apps and disconnects them', async () => {
     const fetchMock = renderPanel([{ ...existing, name: 'ChatGPT', connected_app: true }])
 
-    const list = await screen.findByRole('region', { name: 'Connected apps and tokens' })
+    const list = await screen.findByRole('list', { name: 'Connected apps and tokens' })
     const row = within(list).getByText('ChatGPT').closest('li')!
     expect(row).toHaveTextContent(/Connected app · allowed .* · never used/)
     expect(row).not.toHaveTextContent('brainbro_ab12')

@@ -55,6 +55,20 @@ describe('SettingsDialog', () => {
     expect(await screen.findByRole('button', { name: 'Create export' })).toBeInTheDocument()
   })
 
+  it("pins a page's Save under it, outside what scrolls", async () => {
+    renderDialog()
+
+    const save = await screen.findByRole('button', { name: 'Save' })
+    const page = screen.getByRole('region', { name: 'Profile' })
+    expect(page).not.toContainElement(save)
+
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Alex' } })
+    expect(save).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Appearance' }))
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+  })
+
   it('closes on Escape', () => {
     const onClose = vi.fn()
     renderDialog(onClose)

@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { CircleCheck, Clock, CircleX, type LucideIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { useSession } from '../auth/session'
@@ -6,6 +6,7 @@ import { useSession } from '../auth/session'
 import { t, useT } from '../i18n/i18n'
 import { localReach } from '../lib/address'
 import { timeAgo } from '../lib/time'
+import { Notice } from '../settings/Notice'
 import { CopyField } from '../ui/CopyField'
 import { type Invitation, useCreateInvitation, useInvitations, useRevokeInvitation } from './api'
 
@@ -38,15 +39,13 @@ function NewInvitationForm() {
   const localOnly = !!session && !session.public_url && localReach(window.location.hostname) !== null
 
   return (
-    <section className="space-y-2">
+    <section className="space-y-3">
       {localOnly && (
-        <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {t('invitations.localOnly', { host: window.location.host })}
-        </p>
+        <Notice page="general">{t('invitations.localOnly', { host: window.location.host })}</Notice>
       )}
       <form
-        className="space-y-2"
+        aria-labelledby="invitation-new"
+        className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
         onSubmit={(event) => {
           event.preventDefault()
           create.mutate(
@@ -60,7 +59,10 @@ function NewInvitationForm() {
           )
         }}
       >
-        <div className="flex gap-2">
+        <h4 id="invitation-new" className="text-sm font-semibold">
+          {t('invitations.newInvitation')}
+        </h4>
+        <div className={`grid gap-2 ${session?.email_enabled ? 'sm:grid-cols-2' : ''}`}>
           <input
             className="input"
             aria-label={t('invitations.whoFor')}
@@ -69,12 +71,7 @@ function NewInvitationForm() {
             value={note}
             onChange={(event) => setNote(event.target.value)}
           />
-          <button type="submit" className="button-primary shrink-0" disabled={create.isPending}>
-            {t('invitations.create')}
-          </button>
-        </div>
-        {session?.email_enabled && (
-          <div className="space-y-1">
+          {session?.email_enabled && (
             <input
               className="input"
               type="email"
@@ -84,11 +81,18 @@ function NewInvitationForm() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
-            <p id={emailHintId} className="text-xs text-zinc-500">
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-3">
+          {session?.email_enabled && (
+            <p id={emailHintId} className="mr-auto text-xs text-zinc-500">
               {t('invitations.emailHint')}
             </p>
-          </div>
-        )}
+          )}
+          <button type="submit" className="button-primary shrink-0" disabled={create.isPending}>
+            {t('invitations.create')}
+          </button>
+        </div>
       </form>
       {create.isError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -118,10 +122,20 @@ function NewInvitationForm() {
   )
 }
 
+// Accepted and expired links shown before "Show all".
+const COLLAPSED = 3
+
+const STATUS_ICONS: Record<Invitation['status'], { icon: LucideIcon; className: string }> = {
+  pending: { icon: Clock, className: 'text-amber-500' },
+  accepted: { icon: CircleCheck, className: 'text-emerald-600 dark:text-emerald-400' },
+  expired: { icon: CircleX, className: 'text-zinc-400' },
+}
+
 function Invitations() {
   useT()
   const { data: invitations } = useInvitations()
   const revoke = useRevokeInvitation()
+  const [showAll, setShowAll] = useState(false)
   if (!invitations?.length) return null
   const pending = invitations.filter((invitation) => invitation.status === 'pending')
   const done = invitations.filter((invitation) => invitation.status !== 'pending')
@@ -141,7 +155,12 @@ function Invitations() {
           <h4 id="invitations-done" className="text-sm font-medium text-zinc-500">
             {t('invitations.done')}
           </h4>
-          <InvitationList invitations={done} revoke={revoke} />
+          <InvitationList invitations={showAll ? done : done.slice(0, COLLAPSED)} revoke={revoke} />
+          {!showAll && done.length > COLLAPSED && (
+            <button type="button" className="button-ghost" onClick={() => setShowAll(true)}>
+              {t('invitations.showAll', { count: done.length })}
+            </button>
+          )}
         </section>
       )}
       {revoke.isError && (
@@ -171,11 +190,13 @@ function InvitationList({
         const action = ({ pending: 'revoke', expired: 'remove', accepted: null } as const)[
           invitation.status
         ]
+        const { icon: StatusIcon, className: iconClass } = STATUS_ICONS[invitation.status]
         return (
           <li
             key={invitation.id}
             className={`flex items-center gap-3 p-3 ${invitation.status === 'pending' ? '' : 'text-zinc-500'}`}
           >
+            <StatusIcon className={`size-4 shrink-0 ${iconClass}`} aria-hidden="true" />
             <div className="mr-auto min-w-0 text-sm">
               <div className={`truncate ${invitation.status === 'pending' ? 'font-medium' : ''}`}>
                 {name}
@@ -190,7 +211,7 @@ function InvitationList({
                   </button>
                   <button
                     type="button"
-                    className="button-ghost text-red-600 dark:text-red-400"
+                    className="button-danger-ghost"
                     disabled={revoke.isPending}
                     onClick={() =>
                       revoke.mutate(invitation.id, { onSuccess: () => setConfirming(null) })
@@ -202,7 +223,11 @@ function InvitationList({
                   </button>
                 </>
               ) : (
-                <button type="button" className="button-ghost" onClick={() => setConfirming(invitation.id)}>
+                <button
+                  type="button"
+                  className={action === 'revoke' ? 'button-danger-ghost' : 'button-ghost'}
+                  onClick={() => setConfirming(invitation.id)}
+                >
                   {t(`invitations.${action}`)}
                 </button>
               ))}

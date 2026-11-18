@@ -18,8 +18,8 @@ reaction on each message it saved, or 👎 and a reply saying why it couldn't.
 Instead of step 2, the server can set `TELEGRAM_BOT_TOKEN` and
 `TELEGRAM_BOT_USERNAME` (without the `@`) in `stack.env` (see
 [deployment.md](deployment.md#settings)). A bot saved in Settings wins over
-them while it exists; **Remove this bot** disconnects it (`deleteWebhook`) and
-goes back to the environment's bot, if there is one. The token is stored
+them while it exists; **Remove**, after asking, disconnects it (`deleteWebhook`)
+and goes back to the environment's bot, if there is one. The token is stored
 encrypted with a key derived from `SECRET_KEY`: if that changes, save the
 token again.
 
