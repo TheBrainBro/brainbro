@@ -233,13 +233,12 @@ function TestEmail({ enabled }: { enabled: boolean }) {
 
   return (
     <>
-      <p id={hintId} className="mr-auto text-xs text-zinc-500">
-        {email ? t('email.testGoesTo', { email }) : t('email.testNeedsEmail')}
-      </p>
+      {!email && <p className="mr-auto text-xs text-zinc-500">{t('email.testNeedsEmail')}</p>}
       <button
         type="button"
-        className="button-outline"
-        aria-describedby={hintId}
+        className={`button-ghost text-sm ${email ? 'mr-auto' : ''}`}
+        title={email ? t('email.testGoesTo', { email }) : undefined}
+        aria-describedby={email ? hintId : undefined}
         disabled={!enabled || !email || test.isPending}
         onClick={() => test.mutate()}
       >
@@ -250,13 +249,18 @@ function TestEmail({ enabled }: { enabled: boolean }) {
         )}
         {t('email.sendTest')}
       </button>
+      {email && (
+        <span id={hintId} className="sr-only">
+          {t('email.testGoesTo', { email })}
+        </span>
+      )}
       {test.isSuccess && (
-        <p role="status" className="w-full text-sm text-emerald-700 dark:text-emerald-400">
+        <p role="status" className="order-first w-full text-sm text-emerald-700 dark:text-emerald-400">
           {t('email.testSent', { email: test.data.sent_to, provider: test.data.provider })}
         </p>
       )}
       {test.isError && (
-        <p role="alert" className="w-full text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="order-first w-full text-sm text-red-600 dark:text-red-400">
           {test.error.message}
         </p>
       )}
