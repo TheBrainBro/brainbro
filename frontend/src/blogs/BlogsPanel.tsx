@@ -4,6 +4,7 @@ import {
   CircleAlert,
   CircleCheck,
   ExternalLink,
+  Folder,
   ImagePlus,
   LoaderCircle,
   Pencil,
@@ -48,7 +49,7 @@ export function BlogsPanel() {
       {blogs.data?.map((blog) => (
         <BlogCard key={blog.id} blog={blog} collections={collections.data ?? []} />
       ))}
-      <NewBlog collections={collections.data ?? []} />
+      <NewBlog collections={collections.data ?? []} first={blogs.data?.length === 0} />
     </div>
   )
 }
@@ -86,12 +87,19 @@ function CollectionSelect({
   )
 }
 
-function NewBlog({ collections }: { collections: Collection[] }) {
+/**
+ * A card that opens into the form for a new blog. With no blog yet it starts
+ * open: it is the only thing to do on the page.
+ */
+function NewBlog({ collections, first }: { collections: Collection[]; first: boolean }) {
   const t = useT()
   const create = useCreateBlog()
+  // Null until the user opens or closes it: then it follows whether there are blogs.
+  const [chosen, setChosen] = useState<boolean | null>(null)
+  const open = chosen ?? first
   const [hostname, setHostname] = useState('')
   const [collection, setCollection] = useState<string | null>(null)
-  const ids = { hostname: useId(), collection: useId() }
+  const ids = { hostname: useId(), collection: useId(), title: useId() }
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -102,14 +110,34 @@ function NewBlog({ collections }: { collections: Collection[] }) {
         onSuccess: () => {
           setHostname('')
           setCollection(null)
+          setChosen(false)
         },
       },
     )
   }
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 p-4 text-sm font-medium text-zinc-600 transition hover:border-accent-400 hover:text-accent-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-accent-500 dark:hover:text-accent-300"
+        onClick={() => setChosen(true)}
+      >
+        <Plus className="size-4" aria-hidden="true" />
+        {t('blogs.add')}
+      </button>
+    )
+  }
+
   return (
-    <form className="space-y-3" onSubmit={submit}>
-      <h4 className="text-sm font-semibold">{t('blogs.add')}</h4>
+    <form
+      aria-labelledby={ids.title}
+      className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+      onSubmit={submit}
+    >
+      <h4 id={ids.title} className="text-sm font-semibold">
+        {t('blogs.add')}
+      </h4>
       <div className="space-y-1">
         <label htmlFor={ids.hostname} className="block text-sm font-medium">
           {t('blogs.domain')}
@@ -141,9 +169,16 @@ function NewBlog({ collections }: { collections: Collection[] }) {
           {create.error.message}
         </p>
       )}
-      <button type="submit" className="button-primary" disabled={!hostname.trim() || create.isPending}>
-        {t('blogs.addButton')}
-      </button>
+      <div className="flex justify-end gap-2">
+        {!first && (
+          <button type="button" className="button-secondary" onClick={() => setChosen(false)}>
+            {t('common.cancel')}
+          </button>
+        )}
+        <button type="submit" className="button-primary" disabled={!hostname.trim() || create.isPending}>
+          {t('blogs.addButton')}
+        </button>
+      </div>
     </form>
   )
 }
@@ -419,7 +454,10 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-auto min-w-0">
           <h4 className="font-semibold break-all">{blog.hostname}</h4>
-          <p className="truncate text-xs text-zinc-500">{collectionName ?? t('blogs.noCollection')}</p>
+          <p className="flex items-center gap-1 text-xs text-zinc-500">
+            <Folder className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{collectionName ?? t('blogs.noCollection')}</span>
+          </p>
         </div>
         <Status status={blog.status} />
         {blog.status === 'verified' && (
