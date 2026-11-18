@@ -141,6 +141,19 @@ describe('BlogsPanel', () => {
   })
 
   const verified: Blog = { ...blog, status: 'verified', verified_at: '2026-11-02T10:00:00Z' }
+
+  it('folds the settings of a verified blog until asked for', async () => {
+    renderPanel([verified])
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    const toggle = within(card).getByRole('button', { name: 'Blog settings' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(card).queryByLabelText('Blog name')).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+
+    expect(within(card).getByLabelText('Blog name')).toBeInTheDocument()
+  })
   const moving: Blog = {
     ...verified,
     pending_hostname: 'new.example.com',
