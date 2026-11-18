@@ -258,6 +258,52 @@ describe('BlogsPanel', () => {
     )
   })
 
+  it('reorders its links by dragging, or with the arrow keys', async () => {
+    const fetchMock = renderPanel(
+      [
+        {
+          ...blog,
+          links: [
+            { name: 'A', url: 'https://a.example' },
+            { name: 'B', url: 'https://b.example' },
+            { name: 'C', url: 'https://c.example' },
+          ],
+        },
+      ],
+      { 'PATCH /api/sites/s1/': () => jsonResponse(blog) },
+    )
+
+    const card = await screen.findByRole('region', { name: 'blog.example.com' })
+    const handle = within(card).getByRole('button', { name: /^Move link 1/ })
+    const rowOf = (input: HTMLElement) => input.parentElement as HTMLElement
+    // Drag A onto C's row: A goes last.
+    fireEvent.pointerDown(handle)
+    fireEvent.dragStart(rowOf(handle), { dataTransfer: { effectAllowed: '' } })
+    fireEvent.dragOver(rowOf(within(card).getByDisplayValue('C')))
+    fireEvent.dragEnd(rowOf(within(card).getByDisplayValue('A')))
+    expect(within(card).getByLabelText('Link 3 name')).toHaveValue('A')
+
+    // C, now second, moves up with the keyboard.
+    fireEvent.keyDown(within(card).getByRole('button', { name: /^Move link 2/ }), { key: 'ArrowUp' })
+    fireEvent.click(within(card).getByRole('button', { name: 'Save' }))
+
+    await vi.waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sites/s1/',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: expect.stringContaining(
+            JSON.stringify([
+              { name: 'C', url: 'https://c.example' },
+              { name: 'B', url: 'https://b.example' },
+              { name: 'A', url: 'https://a.example' },
+            ]),
+          ),
+        }),
+      ),
+    )
+  })
+
   it('saves its links, leaving empty rows out', async () => {
     const fetchMock = renderPanel([blog], {
       'PATCH /api/sites/s1/': () => jsonResponse(blog),
