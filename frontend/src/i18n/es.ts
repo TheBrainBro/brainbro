@@ -382,17 +382,17 @@ export const es: Messages = {
     photo: 'Foto de perfil',
     displayName: 'Nombre visible',
     yourName: 'Tu nombre',
-    displayNameHint:
-      'Firma tus notas públicas. Sin él no muestran autor; tu usuario nunca se muestra.',
+    displayNameHint: 'Firma tus notas públicas. Tu usuario nunca se muestra.',
     handle: 'Dirección pública',
-    saveHandle: 'Guardar dirección pública',
     handlePlaceholder: 'tu-nombre',
-    handleHint:
-      'Tus notas públicas viven aquí. Cambiarla rompe los enlaces a la dirección anterior. Minúsculas, números y guiones.',
+    handleHint: 'Cambiarla rompe los enlaces a la dirección anterior. Minúsculas, números y guiones.',
     email: 'Email',
-    saveEmail: 'Guardar email',
     emailPlaceholder: 'tu@ejemplo.com',
-    emailHint: 'Adónde va el enlace para restablecer tu contraseña si la olvidas. Déjalo vacío para quitarlo.',
+    emailHint: 'Adónde van los enlaces para restablecer la contraseña. Déjalo vacío para quitarlo.',
+    publicProfile: 'Perfil público',
+    publicProfileHint: 'Cómo te muestran tus notas públicas y tus blogs.',
+    account: 'Cuenta',
+    saved: 'Guardado.',
     emailOff: 'Este servidor aún no puede enviar emails: mientras tanto, su admin restablece las contraseñas olvidadas.',
   },
   blogs: {
@@ -465,6 +465,7 @@ export const es: Messages = {
   language: {
     system: 'Navegador',
     systemHint: 'Navegador sigue el idioma de cada navegador en el que usas BrainBro.',
+    detected: 'Ahora {language}',
     label: 'Idioma',
     saveFailed: 'No se pudo guardar el idioma. Inténtalo de nuevo.',
   },

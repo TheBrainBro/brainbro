@@ -31,7 +31,7 @@ export function EmailPanel() {
     )
   }
   return (
-    <div className="space-y-6 sm:max-w-md">
+    <div className="space-y-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('email.intro')}</p>
       <Status settings={settings} />
       {/* A new form when the saved settings change, filled with them. */}

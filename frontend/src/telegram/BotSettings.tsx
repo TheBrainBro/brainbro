@@ -29,7 +29,7 @@ export function BotSettings() {
     )
   }
   return (
-    <div className="space-y-6 sm:max-w-md">
+    <div className="space-y-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('telegramServer.intro')}</p>
       <Status settings={settings} />
       {/* A new form when the saved bot changes. */}
@@ -55,7 +55,7 @@ function Status({ settings }: { settings: TelegramSettings }) {
         {settings.source === 'database' && (
           <button
             type="button"
-            className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
+            className="button-danger-ghost"
             disabled={remove.isPending}
             onClick={() => remove.mutate()}
           >

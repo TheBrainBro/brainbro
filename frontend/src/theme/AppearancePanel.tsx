@@ -20,7 +20,7 @@ export function AppearancePanel() {
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
         {t('appearance.systemHint')}
       </p>
-      <div role="radiogroup" aria-label={t('appearance.theme')} className="grid grid-cols-3 gap-2 sm:max-w-sm">
+      <div role="radiogroup" aria-label={t('appearance.theme')} className="grid grid-cols-3 gap-2">
         {OPTIONS.map(({ theme: value, label, icon: Icon }) => (
           <button
             key={value}

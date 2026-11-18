@@ -382,17 +382,17 @@ export const en = {
     photo: 'Profile photo',
     displayName: 'Display name',
     yourName: 'Your name',
-    displayNameHint:
-      'Signs your public notes. Without one they show no author; your username never shows.',
+    displayNameHint: 'Signs your public notes. Your username never shows.',
     handle: 'Public address',
-    saveHandle: 'Save public address',
     handlePlaceholder: 'your-name',
-    handleHint:
-      'Your public notes live here. Changing it breaks links to the old address. Lowercase letters, numbers and hyphens.',
+    handleHint: 'Changing it breaks links to the old address. Lowercase letters, numbers and hyphens.',
     email: 'Email',
-    saveEmail: 'Save email',
     emailPlaceholder: 'you@example.com',
-    emailHint: 'Where a link to reset your password goes if you forget it. Leave it empty to remove it.',
+    emailHint: 'Where password reset links go. Leave it empty to remove it.',
+    publicProfile: 'Public profile',
+    publicProfileHint: 'How your public notes and blogs show you.',
+    account: 'Account',
+    saved: 'Saved.',
     emailOff: "This server can't send email yet: until it can, its admin resets forgotten passwords.",
   },
   blogs: {
@@ -465,6 +465,7 @@ export const en = {
   language: {
     system: 'Browser',
     systemHint: 'Browser follows the language each browser you use BrainBro on is set to.',
+    detected: 'Now {language}',
     label: 'Language',
     saveFailed: "Couldn't save the language. Try again.",
   },

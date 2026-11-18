@@ -24,7 +24,7 @@ export function AddressPanel() {
     )
   }
   return (
-    <div className="space-y-6 sm:max-w-md">
+    <div className="space-y-6">
       {/* A new form when the saved address changes, filled with it. */}
       <AddressForm key={address.public_url} address={address} />
     </div>
