@@ -30,7 +30,7 @@ import { LanguagePanel } from './LanguagePanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
 import { ProfilePanel } from './ProfilePanel'
-import { SettingsNavigation } from './navigation'
+import { SettingsFooterSlot, SettingsNavigation } from './navigation'
 import { StoragePanel } from '../storage/StoragePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
@@ -91,6 +91,7 @@ export function SettingsDialog({ page: initialPage, onClose }: { page?: string; 
       .filter((group) => group.pages.length > 0)
     return session?.user?.is_staff ? [...visibleGroups, adminGroup] : visibleGroups
   }, [session?.has_sample_content, session?.user?.is_staff])
+  const [footer, setFooter] = useState<HTMLDivElement | null>(null)
   const [openId, setOpenId] = useState(initialPage ?? groups[0].pages[0].id)
   const pages = useMemo(() => shown.flatMap((group) => group.pages), [shown])
   const page = pages.find((page) => page.id === openId) ?? pages[0]
@@ -98,12 +99,12 @@ export function SettingsDialog({ page: initialPage, onClose }: { page?: string; 
   return (
     <>
       <div className="backdrop" onMouseDown={onClose} />
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-start justify-center p-4 pt-[6vh]">
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-title"
-          className="popover pointer-events-auto flex h-[min(80vh,40rem)] w-full max-w-3xl flex-col"
+          className="popover pointer-events-auto flex h-[min(88vh,52rem)] w-full max-w-3xl flex-col"
           // Keys stop here: the page's own shortcuts don't see them.
           onKeyDown={(event) => {
             event.stopPropagation()
@@ -152,14 +153,24 @@ export function SettingsDialog({ page: initialPage, onClose }: { page?: string; 
               ))}
             </nav>
 
-            <section aria-labelledby="settings-page-title" className="min-w-0 flex-1 overflow-y-auto p-5">
-              <h3 id="settings-page-title" className="mb-2 font-semibold">
-                {t(page.label)}
-              </h3>
-              <SettingsNavigation.Provider value={setOpenId}>
-                <page.Panel />
-              </SettingsNavigation.Provider>
-            </section>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <section aria-labelledby="settings-page-title" className="min-h-0 flex-1 overflow-y-auto p-5">
+                <h3 id="settings-page-title" className="mb-2 font-semibold">
+                  {t(page.label)}
+                </h3>
+                <SettingsNavigation.Provider value={setOpenId}>
+                  <SettingsFooterSlot.Provider value={footer}>
+                    {/* A new page, a new panel: its footer leaves with it. */}
+                    <page.Panel key={page.id} />
+                  </SettingsFooterSlot.Provider>
+                </SettingsNavigation.Provider>
+              </section>
+              {/* Filled by the open page's SettingsFooter, hidden when it has none. */}
+              <div
+                ref={setFooter}
+                className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-zinc-200 px-5 py-3 empty:hidden dark:border-zinc-800"
+              />
+            </div>
           </div>
         </div>
       </div>

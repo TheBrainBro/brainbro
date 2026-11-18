@@ -8,6 +8,7 @@ import { useT } from '../i18n/i18n'
 import { appHost } from '../lib/address'
 import { squareImage } from '../lib/image'
 import { Avatar } from './Avatar'
+import { SettingsFooter } from './SettingsFooter'
 import { SettingsSection } from './SettingsSection'
 
 /** The display name that signs public notes, their address, and the photo the app shows. */
@@ -22,7 +23,7 @@ export function ProfilePanel() {
   const setAvatar = useSetAvatar()
   const queryClient = useQueryClient()
   const fileInput = useRef<HTMLInputElement>(null)
-  const ids = { name: useId(), handle: useId(), email: useId() }
+  const ids = { form: useId(), name: useId(), handle: useId(), email: useId() }
 
   const [name, setName] = useState(profile.display_name)
   // What is typed, over the saved one: the handle can arrive later (first publish).
@@ -80,7 +81,7 @@ export function ProfilePanel() {
   }
 
   return (
-    <form className="divide-y divide-zinc-200 dark:divide-zinc-800" onSubmit={submit}>
+    <form id={ids.form} className="divide-y divide-zinc-200 dark:divide-zinc-800" onSubmit={submit}>
       <div className="flex items-center gap-4 pb-6">
         <Avatar username={username} profile={profile} className="size-20 text-2xl" />
         <div className="min-w-0 space-y-2">
@@ -186,7 +187,7 @@ export function ProfilePanel() {
         </div>
       </SettingsSection>
 
-      <div className="flex items-center justify-end gap-3 pt-6">
+      <SettingsFooter>
         {error ? (
           <p role="alert" className="mr-auto text-sm text-red-600 dark:text-red-400">
             {error}
@@ -200,11 +201,16 @@ export function ProfilePanel() {
             </p>
           )
         )}
-        <button type="submit" className="button-primary inline-flex items-center gap-1.5" disabled={!changed || saving}>
+        <button
+          type="submit"
+          form={ids.form}
+          className="button-primary inline-flex items-center gap-1.5"
+          disabled={!changed || saving}
+        >
           {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
           {t('common.save')}
         </button>
-      </div>
+      </SettingsFooter>
     </form>
   )
 }

@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 
 import { useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
+import { SettingsFooter } from '../settings/SettingsFooter'
 import { useFeedback } from '../ui/feedback'
 import {
   type EmailSettings,
@@ -102,11 +103,12 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
     mailgun_region: settings.mailgun_region,
     mailgun_api_key: '',
   })
-  const ids = { provider: useId(), key: useId(), domain: useId(), region: useId(), from: useId(), mailgun: useId() }
+  const ids = { provider: useId(), key: useId(), domain: useId(), region: useId(), from: useId(), mailgun: useId(), form: useId() }
   const set = (changes: Partial<EmailSettingsInput>) => setForm((current) => ({ ...current, ...changes }))
 
   return (
     <form
+      id={ids.form}
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault()
@@ -205,13 +207,18 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <SettingsFooter>
         <TestEmail enabled={settings.enabled} />
-        <button type="submit" className="button-primary inline-flex items-center gap-1.5" disabled={save.isPending}>
+        <button
+          type="submit"
+          form={ids.form}
+          className="button-primary inline-flex items-center gap-1.5"
+          disabled={save.isPending}
+        >
           {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
           {t('common.save')}
         </button>
-      </div>
+      </SettingsFooter>
     </form>
   )
 }
