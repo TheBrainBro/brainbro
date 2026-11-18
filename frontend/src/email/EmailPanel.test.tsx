@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { EmailSettings } from './api'
 import { EmailPanel } from './EmailPanel'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -69,7 +70,9 @@ function renderPanel(
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <EmailPanel />
+      <FeedbackProvider>
+        <EmailPanel />
+      </FeedbackProvider>
     </QueryClientProvider>,
   )
   return fetchMock
@@ -126,11 +129,19 @@ describe('EmailPanel', () => {
   it('goes back to the environment variables', async () => {
     const fetchMock = renderPanel({ ...saved, environment_enabled: true })
 
-    expect(await screen.findByText('They have email set up.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Use the environment variables instead' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('goes back to the email set up in the server’s environment variables')
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }))
 
     expect(await screen.findByText('Email is off')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/server/email/', expect.objectContaining({ method: 'DELETE' }))
+  })
+
+  it('warns that removing the settings turns email off without environment variables', async () => {
+    renderPanel(saved)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Email turns off')
   })
 
   it('sends a test email to the admin', async () => {

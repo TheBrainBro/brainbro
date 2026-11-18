@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { TelegramSettings } from './api'
 import { BotSettings } from './BotSettings'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -50,7 +51,9 @@ function renderPanel(settings: TelegramSettings, { saveResult = null as Response
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <BotSettings />
+      <FeedbackProvider>
+        <BotSettings />
+      </FeedbackProvider>
     </QueryClientProvider>,
   )
   return fetchMock
@@ -96,6 +99,8 @@ describe('BotSettings', () => {
     const fetchMock = renderPanel(saved)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Telegram turns off for everyone')
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }))
 
     expect(await screen.findByPlaceholderText('123456789:AA...')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
