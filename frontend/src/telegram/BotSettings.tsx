@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 
 import { useT } from '../i18n/i18n'
 import { Notice } from '../settings/Notice'
+import { useFeedback } from '../ui/feedback'
 import {
   type TelegramSettings,
   useRemoveTelegramSettings,
@@ -42,7 +43,20 @@ export function BotSettings() {
 function Status({ settings }: { settings: TelegramSettings }) {
   const t = useT()
   const remove = useRemoveTelegramSettings()
+  const { confirm } = useFeedback()
   if (!settings.configured) return null
+
+  async function removeBot() {
+    const confirmed = await confirm({
+      title: t('telegramServer.removeTitle', { bot: settings.bot_username }),
+      message: settings.environment_configured
+        ? t('telegramServer.removeToEnvironment')
+        : t('telegramServer.removeTurnsOff'),
+      confirm: t('telegramServer.remove'),
+      danger: true,
+    })
+    if (confirmed) remove.mutate()
+  }
 
   return (
     <div className="space-y-2">
@@ -58,7 +72,7 @@ function Status({ settings }: { settings: TelegramSettings }) {
             type="button"
             className="button-danger-ghost"
             disabled={remove.isPending}
-            onClick={() => remove.mutate()}
+            onClick={() => void removeBot()}
           >
             {t('telegramServer.remove')}
           </button>
@@ -70,9 +84,6 @@ function Status({ settings }: { settings: TelegramSettings }) {
         </p>
       ) : (
         <Notice page="general">{t('telegramServer.noWebhook')}</Notice>
-      )}
-      {settings.source === 'database' && settings.environment_configured && (
-        <p className="text-xs text-zinc-500">{t('telegramServer.environmentOn')}</p>
       )}
       {remove.isError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
