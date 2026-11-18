@@ -184,7 +184,7 @@ Personal tokens have them all, since they can use the whole API.
 
 ## Personal tokens
 
-*Create token* with a name (what it's for). The token is shown once; BrainBro
+In *Access*, open *New personal token* and *Create token* with a name (what it's for). The token is shown once; BrainBro
 only keeps a hash of it. It never expires: *Revoke* stops it.
 
 A personal token acts as you on the whole API, `Authorization: Bearer

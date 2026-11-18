@@ -82,7 +82,7 @@ describe('ProfilePanel', () => {
 
     const field = await screen.findByLabelText('Public address')
     await vi.waitFor(() => expect(field).toHaveValue('author'))
-    const save = screen.getByRole('button', { name: 'Save public address' })
+    const save = screen.getByRole('button', { name: 'Save' })
     expect(save).toBeDisabled()
     fireEvent.change(field, { target: { value: 'Alex' } })
     fireEvent.click(save)
@@ -99,7 +99,7 @@ describe('ProfilePanel', () => {
     renderPanel({ display_name: '', handle: 'author', avatar_url: null })
 
     fireEvent.change(await screen.findByLabelText('Public address'), { target: { value: 'taken' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save public address' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Someone else already has this name.')
   })
@@ -124,7 +124,7 @@ describe('ProfilePanel', () => {
 
     const input = await screen.findByLabelText('Email')
     fireEvent.change(input, { target: { value: 'alex@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save email' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await vi.waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -132,7 +132,7 @@ describe('ProfilePanel', () => {
         expect.objectContaining({ method: 'PUT', body: JSON.stringify({ email: 'alex@example.com' }) }),
       ),
     )
-    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Save email' })).toBeDisabled())
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled())
     expect(input).toHaveValue('alex@example.com')
   })
 
@@ -140,9 +140,29 @@ describe('ProfilePanel', () => {
     renderPanel()
 
     fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'taken@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save email' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Another account already uses this email.')
+  })
+
+  it('saves every changed field with one button', async () => {
+    const fetchMock = renderPanel({ display_name: '', handle: 'author', avatar_url: null })
+
+    await vi.waitFor(() => expect(screen.getByLabelText('Public address')).toHaveValue('author'))
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Alex' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'alex@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved.')
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/profile/',
+      expect.objectContaining({ body: JSON.stringify({ display_name: 'Alex' }) }),
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/email/',
+      expect.objectContaining({ body: JSON.stringify({ email: 'alex@example.com' }) }),
+    )
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/profile/', expect.objectContaining({ body: JSON.stringify({ handle: 'author' }) }))
   })
 
   it('says when the server cannot send email yet', async () => {

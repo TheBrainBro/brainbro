@@ -2,6 +2,8 @@ import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { useT } from '../i18n/i18n'
+import { Notice } from '../settings/Notice'
+import { useFeedback } from '../ui/feedback'
 import {
   type TelegramSettings,
   useRemoveTelegramSettings,
@@ -29,7 +31,7 @@ export function BotSettings() {
     )
   }
   return (
-    <div className="space-y-6 sm:max-w-md">
+    <div className="space-y-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('telegramServer.intro')}</p>
       <Status settings={settings} />
       {/* A new form when the saved bot changes. */}
@@ -41,47 +43,52 @@ export function BotSettings() {
 function Status({ settings }: { settings: TelegramSettings }) {
   const t = useT()
   const remove = useRemoveTelegramSettings()
+  const { confirm } = useFeedback()
   if (!settings.configured) return null
+
+  async function removeBot() {
+    const confirmed = await confirm({
+      title: t('telegramServer.removeTitle', { bot: settings.bot_username }),
+      message: settings.environment_configured
+        ? t('telegramServer.removeToEnvironment')
+        : t('telegramServer.removeTurnsOff'),
+      confirm: t('telegramServer.remove'),
+      danger: true,
+    })
+    if (confirmed) remove.mutate()
+  }
 
   return (
     <div className="space-y-2">
-      <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
-        <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        {settings.source === 'database'
-          ? t('telegramServer.statusSaved', { bot: settings.bot_username })
-          : t('telegramServer.statusEnvironment', { bot: settings.bot_username })}
-      </p>
-      {settings.webhook_url ? (
-          <p className="text-xs break-all text-zinc-500">
-            {t('telegramServer.webhook', { url: settings.webhook_url })}
-          </p>
-        ) : (
-          <p role="alert" className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-400">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {t('telegramServer.noWebhook')}
-          </p>
-        )}
-      {settings.source === 'database' && (
-        <div className="space-y-1">
+      <div className="flex items-center justify-between gap-3">
+        <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
+          <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          {settings.source === 'database'
+            ? t('telegramServer.statusSaved', { bot: settings.bot_username })
+            : t('telegramServer.statusEnvironment', { bot: settings.bot_username })}
+        </p>
+        {settings.source === 'database' && (
           <button
             type="button"
-            className="button-secondary"
+            className="button-danger-ghost"
             disabled={remove.isPending}
-            onClick={() => remove.mutate()}
+            onClick={() => void removeBot()}
           >
             {t('telegramServer.remove')}
           </button>
-          <p className="text-xs text-zinc-500">
-            {settings.environment_configured
-              ? t('telegramServer.environmentOn')
-              : t('telegramServer.environmentOff')}
-          </p>
-          {remove.isError && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {remove.error.message}
-            </p>
-          )}
-        </div>
+        )}
+      </div>
+      {settings.webhook_url ? (
+        <p className="text-xs break-all text-zinc-500">
+          {t('telegramServer.webhook', { url: settings.webhook_url })}
+        </p>
+      ) : (
+        <Notice page="general">{t('telegramServer.noWebhook')}</Notice>
+      )}
+      {remove.isError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {remove.error.message}
+        </p>
       )}
     </div>
   )

@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { TelegramSettings } from './api'
 import { BotSettings } from './BotSettings'
+import { FeedbackProvider } from '../ui/FeedbackProvider'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -50,7 +51,9 @@ function renderPanel(settings: TelegramSettings, { saveResult = null as Response
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <BotSettings />
+      <FeedbackProvider>
+        <BotSettings />
+      </FeedbackProvider>
     </QueryClientProvider>,
   )
   return fetchMock
@@ -89,14 +92,15 @@ describe('BotSettings', () => {
   it('warns when Telegram has nowhere to deliver', async () => {
     renderPanel({ ...saved, webhook_url: '' })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('it needs an HTTPS public address')
+    expect(await screen.findByRole('note')).toHaveTextContent('it needs an HTTPS public address')
   })
 
   it('removes the saved bot', async () => {
     const fetchMock = renderPanel(saved)
 
-    expect(await screen.findByText('The environment variables set up no bot: Telegram turns off.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Remove this bot' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Telegram turns off for everyone')
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }))
 
     expect(await screen.findByPlaceholderText('123456789:AA...')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()

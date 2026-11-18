@@ -3,6 +3,8 @@ import { useId, useState } from 'react'
 
 import { useSession } from '../auth/session'
 import { useT } from '../i18n/i18n'
+import { SettingsFooter } from '../settings/SettingsFooter'
+import { useFeedback } from '../ui/feedback'
 import {
   type EmailSettings,
   type EmailSettingsInput,
@@ -31,49 +33,61 @@ export function EmailPanel() {
     )
   }
   return (
-    <div className="space-y-6 sm:max-w-md">
+    <div className="space-y-6">
       <p className="text-sm text-zinc-600 dark:text-zinc-300">{t('email.intro')}</p>
       <Status settings={settings} />
       {/* A new form when the saved settings change, filled with them. */}
       <EmailForm key={JSON.stringify(settings)} settings={settings} />
-      <TestEmail enabled={settings.enabled} />
     </div>
   )
 }
 
 function Status({ settings }: { settings: EmailSettings }) {
   const t = useT()
-  const backToEnvironment = useUseEnvironmentEmail()
+  const remove = useUseEnvironmentEmail()
+  const { confirm } = useFeedback()
   const status = !settings.enabled
     ? t('email.statusOff')
     : settings.source === 'database'
       ? t('email.statusSaved')
       : t('email.statusEnvironment')
 
+  async function removeSettings() {
+    const confirmed = await confirm({
+      title: t('email.removeTitle'),
+      message: settings.environment_enabled ? t('email.removeToEnvironment') : t('email.removeTurnsOff'),
+      confirm: t('email.remove'),
+      danger: true,
+    })
+    if (confirmed) remove.mutate()
+  }
+
   return (
     <div className="space-y-2">
-      <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
-        {settings.enabled ? (
-          <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        ) : (
-          <CircleAlert className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
-        )}
-        {status}
-      </p>
-      {settings.source === 'database' && (
-        <div className="space-y-1">
+      <div className="flex items-center justify-between gap-3">
+        <p role="status" className="flex items-center gap-1.5 text-sm font-medium">
+          {settings.enabled ? (
+            <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          ) : (
+            <CircleAlert className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
+          )}
+          {status}
+        </p>
+        {settings.source === 'database' && (
           <button
             type="button"
-            className="button-secondary"
-            disabled={backToEnvironment.isPending}
-            onClick={() => backToEnvironment.mutate()}
+            className="button-danger-ghost"
+            disabled={remove.isPending}
+            onClick={() => void removeSettings()}
           >
-            {t('email.useEnvironment')}
+            {t('email.remove')}
           </button>
-          <p className="text-xs text-zinc-500">
-            {settings.environment_enabled ? t('email.environmentOn') : t('email.environmentOff')}
-          </p>
-        </div>
+        )}
+      </div>
+      {remove.isError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {remove.error.message}
+        </p>
       )}
     </div>
   )
@@ -89,11 +103,12 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
     mailgun_region: settings.mailgun_region,
     mailgun_api_key: '',
   })
-  const ids = { provider: useId(), key: useId(), domain: useId(), region: useId(), from: useId() }
+  const ids = { provider: useId(), key: useId(), domain: useId(), region: useId(), from: useId(), mailgun: useId(), form: useId() }
   const set = (changes: Partial<EmailSettingsInput>) => setForm((current) => ({ ...current, ...changes }))
 
   return (
     <form
+      id={ids.form}
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault()
@@ -116,7 +131,13 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
       </div>
 
       {form.provider === 'mailgun' && (
-        <>
+        <section
+          aria-labelledby={ids.mailgun}
+          className="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+        >
+          <h4 id={ids.mailgun} className="text-sm font-semibold">
+            {t('email.mailgun')}
+          </h4>
           <div className="space-y-1">
             <label htmlFor={ids.key} className="block text-sm font-medium">
               {t('email.apiKey')}
@@ -133,6 +154,7 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
             />
             <p className="text-xs text-zinc-500">{t('email.apiKeyHint')}</p>
           </div>
+          <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
           <div className="space-y-1">
             <label htmlFor={ids.domain} className="block text-sm font-medium">
               {t('email.domain')}
@@ -161,6 +183,7 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
               <option value="eu">{t('email.regionEu')}</option>
             </select>
           </div>
+          </div>
           <div className="space-y-1">
             <label htmlFor={ids.from} className="block text-sm font-medium">
               {t('email.from')}
@@ -174,7 +197,7 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
             />
             <p className="text-xs text-zinc-500">{t('email.fromHint')}</p>
           </div>
-        </>
+        </section>
       )}
 
       {save.isError && (
@@ -184,24 +207,38 @@ function EmailForm({ settings }: { settings: EmailSettings }) {
         </p>
       )}
 
-      <button type="submit" className="button-primary" disabled={save.isPending}>
-        {t('common.save')}
-      </button>
+      <SettingsFooter>
+        <TestEmail enabled={settings.enabled} />
+        <button
+          type="submit"
+          form={ids.form}
+          className="button-primary inline-flex items-center gap-1.5"
+          disabled={save.isPending}
+        >
+          {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+          {t('common.save')}
+        </button>
+      </SettingsFooter>
     </form>
   )
 }
 
+/** Sends a test with the saved settings: the hint and its result take the row below the buttons. */
 function TestEmail({ enabled }: { enabled: boolean }) {
   const t = useT()
   const { data: session } = useSession()
   const test = useSendTestEmail()
   const email = session?.user?.email ?? ''
+  const hintId = useId()
 
   return (
-    <section className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+    <>
+      {!email && <p className="mr-auto text-xs text-zinc-500">{t('email.testNeedsEmail')}</p>}
       <button
         type="button"
-        className="button-outline"
+        className={`button-ghost text-sm ${email ? 'mr-auto' : ''}`}
+        title={email ? t('email.testGoesTo', { email }) : undefined}
+        aria-describedby={email ? hintId : undefined}
         disabled={!enabled || !email || test.isPending}
         onClick={() => test.mutate()}
       >
@@ -212,19 +249,21 @@ function TestEmail({ enabled }: { enabled: boolean }) {
         )}
         {t('email.sendTest')}
       </button>
-      <p className="text-xs text-zinc-500">
-        {email ? t('email.testGoesTo', { email }) : t('email.testNeedsEmail')}
-      </p>
+      {email && (
+        <span id={hintId} className="sr-only">
+          {t('email.testGoesTo', { email })}
+        </span>
+      )}
       {test.isSuccess && (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+        <p role="status" className="order-first w-full text-sm text-emerald-700 dark:text-emerald-400">
           {t('email.testSent', { email: test.data.sent_to, provider: test.data.provider })}
         </p>
       )}
       {test.isError && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="order-first w-full text-sm text-red-600 dark:text-red-400">
           {test.error.message}
         </p>
       )}
-    </section>
+    </>
   )
 }

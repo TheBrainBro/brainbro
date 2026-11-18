@@ -1,10 +1,13 @@
-import { Check, Copy, TriangleAlert } from 'lucide-react'
+import { Bot, Check, ChevronDown, Copy, KeyRound, Plus, Terminal } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
+import { useSession } from '../auth/session'
 import { rich, t, useT } from '../i18n/i18n'
 import { localReach, useAppOrigin } from '../lib/address'
 import { copyText } from '../lib/dom'
 import { timeAgo } from '../lib/time'
+import { Notice } from '../settings/Notice'
+import { SettingsSection } from '../settings/SettingsSection'
 import { CopyField } from '../ui/CopyField'
 import {
   useApiTokens,
@@ -14,6 +17,7 @@ import {
   type ApiToken,
   type NewApiToken,
 } from './api'
+import { AppLogo } from './AppLogo'
 import { PermissionChoices } from './PermissionChoices'
 
 /**
@@ -24,24 +28,29 @@ export function TokensPanel() {
   useT()
   const url = useMcpUrl()
   const reach = localReach(new URL(url).hostname)
+  const { data: session } = useSession()
+  const admin = !!session?.user?.is_staff
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        {t('tokens.intro')}
-      </p>
-      <div className="space-y-2">
+    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+      <SettingsSection title={t('tokens.connect')} description={t('tokens.intro')}>
         <CopyField label={t('tokens.mcpUrl')} value={url} />
         {reach && (
-          <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-            <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          // Only admins have the page where the public address is set.
+          <Notice page={admin ? 'general' : undefined}>
             {t(reach === 'computer' ? 'tokens.localOnly' : 'tokens.networkOnly')}
-          </p>
+            {!admin && ` ${t('tokens.askAdmin')}`}
+          </Notice>
         )}
-      </div>
-      <Prompt />
-      <Setups />
-      <Connections />
-      <NewTokenForm />
+        <div className="space-y-2">
+          <h5 className="text-sm font-medium">{t('tokens.stepByStep')}</h5>
+          <Setups />
+        </div>
+        <Prompt />
+      </SettingsSection>
+      <SettingsSection title={t('tokens.access')} description={t('tokens.accessIntro')}>
+        <Connections />
+        <NewTokenForm />
+      </SettingsSection>
     </div>
   )
 }
@@ -51,32 +60,32 @@ function useMcpUrl() {
   return `${useAppOrigin()}/api/mcp`
 }
 
-/** A ready-to-paste prompt tailored to this BrainBro installation. */
+/** A message to paste in the assistant, tailored to this installation: it guides the connection itself. */
 function Prompt() {
   const url = useMcpUrl()
   const prompt = t('tokens.prompt', { url })
   const [copied, setCopied] = useState(false)
   return (
-    <section aria-labelledby="assistant-prompt-title" className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <h4 id="assistant-prompt-title" className="text-sm font-medium">
-          {t('tokens.promptTitle')}
-        </h4>
-        <button
-          type="button"
-          className="button-ghost inline-flex items-center gap-2"
-          onClick={() => {
-            void copyText(prompt).then(() => setCopied(true))
-          }}
-        >
-          {copied ? (
-            <Check className="size-4" aria-hidden="true" />
-          ) : (
-            <Copy className="size-4" aria-hidden="true" />
-          )}
-          {copied ? t('tokens.promptCopied') : t('tokens.copyPrompt')}
-        </button>
+    <section
+      aria-labelledby="assistant-prompt-title"
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+    >
+      <div className="mr-auto min-w-0 flex-1 basis-56">
+        <h5 id="assistant-prompt-title" className="text-sm font-medium">
+          {t('tokens.guideTitle')}
+        </h5>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('tokens.guideIntro')}</p>
       </div>
+      <button
+        type="button"
+        className="button-outline shrink-0 px-3 py-1.5"
+        onClick={() => {
+          void copyText(prompt).then(() => setCopied(true))
+        }}
+      >
+        {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+        {copied ? t('tokens.promptCopied') : t('tokens.copyPrompt')}
+      </button>
       {copied && (
         <span role="status" className="sr-only">
           {t('tokens.promptCopied')}
@@ -93,12 +102,12 @@ function Setups() {
       data-tutorial="assistant-setup"
       className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800"
     >
-      <Setup title="Claude" detail={t('tokens.claudeDetail')}>
+      <Setup title="Claude" logo="claude" detail={t('tokens.claudeDetail')}>
         <li>{rich('tokens.claudeStep1', { b: bold })}</li>
         <li>{rich('tokens.claudeStep2', { b: bold })}</li>
         <li>{rich('tokens.claudeStep3', { b: bold })}</li>
       </Setup>
-      <Setup title="ChatGPT" detail={t('tokens.chatgptDetail')}>
+      <Setup title="ChatGPT" logo="chatgpt" detail={t('tokens.chatgptDetail')}>
         <li>
           {rich('tokens.chatgptStep1', {
             b: bold,
@@ -108,7 +117,7 @@ function Setups() {
         <li>{t('tokens.chatgptStep2')}</li>
         <li>{t('tokens.chatgptStep3')}</li>
       </Setup>
-      <Setup title="Grok">
+      <Setup title="Grok" logo="grok">
         <li>
           {rich('tokens.grokStep1', {
             b: bold,
@@ -118,7 +127,7 @@ function Setups() {
         <li>{t('tokens.grokStep2')}</li>
         <li>{t('tokens.grokStep3')}</li>
       </Setup>
-      <Setup title="Claude Code">
+      <Setup title="Claude Code" logo="terminal">
         <li>
           {t('tokens.claudeCodeStep1')}
           <div className="mt-1.5">
@@ -140,14 +149,32 @@ function bold(chunk: string) {
   return <b>{chunk}</b>
 }
 
-function Setup({ title, detail, children }: { title: string; detail?: string; children: ReactNode }) {
+function Setup({
+  title,
+  logo,
+  detail,
+  children,
+}: {
+  title: string
+  logo: string
+  detail?: string
+  children: ReactNode
+}) {
   return (
     <details className="group p-3">
-      <summary className="cursor-pointer text-sm font-medium">
+      <summary className="flex cursor-pointer list-none items-center gap-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        {logo === 'terminal' ? (
+          <Terminal className="size-4 shrink-0 text-zinc-500" aria-hidden="true" />
+        ) : (
+          <span aria-hidden="true">
+            <AppLogo logo={logo} className="size-4 shrink-0" />
+          </span>
+        )}
         {title}
-        {detail && <span className="ml-2 font-normal text-zinc-500">{detail}</span>}
+        {detail && <span className="font-normal text-zinc-500">{detail}</span>}
+        <ChevronDown className="ml-auto size-4 shrink-0 text-zinc-400 transition group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
+      <ol className="mt-3 ml-6.5 list-decimal space-y-1.5 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
         {children}
       </ol>
     </details>
@@ -169,17 +196,22 @@ function Connections() {
   const revoke = useRevokeApiToken()
   const [confirming, setConfirming] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
-  if (!tokens?.length) return null
+  if (!tokens) return null
+  if (!tokens.length) return <p className="text-sm text-zinc-500">{t('tokens.noAccess')}</p>
 
   return (
-    <section aria-labelledby="connections-title" className="space-y-2">
-      <h4 id="connections-title" className="text-sm font-medium">
-        {t('tokens.connections')}
-      </h4>
-      <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+    <div className="space-y-2">
+      <ul
+        aria-label={t('tokens.connections')}
+        className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
         {tokens.map((token) => (
           <li key={token.id} className="space-y-3 p-3">
             <div className="flex items-center gap-3">
+              {token.connected_app ? (
+                <Bot className="size-4 shrink-0 text-accent-500" aria-hidden="true" />
+              ) : (
+                <KeyRound className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
+              )}
               <div className="mr-auto min-w-0 text-sm">
                 <div className="truncate font-medium">{token.name}</div>
                 <div className="text-xs text-zinc-500">
@@ -200,7 +232,7 @@ function Connections() {
                   </button>
                   <button
                     type="button"
-                    className="button-ghost text-red-600 dark:text-red-400"
+                    className="button-danger-ghost"
                     disabled={revoke.isPending}
                     onClick={() => revoke.mutate(token.id, { onSuccess: () => setConfirming(null) })}
                   >
@@ -221,7 +253,7 @@ function Connections() {
                       {t('tokens.permissions')}
                     </button>
                   )}
-                  <button type="button" className="button-ghost" onClick={() => setConfirming(token.id)}>
+                  <button type="button" className="button-danger-ghost" onClick={() => setConfirming(token.id)}>
                     {token.connected_app ? t('tokens.disconnect') : t('tokens.revoke')}
                   </button>
                 </>
@@ -236,7 +268,7 @@ function Connections() {
           {revoke.error.message}
         </p>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -261,49 +293,79 @@ function AppPermissions({ token }: { token: ApiToken }) {
   )
 }
 
-/** A personal token: for scripts, and tools that send it as a header. */
+/**
+ * A personal token, for scripts and tools that send it as a header: a card
+ * that opens into the form, and stays open to show the token once made.
+ */
 function NewTokenForm() {
   useT()
   const create = useCreateApiToken()
   const [name, setName] = useState('')
+  const [open, setOpen] = useState(false)
+
+  function close() {
+    setOpen(false)
+    setName('')
+    create.reset()
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 p-4 text-sm font-medium text-zinc-600 transition hover:border-accent-400 hover:text-accent-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-accent-500 dark:hover:text-accent-300"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="size-4" aria-hidden="true" />
+        {t('tokens.newToken')}
+      </button>
+    )
+  }
 
   return (
-    <section aria-labelledby="new-token-title" className="space-y-2">
-      <h4 id="new-token-title" className="text-sm font-medium">
-        {t('tokens.personal')}
-      </h4>
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        {t('tokens.personalIntro')}
-      </p>
-      <form
-        className="flex gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          create.mutate(name.trim(), { onSuccess: () => setName('') })
-        }}
-      >
-        <input
-          className="input"
-          aria-label={t('tokens.tokenName')}
-          placeholder={t('tokens.tokenPlaceholder')}
-          maxLength={100}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <button
-          type="submit"
-          className="button-primary shrink-0"
-          disabled={!name.trim() || create.isPending}
+    <section
+      aria-labelledby="new-token-title"
+      className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+    >
+      <div>
+        <h5 id="new-token-title" className="text-sm font-semibold">
+          {t('tokens.newToken')}
+        </h5>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('tokens.personalIntro')}</p>
+      </div>
+      {create.data ? (
+        <NewToken token={create.data} />
+      ) : (
+        <form
+          className="flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            create.mutate(name.trim(), { onSuccess: () => setName('') })
+          }}
         >
-          {t('tokens.create')}
-        </button>
-      </form>
+          <input
+            className="input"
+            aria-label={t('tokens.tokenName')}
+            placeholder={t('tokens.tokenPlaceholder')}
+            maxLength={100}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <button type="submit" className="button-primary shrink-0" disabled={!name.trim() || create.isPending}>
+            {t('tokens.create')}
+          </button>
+        </form>
+      )}
       {create.isError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {create.error.message}
         </p>
       )}
-      {create.data && <NewToken token={create.data} />}
+      <div className="flex justify-end">
+        <button type="button" className="button-secondary" onClick={close}>
+          {create.data ? t('tokens.done') : t('common.cancel')}
+        </button>
+      </div>
     </section>
   )
 }
