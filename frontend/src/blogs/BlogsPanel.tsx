@@ -1,5 +1,6 @@
 import {
   ChevronDown,
+  GripVertical,
   CircleAlert,
   CircleCheck,
   ExternalLink,
@@ -246,77 +247,15 @@ function DnsSetup({
 function BlogPhoto({ blog }: { blog: Blog }) {
   const t = useT()
   const setAvatar = useSetBlogAvatar(blog.id)
-  const [error, setError] = useState<string>()
-  const fileInput = useRef<HTMLInputElement>(null)
-
-  async function pickPhoto(file: File | undefined) {
-    if (!file) return
-    setError(undefined)
-    let square: Blob
-    try {
-      square = await squareImage(file)
-    } catch {
-      return setError(t('profile.notAnImage'))
-    }
-    setAvatar.mutate(square, { onError: (failure) => setError(failure.message) })
-  }
-
   return (
-    <div className="space-y-1">
-      <p className="text-sm font-medium">{t('blogs.photo')}</p>
-      <div className="flex items-center gap-4">
-        {blog.avatar_url ? (
-          <img src={blog.avatar_url} alt="" className="size-16 shrink-0 rounded-full object-cover" />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 dark:bg-zinc-800"
-          >
-            <ImagePlus className="size-5" />
-          </span>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="button-outline"
-            disabled={setAvatar.isPending}
-            onClick={() => fileInput.current?.click()}
-          >
-            <ImagePlus className="size-4" aria-hidden="true" />
-            {blog.avatar_url ? t('profile.changePhoto') : t('profile.uploadPhoto')}
-          </button>
-          {blog.avatar_url && (
-            <button
-              type="button"
-              className="button-danger-ghost"
-              disabled={setAvatar.isPending}
-              onClick={() =>
-                setAvatar.mutate(null, { onError: (failure) => setError(failure.message) })
-              }
-            >
-              {t('common.remove')}
-            </button>
-          )}
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            aria-label={t('blogs.photo')}
-            className="hidden"
-            onChange={(event) => {
-              void pickPhoto(event.target.files?.[0])
-              event.target.value = ''
-            }}
-          />
-        </div>
-      </div>
-      <p className="text-xs text-zinc-500">{t('blogs.photoHint')}</p>
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-    </div>
+    <ImagePicker
+      label={t('blogs.photo')}
+      hint={t('blogs.photoHint')}
+      url={blog.avatar_url}
+      round
+      prepare={squareImage}
+      mutation={setAvatar}
+    />
   )
 }
 
@@ -324,75 +263,100 @@ function BlogPhoto({ blog }: { blog: Blog }) {
 function BlogSocialImage({ blog }: { blog: Blog }) {
   const t = useT()
   const setImage = useSetBlogSocialImage(blog.id)
+  return (
+    <ImagePicker
+      label={t('blogs.socialImage')}
+      hint={t('blogs.socialImageHint')}
+      url={blog.social_image_url}
+      prepare={socialImage}
+      mutation={setImage}
+    />
+  )
+}
+
+/**
+ * One of the blog's images, laid out the same for both: its name, a preview,
+ * Upload (or Change) and Remove, and a hint.
+ */
+function ImagePicker({
+  label,
+  hint,
+  url,
+  round = false,
+  prepare,
+  mutation,
+}: {
+  label: string
+  hint: string
+  url: string | null
+  round?: boolean
+  /** Crops the picked file to what the server takes. */
+  prepare: (file: File) => Promise<Blob>
+  mutation: { mutate: (image: Blob | null, options: { onError: (failure: Error) => void }) => void; isPending: boolean }
+}) {
+  const t = useT()
   const [error, setError] = useState<string>()
   const fileInput = useRef<HTMLInputElement>(null)
+  const shape = round ? 'aspect-square rounded-full' : 'aspect-[1200/630] rounded-md'
 
-  async function pickImage(file: File | undefined) {
+  async function pick(file: File | undefined) {
     if (!file) return
     setError(undefined)
     let image: Blob
     try {
-      image = await socialImage(file)
+      image = await prepare(file)
     } catch {
       return setError(t('profile.notAnImage'))
     }
-    setImage.mutate(image, { onError: (failure) => setError(failure.message) })
+    mutation.mutate(image, { onError: (failure) => setError(failure.message) })
   }
 
   return (
-    <div className="space-y-1">
-      <p className="text-sm font-medium">{t('blogs.socialImage')}</p>
-      <div className="flex flex-wrap items-center gap-4">
-        {blog.social_image_url ? (
-          <img
-            src={blog.social_image_url}
-            alt=""
-            className="aspect-[1200/630] h-16 shrink-0 rounded-md object-cover"
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="flex aspect-[1200/630] h-16 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-400 dark:bg-zinc-800"
-          >
-            <ImagePlus className="size-5" />
-          </span>
-        )}
-        <div className="flex flex-wrap gap-2">
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{label}</p>
+      {url ? (
+        <img src={url} alt="" className={`h-20 object-cover ${shape}`} />
+      ) : (
+        <span
+          aria-hidden="true"
+          className={`flex h-20 items-center justify-center bg-zinc-100 text-zinc-400 dark:bg-zinc-800 ${shape}`}
+        >
+          <ImagePlus className="size-5" />
+        </span>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="button-outline px-3 py-1.5"
+          disabled={mutation.isPending}
+          onClick={() => fileInput.current?.click()}
+        >
+          <ImagePlus className="size-4" aria-hidden="true" />
+          {url ? t('blogs.changeImage') : t('blogs.uploadImage')}
+        </button>
+        {url && (
           <button
             type="button"
-            className="button-outline"
-            disabled={setImage.isPending}
-            onClick={() => fileInput.current?.click()}
+            className="button-danger-ghost"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate(null, { onError: (failure) => setError(failure.message) })}
           >
-            <ImagePlus className="size-4" aria-hidden="true" />
-            {blog.social_image_url ? t('blogs.changeImage') : t('blogs.uploadImage')}
+            {t('common.remove')}
           </button>
-          {blog.social_image_url && (
-            <button
-              type="button"
-              className="button-danger-ghost"
-              disabled={setImage.isPending}
-              onClick={() =>
-                setImage.mutate(null, { onError: (failure) => setError(failure.message) })
-              }
-            >
-              {t('common.remove')}
-            </button>
-          )}
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            aria-label={t('blogs.socialImage')}
-            className="hidden"
-            onChange={(event) => {
-              void pickImage(event.target.files?.[0])
-              event.target.value = ''
-            }}
-          />
-        </div>
+        )}
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          aria-label={label}
+          className="hidden"
+          onChange={(event) => {
+            void pick(event.target.files?.[0])
+            event.target.value = ''
+          }}
+        />
       </div>
-      <p className="text-xs text-zinc-500">{t('blogs.socialImageHint')}</p>
+      <p className="text-xs text-zinc-500">{hint}</p>
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
@@ -417,7 +381,7 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
   const [description, setDescription] = useState(blog.description)
   const [author, setAuthor] = useState(blog.author)
   const [authorUrl, setAuthorUrl] = useState(blog.author_url)
-  const [links, setLinks] = useState(blog.links)
+  const [links, setLinks] = useState(() => blog.links.map(withKey))
   // Rows left empty aren't links.
   const filled = links
     .map((link) => ({ name: link.name.trim(), url: link.url.trim() }))
@@ -634,52 +598,7 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
                   <p className="text-xs text-zinc-500">{t('blogs.authorUrlHint')}</p>
                 </div>
               </div>
-              <fieldset className="space-y-2">
-                <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
-                {links.map((link, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      className="input"
-                      aria-label={t('blogs.linkName', { number: index + 1 })}
-                      placeholder={t('blogs.linkNamePlaceholder')}
-                      value={link.name}
-                      maxLength={60}
-                      onChange={(event) =>
-                        setLinks(links.map((each, at) => (at === index ? { ...each, name: event.target.value } : each)))
-                      }
-                    />
-                    <input
-                      className="input"
-                      type="url"
-                      aria-label={t('blogs.linkUrl', { number: index + 1 })}
-                      placeholder="https://"
-                      value={link.url}
-                      maxLength={500}
-                      onChange={(event) =>
-                        setLinks(links.map((each, at) => (at === index ? { ...each, url: event.target.value } : each)))
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="button-icon size-9 shrink-0"
-                      aria-label={t('blogs.removeLink', { number: index + 1 })}
-                      onClick={() => setLinks(links.filter((_, at) => at !== index))}
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
-                {links.length < MAX_LINKS && (
-                  <button
-                    type="button"
-                    className="button-ghost inline-flex items-center gap-1.5 text-sm"
-                    onClick={() => setLinks([...links, { name: '', url: '' }])}
-                  >
-                    <Plus className="size-4" aria-hidden="true" />
-                    {t('blogs.addLink')}
-                  </button>
-                )}
-              </fieldset>
+              <LinksEditor links={links} onChange={setLinks} />
               <div className="flex justify-end">
                 <button type="submit" className="button-primary" disabled={!changed || update.isPending}>
                   {t('common.save')}
@@ -726,6 +645,115 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
         </p>
       )}
     </section>
+  )
+}
+
+type EditedLink = Blog['links'][number] & { key: number }
+
+// Rows keep their key while they move, so typing and focus stay with the row.
+let nextLinkKey = 0
+function withKey(link: Blog['links'][number]): EditedLink {
+  return { ...link, key: nextLinkKey++ }
+}
+
+/** Moves the row at `from` to `to`. */
+function moved<T>(list: T[], from: number, to: number) {
+  const next = [...list]
+  const [row] = next.splice(from, 1)
+  next.splice(to, 0, row)
+  return next
+}
+
+/**
+ * The blog's links, in the order its pages show them. Rows move by dragging
+ * their handle, or with the arrow keys on it.
+ */
+function LinksEditor({ links, onChange }: { links: EditedLink[]; onChange: (links: EditedLink[]) => void }) {
+  const t = useT()
+  // The row whose handle is held: only that row is draggable, so text in the inputs stays selectable.
+  const [held, setHeld] = useState<number | null>(null)
+  const [dragging, setDragging] = useState<number | null>(null)
+  const set = (index: number, changes: Partial<EditedLink>) =>
+    onChange(links.map((each, at) => (at === index ? { ...each, ...changes } : each)))
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
+      {links.map((link, index) => (
+        <div
+          key={link.key}
+          draggable={held === link.key}
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = 'move'
+            setDragging(index)
+          }}
+          onDragOver={(event) => {
+            if (dragging === null) return
+            event.preventDefault()
+            if (dragging !== index) {
+              onChange(moved(links, dragging, index))
+              setDragging(index)
+            }
+          }}
+          onDragEnd={() => {
+            setDragging(null)
+            setHeld(null)
+          }}
+          className={`flex items-center gap-2 rounded-lg transition ${dragging === index ? 'opacity-50' : ''}`}
+        >
+          <button
+            type="button"
+            className="button-icon size-9 shrink-0 cursor-grab active:cursor-grabbing"
+            aria-label={t('blogs.moveLink', { number: index + 1 })}
+            onPointerDown={() => setHeld(link.key)}
+            onPointerUp={() => dragging === null && setHeld(null)}
+            onKeyDown={(event) => {
+              const to = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : null
+              if (to === null || to < 0 || to >= links.length) return
+              event.preventDefault()
+              onChange(moved(links, index, to))
+            }}
+          >
+            <GripVertical className="size-4" aria-hidden="true" />
+          </button>
+          <input
+            className="input"
+            aria-label={t('blogs.linkName', { number: index + 1 })}
+            placeholder={t('blogs.linkNamePlaceholder')}
+            value={link.name}
+            maxLength={60}
+            onChange={(event) => set(index, { name: event.target.value })}
+          />
+          <input
+            className="input"
+            type="url"
+            aria-label={t('blogs.linkUrl', { number: index + 1 })}
+            placeholder="https://"
+            value={link.url}
+            maxLength={500}
+            onChange={(event) => set(index, { url: event.target.value })}
+          />
+          <button
+            type="button"
+            className="button-icon size-9 shrink-0"
+            aria-label={t('blogs.removeLink', { number: index + 1 })}
+            onClick={() => onChange(links.filter((_, at) => at !== index))}
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      ))}
+      {links.length < MAX_LINKS && (
+        <button
+          type="button"
+          className="button-ghost inline-flex items-center gap-1.5 text-sm"
+          onClick={() => onChange([...links, withKey({ name: '', url: '' })])}
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          {t('blogs.addLink')}
+        </button>
+      )}
+    </fieldset>
   )
 }
 
