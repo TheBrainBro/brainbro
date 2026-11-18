@@ -8,6 +8,7 @@ export const en = {
     save: 'Save',
     delete: 'Delete',
     remove: 'Remove',
+    setUp: 'Set it up',
     tryAgain: 'Try again',
     loading: 'Loading…',
     justNow: 'just now',
@@ -245,7 +246,9 @@ export const en = {
     emailNotSent: "{error} Send this link yourself now: it won't be shown again.",
     sentTo: 'sent to {email}',
     localOnly:
-      'Links start with {host}, which only opens on your network. To invite someone outside it, set the public address in Settings, Server, General.',
+      'Links start with {host}, which only opens on your network. Set a public address to invite someone outside it.',
+    newInvitation: 'New invitation',
+    showAll: 'Show all ({count})',
   },
   address: {
     intro: 'Where people open BrainBro from outside your network. If you use a Cloudflare Tunnel, enter its address.',
@@ -265,8 +268,7 @@ export const en = {
     statusSaved: 'Using @{bot}, saved here',
     statusEnvironment: 'Using @{bot}, from the server’s environment variables',
     webhook: 'Telegram delivers its messages to {url}',
-    noWebhook:
-      'Telegram can’t deliver messages yet: it needs an HTTPS public address. Set it in Server, General.',
+    noWebhook: 'Telegram can’t deliver messages yet: it needs an HTTPS public address.',
     remove: 'Remove',
     environmentOn: 'The environment variables set up another bot: it is used instead.',
     token: 'Bot token',

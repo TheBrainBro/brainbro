@@ -8,6 +8,7 @@ export const es: Messages = {
     save: 'Guardar',
     delete: 'Eliminar',
     remove: 'Quitar',
+    setUp: 'Configurar',
     tryAgain: 'Reintentar',
     loading: 'Cargando…',
     justNow: 'ahora mismo',
@@ -245,7 +246,9 @@ export const es: Messages = {
     emailNotSent: '{error} Envía este enlace tú ahora: no se volverá a mostrar.',
     sentTo: 'enviada a {email}',
     localOnly:
-      'Los enlaces empiezan por {host}, que solo abre en tu red. Para invitar a alguien de fuera, pon la dirección pública en Ajustes, Servidor, General.',
+      'Los enlaces empiezan por {host}, que solo abre en tu red. Pon una dirección pública para invitar a alguien de fuera.',
+    newInvitation: 'Nueva invitación',
+    showAll: 'Ver todas ({count})',
   },
   address: {
     intro: 'Donde la gente abre BrainBro desde fuera de tu red. Si usas un Cloudflare Tunnel, pon su dirección.',
@@ -265,8 +268,7 @@ export const es: Messages = {
     statusSaved: 'Usando @{bot}, guardado aquí',
     statusEnvironment: 'Usando @{bot}, de las variables de entorno del servidor',
     webhook: 'Telegram entrega sus mensajes en {url}',
-    noWebhook:
-      'Telegram aún no puede entregar mensajes: necesita una dirección pública HTTPS. Configúrala en Servidor, General.',
+    noWebhook: 'Telegram aún no puede entregar mensajes: necesita una dirección pública HTTPS.',
     remove: 'Quitar',
     environmentOn: 'Las variables de entorno configuran otro bot: se usará ese.',
     token: 'Token del bot',

@@ -2,6 +2,7 @@ import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { useT } from '../i18n/i18n'
+import { Notice } from '../settings/Notice'
 import {
   type TelegramSettings,
   useRemoveTelegramSettings,
@@ -68,10 +69,7 @@ function Status({ settings }: { settings: TelegramSettings }) {
           {t('telegramServer.webhook', { url: settings.webhook_url })}
         </p>
       ) : (
-        <p role="alert" className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-400">
-          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          {t('telegramServer.noWebhook')}
-        </p>
+        <Notice page="general">{t('telegramServer.noWebhook')}</Notice>
       )}
       {settings.source === 'database' && settings.environment_configured && (
         <p className="text-xs text-zinc-500">{t('telegramServer.environmentOn')}</p>

@@ -30,6 +30,7 @@ import { LanguagePanel } from './LanguagePanel'
 import { TelegramPanel } from '../telegram/TelegramPanel'
 import { AppearancePanel } from '../theme/AppearancePanel'
 import { ProfilePanel } from './ProfilePanel'
+import { SettingsNavigation } from './navigation'
 import { StoragePanel } from '../storage/StoragePanel'
 import { TokensPanel } from '../tokens/TokensPanel'
 
@@ -155,7 +156,9 @@ export function SettingsDialog({ page: initialPage, onClose }: { page?: string; 
               <h3 id="settings-page-title" className="mb-2 font-semibold">
                 {t(page.label)}
               </h3>
-              <page.Panel />
+              <SettingsNavigation.Provider value={setOpenId}>
+                <page.Panel />
+              </SettingsNavigation.Provider>
             </section>
           </div>
         </div>
