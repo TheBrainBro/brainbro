@@ -91,6 +91,16 @@ describe('BlogsPanel', () => {
     )
   })
 
+  it('keeps the new blog form folded once there is a blog', async () => {
+    renderPanel([blog])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New blog' }))
+
+    expect(screen.getByRole('form', { name: 'New blog' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('form', { name: 'New blog' })).not.toBeInTheDocument()
+  })
+
   it('says why a domain is refused', async () => {
     renderPanel([], {
       'POST /api/sites/': () =>
