@@ -73,9 +73,16 @@ describe('InvitationsPanel', () => {
   it('warns that links only open on this network without a public address', async () => {
     renderPanel([])
 
-    expect(await screen.findByText(/only opens on your network/)).toHaveTextContent(
-      `Links start with ${window.location.host}`,
-    )
+    expect(await screen.findByRole('note')).toHaveTextContent(`Links start with ${window.location.host}`)
+  })
+
+  it('collapses a long list of used and expired links', async () => {
+    renderPanel([accepted, expired, { ...accepted, id: 'a2' }, { ...expired, id: 'e2' }])
+
+    const [done] = await screen.findAllByRole('list')
+    expect(within(done).getAllByRole('listitem')).toHaveLength(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Show all (4)' }))
+    expect(within(done).getAllByRole('listitem')).toHaveLength(4)
   })
 
   it("doesn't warn with a public address", async () => {

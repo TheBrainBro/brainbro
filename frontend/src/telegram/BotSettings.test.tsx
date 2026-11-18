@@ -89,7 +89,7 @@ describe('BotSettings', () => {
   it('warns when Telegram has nowhere to deliver', async () => {
     renderPanel({ ...saved, webhook_url: '' })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('it needs an HTTPS public address')
+    expect(await screen.findByRole('note')).toHaveTextContent('it needs an HTTPS public address')
   })
 
   it('removes the saved bot', async () => {
