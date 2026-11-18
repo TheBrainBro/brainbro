@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   CircleAlert,
   CircleCheck,
   ExternalLink,
@@ -12,6 +13,7 @@ import {
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useT } from '../i18n/i18n'
+import { SettingsSection } from '../settings/SettingsSection'
 import { useCollections, type Collection } from '../items/api'
 import { socialImage, squareImage } from '../lib/image'
 import { CopyField } from '../ui/CopyField'
@@ -52,11 +54,14 @@ export function BlogsPanel() {
 
 function CollectionSelect({
   id,
+  label,
   value,
   collections,
   onChange,
 }: {
   id: string
+  /** When no <label> names it. */
+  label?: string
   value: string | null
   collections: Collection[]
   onChange: (value: string | null) => void
@@ -65,6 +70,7 @@ function CollectionSelect({
   return (
     <select
       id={id}
+      aria-label={label}
       className="input"
       value={value ?? ''}
       onChange={(event) => onChange(event.target.value || null)}
@@ -101,7 +107,7 @@ function NewBlog({ collections }: { collections: Collection[] }) {
   }
 
   return (
-    <form className="space-y-3 sm:max-w-md" onSubmit={submit}>
+    <form className="space-y-3" onSubmit={submit}>
       <h4 className="text-sm font-semibold">{t('blogs.add')}</h4>
       <div className="space-y-1">
         <label htmlFor={ids.hostname} className="block text-sm font-medium">
@@ -282,13 +288,12 @@ function BlogPhoto({ blog }: { blog: Blog }) {
           {blog.avatar_url && (
             <button
               type="button"
-              className="button-secondary inline-flex items-center gap-2"
+              className="button-danger-ghost"
               disabled={setAvatar.isPending}
               onClick={() =>
                 setAvatar.mutate(null, { onError: (failure) => setError(failure.message) })
               }
             >
-              <Trash2 className="size-4" aria-hidden="true" />
               {t('common.remove')}
             </button>
           )}
@@ -365,13 +370,12 @@ function BlogSocialImage({ blog }: { blog: Blog }) {
           {blog.social_image_url && (
             <button
               type="button"
-              className="button-secondary inline-flex items-center gap-2"
+              className="button-danger-ghost"
               disabled={setImage.isPending}
               onClick={() =>
                 setImage.mutate(null, { onError: (failure) => setError(failure.message) })
               }
             >
-              <Trash2 className="size-4" aria-hidden="true" />
               {t('common.remove')}
             </button>
           )}
@@ -405,6 +409,10 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
   const remove = useDeleteBlog(blog.id)
   const verify = useVerifyBlog(blog.id)
   const [editingDomain, setEditingDomain] = useState(false)
+  // A verified blog is set up: its settings stay folded until asked for.
+  const [expanded, setExpanded] = useState(blog.status !== 'verified')
+  const bodyId = useId()
+  const collectionName = collections.find((c) => c.id === blog.collection)?.name
   const [title, setTitle] = useState(blog.title)
   const [description, setDescription] = useState(blog.description)
   const [author, setAuthor] = useState(blog.author)
@@ -445,7 +453,10 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
       className="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <h4 className="mr-auto font-semibold break-all">{blog.hostname}</h4>
+        <div className="mr-auto min-w-0">
+          <h4 className="font-semibold break-all">{blog.hostname}</h4>
+          <p className="truncate text-xs text-zinc-500">{collectionName ?? t('blogs.noCollection')}</p>
+        </div>
         <Status status={blog.status} />
         {blog.status === 'verified' && (
           <a
@@ -471,12 +482,22 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
         )}
         <button
           type="button"
-          className="button-icon size-8"
+          className="button-icon size-8 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           aria-label={t('blogs.delete')}
           disabled={remove.isPending}
           onClick={() => void deleteBlog()}
         >
           <Trash2 className="size-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="button-icon size-8"
+          aria-label={t('blogs.edit')}
+          aria-expanded={expanded}
+          aria-controls={bodyId}
+          onClick={() => setExpanded(!expanded)}
+        >
+          <ChevronDown className={`size-4 transition ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
       </div>
 
@@ -521,166 +542,183 @@ function BlogCard({ blog, collections }: { blog: Blog; collections: Collection[]
         )
       )}
 
-      <div className="space-y-1">
-        <label htmlFor={ids.collection} className="block text-sm font-medium">
-          {t('blogs.collection')}
-        </label>
-        <CollectionSelect
-          id={ids.collection}
-          value={blog.collection}
-          collections={collections}
-          onChange={(collection) => update.mutate({ collection })}
-        />
-      </div>
+      {expanded && (
+        <div
+          id={bodyId}
+          className="divide-y divide-zinc-200 border-t border-zinc-200 pt-6 dark:divide-zinc-800 dark:border-zinc-800"
+        >
+          <SettingsSection title={t('blogs.collection')} description={t('blogs.collectionHint')}>
+            <CollectionSelect
+              id={ids.collection}
+              label={t('blogs.collection')}
+              value={blog.collection}
+              collections={collections}
+              onChange={(collection) => update.mutate({ collection })}
+            />
+          </SettingsSection>
 
-      <BlogPhoto blog={blog} />
-      <BlogSocialImage blog={blog} />
-
-      <form
-        className="space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (!changed) return
-          update.mutate({
-            title: title.trim(),
-            description: description.trim(),
-            author: author.trim(),
-            author_url: authorUrl.trim(),
-            links: filled,
-          })
-        }}
-      >
-        <div className="space-y-1">
-          <label htmlFor={ids.title} className="block text-sm font-medium">
-            {t('blogs.title')}
-          </label>
-          <input
-            id={ids.title}
-            className="input"
-            value={title}
-            maxLength={120}
-            placeholder={collections.find((c) => c.id === blog.collection)?.name}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={ids.description} className="block text-sm font-medium">
-            {t('blogs.description')}
-          </label>
-          <input
-            id={ids.description}
-            className="input"
-            value={description}
-            maxLength={300}
-            onChange={(event) => setDescription(event.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={ids.author} className="block text-sm font-medium">
-            {t('blogs.author')}
-          </label>
-          <input
-            id={ids.author}
-            className="input"
-            value={author}
-            maxLength={80}
-            onChange={(event) => setAuthor(event.target.value)}
-          />
-          <p className="text-xs text-zinc-500">{t('blogs.authorHint')}</p>
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={ids.authorUrl} className="block text-sm font-medium">
-            {t('blogs.authorUrl')}
-          </label>
-          <input
-            id={ids.authorUrl}
-            className="input"
-            type="url"
-            value={authorUrl}
-            maxLength={500}
-            placeholder="https://"
-            onChange={(event) => setAuthorUrl(event.target.value)}
-          />
-          <p className="text-xs text-zinc-500">{t('blogs.authorUrlHint')}</p>
-        </div>
-        <fieldset className="space-y-2">
-          <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
-          {links.map((link, index) => (
-            <div key={index} className="flex gap-2">
-              <input
-                className="input"
-                aria-label={t('blogs.linkName', { number: index + 1 })}
-                placeholder={t('blogs.linkNamePlaceholder')}
-                value={link.name}
-                maxLength={60}
-                onChange={(event) =>
-                  setLinks(links.map((each, at) => (at === index ? { ...each, name: event.target.value } : each)))
-                }
-              />
-              <input
-                className="input"
-                type="url"
-                aria-label={t('blogs.linkUrl', { number: index + 1 })}
-                placeholder="https://"
-                value={link.url}
-                maxLength={500}
-                onChange={(event) =>
-                  setLinks(links.map((each, at) => (at === index ? { ...each, url: event.target.value } : each)))
-                }
-              />
-              <button
-                type="button"
-                className="button-icon size-9 shrink-0"
-                aria-label={t('blogs.removeLink', { number: index + 1 })}
-                onClick={() => setLinks(links.filter((_, at) => at !== index))}
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
+          <SettingsSection title={t('blogs.images')}>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <BlogPhoto blog={blog} />
+              <BlogSocialImage blog={blog} />
             </div>
-          ))}
-          {links.length < MAX_LINKS && (
-            <button
-              type="button"
-              className="button-ghost inline-flex items-center gap-1.5 text-sm"
-              onClick={() => setLinks([...links, { name: '', url: '' }])}
+          </SettingsSection>
+
+          <SettingsSection title={t('blogs.about')}>
+            <form
+              className="space-y-3"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (!changed) return
+                update.mutate({
+                  title: title.trim(),
+                  description: description.trim(),
+                  author: author.trim(),
+                  author_url: authorUrl.trim(),
+                  links: filled,
+                })
+              }}
             >
-              <Plus className="size-4" aria-hidden="true" />
-              {t('blogs.addLink')}
-            </button>
-          )}
-        </fieldset>
-        <button type="submit" className="button-outline cursor-pointer" disabled={!changed || update.isPending}>
-          {t('common.save')}
-        </button>
-      </form>
+              <div className="space-y-1">
+                <label htmlFor={ids.title} className="block text-sm font-medium">
+                  {t('blogs.title')}
+                </label>
+                <input
+                  id={ids.title}
+                  className="input"
+                  value={title}
+                  maxLength={120}
+                  placeholder={collections.find((c) => c.id === blog.collection)?.name}
+                  onChange={(event) => setTitle(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor={ids.description} className="block text-sm font-medium">
+                  {t('blogs.description')}
+                </label>
+                <input
+                  id={ids.description}
+                  className="input"
+                  value={description}
+                  maxLength={300}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor={ids.author} className="block text-sm font-medium">
+                    {t('blogs.author')}
+                  </label>
+                  <input
+                    id={ids.author}
+                    className="input"
+                    value={author}
+                    maxLength={80}
+                    onChange={(event) => setAuthor(event.target.value)}
+                  />
+                  <p className="text-xs text-zinc-500">{t('blogs.authorHint')}</p>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor={ids.authorUrl} className="block text-sm font-medium">
+                    {t('blogs.authorUrl')}
+                  </label>
+                  <input
+                    id={ids.authorUrl}
+                    className="input"
+                    type="url"
+                    value={authorUrl}
+                    maxLength={500}
+                    placeholder="https://"
+                    onChange={(event) => setAuthorUrl(event.target.value)}
+                  />
+                  <p className="text-xs text-zinc-500">{t('blogs.authorUrlHint')}</p>
+                </div>
+              </div>
+              <fieldset className="space-y-2">
+                <legend className="mb-1 text-sm font-medium">{t('blogs.links')}</legend>
+                {links.map((link, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      className="input"
+                      aria-label={t('blogs.linkName', { number: index + 1 })}
+                      placeholder={t('blogs.linkNamePlaceholder')}
+                      value={link.name}
+                      maxLength={60}
+                      onChange={(event) =>
+                        setLinks(links.map((each, at) => (at === index ? { ...each, name: event.target.value } : each)))
+                      }
+                    />
+                    <input
+                      className="input"
+                      type="url"
+                      aria-label={t('blogs.linkUrl', { number: index + 1 })}
+                      placeholder="https://"
+                      value={link.url}
+                      maxLength={500}
+                      onChange={(event) =>
+                        setLinks(links.map((each, at) => (at === index ? { ...each, url: event.target.value } : each)))
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="button-icon size-9 shrink-0"
+                      aria-label={t('blogs.removeLink', { number: index + 1 })}
+                      onClick={() => setLinks(links.filter((_, at) => at !== index))}
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+                {links.length < MAX_LINKS && (
+                  <button
+                    type="button"
+                    className="button-ghost inline-flex items-center gap-1.5 text-sm"
+                    onClick={() => setLinks([...links, { name: '', url: '' }])}
+                  >
+                    <Plus className="size-4" aria-hidden="true" />
+                    {t('blogs.addLink')}
+                  </button>
+                )}
+              </fieldset>
+              <div className="flex justify-end">
+                <button type="submit" className="button-primary" disabled={!changed || update.isPending}>
+                  {t('common.save')}
+                </button>
+              </div>
+            </form>
+          </SettingsSection>
 
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={blog.show_author}
-          disabled={update.isPending}
-          onChange={(event) => update.mutate({ show_author: event.target.checked })}
-        />
-        <span>
-          <span className="block font-medium">{t('blogs.showAuthor')}</span>
-          <span className="block text-xs text-zinc-500">{t('blogs.showAuthorHint')}</span>
-        </span>
-      </label>
+          <SettingsSection title={t('blogs.display')}>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={blog.show_author}
+                disabled={update.isPending}
+                onChange={(event) => update.mutate({ show_author: event.target.checked })}
+              />
+              <span>
+                <span className="block font-medium">{t('blogs.showAuthor')}</span>
+                <span className="block text-xs text-zinc-500">{t('blogs.showAuthorHint')}</span>
+              </span>
+            </label>
 
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={blog.powered_by}
-          disabled={update.isPending}
-          onChange={(event) => update.mutate({ powered_by: event.target.checked })}
-        />
-        <span>
-          <span className="block font-medium">{t('blogs.poweredBy')}</span>
-          <span className="block text-xs text-zinc-500">{t('blogs.poweredByHint')}</span>
-        </span>
-      </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={blog.powered_by}
+                disabled={update.isPending}
+                onChange={(event) => update.mutate({ powered_by: event.target.checked })}
+              />
+              <span>
+                <span className="block font-medium">{t('blogs.poweredBy')}</span>
+                <span className="block text-xs text-zinc-500">{t('blogs.poweredByHint')}</span>
+              </span>
+            </label>
+          </SettingsSection>
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
