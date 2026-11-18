@@ -148,14 +148,22 @@ export const en = {
     paste: 'Paste',
   },
   tokens: {
-    intro:
-      "Let an AI assistant search, read and add to your BrainBro. Add BrainBro to it with this address, then sign in here and allow it. It can't delete anything.",
+    intro: "Let an AI assistant search, read and add to your BrainBro through this address. It can't delete anything.",
+    connect: 'Connect an assistant',
+    stepByStep: 'Step by step',
+    guideTitle: 'Or let the assistant guide you',
+    guideIntro: 'Copy this message into the assistant’s chat and it walks you through connecting it.',
+    access: 'Access',
+    accessIntro: 'Apps and personal tokens that use your BrainBro as you.',
+    noAccess: 'No app or token has access yet.',
+    newToken: 'New personal token',
+    done: 'Done',
+    askAdmin: 'An admin sets it in Settings, Server, General.',
     mcpUrl: 'MCP server URL',
     localOnly:
-      "This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: use BrainBro's public address.",
+      'This address only works on this computer. Claude, ChatGPT and Grok connect from the internet: they need BrainBro’s public address.',
     networkOnly:
-      'This address only works on your network. Claude, ChatGPT and Grok connect from the internet: an admin can set BrainBro’s public address in Settings, Server, General.',
-    promptTitle: 'Ready-to-paste prompt',
+      'This address only works on your network. Claude, ChatGPT and Grok connect from the internet: they need BrainBro’s public address.',
     copyPrompt: 'Copy prompt',
     promptCopied: 'Prompt copied',
     prompt:
@@ -197,7 +205,6 @@ export const en = {
     revoke: 'Revoke',
     disconnectNamed: 'Disconnect {name}',
     revokeNamed: 'Revoke {name}',
-    personal: 'Personal tokens',
     personalIntro:
       'For scripts and tools that send a token instead of signing in. It works until you revoke it.',
     tokenName: 'Token name',

@@ -148,14 +148,22 @@ export const es: Messages = {
     paste: 'Pegar',
   },
   tokens: {
-    intro:
-      'Deja que un asistente de IA busque, lea y añada cosas a tu BrainBro. Añade BrainBro al asistente con esta dirección, luego inicia sesión aquí y permítelo. No puede eliminar nada.',
+    intro: 'Deja que un asistente de IA busque, lea y añada cosas a tu BrainBro con esta dirección. No puede eliminar nada.',
+    connect: 'Conectar un asistente',
+    stepByStep: 'Paso a paso',
+    guideTitle: 'O deja que el asistente te guíe',
+    guideIntro: 'Copia este mensaje en el chat del asistente y te guiará para conectarlo.',
+    access: 'Acceso',
+    accessIntro: 'Apps y tokens personales que usan tu BrainBro en tu nombre.',
+    noAccess: 'Ninguna app ni token tiene acceso todavía.',
+    newToken: 'Nuevo token personal',
+    done: 'Listo',
+    askAdmin: 'Un admin la configura en Ajustes, Servidor, General.',
     mcpUrl: 'URL del servidor MCP',
     localOnly:
-      'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: usa la dirección pública de BrainBro.',
+      'Esta dirección solo funciona en este ordenador. Claude, ChatGPT y Grok se conectan desde internet: necesitan la dirección pública de BrainBro.',
     networkOnly:
-      'Esta dirección solo funciona en tu red. Claude, ChatGPT y Grok se conectan desde internet: un admin puede poner la dirección pública de BrainBro en Ajustes, Servidor, General.',
-    promptTitle: 'Prompt listo para copiar',
+      'Esta dirección solo funciona en tu red. Claude, ChatGPT y Grok se conectan desde internet: necesitan la dirección pública de BrainBro.',
     copyPrompt: 'Copiar prompt',
     promptCopied: 'Prompt copiado',
     prompt:
@@ -197,7 +205,6 @@ export const es: Messages = {
     revoke: 'Revocar',
     disconnectNamed: 'Desconectar {name}',
     revokeNamed: 'Revocar {name}',
-    personal: 'Tokens personales',
     personalIntro:
       'Para scripts y herramientas que envían un token en vez de iniciar sesión. Funciona hasta que lo revoques.',
     tokenName: 'Nombre del token',
