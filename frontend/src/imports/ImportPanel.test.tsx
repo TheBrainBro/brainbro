@@ -81,7 +81,7 @@ describe('ImportPanel', () => {
   it('uploads the chosen zip and says it is importing', async () => {
     renderPanel(null)
 
-    await screen.findByRole('button', { name: 'Choose vault zip' })
+    await screen.findByRole('button', { name: 'Import vault' })
     const zip = new File(['zip'], 'Vault.zip', { type: 'application/zip' })
     fireEvent.change(screen.getByLabelText('Vault zip'), {
       target: { files: [zip] },
@@ -107,7 +107,7 @@ describe('ImportPanel', () => {
     )
 
     expect(await screen.findByRole('status')).toHaveTextContent('Imported 3 notes, 1 collection.')
-    expect(screen.getByRole('button', { name: 'Import another vault' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import again' })).toBeInTheDocument()
   })
 
   it('shows the error of a failed import', async () => {
@@ -131,22 +131,22 @@ describe('ImportPanel', () => {
       'Imported 2 notes, 1 album. 3 were already here and were left as they are.',
     )
     expect(status).toHaveTextContent("Telegram aren't in exports")
-    expect(screen.getByRole('button', { name: 'Import another export' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import again' })).toBeInTheDocument()
     // The Obsidian card has nothing of its own to show.
-    expect(screen.getByRole('button', { name: 'Choose vault zip' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Import vault' })).toBeEnabled()
   })
 
   it('waits for an import of either kind before another', async () => {
     renderPanel(importOf({ source: 'brainbro' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Importing Vault.zip')
-    expect(screen.getByRole('button', { name: 'Choose vault zip' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Import vault' })).toBeDisabled()
   })
 
   it('shows why an upload was refused', async () => {
     renderPanel(null)
 
-    await screen.findByRole('button', { name: 'Choose vault zip' })
+    await screen.findByRole('button', { name: 'Import vault' })
     const zip = new File(['zip'], 'Vault.zip')
     fireEvent.change(screen.getByLabelText('Vault zip'), {
       target: { files: [zip] },
