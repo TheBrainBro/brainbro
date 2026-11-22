@@ -26,6 +26,7 @@ import {
   updateNoteBody,
   useSetAlbumItems,
   useUngroupAlbum,
+  type ContentMatch,
   type Item,
 } from '../items/api'
 import { AudioPlayer } from '../items/AudioPlayer'
@@ -36,6 +37,7 @@ import { t, useT } from '../i18n/i18n'
 import { isEditable } from '../lib/dom'
 import { formatBytes } from '../lib/format'
 import { timeAgo } from '../lib/time'
+import type { ViewerTarget } from './context'
 
 // Text files shown as they are, up to this size; bigger ones are a download.
 const TEXT_LIMIT = 512 * 1024
@@ -69,7 +71,7 @@ export default function ItemViewer({
   items,
   index,
   actions,
-  image,
+  target,
   onIndex,
   onReplace,
   controls,
@@ -78,8 +80,7 @@ export default function ItemViewer({
   items: Item[]
   index: number
   actions?: (item: Item, close: () => void) => ReactNode
-  /** The album image to start on, if the item opened is an album. */
-  image?: string
+  target?: ViewerTarget
   onIndex: (index: number) => void
   /** An item changed while shown (an album edited). */
   onReplace: (item: Item) => void
@@ -91,26 +92,29 @@ export default function ItemViewer({
   const item = items[index]
   const dialog = useRef<HTMLDivElement>(null)
   // Which of an album's images is shown; back to the first on another item.
-  const [place, setPlace] = useState(() => {
-    const start = items[index]?.album_items?.findIndex((shown) => shown.id === image) ?? -1
-    return start > 0 ? { id: items[index].id, at: start } : { id: '', at: 0 }
-  })
+  const [place, setPlace] = useState<number | null>(null)
   // The note whose history is open, instead of the note itself.
   const [history, setHistory] = useState<string | null>(null)
   const showHistory = item?.kind === 'note' && history === item.id
   const images = item?.kind === 'album' ? (item.album_items ?? []) : []
-  const at = place.id === item?.id ? Math.min(place.at, Math.max(images.length - 1, 0)) : 0
-  const canBack = at > 0 || index > 0
-  const canForward = (images.length > 0 && at < images.length - 1) || index < items.length - 1
+  const start = Math.max(0, images.findIndex((shown) => shown.id === target?.image))
+  const at = Math.min(place ?? start, Math.max(0, images.length - 1))
+  // When opening a passage, arrows follow the search hits. The strip still browses the album.
+  const browseAlbum = !target?.match && images.length > 0
+  const canBack = (browseAlbum && at > 0) || index > 0
+  const canForward = (browseAlbum && at < images.length - 1) || index < items.length - 1
 
   function step(delta: number) {
     const inside = at + delta
-    if (images.length > 0 && inside >= 0 && inside < images.length) {
-      setPlace({ id: item.id, at: inside })
+    if (browseAlbum && inside >= 0 && inside < images.length) {
+      setPlace(inside)
       return
     }
     const next = index + delta
-    if (next >= 0 && next < items.length) onIndex(next)
+    if (next >= 0 && next < items.length) {
+      setPlace(null)
+      onIndex(next)
+    }
   }
 
   // Focus comes in, and goes back where it was on closing.
@@ -209,12 +213,12 @@ export default function ItemViewer({
           <AlbumView
             album={item}
             at={at}
-            onAt={(next) => setPlace({ id: item.id, at: next })}
+            onAt={setPlace}
             onReplace={onReplace}
             onUngrouped={onClose}
           />
         ) : (
-          <Content key={item.id} item={item} onClose={onClose} />
+          <Content key={item.id} item={item} match={target?.match} onClose={onClose} />
         )}
         {canBack && (
           <button
@@ -245,7 +249,7 @@ export default function ItemViewer({
   )
 }
 
-function Content({ item, onClose }: { item: Item; onClose: () => void }) {
+function Content({ item, match, onClose }: { item: Item; match?: ContentMatch; onClose: () => void }) {
   const mime = item.metadata.mime ?? ''
   if (item.kind === 'image') return <ImageView item={item} />
   if (item.kind === 'link') return <LinkView item={item} />
@@ -266,7 +270,7 @@ function Content({ item, onClose }: { item: Item; onClose: () => void }) {
       </div>
     )
   }
-  if (mime === 'application/pdf') return <PdfView item={item} />
+  if (mime === 'application/pdf') return <PdfView item={item} page={match?.page} />
   if (mime === 'image/svg+xml') return <ImageView item={item} />
   if (mime.startsWith('video/')) {
     return (
@@ -276,6 +280,9 @@ function Content({ item, onClose }: { item: Item; onClose: () => void }) {
   if (item.kind === 'audio' || mime.startsWith('audio/')) {
     return (
       <AudioPlayer
+        key={match?.start_seconds ?? 'start'}
+        mime={mime}
+        startSeconds={match?.start_seconds ?? undefined}
         src={item.file_url}
         size={item.metadata.size}
         autoPlay
@@ -284,7 +291,7 @@ function Content({ item, onClose }: { item: Item; onClose: () => void }) {
     )
   }
   if (TEXT_TYPES.test(mime) && (item.metadata.size ?? 0) <= TEXT_LIMIT) {
-    return <TextView item={item} />
+    return <TextView item={item} passage={match?.text} />
   }
   return <NoPreview item={item} />
 }
@@ -586,7 +593,7 @@ function ImageView({ item }: { item: Item }) {
  * The server sends PDFs as downloads (nothing uploaded runs on our origin),
  * so it is fetched and shown from memory, in the browser's own PDF viewer.
  */
-function PdfView({ item }: { item: Item }) {
+function PdfView({ item, page }: { item: Item; page?: number | null }) {
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -615,14 +622,16 @@ function PdfView({ item }: { item: Item }) {
   if (!url) return <Loading />
   return (
     <iframe
+      key={page}
       title={itemLabel(item)}
-      src={url}
+      src={page ? `${url}#page=${page}` : url}
       className="size-full max-w-5xl rounded-lg bg-white shadow-2xl"
     />
   )
 }
 
-function TextView({ item }: { item: Item }) {
+function TextView({ item, passage }: { item: Item; passage?: string }) {
+  const mark = useRef<HTMLElement>(null)
   const [text, setText] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -634,17 +643,31 @@ function TextView({ item }: { item: Item }) {
         if (!response.ok) throw new Error(response.statusText)
         return response.text()
       })
-      .then((body) => !cancelled && setText(body))
+      .then((body) => !cancelled && setText(body.replace(/\r\n?/g, '\n').replaceAll('\0', '')))
       .catch(() => !cancelled && setFailed(true))
     return () => {
       cancelled = true
     }
   }, [item.file_url])
 
+  const excerpt = passage?.replace(/^…|…$/g, '').trim() ?? ''
+  const at = text && excerpt ? text.indexOf(excerpt) : -1
+  useEffect(() => {
+    mark.current?.scrollIntoView?.({ block: 'center' })
+  }, [at, excerpt])
+
   if (failed) return <NoPreview item={item} />
   if (text === null) return <Loading />
   return (
-    <pre className="viewer-sheet max-w-4xl font-mono text-sm whitespace-pre-wrap">{text}</pre>
+    <pre className="viewer-sheet max-w-4xl font-mono text-sm whitespace-pre-wrap">
+      {at < 0 ? text : (
+        <>
+          {text.slice(0, at)}
+          <mark ref={mark}>{text.slice(at, at + excerpt.length)}</mark>
+          {text.slice(at + excerpt.length)}
+        </>
+      )}
+    </pre>
   )
 }
 

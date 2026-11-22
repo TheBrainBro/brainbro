@@ -23,7 +23,31 @@ COPY backend/pyproject.toml backend/poetry.lock ./
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 
-FROM python:3.12-slim-trixie AS app
+# whisper.cpp v1.8.3, compiled for the image architecture. Ship the model with
+# the worker so transcription needs no credentials or runtime downloads.
+FROM debian:trixie-slim AS whisper
+WORKDIR /build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl cmake g++ make \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL --retry 3 -o source.tar.gz https://codeload.github.com/ggml-org/whisper.cpp/tar.gz/2eeeba56e9edd762b4b38467bab96c2517163158 \
+    && tar -xzf source.tar.gz --strip-components=1 \
+    && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+        -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF \
+    && cmake --build build --config Release --target whisper-cli -j2
+RUN curl -fsSL --retry 3 -o ggml-tiny.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/80da2d8bfee42b0e836fc3a9890373e5defc00a6/ggml-tiny.bin \
+    && echo 'be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21  ggml-tiny.bin' | sha256sum -c - \
+    && curl -fsSL --retry 3 -o model-license https://raw.githubusercontent.com/openai/whisper/v20250625/LICENSE
+
+FROM python:3.12-slim-trixie AS media-tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=whisper /build/build/bin/whisper-cli /usr/local/bin/
+COPY --from=whisper /build/ggml-tiny.bin /usr/local/share/whisper/
+COPY --from=whisper /build/LICENSE /build/model-license /usr/local/share/doc/whisper/
+
+FROM media-tools AS app
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

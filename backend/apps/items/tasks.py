@@ -6,6 +6,7 @@ from django.core.files.storage import default_storage
 
 from apps.events.changes import changed
 
+from .content_index import index_uploads
 from .embeddings import embed_stale
 from .models import (
     Item,
@@ -165,6 +166,11 @@ def make_note_image_display(image_id):
         logger.info("Could not read pasted image %s", image.id)
         return _note_image_failed(image)
     _store_note_image(image, data)
+
+
+@shared_task(time_limit=17 * 60)
+def index_upload(item_id=None):
+    return index_uploads(item_id)
 
 
 @shared_task

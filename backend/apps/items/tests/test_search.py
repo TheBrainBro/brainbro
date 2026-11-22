@@ -1,6 +1,8 @@
 import pytest
+from rest_framework.test import APIClient
 
-from apps.items.models import Item
+from apps.accounts.models import ApiToken
+from apps.items.models import FileIndex, Item, ItemPassage
 
 
 def search(api, query):
@@ -219,3 +221,156 @@ def test_finds_images_by_their_caption(api, user):
     )
     assert response.status_code == 200
     assert ids(search(api, "pricing workshop")) == [str(image.id)]
+
+
+def indexed_file(owner, kind="file", **fields):
+    item = Item.objects.create(owner=owner, kind=kind, file="uploads/example", **fields)
+    FileIndex.objects.create(item=item, source=item.file.name)
+    return item
+
+
+def test_pdf_matches_are_bounded_and_open_the_matching_pages(api, user):
+    pdf = indexed_file(user, status="archived")
+    for page in range(1, 9):
+        text = "café, then a menu" if page == 1 else "café menu"
+        ItemPassage.objects.create(
+            item=pdf, page=page, position=page, text="context " * 100 + text
+        )
+    Item.objects.create(owner=user, kind="note", title="Menu")
+
+    results = search(api, "cafe menu")
+    assert ids(results)[0] == str(pdf.id)
+    assert [hit["page"] for hit in results[0]["matches"]] == [2, 3, 4, 5, 6]
+    for hit in results[0]["matches"]:
+        assert "café menu" in hit["text"]
+        assert len(hit["text"]) <= 222
+        assert hit["start_seconds"] is None
+    assert results[1]["matches"] == []
+    listed = api.get("/api/items/", {"q": "cafe menu", "status": "archived"}).json()
+    assert [row["id"] for row in listed["results"]] == [str(pdf.id)]
+
+
+def test_photo_text_matches_point_to_each_image_in_the_album(api, user):
+    album = Item.objects.create(owner=user, kind="album", title="Whiteboards")
+    images = [
+        indexed_file(user, kind="image", album=album, album_position=i)
+        for i in range(2)
+    ]
+    for i, image in enumerate(images):
+        ItemPassage.objects.create(item=image, position=0, text=f"Workshop number {i}")
+
+    results = search(api, "workshop")
+    assert ids(results) == [str(album.id)]
+    assert [(hit["album_image"], hit["text"]) for hit in results[0]["matches"]] == [
+        (str(image.id), f"Workshop number {i}") for i, image in enumerate(images)
+    ]
+
+
+def test_recording_match_uses_first_and_last_word_times(api, user):
+    audio = indexed_file(user, kind="audio")
+    ItemPassage.objects.create(
+        item=audio,
+        position=0,
+        text="Café agenda today. The café opens. The café opens at noon.",
+        start_seconds=5,
+        end_seconds=13,
+        words=[
+            {"text": "Café", "start": 5, "end": 5.5},
+            {"text": "agenda", "start": 5.5, "end": 6.0},
+            {"text": "today.", "start": 6, "end": 6.5},
+            {"text": "The", "start": 7.2, "end": 7.5},
+            {"text": "café", "start": 7.5, "end": 8.3},
+            {"text": "opens.", "start": 8.4, "end": 9.0},
+            {"text": "The", "start": 9.1, "end": 9.3},
+            {"text": "café", "start": 9.3, "end": 9.7},
+            {"text": "opens", "start": 9.7, "end": 10},
+            {"text": "at", "start": 10.4, "end": 10.8},
+            {"text": "noon.", "start": 11.0, "end": 13},
+        ],
+    )
+    ItemPassage.objects.create(
+        item=audio,
+        position=1,
+        text="A new café opens",
+        start_seconds=37,
+        end_seconds=40,
+    )
+    hits = search(api, "CAFE opens")[0]["matches"]
+    assert [(h["start_seconds"], h["end_seconds"]) for h in hits] == [
+        (7.5, 9.0),
+        (9.3, 10.0),
+        (37.0, 40.0),
+    ]
+
+
+def test_transcript_offsets_use_the_index_accent_dictionary(api, user):
+    audio = indexed_file(user, kind="audio")
+    ItemPassage.objects.create(
+        item=audio,
+        position=0,
+        text="Today our œuvre opens",
+        start_seconds=2,
+        end_seconds=10,
+        words=[
+            {"text": "Today", "start": 2, "end": 3},
+            {"text": "our", "start": 3, "end": 4},
+            {"text": "œuvre", "start": 8, "end": 9},
+            {"text": "opens", "start": 9, "end": 10},
+        ],
+    )
+    match = search(api, "oeuvre")[0]["matches"][0]
+    assert (match["start_seconds"], match["end_seconds"]) == (8, 9)
+
+
+def test_passage_search_obeys_ownership_and_skips_sample_and_stale_text(
+    user, other_user
+):
+    mine = indexed_file(user)
+    stale = indexed_file(user)
+    for item in [
+        mine,
+        stale,
+        indexed_file(other_user),
+        indexed_file(user, is_sample=True),
+    ]:
+        ItemPassage.objects.create(item=item, position=0, page=1, text="confidential")
+    Item.objects.filter(pk=stale.pk).update(file="uploads/replacement")
+
+    _, key = ApiToken.issue(user, "Script")
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {key}")
+    assert ids(search(client, "confidential")) == [str(mine.pk)]
+    assert (
+        APIClient().get("/api/items/search/", {"q": "confidential"}).status_code == 403
+    )
+
+
+def test_wrapped_literal_phrase_ranks_before_five_unordered_pages(api, user):
+    pdf = indexed_file(user)
+    first, second = r"C++_%\src", "(X|Y).*"
+    for page in range(1, 7):
+        separator = "\n\t\x1c" if page == 6 else " and later "
+        ItemPassage.objects.create(
+            item=pdf,
+            page=page,
+            position=page,
+            text=f"prefix{first}{separator}{second}suffix",
+        )
+    hits = search(api, f"{first}  {second}")[0]["matches"]
+    assert [hit["page"] for hit in hits] == [6, 1, 2, 3, 4]
+    assert hits[0]["text"] == f"prefix{first}\n\t\x1c{second}suffix"
+
+
+def test_only_current_scoped_passages_suppress_metadata_typos(api, user, other_user):
+    typo = Item.objects.create(owner=user, kind="note", title="Kubernets")
+    stale = indexed_file(user)
+    for hidden in [stale, indexed_file(other_user), indexed_file(user, is_sample=True)]:
+        ItemPassage.objects.create(item=hidden, position=0, page=1, text="Kubernetes")
+    Item.objects.filter(pk=stale.pk).update(file="uploads/replaced")
+    assert ids(search(api, "Kubernetes")) == [str(typo.pk)]
+
+    pdf = indexed_file(user)
+    ItemPassage.objects.create(item=pdf, position=0, page=1, text="Kubernetes")
+    assert ids(search(api, "Kubernetes")) == [str(pdf.pk)]
+    notes = api.get("/api/items/", {"q": "Kubernetes", "kind": "note"}).json()
+    assert [item["id"] for item in notes["results"]] == [str(typo.pk)]

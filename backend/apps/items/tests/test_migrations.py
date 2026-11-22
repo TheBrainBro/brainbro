@@ -41,3 +41,20 @@ def test_collection_ranks_keep_the_order_by_name(migrate_to, user):
     Collection = new.get_model("items", "Collection")
     names = list(Collection.objects.order_by("-rank").values_list("name", flat=True))
     assert names == ["Books", "Home", "Work"]
+
+
+def test_old_pdf_indexes_are_rebuilt_with_the_mixed_page_extractor(migrate_to, user):
+    old = migrate_to(("items", "0023_file_content_search"))
+    Item = old.get_model("items", "Item")
+    Index = old.get_model("items", "FileIndex")
+    for mime, source in [("application/pdf", "scan.pdf"), ("audio/mpeg", "talk.mp3")]:
+        item = Item.objects.create(
+            owner_id=user.id, kind="file", file=source, metadata={"mime": mime}
+        )
+        Index.objects.create(item=item, source=source)
+    new = migrate_to(("items", "0024_content_search_checkpoints"))
+    Index = new.get_model("items", "FileIndex")
+    assert set(Index.objects.values_list("source", "cursor", "attempts")) == {
+        ("", 0, 0),
+        ("talk.mp3", 0, 0),
+    }

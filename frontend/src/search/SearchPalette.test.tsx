@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppRoutes } from '../App'
-import type { Item } from '../items/api'
+import type { ContentMatch, Item, SearchResult } from '../items/api'
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
@@ -58,6 +58,49 @@ const images = [1, 2].map((i) =>
 )
 const album = item('a1', { kind: 'album', title: 'Holidays', album_items: images })
 
+function match(text: string, at: Partial<ContentMatch> = {}): ContentMatch {
+  return { text, page: null, start_seconds: null, end_seconds: null, ...at }
+}
+
+const contentResults: SearchResult[] = [
+  {
+    item: item('book', {
+      kind: 'file', file_url: '/file/book', metadata: { mime: 'application/pdf', filename: 'Coasts.pdf' },
+    }),
+    album_image: null,
+    matches: [match('Lighthouse map', { page: 2 }), match('Lighthouse diagram', { page: 9 })],
+  },
+  {
+    item: item('interview', {
+      kind: 'audio',
+      file_url: '/file/interview',
+      metadata: { mime: 'audio/wav', filename: 'Interview.wav', size: 50 * 1024 * 1024 },
+    }),
+    album_image: null,
+    matches: [
+      match('Lighthouse introduction', { start_seconds: 0, end_seconds: 2 }),
+      match('Lighthouse interview', { start_seconds: 65.25, end_seconds: 69 }),
+    ],
+  },
+  {
+    item: album,
+    album_image: 'i1',
+    matches: [
+      match('Lighthouse entrance', { album_image: 'i1' }),
+      match('Lighthouse sign', { album_image: 'i2' }),
+    ],
+  },
+  {
+    item: item('schedule', {
+      kind: 'file',
+      file_url: '/file/schedule',
+      metadata: { mime: 'text/plain', filename: 'Schedule.txt' },
+    }),
+    album_image: null,
+    matches: [match('…The lighthouse opens at noon.')],
+  },
+]
+
 let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
@@ -66,8 +109,10 @@ beforeEach(() => {
       return jsonResponse({ authenticated: true, user: { id: 1, username: 'alex' } })
     }
     if (url.startsWith('/api/items/note-titles/')) return jsonResponse([])
+    if (url === '/file/schedule') return new Response('Schedule\r\nFirst visit.\r\nThe lighthouse opens at noon.')
     if (url.startsWith('/api/items/search/')) {
       const q = new URLSearchParams(url.split('?')[1]).get('q')
+      if (q === 'lighthouse') return jsonResponse(contentResults)
       return jsonResponse(
         q === 'paris'
           ? [
@@ -174,6 +219,62 @@ describe('SearchPalette', () => {
 
     const viewer = await screen.findByRole('dialog', { name: 'Holidays' })
     expect(within(viewer).getByText(/image 2 of 2/)).toBeInTheDocument()
+  })
+
+  it('opens each matching page and keeps its location through viewer navigation', async () => {
+    vi.stubGlobal('URL', class extends URL {
+      static createObjectURL = () => 'blob:book'
+      static revokeObjectURL = () => {}
+    })
+    const input = await openPalette()
+    fireEvent.change(input, { target: { value: 'lighthouse' } })
+    const page = await screen.findByRole('option', { name: /Page 9.*diagram/ })
+    expect(within(page).getByText('Lighthouse', { selector: 'mark' })).toBeInTheDocument()
+    fireEvent.click(page)
+
+    const viewer = await screen.findByRole('dialog', { name: 'Coasts.pdf' })
+    expect(await within(viewer).findByTitle('Coasts.pdf')).toHaveAttribute('src', 'blob:book#page=9')
+    fireEvent.keyDown(viewer, { key: 'ArrowLeft' })
+    expect(within(viewer).getByTitle('Coasts.pdf')).toHaveAttribute('src', 'blob:book#page=2')
+  })
+
+  it('cues each spoken match, including one at the start of a recording', async () => {
+    const input = await openPalette()
+    fireEvent.change(input, { target: { value: 'lighthouse' } })
+    await screen.findByRole('option', { name: /1:05.*interview/ })
+    for (let i = 0; i < 3; i++) fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    const viewer = await screen.findByRole('dialog', { name: 'Interview.wav' })
+    const audio = viewer.querySelector('audio')!
+    audio.play = vi.fn().mockResolvedValue(undefined)
+    fireEvent.loadedMetadata(audio)
+    expect(audio.currentTime).toBe(65.25)
+    expect(audio.play).toHaveBeenCalledOnce()
+    audio.currentTime = 68
+    fireEvent.loadedMetadata(audio)
+    expect(audio.currentTime).toBe(68)
+
+    fireEvent.keyDown(viewer, { key: 'ArrowLeft' })
+    const beginning = viewer.querySelector('audio')!
+    beginning.play = vi.fn().mockResolvedValue(undefined)
+    beginning.currentTime = 12
+    fireEvent.loadedMetadata(beginning)
+    expect(beginning.currentTime).toBe(0)
+    expect(beginning.play).toHaveBeenCalledOnce()
+  })
+
+  it('opens the matching photo inside an album and the selected excerpt in a text file', async () => {
+    const input = await openPalette()
+    fireEvent.change(input, { target: { value: 'lighthouse' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Lighthouse sign/ }))
+    const viewer = await screen.findByRole('dialog', { name: 'Holidays' })
+    expect(within(viewer).getByRole('img')).toHaveAttribute('src', '/file/i2')
+    fireEvent.keyDown(viewer, { key: 'ArrowLeft' })
+    expect(within(viewer).getByRole('img')).toHaveAttribute('src', '/file/i1')
+    fireEvent.keyDown(viewer, { key: 'ArrowRight' })
+    fireEvent.keyDown(viewer, { key: 'ArrowRight' })
+    expect(await screen.findByText('The lighthouse opens at noon.', { selector: 'mark' })).toBeInTheDocument()
   })
 
   it('opens a note to edit with Ctrl/Cmd+Enter, and boards in place', async () => {

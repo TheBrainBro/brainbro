@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router'
 
 import { useBoards, type BoardSummary } from '../boards/api'
 import { useT } from '../i18n/i18n'
-import { useCollections, useSearch, type Collection, type SearchResult } from '../items/api'
+import { useCollections, useSearch, type Collection, type ContentMatch, type SearchResult } from '../items/api'
 import { ItemThumb } from '../items/ItemThumb'
 import { itemLabel, KIND_LABEL } from '../items/label'
+import { formatTime } from '../items/waveform'
 import { combo, MOD } from '../lib/keys'
 import { useViewer } from '../viewer/context'
 import { highlight, normalize, searchWords, snippet } from './match'
@@ -18,10 +19,12 @@ const PLACES_LIMIT = 5
 // Markdown at the start of a line (headings, quotes, lists, tasks), left out of snippets.
 const LINE_MARKERS = /^[ \t]*(?:[#>]+|[-*+]|\d+\.)[ \t]+(?:\[[ xX]\][ \t]+)?/gm
 
+type Hit = { result: SearchResult; match?: ContentMatch }
+
 type Option =
   | { type: 'board'; board: BoardSummary }
   | { type: 'collection'; collection: Collection }
-  | { type: 'item'; result: SearchResult; index: number }
+  | { type: 'item'; hit: Hit; index: number }
 
 function useDebounced(value: string) {
   const [debounced, setDebounced] = useState(value)
@@ -54,6 +57,9 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const words = searchWords(q)
   const search = useSearch(q)
   const results = q ? (search.data ?? []) : []
+  const hits = results.flatMap<Hit>((result) =>
+    result.matches?.length ? result.matches.map((match) => ({ result, match })) : [{ result }],
+  )
   const boards = byName(useBoards().data, (board) => board.title, words)
   const collections = byName(useCollections().data, (collection) => collection.name, words)
 
@@ -63,9 +69,9 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       type: 'collection' as const,
       collection,
     })),
-    ...results.map((result, index) => ({
+    ...hits.map((hit, index) => ({
       type: 'item' as const,
-      result,
+      hit,
       index,
     })),
   ]
@@ -79,12 +85,18 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     onClose()
     if (option.type === 'board') navigate(`/boards/${option.board.id}`)
     else if (option.type === 'collection') navigate(`/collections/${option.collection.id}`)
-    else if (edit && option.result.item.kind === 'note') navigate(`/notes/${option.result.item.id}`)
-    else {
+    else if (edit && option.hit.result.item.kind === 'note') {
+      navigate(`/notes/${option.hit.result.item.id}`)
+    } else {
       viewer.open(
-        results.map((result) => result.item),
+        hits.map(({ result }) => result.item),
         option.index,
-        { image: option.result.album_image ?? undefined },
+        {
+          targets: hits.map(({ result, match }) => ({
+            image: match?.album_image ?? result.album_image,
+            match,
+          })),
+        },
       )
     }
   }
@@ -108,9 +120,8 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   }
 
   const empty = q && !search.isFetching && search.isSuccess && options.length === 0
-  let position = 0
-  function row(option: Option, content: ReactNode) {
-    const at = position++
+  function row(at: number, content: ReactNode) {
+    const option = options[at]
     return (
       <li
         key={at}
@@ -176,18 +187,18 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
             className="overflow-y-auto p-2 empty:hidden"
           >
             {boards.length > 0 && <Heading>{t('search.boards')}</Heading>}
-            {boards.map((board) =>
+            {boards.map((board, index) =>
               row(
-                { type: 'board', board },
+                index,
                 <Place icon={<Waypoints className="size-4" aria-hidden="true" />}>
                   <Marked text={board.title} words={words} />
                 </Place>,
               ),
             )}
             {collections.length > 0 && <Heading>{t('search.collections')}</Heading>}
-            {collections.map((collection) =>
+            {collections.map((collection, index) =>
               row(
-                { type: 'collection', collection },
+                boards.length + index,
                 <Place icon={collection.icon || <Library className="size-4" aria-hidden="true" />}>
                   <Marked text={collection.name} words={words} />
                 </Place>,
@@ -196,8 +207,8 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
             {results.length > 0 && (boards.length > 0 || collections.length > 0) && (
               <Heading>{t('search.items')}</Heading>
             )}
-            {results.map((result, index) =>
-              row({ type: 'item', result, index }, <ItemRow result={result} words={words} />),
+            {hits.map((hit, index) =>
+              row(boards.length + collections.length + index, <ItemRow {...hit} words={words} />),
             )}
           </ul>
 
@@ -274,13 +285,19 @@ function Place({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   )
 }
 
-function ItemRow({ result, words }: { result: SearchResult; words: string[] }) {
+function ItemRow({ result, match, words }: Hit & { words: string[] }) {
   const t = useT()
   const { item } = result
-  const image = item.album_items?.find((shown) => shown.id === result.album_image)
+  const imageId = match?.album_image ?? result.album_image
+  const image = item.album_items?.find((shown) => shown.id === imageId)
+  let location: string | undefined
+  if (match?.page != null) location = t('search.page', { page: match.page })
+  else if (match?.start_seconds != null) location = formatTime(match.start_seconds)
+  else if (match && image) location = itemLabel(image)
   // A note without a title is named after its first line: no need to repeat it.
   const body = item.kind === 'note' && !item.title ? item.body.replace(/^\s*.*/, '') : item.body
   const detail =
+    match?.text ??
     snippet(body.replace(LINE_MARKERS, ''), words) ??
     snippet(item.metadata.description ?? '', words) ??
     snippet(image?.metadata.filename ?? '', words) ??
@@ -288,12 +305,13 @@ function ItemRow({ result, words }: { result: SearchResult; words: string[] }) {
 
   return (
     <>
-      <ItemThumb item={item} className="size-9" />
+      <ItemThumb item={image ?? item} className="size-9" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">
             <Marked text={itemLabel(item)} words={words} />
           </span>
+          {location && <span className="max-w-[45%] shrink-0 truncate text-xs text-zinc-500">{location}</span>}
           {item.status === 'archived' && (
             <span className="shrink-0 rounded bg-zinc-200 px-1.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
               {t('search.archived')}

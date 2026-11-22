@@ -4,6 +4,7 @@ import uuid
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.db import models
+from django.db.models.functions import Lower
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -293,6 +294,54 @@ class CollectionItem(models.Model):
         db_table = "items_item_collections"
         unique_together = [("item", "collection")]
         indexes = [models.Index(fields=["collection", "-rank"])]
+
+
+class FileIndex(models.Model):
+    """The original indexed by the worker, including files that yielded no text."""
+
+    item = models.OneToOneField(
+        Item, primary_key=True, on_delete=models.CASCADE, related_name="file_index"
+    )
+    source = models.CharField(max_length=255)
+    # While running, the lease expiry. After failure, the next retry.
+    # NULL marks a finished or permanently failed extraction.
+    retry_at = models.DateTimeField(null=True)
+    # Pages or audio seconds already committed for this source.
+    cursor = models.PositiveIntegerField(default=0, db_default=0)
+    # Consecutive attempts at this cursor. A terminal failure has attempts > 0
+    # and no retry_at. A successful checkpoint resets the failure budget.
+    attempts = models.PositiveSmallIntegerField(default=0, db_default=0)
+
+
+class ItemPassage(models.Model):
+    """Searchable text with its location in the original uploaded file."""
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="passages")
+    position = models.PositiveIntegerField()
+    text = models.TextField()
+    search_text = models.GeneratedField(
+        expression=Lower(search.Unaccent("text")),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
+    page = models.PositiveIntegerField(null=True)
+    start_seconds = models.FloatField(null=True)
+    end_seconds = models.FloatField(null=True)
+    words = models.JSONField(default=list)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item", "position"], name="unique_file_passage_position"
+            )
+        ]
+        indexes = [
+            GinIndex(
+                fields=["search_text"],
+                opclasses=["gin_trgm_ops"],
+                name="passage_search_text_trgm",
+            )
+        ]
 
 
 class ItemChunk(models.Model):

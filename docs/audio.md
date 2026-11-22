@@ -41,6 +41,8 @@ fetched for the waveform (unless Play came first).
 Audio and voice messages that Telegram saved as files before this became audio items in
 migration `0015_audio_items`. Recordings in a WebM or MP4 container stay files.
 
-## Not yet
+## Searching recordings
 
-Transcription: recordings aren't searchable by what is said in them yet.
+Search for spoken words in the global search palette. Select a timestamp to play from
+that occurrence. The worker transcribes both existing recordings and new captures locally.
+See [Search](search.md) for supported formats and limits.
