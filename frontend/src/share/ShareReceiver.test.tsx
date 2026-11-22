@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -137,5 +137,26 @@ describe('ShareReceiver', () => {
     window.dispatchEvent(new Event('online'))
     expect(await screen.findByText('later')).toBeInTheDocument()
     onLine.mockRestore()
+  })
+
+  it('discards an in-flight share on Undo and sends the next one', async () => {
+    const fetchNormally = fetch
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      if (url === '/api/items/capture/' && JSON.parse(String(init?.body)).text === 'undo me') {
+        return new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+        })
+      }
+      return fetchNormally(url, init)
+    })
+    await saveShare(share({ createdAt: 1, text: 'undo me' }))
+    await saveShare(share({ createdAt: 2, text: 'keep me' }))
+    renderInbox()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+    expect(await screen.findByText('keep me')).toBeInTheDocument()
+    expect(sent).toEqual(['keep me'])
+    await waitFor(async () => expect(await listShares()).toEqual([]))
   })
 })

@@ -771,6 +771,7 @@ export const en = {
     stop: 'Stop',
   },
   capturing: {
+    cancelled: 'Capture canceled',
     pastedFile: 'Pasted file',
     folder: 'Folder',
     folderReason: "Folders aren't supported, drop the files inside",

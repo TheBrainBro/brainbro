@@ -39,7 +39,9 @@ Replaces the current database, and stops `api` and `worker` meanwhile:
 scripts/restore-db.sh backups/brainbro-db-YYYYMMDD-HHMMSS.dump
 ```
 
-It takes either kind of dump, automatic or manual.
+It takes either kind of dump, automatic or manual. The restore runs in one transaction.
+If PostgreSQL rejects part of the dump, it rolls back the changes. The script restarts
+`api` and `worker` after either outcome and reports a failed restore with a nonzero exit status.
 
 ## Other stacks
 

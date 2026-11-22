@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -39,13 +40,16 @@ class ImportViewSet(
         except QuotaExceeded as exc:
             raise serializers.ValidationError({"file": str(exc)}) from None
         with transaction.atomic():
-            imports = self.get_queryset().select_for_update()
+            # Concurrent first imports have no job row to lock yet.
+            get_user_model().objects.select_for_update(no_key=True).only("pk").get(
+                pk=request.user.pk
+            )
             # One that has been pending past the task's time limit is stuck.
-            running = imports.filter(
+            running = self.get_queryset().filter(
                 status=Import.Status.PENDING,
                 created_at__gt=timezone.now() - timedelta(seconds=IMPORT_TIME_LIMIT),
-            ).exists()
-            if running:
+            )
+            if running.exists():
                 return Response(
                     {"detail": "An import is already running."},
                     status=status.HTTP_409_CONFLICT,

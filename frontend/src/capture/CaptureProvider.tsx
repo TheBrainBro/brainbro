@@ -54,6 +54,10 @@ function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
+function cancelledResult(id: string) {
+  return { id, error: t('capturing.cancelled') }
+}
+
 /** Worth sending again later: no network, no session, or the server failed. */
 function isTransient(error: unknown) {
   if (!(error instanceof ApiError)) return true
@@ -185,16 +189,17 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     try {
       const item = await send(entry, controller.signal)
       const batch = batches.current.get(entry.batch)
+      // Swap in the server item once the list has it, so nothing flickers.
+      if (!batch?.undone) await queryClient.invalidateQueries({ queryKey: itemsKey })
       if (batch?.undone) {
         // Undo came while the response was on its way.
         await api('/items/triage/', {
           method: 'POST',
           body: JSON.stringify({ ids: [item.id], action: 'delete' }),
         })
+        await queryClient.invalidateQueries({ queryKey: itemsKey })
         return
       }
-      // Swap in the server item once the list has it, so nothing flickers.
-      await queryClient.invalidateQueries({ queryKey: itemsKey })
       remove(entry.id)
       settle(entry, { id: entry.id, item })
     } catch (error) {
@@ -306,7 +311,9 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
     queue.current.push(...entries.filter((entry) => entry.state === 'queued'))
     pump()
-    return Promise.all(promises)
+    return Promise.all(promises).then((results) =>
+      batch.undone ? results.map(({ id }) => cancelledResult(id)) : results,
+    )
   }
 
   function retry(id: string) {
@@ -331,9 +338,12 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
     batch.undone = true
     setToast(null)
     queue.current = queue.current.filter((entry) => entry.batch !== batch.id)
-    for (const entry of pending.filter((candidate) => candidate.batch === batch.id)) {
-      controllers.current.get(entry.id)?.abort()
-      remove(entry.id)
+    for (const { id } of pending.filter((entry) => entry.batch === batch.id)) {
+      controllers.current.get(id)?.abort()
+      settlers.current.get(id)?.(cancelledResult(id))
+      settlers.current.delete(id)
+      observers.current.delete(id)
+      remove(id)
     }
     if (batch.created.length) {
       // The album too, if they were grouped (deleting it takes its images).
