@@ -1,9 +1,13 @@
 import io
 import json
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connections, transaction
+from rest_framework.test import APIClient
 
 from apps.imports.models import Import
 from apps.items.models import Item
@@ -65,6 +69,38 @@ def test_one_at_a_time(api, user):
     )
 
     assert response.status_code == 409
+
+
+@pytest.mark.django_db(transaction=True)
+def test_overlapping_first_imports(api, user, monkeypatch):
+    queued = []
+    monkeypatch.setattr("apps.imports.views.run_import.delay", queued.append)
+    entered = Event()
+
+    def submit(client):
+        return client.post(
+            "/api/imports/", {"file": zipped({"A.md": "a"})}, format="multipart"
+        ).status_code
+
+    def second_request():
+        try:
+            client = APIClient()
+            client.force_authenticate(user)
+            entered.set()
+            return submit(client)
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with transaction.atomic():
+            assert submit(api) == 202
+            second = pool.submit(second_request)
+            assert entered.wait(timeout=5)
+            # The first request has saved its job but hasn't committed yet.
+            with pytest.raises(TimeoutError):
+                second.result(timeout=0.5)
+        assert second.result(timeout=5) == 409
+    assert Import.objects.count() == len(queued) == 1
 
 
 def test_only_zips_up_to_the_limit(api, settings):

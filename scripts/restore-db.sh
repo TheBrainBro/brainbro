@@ -12,7 +12,12 @@ read -r -p "This replaces the current database with $dump. Continue? [y/N] " ans
 [ "$answer" = "y" ] || { echo "Aborted."; exit 1; }
 
 compose stop api worker
+restore_status=0
 compose exec -T postgres sh -c \
-  'pg_restore --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$dump"
-compose up -d api worker
+  'pg_restore --single-transaction --clean --if-exists --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$dump" || restore_status=$?
+if [ "$restore_status" -ne 0 ]; then
+  echo "Database restore failed. Restarting api and worker." >&2
+fi
+compose start api worker
+[ "$restore_status" -eq 0 ] || exit "$restore_status"
 echo "Database restored from $dump"

@@ -782,6 +782,7 @@ export const es: Messages = {
     stop: 'Detener',
   },
   capturing: {
+    cancelled: 'Captura cancelada',
     pastedFile: 'Archivo pegado',
     folder: 'Carpeta',
     folderReason: 'No se admiten carpetas, suelta los archivos que contienen',
