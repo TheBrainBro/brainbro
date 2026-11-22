@@ -388,6 +388,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.exports.tasks.delete_old_exports",
         "schedule": crontab(minute=30),
     },
+    "index-upload": {
+        "task": "apps.items.tasks.index_upload",
+        "schedule": 15.0,
+        "options": {"expires": 15},
+    },
     "embed-items": {
         "task": "apps.items.tasks.embed_items",
         "schedule": 60.0,

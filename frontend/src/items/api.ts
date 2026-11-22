@@ -161,8 +161,16 @@ export function useItemApps() {
   })
 }
 
-/** A search match; an album's image shows up as its album, saying which image. */
-export type SearchResult = { item: Item; album_image: string | null }
+export type ContentMatch = {
+  text: string
+  page: number | null
+  start_seconds: number | null
+  end_seconds: number | null
+  album_image?: string
+}
+
+/** An album's image shows up as its album, saying which image. */
+export type SearchResult = { item: Item; album_image: string | null; matches?: ContentMatch[] }
 
 /** The best matches for `q` (archived included); the last results stay while typing. */
 export function useSearch(q: string) {

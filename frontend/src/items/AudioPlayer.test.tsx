@@ -33,9 +33,13 @@ let count = 0
 async function renderPlayer({
   autoPlay = false,
   size,
-}: { autoPlay?: boolean; size?: number } = {}) {
+  mime,
+  startSeconds,
+}: { autoPlay?: boolean; size?: number; mime?: string; startSeconds?: number } = {}) {
   const src = `/file/${++count}`
-  const view = render(<AudioPlayer src={src} size={size} autoPlay={autoPlay} />)
+  const view = render(
+    <AudioPlayer src={src} size={size} mime={mime} autoPlay={autoPlay} startSeconds={startSeconds} />,
+  )
   const audio = view.container.querySelector('audio')!
   const play = vi.fn(async () => {
     Object.defineProperty(audio, 'paused', {
@@ -112,20 +116,71 @@ describe('AudioPlayer', () => {
     expect(audio.currentTime).toBe(0)
   })
 
-  it('plays a browser recording from a copy with its length written in', async () => {
+  it.each(['audio/mpeg', 'audio/webm'])('streams a seekable %s hit during waveform download', async (mime) => {
+    let finish!: (response: Response) => void
+    vi.mocked(fetch).mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    const { audio, play, set } = await renderPlayer({
+      mime, autoPlay: true, startSeconds: 3.25,
+    })
+    expect(audio.getAttribute('src')).toMatch(/^\/file\//)
+    expect(fetch).toHaveBeenCalledOnce()
+    set('duration', 12)
+    fireEvent.loadedMetadata(audio)
+    expect(audio.currentTime).toBe(3.25)
+    expect(play).toHaveBeenCalledOnce()
+
+    audio.currentTime = 8
+    await act(async () => finish(new Response('audio')))
+    expect(audio.currentTime).toBe(8)
+    expect(play).toHaveBeenCalledOnce()
+  })
+
+  it.each([undefined, 3.25])('plays a corrected WebM from its requested start (%s)', async (startSeconds) => {
     const recording = [
       [0x1a, 0x45, 0xdf, 0xa3, 0x80],
       [0x18, 0x53, 0x80, 0x67, 0xff],
       [0x15, 0x49, 0xa9, 0x66, 0x80],
     ].flat()
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(new Uint8Array(recording), { headers: { 'Content-Type': 'audio/webm' } }),
-    )
+    let finish!: (response: Response) => void
+    vi.mocked(fetch).mockReturnValue(new Promise((resolve) => { finish = resolve }))
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:fixed') }))
-    const { audio, play } = await renderPlayer({ autoPlay: true })
+    const { audio, play, set } = await renderPlayer({ mime: 'audio/webm', autoPlay: true, startSeconds })
+    if (startSeconds !== undefined) {
+      expect(audio.getAttribute('src')).toMatch(/^\/file\//)
+      set('readyState', 1)
+      set('duration', Infinity)
+      fireEvent.loadedMetadata(audio)
+      expect(play).not.toHaveBeenCalled()
+    }
+    await act(async () => finish(
+      new Response(new Uint8Array(recording), { headers: { 'Content-Type': 'audio/webm' } }),
+    ))
 
     expect(audio).toHaveAttribute('src', 'blob:fixed')
+    if (startSeconds !== undefined) {
+      expect(play).not.toHaveBeenCalled()
+      set('duration', 12)
+      fireEvent.loadedMetadata(audio)
+      expect(audio.currentTime).toBe(startSeconds)
+    }
     expect(play).toHaveBeenCalledOnce()
+  })
+
+  it('tries the native seek when decoding a durationless WebM fails', async () => {
+    let fail!: (error: Error) => void
+    vi.mocked(fetch).mockReturnValue(new Promise((_, reject) => { fail = reject }))
+    const { audio, play, set } = await renderPlayer({
+      mime: 'audio/webm', autoPlay: true, startSeconds: 2.5,
+    })
+    set('readyState', 1)
+    set('duration', 0)
+    fireEvent.loadedMetadata(audio)
+    expect(play).not.toHaveBeenCalled()
+    await act(async () => fail(new Error('Waveform unavailable')))
+    expect(audio.getAttribute('src')).toMatch(/^\/file\//)
+    expect(audio.currentTime).toBe(2.5)
+    expect(play).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled()
   })
 
   it('plays files that already have their length as they are, right away', async () => {

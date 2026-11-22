@@ -3,7 +3,8 @@ import uuid
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery, Window
+from django.db.models.functions import Coalesce, RowNumber
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, serializers, status, viewsets
@@ -28,6 +29,7 @@ from apps.public.sites import public_url
 from .albums import AlbumError, make_album, set_album_images, ungroup
 from .capture import infer_item_fields
 from .collection_images import make_square_image
+from .extractors import supports as supports_content_search
 from .models import (
     Collection,
     CollectionItem,
@@ -40,8 +42,9 @@ from .models import (
 from .note_images import MAX_PASTED_SIZE
 from .notes import sync_images
 from .ordering import move_collection, move_in_collection, move_in_inbox
+from .passage_search import locations
 from .ranges import file_response
-from .search import find
+from .search import find, normalize
 from .serializers import (
     ITEM_PREFETCH,
     AlbumSerializer,
@@ -58,6 +61,7 @@ from .serializers import (
 from .tasks import (
     fetch_link_preview,
     generate_thumbnail,
+    index_upload,
     make_note_image_display,
 )
 from .titles import linkable_titles
@@ -181,6 +185,12 @@ def create_upload_item(owner, file, upload):
     # Uploads spooled to disk are moved into storage, not copied.
     item.file.save(f"upload.{upload.extension}", file, save=False)
     item.save()
+    if supports_content_search(upload.mime):
+        # The periodic sweep picks up the file if the broker is unavailable.
+        transaction.on_commit(
+            lambda: index_upload.apply_async(args=[str(item.pk)], retry=False),
+            robust=True,
+        )
     return item
 
 
@@ -419,33 +429,43 @@ class ItemViewSet(
     def search(self, request):
         """
         `?q=<text>`: the best matches, archived included, as
-        `[{"item", "album_image"}]`. An album's image shows up as its album,
-        with `album_image` saying which one matched.
+        `[{"item", "album_image", "matches"}]`. Each match contains a snippet
+        and its location. An album's matching photos show up through the album.
         """
         text = request.query_params.get("q", "").strip()
         if not text:
             return Response([])
         mine = Item.objects.filter(owner=request.user, is_sample=False)
-        matches = find(mine, text).order_by("-rank", "-created_at")
-        found = {}
-        # More rows than needed: several images of one album take one place.
-        for item_id, album_id in matches.values_list("id", "album_id")[
-            : SEARCH_LIMIT * 5
-        ]:
-            if album_id:
-                found.setdefault(album_id, item_id)
-            else:
-                found.setdefault(item_id, None)
-            if len(found) == SEARCH_LIMIT:
-                break
+        query = normalize(text)
+        order = ["-rank", "-created_at", "pk"]
+        # Collapse images to their album before taking the top results so a
+        # large album cannot crowd other matching items out of the palette.
+        matches = (
+            find(mine, text, normalized=query)
+            .annotate(
+                result_id=Coalesce("album_id", "id"),
+                hit=Window(RowNumber(), partition_by="result_id", order_by=order),
+            )
+            .filter(hit=1)
+            .order_by(*order)
+        )
+        found = {
+            result_id: item_id if result_id != item_id else None
+            for result_id, item_id in matches.values_list("result_id", "id")[
+                :SEARCH_LIMIT
+            ]
+        }
         items = mine.prefetch_related(*ITEM_PREFETCH).in_bulk(found)
+        hits = locations(mine, items, query)
         return Response(
             [
                 {
                     "item": self.get_serializer(items[item_id]).data,
                     "album_image": found[item_id],
+                    "matches": hits[item_id],
                 }
                 for item_id in found
+                if item_id in items
             ]
         )
 

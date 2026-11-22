@@ -1,12 +1,14 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
-import type { Item } from '../items/api'
+import type { ContentMatch, Item } from '../items/api'
+
+export type ViewerTarget = { image: string | null; match?: ContentMatch }
 
 export type ViewerOptions = {
   /** More buttons for the viewer's bar (Remove from board). */
   actions?: (item: Item, close: () => void) => ReactNode
-  /** When the item opened is an album: which of its images to show first. */
-  image?: string
+  /** One destination per search result, including repeated hits in the same item. */
+  targets?: ViewerTarget[]
 }
 
 export type Viewer = {

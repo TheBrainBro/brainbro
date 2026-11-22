@@ -55,13 +55,18 @@ function useWaveform(src: string | null, size: number | undefined, root: HTMLEle
 export function AudioPlayer({
   src,
   size,
+  mime,
   autoPlay = false,
+  startSeconds,
   className = '',
 }: {
   src: string | null
   /** Its size in bytes: big files play without a waveform. */
   size?: number
+  mime?: string
   autoPlay?: boolean
+  /** Start at a transcript match when its playable source has loaded. */
+  startSeconds?: number
   className?: string
 }) {
   const t = useT()
@@ -70,6 +75,8 @@ export function AudioPlayer({
   const waveform = useWaveform(src, size, root)
   const [paused, setPaused] = useState(true)
   const [time, setTime] = useState(0)
+  const [positioned, setPositioned] = useState(startSeconds === undefined)
+  const [needsRepair, setNeedsRepair] = useState(false)
   const [ownDuration, setOwnDuration] = useState<number | null>(null)
   const [speed, setSpeed] = useState(1)
   // Play came before the waveform: it goes on with what it was given.
@@ -80,24 +87,10 @@ export function AudioPlayer({
   const duration = waveform?.duration ?? ownDuration
   const progress = duration ? Math.min(time / duration, 1) : 0
 
-  // What plays: chosen once the waveform is in, or on Play if that's first.
-  const chosen = early ? src : waveform === undefined ? null : (waveform?.src ?? src)
-
-  // Started once what plays is chosen, so it doesn't start on one and switch.
-  useEffect(() => {
-    const element = audio.current
-    if (autoPlay && chosen && element && !autoStarted.current) {
-      autoStarted.current = true
-      start(element)
-    }
-  }, [autoPlay, chosen])
-
-  useEffect(() => {
-    const element = audio.current
-    return () => {
-      if (playing === element) playing = null
-    }
-  }, [])
+  // Transcript hits start on the original. Native metadata decides whether
+  // a browser recording actually needs the repaired copy before seeking.
+  const useOriginal = early || (startSeconds !== undefined && !needsRepair)
+  const chosen = useOriginal ? src : waveform === undefined ? null : (waveform?.src ?? src)
 
   function start(element: HTMLAudioElement) {
     if (playing && playing !== element) playing.pause()
@@ -105,6 +98,50 @@ export function AudioPlayer({
     // Older browsers (and jsdom) return nothing.
     element.play()?.catch(() => setPaused(true))
   }
+
+  // Started once what plays is chosen, so it doesn't start on one and switch.
+  useEffect(() => {
+    const element = audio.current
+    if (!chosen || !element) return
+    const prepare = () => {
+      if (startSeconds !== undefined) {
+        const hasDuration = Number.isFinite(element.duration) && element.duration > 0
+        if (!hasDuration && !needsRepair && (!mime || mime === 'audio/webm')) {
+          setNeedsRepair(true)
+          return
+        }
+        // If waveform repair failed or was skipped, give the browser a
+        // chance to seek the original and leave the playback controls usable.
+        try {
+          element.currentTime = hasDuration ? Math.min(startSeconds, element.duration) : startSeconds
+        } catch {
+          // Some browsers reject a seek when the file has no usable timeline.
+        }
+        setTime(element.currentTime)
+        setPositioned(true)
+      }
+      if (autoPlay && !autoStarted.current) {
+        autoStarted.current = true
+        start(element)
+      }
+    }
+    // After a source switch, readyState may still describe the original.
+    const metadataReady = element.readyState >= HTMLMediaElement.HAVE_METADATA &&
+      (chosen === src || element.currentSrc === chosen)
+    if (startSeconds === undefined || metadataReady) {
+      prepare()
+    } else {
+      element.addEventListener('loadedmetadata', prepare, { once: true })
+      return () => element.removeEventListener('loadedmetadata', prepare)
+    }
+  }, [autoPlay, chosen, mime, needsRepair, src, startSeconds])
+
+  useEffect(() => {
+    const element = audio.current
+    return () => {
+      if (playing === element) playing = null
+    }
+  }, [])
 
   function toggle() {
     const element = audio.current
@@ -158,7 +195,7 @@ export function AudioPlayer({
         type="button"
         aria-label={paused ? t('audio.play') : t('audio.pause')}
         className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-600 text-white shadow-sm transition hover:bg-accent-500 active:scale-95 disabled:opacity-50"
-        disabled={!src}
+        disabled={!src || !positioned}
         onClick={toggle}
       >
         {paused ? (

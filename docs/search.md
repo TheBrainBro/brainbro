@@ -2,7 +2,7 @@
 
 ⌘K (Ctrl+K elsewhere), or the search button in the top bar, opens a palette from any screen,
 text fields included. It finds boards and collections by name, and items by what they say:
-titles, note text, URLs, link previews (title, description, site, author) and file names.
+titles, note text, URLs, link previews (title, description, site, author) and file names. It also finds text inside uploaded documents, images and recordings.
 
 ## Matching
 
@@ -21,6 +21,33 @@ titles, note text, URLs, link previews (title, description, site, author) and fi
   edited text is found by meaning within a minute (by its words right away).
 - Archived items are included, marked *Archived*. An album's images show up as their album,
   and opening it starts on the image that matched.
+
+## Finding a page, photo or spoken phrase
+
+Search for a phrase you remember, such as `delivery window`. The palette shows the
+surrounding text for each match. Choose a result to open the matching PDF page, see the
+photo, scroll to the passage in a text file, or play the recording from the matched word.
+If the phrase occurs more than once in a recording, the timestamps let you choose which
+occurrence to hear. The viewer arrows step through the search results.
+
+New captures go straight to the background worker. A periodic sweep also picks up
+existing uploads, including archived files and photos in albums. Each completed PDF page
+or audio chunk becomes searchable. If the worker stops, the next run resumes after the
+last saved page or chunk. A file that cannot be decoded stops retrying, and its earlier
+matches remain available.
+
+| File | What gets indexed |
+| --- | --- |
+| PDF | Embedded text by page, with optical character recognition (OCR) for scans and pages that combine a typed header with a scanned image. Page numbers start at 1 and follow the original file order. Up to 200 pages and 64,000 characters per page. |
+| Photo | Visible text in the first image frame. OCR reads English and Spanish by default. |
+| Recording | A local multilingual Whisper model transcribes up to the first 60 minutes. The start and end times are estimates from speech recognition. |
+| Plain text | UTF-8 files the text viewer can open, including JSON, XML and YAML, up to 512 KiB. |
+
+A file-content match requires all query words in one passage. The palette offers up to
+five locations per item or album. Each upload contributes at most two million extracted
+characters or 5,000 passages. Files that produce no text remain findable by name.
+Recognition runs on the self-hosted worker. The production image includes the OCR
+languages and speech model.
 
 ## Order
 
@@ -55,6 +82,27 @@ Each item has two columns that Postgres generates and keeps up to date on every 
   it: `ts_rank` on word prefixes, plus a small share of the trigram similarity. The `rank`
   of a result is the number of words it matches plus that relevance, squeezed below 1.
 
+### Indexing uploads
+
+The worker checks for older uploads every 15 seconds and processes up to 32 eligible
+files per sweep. After 10 seconds it yields at the next page or audio chunk. Newly
+captured files receive their own task once the upload commits. Failed dispatches are
+covered by the sweep. Replacing a file resets its progress.
+
+A temporary processing failure is retried after five minutes. After three unsuccessful
+attempts at the same position the worker stops. Fixing a missing media tool or model
+can make those files readable. To retry them from their saved positions, run this in
+`python manage.py shell` on the server.
+
+```python
+from django.utils import timezone
+from apps.items.models import FileIndex
+
+FileIndex.objects.filter(retry_at__isnull=True, attempts__gt=0).update(
+    retry_at=timezone.now(), attempts=0
+)
+```
+
 ### Meaning
 
 The `embedder` container (`docker/embedder`) runs `paraphrase-multilingual-MiniLM-L12-v2` with
@@ -87,5 +135,10 @@ leave both columns out (`ItemManager`): only searches read them.
 
 | Method | Path | |
 | --- | --- | --- |
-| `GET` | `/api/items/search/?q=<text>` | The best 20 matches as `[{"item", "album_image"}]`, archived included. `album_image` is the id of the image that matched when `item` is an album, else `null`. |
+| `GET` | `/api/items/search/?q=<text>` | The best 20 matches as `[{"item", "album_image", "matches"}]`, archived included. `album_image` is the id of the image that matched when `item` is an album, else `null`. |
 | `GET` | `/api/items/?q=<text>` | The usual list (album images left out, other filters apply), with the same matching, sorted by relevance. The board's *Add items* panel uses it. |
+
+Each entry in `matches` contains a short `text` excerpt, `page`, `start_seconds` and
+`end_seconds`. Locations that do not apply are `null`. For an album hit,
+`matches[].album_image` identifies the specific photo. Metadata-only results have an
+empty `matches` list.

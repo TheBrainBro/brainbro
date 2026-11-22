@@ -40,7 +40,7 @@ from django.db.models import (
     When,
 )
 from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Coalesce, Concat, Lower
+from django.db.models.functions import Coalesce, Concat, Greatest, Lower
 from pgvector.django import CosineDistance
 
 from . import embedder
@@ -106,22 +106,32 @@ def normalize(text):
         return cursor.fetchone()[0]
 
 
-def find(items, text):
+def find(items, text, *, normalized=None):
     """
     `items` matching `text`, annotated with `rank` (higher is better): the
     number of longer words that match, plus a relevance score below 1, plus
     how close the item is in meaning. Items that only match through typos
     rank below 0.
     """
+    # Imported here because Item uses the search expressions above in its model.
+    from .passage_search import matching_passages
+
+    query = normalize(text) if normalized is None else normalized
+    if not query.strip():
+        return items.none().annotate(rank=Value(0.0))
     close = _close_in_meaning(items, text)
-    query = normalize(text)
+    passage_hit = Q(pk__in=matching_passages(items, query).order_by().values("item_id"))
     every, some, matched = Q(), Q(pk__in=list(close)), Value(0.0)
     exact, typos, longer = Q(pk__in=[]), False, 0
     for term in query.split():
         match = Q(search_text__contains=term)
         # Similar words only stand in for one that isn't there: "paris"
         # shouldn't bring up "parts" when there are notes about Paris.
-        typo = len(term) >= TYPO_MIN_LENGTH and not items.filter(match).exists()
+        typo = (
+            len(term) >= TYPO_MIN_LENGTH
+            and not items.filter(match).exists()
+            and not matching_passages(items, term).exists()
+        )
         if typo:
             match = Q(search_text__trigram_word_similar=term)
             typos = True
@@ -134,7 +144,7 @@ def find(items, text):
             )
             if not typo:
                 exact |= match
-    items = items.filter(every | some)
+    items = items.filter(every | some | passage_hit)
     # A similar word alone is a weak guess ("paris" for "para"): below every
     # item that has a word as written or a close meaning.
     penalty = Value(0.0)
@@ -162,11 +172,16 @@ def find(items, text):
     # above most partial matches of a sentence, below matches of every word.
     weight = max(longer - 0.5, 0.5)
     # Squeezed below 1, so one more matching word always ranks higher.
+    metadata_rank = matched + F("relevance") / (F("relevance") + 1.0)
+    metadata_rank += meaning * weight - penalty
+    # An actual passage containing every word ranks with other full matches,
+    # including when the filename bears no relation to the words in the file.
     return items.annotate(relevance=relevance).annotate(
-        rank=matched
-        + F("relevance") / (F("relevance") + 1.0)
-        + meaning * weight
-        - penalty
+        rank=Case(
+            When(passage_hit, then=Greatest(metadata_rank, Value(longer + 0.15))),
+            default=metadata_rank,
+            output_field=FloatField(),
+        )
     )
 
 
